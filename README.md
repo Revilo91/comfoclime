@@ -19,4 +19,6 @@ Feel free to extend!
 There are many more telemetry and property values, that make sense to be offered by the integration. For now my primary goal is to control the ComfoClime unit, as I already integrated the ComfoAirQ via KNX. Only a few sensors, that are not available via KNX, are integrated. 
 Also I plan to care about translations. 
 
-Feel free to participate if you have a ComfoClime unit!
+I'm not a python native speaker, so this integration may lack of good error handling and coding style. I appreciate any suggestions or pull requests that clean up my messy code 😊
+
+Feel free to participate! 🙋‍♂️
