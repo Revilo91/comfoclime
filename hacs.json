@@ -1,0 +1,7 @@
+{
+  "name": "ComfoClime",
+  "render_readme": true,
+  "domains": ["comfoclime"],
+  "country": "any",
+  "homeassistant": "2023.0.0"
+}
