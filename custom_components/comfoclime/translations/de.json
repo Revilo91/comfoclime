@@ -4,6 +4,12 @@
         "indoor_temperature": {
           "name": "Innentemperatur"
         },
+        "fan_speed": {
+            "name": "Lüfterstufe"
+        },
+        "temperature_profile_status": {
+            "name": "Aktives Temperaturprofil"
+        },
         "supply_air_temperature": {
           "name": "Zulufttemperatur"
         },

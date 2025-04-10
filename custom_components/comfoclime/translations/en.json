@@ -4,6 +4,12 @@
         "indoor_temperature": {
           "name": "Indoor Temperature"
         },
+        "fan_speed": {
+            "name": "Fan Speed Level"
+        },
+        "temperature_profile_status": {
+            "name": "Active Temperature Profile"
+        },
         "supply_air_temperature": {
           "name": "Supply Air Temperature"
         },

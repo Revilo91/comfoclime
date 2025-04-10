@@ -56,8 +56,8 @@ DASHBOARD_SENSORS = [
     },
     {
         "key": "temperatureProfile",
-        "name": "Temperature Profile",
-        "translation_key": "temperature_profile",
+        "name": "Temperature Profile Status",
+        "translation_key": "temperature_profile_status",
     },
     {
         "key": "heatPumpStatus",
