@@ -1,0 +1,99 @@
+{
+    "entity": {
+      "sensor": {
+        "indoor_temperature": {
+          "name": "Indoor Temperature"
+        },
+        "supply_air_temperature": {
+          "name": "Supply Air Temperature"
+        },
+        "tpma_temperature": {
+            "name": "Mean Outdoor Temperature"
+        },
+        "current_comfort_temperature": {
+            "name": "Current Comfort Temperature"
+        },
+        "power_heatpump": {
+            "name": "Power Heatpump"
+        },
+        "power_ventilation": {
+            "name": "Power Ventilation"
+        },
+        "bypass_state": {
+            "name": "Bypass State"
+        },
+        "exhaust_fan_duty": {
+            "name": "Exhaust Fan Duty"
+        },
+        "supply_fan_duty": {
+            "name": "Supply Fan Duty"
+        },
+        "exhaust_fan_speed": {
+            "name": "Exhaust Fan Speed"
+        },
+        "supply_fan_speed": {
+            "name": "Supply Fan Speed"
+        },
+        "energy_ytd": {
+            "name": "Ventilation Energy Year"
+        },
+        "energy_total": {
+            "name": "Ventilation Energy Total"
+        },
+        "ventilation_disbalance": {
+            "name": "Ventilation Disbalance"
+        },
+        "humidity_comfort_control": {
+            "name": "Ventilation Humidity Control"
+        },
+        "humidity_protection": {
+            "name": "Ventilation Humidity Protection"
+        }
+      },
+      "select": {
+        "temperature_profile": {
+          "name": "Temperature Profile"
+        },
+        "season_mode": {
+            "name": "Season Mode"
+        }
+      },
+      "number": {
+        "heating_comfort_temperature": {
+            "name": "Heating Comfort Temperature"
+        },
+        "heating_knee_point": {
+            "name": "Heating Curve Knee Point"
+        },
+        "heating_reduction_delta": {
+            "name": "Heating Reduction Delta"
+        },
+        "cooling_comfort_temperature": {
+            "name": "Cooling Comfort Temperature"
+        },
+        "cooling_knee_point": {
+            "name": "Cooling Curve Knee Point"
+        },
+        "cooling_temperature_limit": {
+            "name": "Cooling Temperaturelimit"
+        },
+        "manual_comfort_temperature": {
+            "name": "Manual Comfort Temperature"
+        },
+        "heating_threshold": {
+            "name": "Heating Threshold"
+        },
+        "cooling_threshold": {
+            "name": "Cooling Threshold"
+        }
+      },
+      "switch": {
+        "automatic_season_detection": {
+            "name": "Automatic Season Detection"
+        },
+        "automatic_comfort_temperature": {
+            "name": "Automatic Comfort Temperature"
+        }
+      }
+    }
+  }

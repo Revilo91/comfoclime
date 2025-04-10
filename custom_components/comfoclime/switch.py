@@ -12,8 +12,16 @@ from .comfoclime_api import ComfoClimeAPI
 _LOGGER = logging.getLogger(__name__)
 
 SWITCHES = [
-    {"key": "season.status", "name": "Automatic Season Detection"},
-    {"key": "temperature.status", "name": "Automatic Comfort Temperature"},
+    {
+        "key": "season.status",
+        "name": "Automatic Season Detection",
+        "translation_key": "automatic_season_detection",
+    },
+    {
+        "key": "temperature.status",
+        "name": "Automatic Comfort Temperature",
+        "translation_key": "automatic_comfort_temperature",
+    },
 ]
 
 
@@ -34,7 +42,13 @@ async def async_setup_entry(
 
     switches.extend(
         ComfoClimeModeSwitch(
-            hass, api, s["key"], s["name"], device=main_device, entry=entry
+            hass,
+            api,
+            s["key"],
+            s["translation_key"],
+            s["name"],
+            device=main_device,
+            entry=entry,
         )
         for s in SWITCHES
     )
@@ -43,7 +57,7 @@ async def async_setup_entry(
 
 
 class ComfoClimeModeSwitch(SwitchEntity):
-    def __init__(self, hass, api, key, name, device=None, entry=None):
+    def __init__(self, hass, api, key, translation_key, name, device=None, entry=None):
         self._hass = hass
         self._api = api
         self._key_path = key.split(".")
@@ -53,7 +67,9 @@ class ComfoClimeModeSwitch(SwitchEntity):
         self._entry = entry
         self._attr_config_entry_id = entry.entry_id
         self._attr_unique_id = f"{entry.entry_id}_switch_{key}"
-        self._attr_name = name
+        # self._attr_name = name
+        self._attr_translation_key = translation_key
+        self._attr_has_entity_name = True
 
     @property
     def is_on(self):

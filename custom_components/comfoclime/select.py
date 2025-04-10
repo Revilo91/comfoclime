@@ -15,11 +15,13 @@ SELECT_ENTITIES = [
     {
         "key": "temperatureProfile",
         "name": "Temperature Profile",
+        "translation_key": "temperature_profile",
         "options": {0: "Comfort", 1: "Power", 2: "Eco"},
     },
     {
         "key": "season.season",
         "name": "Season Mode",
+        "translation_key": "season_mode",
         "options": {1: "Heating", 0: "Transition", 2: "Cooling"},
     },
 ]
@@ -56,7 +58,9 @@ class ComfoClimeSelect(SelectEntity):
         self._entry = entry
         self._attr_config_entry_id = entry.entry_id
         self._attr_unique_id = f"{entry.entry_id}_select_{conf['key']}"
-        self._attr_name = conf["name"]
+        # self._attr_name = conf["name"]
+        self._attr_translation_key = conf["translation_key"]
+        self._attr_has_entity_name = True
 
     @property
     def options(self):
