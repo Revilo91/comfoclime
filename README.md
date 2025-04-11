@@ -23,3 +23,8 @@ There are many more telemetry and property values, that make sense to be offered
 I'm not a python native speaker, so this integration may lack of good error handling and coding style. I appreciate any suggestions or pull requests that clean up my messy code 😊
 
 Feel free to participate! 🙋‍♂️
+
+## Thanks to...
+
+@michaelarnauts and his integration of ComfoConnect, where I discovered a lot of telemetries and properties of the ventilation unit:
+https://github.com/michaelarnauts/aiocomfoconnect 
