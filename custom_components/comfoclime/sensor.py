@@ -365,9 +365,6 @@ class ComfoClimeSensor(SensorEntity):
         # self._attr_name = name
         self._attr_translation_key = translation_key
         self._attr_has_entity_name = True
-        _LOGGER.debug(
-            f"{self._attr_unique_id} translation_key: {self._attr_translation_key}, device_info: {self.device_info}"
-        )
 
     @property
     def state(self):
@@ -440,7 +437,6 @@ class ComfoClimeTelemetrySensor(SensorEntity):
         # self._attr_name = name
         self._attr_translation_key = translation_key
         self._attr_has_entity_name = True
-        _LOGGER.debug(f"Translation-Key für Sensor: {self._attr_translation_key}")
 
     @property
     def state(self):
@@ -513,7 +509,6 @@ class ComfoClimePropertySensor(SensorEntity):
         # self._attr_name = name
         self._attr_translation_key = translation_key
         self._attr_has_entity_name = True
-        _LOGGER.debug(f"Translation-Key für Sensor: {self._attr_translation_key}")
 
     @property
     def native_value(self):

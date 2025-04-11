@@ -100,6 +100,11 @@
         "automatic_comfort_temperature": {
             "name": "Automatic Comfort Temperature"
         }
+      },
+      "fan": {
+        "fan_speed": {
+            "name": "Fan Speed"
+        }
       }
     }
   }

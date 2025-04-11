@@ -209,7 +209,7 @@ class ComfoClimeAPI:
         response.raise_for_status()
         return response.status_code == 200
 
-    def set_temperature_profile(self, profile: int):
+    def set_device_setting(self, temperature_profile=None, fan_speed=None):
         if not self.uuid:
             self.get_uuid()
 
@@ -217,15 +217,18 @@ class ComfoClimeAPI:
             "uuid": self.uuid,
             "systemUuid": self.uuid,
             "setPointTemperature": None,
-            "temperatureProfile": profile,
-            "fanSpeed": None,
+            "temperatureProfile": temperature_profile,
+            "fanSpeed": fan_speed,
             "status": None,
         }
 
         url = f"{self.base_url}/device"
-        response = requests.put(url, json=payload, timeout=5)
-        response.raise_for_status()
-        return response.status_code == 200
+        try:
+            response = requests.put(url, json=payload, timeout=5)
+            response.raise_for_status()
+        except Exception as e:
+            _LOGGER.error(f"Fehler beim Schreiben der Geräteeinstellung: {e}")
+            raise
 
     async def async_set_property_for_device(
         self,

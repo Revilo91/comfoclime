@@ -100,7 +100,7 @@ class ComfoClimeSelect(SelectEntity):
 
         try:
             if self._key == "temperatureProfile":
-                self._api.set_temperature_profile(value)
+                self._api.set_device_setting(value)
             else:
                 section = self._key_path[0]
                 key = self._key_path[1]

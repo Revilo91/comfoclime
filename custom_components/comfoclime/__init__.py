@@ -22,7 +22,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     host = entry.data["host"]
     api = ComfoClimeAPI(f"http://{host}")
     await hass.config_entries.async_forward_entry_setups(
-        entry, ["sensor", "switch", "number", "select"]
+        entry, ["sensor", "switch", "number", "select", "fan"]
     )
 
     async def handle_set_property_service(call: ServiceCall):

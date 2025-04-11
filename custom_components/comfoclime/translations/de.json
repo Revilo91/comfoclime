@@ -136,6 +136,17 @@
         "automatic_comfort_temperature": {
             "name": "Automatische Komforttemperatur"
         }
+      },
+      "fan": {
+        "fan_speed": {
+            "name": "Lüfter Stufe",
+            "state": {
+                "off": "Aus",
+                "low": "Niedrig",
+                "medium": "Mittel",
+                "high": "Hoch"
+            }
+        }
       }
     }
 }
