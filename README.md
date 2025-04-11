@@ -11,13 +11,13 @@ ComfoClime is a HVAC solution as additional device for the ComfoAir Q series. It
 * reading additional property values of all connected devices (sensors)
 * writing additional property values of all connected devices (service)
 * configuration via config flow by host/ip
+* locals in english and german
 
 All reverse engineered knowledge about the API is found here: https://github.com/msfuture/comfoclime_api/blob/main/ComfoClimeAPI.md
 Feel free to extend!
 
 ## Current ToDo / development
-There are many more telemetry and property values, that make sense to be offered by the integration. For now my primary goal is to control the ComfoClime unit, as I already integrated the ComfoAirQ via KNX. Only a few sensors, that are not available via KNX, are integrated. 
-Also I plan to care about translations. 
+There are many more telemetry and property values, that make sense to be offered by the integration. For now my primary goal is to control the ComfoClime unit, as I already integrated the ComfoAirQ via KNX. Only a few sensors, that are not available via KNX, are integrated.
 
 I'm not a python native speaker, so this integration may lack of good error handling and coding style. I appreciate any suggestions or pull requests that clean up my messy code 😊
 
