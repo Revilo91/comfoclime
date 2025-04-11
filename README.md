@@ -5,6 +5,7 @@ HomeAssistant integration of Zehnder ComfoClime
 ComfoClime is a HVAC solution as additional device for the ComfoAir Q series. It comes with its own app and an propietary JSON API. The ComfoClime unit is connected to the local network via WiFi/WLAN, the API is available only local via HTTP requests without authentication. This integration currently offers:
 * reading the dashboard data similar to the official app (sensors)
 * writing the active temperature profile (select)
+* setting the ventilation fan speed (fan)
 * reading and writing the thermalprofile (sensors, selects and number sliders)
 * reading additional telemetry values of all connected devices (sensors; known already from ComfoConnect integration)
 * arranging telemetry and property values into different devices
