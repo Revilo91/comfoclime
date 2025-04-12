@@ -48,12 +48,6 @@
         },
         "ventilation_disbalance": {
             "name": "Ventilation Disbalance"
-        },
-        "humidity_comfort_control": {
-            "name": "Ventilation Humidity Control"
-        },
-        "humidity_protection": {
-            "name": "Ventilation Humidity Protection"
         }
       },
       "select": {
@@ -62,6 +56,12 @@
         },
         "season_mode": {
             "name": "Season Mode"
+        },
+        "humidity_comfort_control": {
+            "name": "Ventilation Humidity Control"
+        },
+        "humidity_protection": {
+            "name": "Ventilation Humidity Protection"
         }
       },
       "number": {

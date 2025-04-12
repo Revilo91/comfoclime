@@ -64,23 +64,7 @@
                 "Cooling": "Kühlperiode",
                 "Transitional": "Übergangszeit"
             }
-        },
-        "humidity_comfort_control": {
-            "name": "Lüftung Feuchteregelung",
-            "state": {
-                "Off": "Aus",
-                "AutoOnly": "Nur bei Auto",
-                "On": "An"
-            }
-        },
-        "humidity_protection": {
-            "name": "Lüftung Feuchteschutz",
-            "state": {
-                "Off": "Aus",
-                "AutoOnly": "Nur bei Auto",
-                "On": "An"
-            }
-          }
+        }
       },
       "select": {
         "temperature_profile": {
@@ -98,7 +82,23 @@
                 "Cooling": "Kühlperiode",
                 "Transitional": "Übergangszeit"
             }
-        }
+        },
+        "humidity_comfort_control": {
+            "name": "Lüftung Feuchteregelung",
+            "state": {
+                "Off": "Aus",
+                "AutoOnly": "Nur bei Auto",
+                "On": "An"
+            }
+        },
+        "humidity_protection": {
+            "name": "Lüftung Feuchteschutz",
+            "state": {
+                "Off": "Aus",
+                "AutoOnly": "Nur bei Auto",
+                "On": "An"
+            }
+          }
       },
       "number": {
         "heating_comfort_temperature": {

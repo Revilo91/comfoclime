@@ -12,3 +12,20 @@ SELECT_ENTITIES = [
         "options": {1: "Heating", 0: "Transition", 2: "Cooling"},
     },
 ]
+
+PROPERTY_SELECT_ENTITIES = {
+    1: [
+        {
+            "path": "29/1/6",
+            "name": "Humidity Comfort Control",
+            "translation_key": "humidity_comfort_control",
+            "options": {0: "Off", 1: "AutoOnly", 2: "On"},
+        },
+        {
+            "path": "29/1/7",  # X/Y/Z
+            "name": "Humidity Protection",
+            "translation_key": "humidity_protection",
+            "options": {0: "Off", 1: "AutoOnly", 2: "On"},
+        },
+    ]
+}

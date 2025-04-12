@@ -43,7 +43,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             return
         try:
             await api.async_set_property_for_device(
-                hass=hass,
+                hass,
                 device_uuid=device_uuid,
                 property_path=path,
                 value=value,

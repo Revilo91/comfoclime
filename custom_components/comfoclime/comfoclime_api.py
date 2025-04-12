@@ -250,6 +250,28 @@ class ComfoClimeAPI:
         signed: bool = True,
         faktor: float = 1.0,
     ):
+        async with self._request_lock:
+            return await hass.async_add_executor_job(
+                lambda: self.set_property_for_device(
+                    device_uuid,
+                    property_path,
+                    value,
+                    byte_count=byte_count,
+                    signed=signed,
+                    faktor=faktor,
+                )
+            )
+
+    def set_property_for_device(
+        self,
+        device_uuid: str,
+        property_path: str,
+        value: float,
+        *,
+        byte_count: int,
+        signed: bool = True,
+        faktor: float = 1.0,
+    ):
         if byte_count not in (1, 2):
             raise ValueError("Nur 1 oder 2 Byte unterstützt")
 
@@ -270,14 +292,11 @@ class ComfoClimeAPI:
         url = f"{self.base_url}/device/{device_uuid}/method/{x}/{y}/3"
         payload = {"data": [z] + data}
 
-        async with self._request_lock:
-            try:
-                response = await hass.async_add_executor_job(
-                    lambda: requests.put(url, json=payload, timeout=5)
-                )
-                response.raise_for_status()
-            except Exception as e:
-                _LOGGER.error(
-                    f"Fehler beim Schreiben von Property {property_path} mit Payload {payload}: {e}"
-                )
-                raise
+        try:
+            response = requests.put(url, json=payload, timeout=5)
+            response.raise_for_status()
+        except Exception as e:
+            _LOGGER.error(
+                f"Fehler beim Schreiben von Property {property_path} mit Payload {payload}: {e}"
+            )
+            raise

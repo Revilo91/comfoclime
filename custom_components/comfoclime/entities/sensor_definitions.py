@@ -173,21 +173,5 @@ CONNECTED_DEVICE_PROPERTIES = {
             "signed": True,
             "byte_count": 2,
         },
-        {
-            "path": "29/1/6",  # X/Y/Z
-            "name": "Humidity Comfort Control",
-            "translation_key": "humidity_comfort_control",
-            "signed": False,
-            "byte_count": 1,
-            "mapping_key": "humidityMode",
-        },
-        {
-            "path": "29/1/7",  # X/Y/Z
-            "name": "Humidity Protection",
-            "translation_key": "humidity_protection",
-            "signed": False,
-            "byte_count": 1,
-            "mapping_key": "humidityMode",
-        },
     ],
 }
