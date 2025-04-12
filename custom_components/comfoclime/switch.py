@@ -8,21 +8,9 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import DOMAIN
 from .comfoclime_api import ComfoClimeAPI
+from .entities.switch_definitions import SWITCHES
 
 _LOGGER = logging.getLogger(__name__)
-
-SWITCHES = [
-    {
-        "key": "season.status",
-        "name": "Automatic Season Detection",
-        "translation_key": "automatic_season_detection",
-    },
-    {
-        "key": "temperature.status",
-        "name": "Automatic Comfort Temperature",
-        "translation_key": "automatic_comfort_temperature",
-    },
-]
 
 
 async def async_setup_entry(
