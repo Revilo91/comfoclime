@@ -50,9 +50,6 @@ class ComfoClimeFan(FanEntity):
         value = self._current_speed * 33
         if value == 99:
             value = 100
-        _LOGGER.debug(
-            f"[{self.__class__.__name__}] percentage: {self._current_speed} → {value}"
-        )
         return value  # 0, 33, 66, 99 ≈ 0%, 33%, 66%, 100%
 
     async def async_set_percentage(self, percentage: int) -> None:
