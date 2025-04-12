@@ -1,5 +1,6 @@
 # comfoclime_api.py
 import asyncio
+import datetime
 import logging
 
 import requests
@@ -212,19 +213,27 @@ class ComfoClimeAPI:
     def set_device_setting(self, temperature_profile=None, fan_speed=None):
         if not self.uuid:
             self.get_uuid()
-
         payload = {
-            "uuid": self.uuid,
-            "systemUuid": self.uuid,
+            "@type": None,
+            "name": None,
+            "displayName": None,
+            "description": None,
+            "timestamp": datetime.datetime.now().isoformat(),
+            "status": None,
             "setPointTemperature": None,
             "temperatureProfile": temperature_profile,
+            "seasonProfile": None,
             "fanSpeed": fan_speed,
-            "status": None,
+            "scenario": None,
+            "scenarioTimeLeft": None,
+            "season": None,
+            "shedule": None,
+            "setPointTemperature": None,
         }
-
-        url = f"{self.base_url}/device"
+        headers = {"content-type": "application/json; charset=utf-8"}
+        url = f"{self.base_url}/system/{self.uuid}/dashboard"
         try:
-            response = requests.put(url, json=payload, timeout=5)
+            response = requests.put(url, json=payload, timeout=5, headers=headers)
             response.raise_for_status()
         except Exception as e:
             _LOGGER.error(f"Fehler beim Schreiben der Geräteeinstellung: {e}")
