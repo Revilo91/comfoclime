@@ -104,25 +104,28 @@ async def async_setup_entry(
         if not sensor_defs:
             continue
 
-        sensors.extend(
-            ComfoClimeTelemetrySensor(
-                hass=hass,
-                api=api,
-                telemetry_id=sensor_def["telemetry_id"],
-                name=sensor_def["name"],
-                translation_key=sensor_def["translation_key"],
-                unit=sensor_def.get("unit"),
-                faktor=sensor_def.get("faktor", 1.0),
-                signed=sensor_def.get("signed", True),
-                byte_count=sensor_def.get("byte_count"),
-                device_class=sensor_def.get("device_class"),
-                device=device,
-                state_class=sensor_def.get("state_class"),
-                override_device_uuid=dev_uuid,
-                entry=entry,
-            )
-            for sensor_def in sensor_defs
-        )
+        for sensor_def in sensor_defs:
+            if not sensor_def.get("diagnose", False) or entry.options.get(
+                "enable_diagnostics", False
+            ):
+                sensors.extend([
+                    ComfoClimeTelemetrySensor(
+                        hass=hass,
+                        api=api,
+                        telemetry_id=sensor_def["telemetry_id"],
+                        name=sensor_def["name"],
+                        translation_key=sensor_def["translation_key"],
+                        unit=sensor_def.get("unit"),
+                        faktor=sensor_def.get("faktor", 1.0),
+                        signed=sensor_def.get("signed", True),
+                        byte_count=sensor_def.get("byte_count"),
+                        device_class=sensor_def.get("device_class"),
+                        device=device,
+                        state_class=sensor_def.get("state_class"),
+                        override_device_uuid=dev_uuid,
+                        entry=entry,
+                    )
+                ])
 
         property_defs = CONNECTED_DEVICE_PROPERTIES.get(model_id)
         if not property_defs:

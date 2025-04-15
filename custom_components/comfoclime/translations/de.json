@@ -64,6 +64,18 @@
                 "Cooling": "Kühlperiode",
                 "Transitional": "Übergangszeit"
             }
+        },
+        "unknown_4194": {
+            "name": "Unknown temperature 4194"
+        },
+        "unknown_4195": {
+            "name": "Unknown temperature 4195"
+        },
+        "unknown_4196": {
+            "name": "Unknown temperature 4196"
+        },
+        "unknown_4197": {
+            "name": "Unknown temperature 4197"
         }
       },
       "select": {
@@ -148,5 +160,27 @@
             }
         }
       }
+    },
+    "config": {
+        "step": {
+          "user": {
+            "title": "Zehnder ComfoClime verbinden",
+            "description": "Gib die IP-Adresse oder den Hostnamen deiner ComfoClime Einheit ein",
+            "data": {
+              "host": "Host oder IP-Adresse"
+            }
+          }
+        }
+    },
+    "options": {
+        "step": {
+          "init": {
+            "title": "Optionen",
+            "description": "Erweiterte Einstellungen für die Integration",
+            "data": {
+              "enable_diagnostics": "Diagnose-Sensoren aktivieren"
+            }
+          }
+        }
     }
 }
