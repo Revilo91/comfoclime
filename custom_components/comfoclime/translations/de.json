@@ -153,7 +153,7 @@
         "fan_speed": {
             "name": "Lüfter Stufe",
             "state": {
-                "off": "Aus",
+                "off": "Abwesend",
                 "low": "Niedrig",
                 "medium": "Mittel",
                 "high": "Hoch"

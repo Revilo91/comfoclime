@@ -115,7 +115,13 @@
       },
       "fan": {
         "fan_speed": {
-            "name": "Fan Speed"
+            "name": "Fan Speed",
+            "state": {
+                "off": "Away",
+                "low": "Low",
+                "medium": "Medium",
+                "high": "High"
+            }
         }
       }
     },
