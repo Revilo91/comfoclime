@@ -5,6 +5,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
 from .comfoclime_api import ComfoClimeAPI
@@ -42,8 +43,11 @@ async def async_setup_entry(
         return
 
     # Dashboard-Daten abrufen (optional beim Start)
+    data = hass.data[DOMAIN][entry.entry_id]
+    api = data["api"]
+    coordinator = data["coordinator"]
     try:
-        await api.async_get_dashboard_data(hass)
+        await coordinator.async_config_entry_first_refresh()
     except Exception as e:
         _LOGGER.warning(f"Dashboard-Daten konnten nicht geladen werden: {e}")
 
@@ -52,9 +56,10 @@ async def async_setup_entry(
     # Hauptgerät (modelTypeId 20)
     main_device = next((d for d in devices if d.get("modelTypeId") == 20), None)
     # Dashboard-Sensoren
-    sensors.extend(
+    sensor_list = [
         ComfoClimeSensor(
             hass=hass,
+            coordinator=coordinator,
             api=api,
             sensor_type=sensor_def["key"],
             name=sensor_def["name"],
@@ -66,7 +71,8 @@ async def async_setup_entry(
             entry=entry,
         )
         for sensor_def in DASHBOARD_SENSORS
-    )
+    ]
+    sensors.extend(sensor_list)
 
     # Feste Telemetrie-Sensoren für das ComfoClime-Gerät
     sensors.extend(
@@ -108,24 +114,26 @@ async def async_setup_entry(
             if not sensor_def.get("diagnose", False) or entry.options.get(
                 "enable_diagnostics", False
             ):
-                sensors.extend([
-                    ComfoClimeTelemetrySensor(
-                        hass=hass,
-                        api=api,
-                        telemetry_id=sensor_def["telemetry_id"],
-                        name=sensor_def["name"],
-                        translation_key=sensor_def["translation_key"],
-                        unit=sensor_def.get("unit"),
-                        faktor=sensor_def.get("faktor", 1.0),
-                        signed=sensor_def.get("signed", True),
-                        byte_count=sensor_def.get("byte_count"),
-                        device_class=sensor_def.get("device_class"),
-                        device=device,
-                        state_class=sensor_def.get("state_class"),
-                        override_device_uuid=dev_uuid,
-                        entry=entry,
-                    )
-                ])
+                sensors.extend(
+                    [
+                        ComfoClimeTelemetrySensor(
+                            hass=hass,
+                            api=api,
+                            telemetry_id=sensor_def["telemetry_id"],
+                            name=sensor_def["name"],
+                            translation_key=sensor_def["translation_key"],
+                            unit=sensor_def.get("unit"),
+                            faktor=sensor_def.get("faktor", 1.0),
+                            signed=sensor_def.get("signed", True),
+                            byte_count=sensor_def.get("byte_count"),
+                            device_class=sensor_def.get("device_class"),
+                            device=device,
+                            state_class=sensor_def.get("state_class"),
+                            override_device_uuid=dev_uuid,
+                            entry=entry,
+                        )
+                    ]
+                )
 
         property_defs = CONNECTED_DEVICE_PROPERTIES.get(model_id)
         if not property_defs:
@@ -152,10 +160,11 @@ async def async_setup_entry(
     async_add_entities(sensors, True)
 
 
-class ComfoClimeSensor(SensorEntity):
+class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
     def __init__(
         self,
         hass,
+        coordinator,
         api,
         sensor_type,
         name,
@@ -166,6 +175,7 @@ class ComfoClimeSensor(SensorEntity):
         device=None,
         entry=None,
     ):
+        super().__init__(coordinator)
         self._hass = hass
         self._api = api
         self._type = sensor_type
@@ -201,7 +211,7 @@ class ComfoClimeSensor(SensorEntity):
 
     async def async_update(self):
         try:
-            data = await self._api.async_get_dashboard_data(self._hass)
+            data = self.coordinator.data
 
             raw_value = data.get(self._type)
 

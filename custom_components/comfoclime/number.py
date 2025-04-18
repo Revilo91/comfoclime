@@ -5,6 +5,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
 from .comfoclime_api import ComfoClimeAPI
@@ -25,8 +26,18 @@ async def async_setup_entry(
     devices = await api.async_get_connected_devices(hass)
     main_device = next((d for d in devices if d.get("modelTypeId") == 20), None)
 
+    data = hass.data[DOMAIN][entry.entry_id]
+    api = data["api"]
+    tpcoordinator = data["tpcoordinator"]
+    try:
+        await tpcoordinator.async_config_entry_first_refresh()
+    except Exception as e:
+        _LOGGER.warning(f"Thermalprofile-Daten konnten nicht geladen werden: {e}")
+
     entities = [
-        ComfoClimeTemperatureNumber(hass, api, conf, device=main_device, entry=entry)
+        ComfoClimeTemperatureNumber(
+            hass, tpcoordinator, api, conf, device=main_device, entry=entry
+        )
         for conf in NUMBER_ENTITIES
     ]
 
@@ -51,8 +62,9 @@ async def async_setup_entry(
     async_add_entities(entities, True)
 
 
-class ComfoClimeTemperatureNumber(NumberEntity):
-    def __init__(self, hass, api, conf, device=None, entry=None):
+class ComfoClimeTemperatureNumber(CoordinatorEntity, NumberEntity):
+    def __init__(self, hass, coordinator, api, conf, device=None, entry=None):
+        super().__init__(coordinator)
         self._hass = hass
         self._api = api
         self._conf = conf
@@ -109,7 +121,7 @@ class ComfoClimeTemperatureNumber(NumberEntity):
 
     async def async_update(self):
         try:
-            data = await self._api.async_get_thermal_profile(self._hass)
+            data = self.coordinator.data
             val = data
             for k in self._key_path:
                 val = val.get(k)
@@ -127,6 +139,7 @@ class ComfoClimeTemperatureNumber(NumberEntity):
         try:
             self._api.update_thermal_profile(update)
             self._value = value
+            self._hass.add_job(self.coordinator.async_request_refresh)
         except Exception as e:
             _LOGGER.error(f"Fehler beim Setzen von {self._name}: {e}")
 

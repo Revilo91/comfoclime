@@ -6,6 +6,10 @@ from homeassistant.exceptions import HomeAssistantError
 import homeassistant.helpers.device_registry as dr
 
 from .comfoclime_api import ComfoClimeAPI
+from .coordinator import (
+    ComfoClimeDashboardCoordinator,
+    ComfoClimeThermalprofileCoordinator,
+)
 
 DOMAIN = "comfoclime"
 
@@ -21,6 +25,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     hass.data[DOMAIN][entry.entry_id] = entry.data
     host = entry.data["host"]
     api = ComfoClimeAPI(f"http://{host}")
+    # Dashboard-Coordinator erstellen
+    dashboard_coordinator = ComfoClimeDashboardCoordinator(hass, api)
+    await dashboard_coordinator.async_config_entry_first_refresh()
+    thermalprofile_coordinator = ComfoClimeThermalprofileCoordinator(hass, api)
+    await thermalprofile_coordinator.async_config_entry_first_refresh()
+    if DOMAIN not in hass.data:
+        hass.data[DOMAIN] = {}
+    hass.data[DOMAIN][entry.entry_id] = {
+        "api": api,
+        "coordinator": dashboard_coordinator,
+        "tpcoordinator": thermalprofile_coordinator,
+    }
+
     await hass.config_entries.async_forward_entry_setups(
         entry, ["sensor", "switch", "number", "select", "fan"]
     )

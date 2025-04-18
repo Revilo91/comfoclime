@@ -5,6 +5,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
 from .comfoclime_api import ComfoClimeAPI
@@ -12,8 +13,9 @@ from .comfoclime_api import ComfoClimeAPI
 _LOGGER = logging.getLogger(__name__)
 
 
-class ComfoClimeFan(FanEntity):
-    def __init__(self, hass, api, device, entry):
+class ComfoClimeFan(CoordinatorEntity, FanEntity):
+    def __init__(self, hass, coordinator, api, device, entry):
+        super().__init__(coordinator)
         self._hass = hass
         self._api = api
         self._device = device
@@ -63,12 +65,13 @@ class ComfoClimeFan(FanEntity):
             )
             self._current_speed = step
             self.async_write_ha_state()
+            self._hass.add_job(self.coordinator.async_request_refresh)
         except Exception as e:
             _LOGGER.error(f"Fehler beim Setzen von fanSpeed: {e}")
 
     async def async_update(self):
         try:
-            data = await self._api.async_get_dashboard_data(self._hass)
+            data = self.coordinator.data
             speed = data.get("fanSpeed", 0)
             self._current_speed = int(speed)
         except Exception as e:
@@ -89,8 +92,15 @@ async def async_setup_entry(
         if not main_device:
             _LOGGER.warning("Kein Hauptgerät mit modelTypeId 20 gefunden.")
             return
+        data = hass.data[DOMAIN][entry.entry_id]
+        api = data["api"]
+        coordinator = data["coordinator"]
+        try:
+            await coordinator.async_config_entry_first_refresh()
+        except Exception as e:
+            _LOGGER.warning(f"Dashboard-Daten konnten nicht geladen werden: {e}")
 
-        fan_entity = ComfoClimeFan(hass, api, main_device, entry)
+        fan_entity = ComfoClimeFan(hass, coordinator, api, main_device, entry)
         async_add_entities([fan_entity], True)
 
     except Exception as e:
