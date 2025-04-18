@@ -49,6 +49,17 @@
         "ventilation_disbalance": {
             "name": "Ventilation Disbalance"
         },
+        "heat_pump_status": {
+            "name": "Heat Pump State Code"
+        },
+        "season": {
+            "name": "Season",
+            "state": {
+                "Heating": "Heating",
+                "Cooling": "Cooling",
+                "Transitional": "Transitional"
+            }
+        },
         "unknown_4194": {
             "name": "Unknown temperature 4194"
         },
@@ -60,20 +71,43 @@
         },
         "unknown_4197": {
             "name": "Unknown temperature 4197"
+        },
+        "temp_rmot": {
+            "name": "Ventilation Mean Outdoor Temperature (RMOT)"
         }
       },
       "select": {
         "temperature_profile": {
-          "name": "Temperature Profile"
+          "name": "Temperature Profile",
+          "state": {
+            "Comfort": "Comfort",
+            "Eco": "Eco",
+            "Power": "Power"
+          }
         },
         "season_mode": {
-            "name": "Season Mode"
+            "name": "Season Mode",
+            "state": {
+                "Heating": "Heating",
+                "Cooling": "Cooling",
+                "Transitional": "Transitional"
+            }
         },
         "humidity_comfort_control": {
-            "name": "Ventilation Humidity Control"
+            "name": "Ventilation Humidity Control",
+            "state": {
+                "Off": "Off",
+                "AutoOnly": "Auto Only",
+                "On": "On"
+            }
         },
         "humidity_protection": {
-            "name": "Ventilation Humidity Protection"
+            "name": "Ventilation Humidity Protection",
+            "state": {
+                "Off": "Off",
+                "AutoOnly": "Auto Only",
+                "On": "On"
+            }
         }
       },
       "number": {
@@ -103,6 +137,12 @@
         },
         "cooling_threshold": {
             "name": "Cooling Threshold"
+        },
+        "rmot_heating_threshold": {
+            "name": "Lüftung Heizgrenze RMOT"
+        },
+        "rmot_cooling_threshold": {
+            "name": "Lüftung Kühlgrenze RMOT"
         }
       },
       "switch": {

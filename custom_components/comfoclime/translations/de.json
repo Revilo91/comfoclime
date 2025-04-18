@@ -51,11 +51,6 @@
         },
         "heat_pump_status": {
             "name": "Status Wärmepumpe",
-            "state": {
-                "Off": "Aus",
-                "Heating": "Heizen",
-                "Cooling": "Kühlen"
-            }
         },
         "season": {
             "name": "Jahreszeit",
@@ -76,6 +71,9 @@
         },
         "unknown_4197": {
             "name": "Unknown temperature 4197"
+        },
+        "temp_rmot": {
+            "name": "Lüftung Mittlere Außentemperatur (RMOT)"
         }
       },
       "select": {
@@ -139,6 +137,12 @@
         },
         "cooling_threshold": {
             "name": "Kühlgrenze"
+        },
+        "rmot_heating_threshold": {
+            "name": "Lüftung Heizgrenze RMOT"
+        },
+        "rmot_cooling_threshold": {
+            "name": "Lüftung Kühlgrenze RMOT"
         }
       },
       "switch": {

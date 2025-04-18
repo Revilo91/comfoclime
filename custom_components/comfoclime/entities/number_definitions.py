@@ -72,3 +72,30 @@ NUMBER_ENTITIES = [
         "step": 0.5,
     },
 ]
+
+CONNECTED_DEVICE_NUMBER_PROPERTIES = {
+    1: [
+        {
+            "property": "29/1/2",
+            "name": "RMOT Heating Threshold",
+            "translation_key": "rmot_heating_threshold",
+            "min": 5,
+            "max": 20,
+            "step": 0.5,
+            "unit": "°C",
+            "faktor": 0.1,
+            "byte_count": 2,
+        },
+        {
+            "property": "29/1/3",
+            "name": "RMOT Cooling Threshold",
+            "translation_key": "rmot_cooling_threshold",
+            "min": 5,
+            "max": 35,
+            "step": 0.5,
+            "unit": "°C",
+            "faktor": 0.1,
+            "byte_count": 2,
+        },
+    ]
+}

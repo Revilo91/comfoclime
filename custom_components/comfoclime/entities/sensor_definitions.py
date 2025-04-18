@@ -207,6 +207,17 @@ CONNECTED_DEVICE_SENSORS = {
             "device_class": "energy",
             "state_class": "measurement",
         },
+        {
+            "telemetry_id": 209,
+            "name": "Mean outdoor tempereture (RMOT)",
+            "translation_key": "temp_rmot",
+            "unit": "°C",
+            "faktor": 0.1,
+            "signed": True,
+            "byte_count": 2,
+            "device_class": "temperature",
+            "state_class": "measurement",
+        },
     ],
 }
 
