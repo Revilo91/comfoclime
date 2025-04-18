@@ -50,7 +50,7 @@
             "name": "Lüftung Ungleichgewicht"
         },
         "heat_pump_status": {
-            "name": "Status Wärmepumpe",
+            "name": "Status Wärmepumpe"
         },
         "season": {
             "name": "Jahreszeit",
