@@ -6,11 +6,11 @@ ComfoClime is a HVAC solution as additional device for the ComfoAir Q series. It
 * reading the dashboard data similar to the official app (sensors)
 * writing the active temperature profile (select)
 * setting the ventilation fan speed (fan)
-* reading and writing the thermalprofile (sensors, selects and number sliders)
+* reading and writing the thermalprofile (sensors, selects and numbers)
 * reading additional telemetry values of all connected devices (sensors; known already from ComfoConnect integration)
 * arranging telemetry and property values into different devices
 * reading additional property values of all connected devices (sensors)
-* writing additional property values of all connected devices (service)
+* writing additional property values of all connected devices (service, numbers)
 * configuration via config flow by host/ip
 * locals in english and german
 
