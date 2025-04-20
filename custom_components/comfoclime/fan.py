@@ -87,8 +87,8 @@ async def async_setup_entry(
 
     try:
         await api.async_get_uuid(hass)
-        devices = await api.async_get_connected_devices(hass)
-        main_device = next((d for d in devices if d.get("modelTypeId") == 20), None)
+        # devices = hass.data[DOMAIN][entry.entry_id]["devices"]
+        main_device = hass.data[DOMAIN][entry.entry_id]["main_device"]
         if not main_device:
             _LOGGER.warning("Kein Hauptgerät mit modelTypeId 20 gefunden.")
             return

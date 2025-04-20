@@ -30,12 +30,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     await dashboard_coordinator.async_config_entry_first_refresh()
     thermalprofile_coordinator = ComfoClimeThermalprofileCoordinator(hass, api)
     await thermalprofile_coordinator.async_config_entry_first_refresh()
+    devices = await api.async_get_connected_devices(hass)
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
     hass.data[DOMAIN][entry.entry_id] = {
         "api": api,
         "coordinator": dashboard_coordinator,
         "tpcoordinator": thermalprofile_coordinator,
+        "devices": devices,
+        "main_device": next((d for d in devices if d.get("modelTypeId") == 20), None),
     }
 
     await hass.config_entries.async_forward_entry_setups(

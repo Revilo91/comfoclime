@@ -51,10 +51,8 @@ async def async_setup_entry(
     except Exception as e:
         _LOGGER.warning(f"Dashboard-Daten konnten nicht geladen werden: {e}")
 
-    devices = await api.async_get_connected_devices(hass)
-
-    # Hauptgerät (modelTypeId 20)
-    main_device = next((d for d in devices if d.get("modelTypeId") == 20), None)
+    devices = hass.data[DOMAIN][entry.entry_id]["devices"]
+    main_device = hass.data[DOMAIN][entry.entry_id]["main_device"]
     # Dashboard-Sensoren
     sensor_list = [
         ComfoClimeSensor(
@@ -95,7 +93,7 @@ async def async_setup_entry(
 
     # Verbundene Geräte abrufen
     try:
-        devices = await api.async_get_connected_devices(hass)
+        devices = hass.data[DOMAIN][entry.entry_id]["devices"]
     except Exception as e:
         _LOGGER.warning(f"Verbundene Geräte konnten nicht geladen werden: {e}")
         devices = []
