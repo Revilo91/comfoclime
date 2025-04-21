@@ -1,21 +1,29 @@
 # comfoclime
-HomeAssistant integration of Zehnder ComfoClime
+HomeAssistant integration of Zehnder ComfoClime (and all devices in ComfoNet bus like the ComfoAir Q) 
 
 ## Features
-ComfoClime is a HVAC solution as additional device for the ComfoAir Q series. It comes with its own app and an propietary JSON API. The ComfoClime unit is connected to the local network via WiFi/WLAN, the API is available only local via HTTP requests without authentication. This integration currently offers:
+ComfoClime is a HVAC solution as additional device for the ComfoAir Q series. It comes with its own app and an propietary JSON API. The ComfoClime unit is connected to the local network via WiFi/WLAN, the API is available only local via HTTP requests without authentication. The integration can also control the ventilation main unit ComfoAir Q. It currently offers:
+
 * reading the dashboard data similar to the official app (sensors)
 * writing the active temperature profile (select)
 * setting the ventilation fan speed (fan)
 * reading and writing the thermalprofile (sensors, selects and numbers)
-* reading additional telemetry values of all connected devices (sensors; known already from ComfoConnect integration)
+* reading additional telemetry values of *all* connected devices (sensors; known already from ComfoConnect integration)
 * arranging telemetry and property values into different devices
-* reading additional property values of all connected devices (sensors)
-* writing additional property values of all connected devices (service, numbers)
+* reading additional property values of *all* connected devices (sensors)
+* writing additional property values of *all* connected devices (service, numbers)
 * configuration via config flow by host/ip
 * locals in english and german
 
 All reverse engineered knowledge about the API is found here: https://github.com/msfuture/comfoclime_api/blob/main/ComfoClimeAPI.md
 Feel free to extend!
+
+## Installation
+
+* add this repository via HACS (user defined repositories, URL: `https://github.com/msfuture/comfoclime`)
+* install the "Zehnder ComfoClime" integration in HACS
+* restart Home Assistant
+* add the ComfoClime device (connected devices like the ComfoAir Q are detected and added automatically)
 
 ## Current ToDo / development
 There are many more telemetry and property values, that make sense to be offered by the integration. For now my primary goal is to control the ComfoClime unit, as I already integrated the ComfoAirQ via KNX. Only a few sensors, that are not available via KNX, are integrated.
