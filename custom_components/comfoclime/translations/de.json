@@ -90,7 +90,7 @@
             "state": {
                 "Heating": "Heizperiode",
                 "Cooling": "Kühlperiode",
-                "Transitional": "Übergangszeit"
+                "Transition": "Übergangszeit"
             }
         },
         "humidity_comfort_control": {

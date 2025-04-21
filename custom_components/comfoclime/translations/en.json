@@ -90,7 +90,7 @@
             "state": {
                 "Heating": "Heating",
                 "Cooling": "Cooling",
-                "Transitional": "Transitional"
+                "Transition": "Transitional"
             }
         },
         "humidity_comfort_control": {
