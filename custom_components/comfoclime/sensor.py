@@ -79,7 +79,7 @@ async def async_setup_entry(
             api=api,
             telemetry_id=sensor_def["id"],
             name=sensor_def["name"],
-            translation_key=sensor_def["translation_key"],
+            translation_key=sensor_def.get("translation_key", False),
             unit=sensor_def.get("unit"),
             faktor=sensor_def.get("faktor", 1.0),
             signed=sensor_def.get("signed", True),
@@ -119,7 +119,7 @@ async def async_setup_entry(
                             api=api,
                             telemetry_id=sensor_def["telemetry_id"],
                             name=sensor_def["name"],
-                            translation_key=sensor_def["translation_key"],
+                            translation_key=sensor_def.get("translation_key", False),
                             unit=sensor_def.get("unit"),
                             faktor=sensor_def.get("faktor", 1.0),
                             signed=sensor_def.get("signed", True),
@@ -143,7 +143,7 @@ async def async_setup_entry(
                 api=api,
                 path=prop_def["path"],
                 name=prop_def["name"],
-                translation_key=prop_def["translation_key"],
+                translation_key=prop_def.get("translation_key", False),
                 unit=prop_def.get("unit"),
                 faktor=prop_def.get("faktor", 1.0),
                 signed=prop_def.get("signed", True),
@@ -186,8 +186,10 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
         self._entry = entry
         self._attr_config_entry_id = entry.entry_id
         self._attr_unique_id = f"{entry.entry_id}_dashboard_{sensor_type}"
-        # self._attr_name = name
-        self._attr_translation_key = translation_key
+        if not translation_key:
+            self._attr_name = name
+        else:
+            self._attr_translation_key = translation_key
         self._attr_has_entity_name = True
 
     @property
@@ -258,8 +260,10 @@ class ComfoClimeTelemetrySensor(SensorEntity):
         self._entry = entry
         self._attr_config_entry_id = entry.entry_id
         self._attr_unique_id = f"{entry.entry_id}_telemetry_{telemetry_id}"
-        # self._attr_name = name
-        self._attr_translation_key = translation_key
+        if not translation_key:
+            self._attr_name = name
+        else:
+            self._attr_translation_key = translation_key
         self._attr_has_entity_name = True
 
     @property
@@ -330,8 +334,10 @@ class ComfoClimePropertySensor(SensorEntity):
         self._state = None
         self._attr_config_entry_id = entry.entry_id
         self._attr_unique_id = f"{entry.entry_id}_property_{path.replace('/', '_')}"
-        # self._attr_name = name
-        self._attr_translation_key = translation_key
+        if not translation_key:
+            self._attr_name = name
+        else:
+            self._attr_translation_key = translation_key
         self._attr_has_entity_name = True
 
     @property

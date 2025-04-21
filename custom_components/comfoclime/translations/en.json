@@ -4,6 +4,9 @@
         "indoor_temperature": {
           "name": "Indoor Temperature"
         },
+        "outdoor_temperature": {
+            "name": "Outdoor Temperature"
+        },
         "fan_speed": {
             "name": "Fan Speed Level"
         },
@@ -40,6 +43,12 @@
         "supply_fan_speed": {
             "name": "Supply Fan Speed"
         },
+        "exhaust_air_flow": {
+            "name": "Exhaust Air Flow"
+        },
+        "supply_air_flow": {
+            "name": "Supply Air Flow"
+        },
         "energy_ytd": {
             "name": "Ventilation Energy Year"
         },
@@ -59,18 +68,6 @@
                 "Cooling": "Cooling",
                 "Transitional": "Transitional"
             }
-        },
-        "unknown_4194": {
-            "name": "Unknown temperature 4194"
-        },
-        "unknown_4195": {
-            "name": "Unknown temperature 4195"
-        },
-        "unknown_4196": {
-            "name": "Unknown temperature 4196"
-        },
-        "unknown_4197": {
-            "name": "Unknown temperature 4197"
         },
         "temp_rmot": {
             "name": "Ventilation Mean Outdoor Temperature (RMOT)"

@@ -93,7 +93,6 @@ CONNECTED_DEVICE_SENSORS = {
         {
             "telemetry_id": 4194,
             "name": "Unknown temp 4194",
-            "translation_key": "unknown_4194",
             "unit": "°C",
             "faktor": 0.1,
             "signed": True,
@@ -105,7 +104,6 @@ CONNECTED_DEVICE_SENSORS = {
         {
             "telemetry_id": 4195,
             "name": "Unknown temp 4195",
-            "translation_key": "unknown_4195",
             "unit": "°C",
             "faktor": 0.1,
             "signed": True,
@@ -117,7 +115,6 @@ CONNECTED_DEVICE_SENSORS = {
         {
             "telemetry_id": 4196,
             "name": "Unknown temp 4196",
-            "translation_key": "unknown_4196",
             "unit": "°C",
             "faktor": 0.1,
             "signed": True,
@@ -129,7 +126,6 @@ CONNECTED_DEVICE_SENSORS = {
         {
             "telemetry_id": 4197,
             "name": "Unknown temp 4197",
-            "translation_key": "unknown_4197",
             "unit": "°C",
             "faktor": 0.1,
             "signed": True,
@@ -145,6 +141,42 @@ CONNECTED_DEVICE_SENSORS = {
             "unit": "W",
             "device_class": "power",
             "state_class": "measurement",
+        },
+        {
+            "telemetry_id": 4202,
+            "name": "Unknown value 4202",
+            "state_class": "measurement",
+            "diagnose": True,
+        },
+        {
+            "telemetry_id": 4203,
+            "name": "Unknown value 4203",
+            "state_class": "measurement",
+            "diagnose": True,
+        },
+        {
+            "telemetry_id": 4204,
+            "name": "Unknown value 4204",
+            "state_class": "measurement",
+            "diagnose": True,
+        },
+        {
+            "telemetry_id": 4205,
+            "name": "Unknown value 4205",
+            "state_class": "measurement",
+            "diagnose": True,
+        },
+        {
+            "telemetry_id": 4206,
+            "name": "Unknown value 4206",
+            "state_class": "measurement",
+            "diagnose": True,
+        },
+        {
+            "telemetry_id": 4207,
+            "name": "Unknown value 4207",
+            "state_class": "measurement",
+            "diagnose": True,
         },
     ],
     1: [
