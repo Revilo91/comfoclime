@@ -7,7 +7,5 @@
     "codeowners": ["@msfuture"],
     "requirements": ["requests"],
     "config_flow": true,
-    "iot_class": "local_polling",
-    "supported_platforms": ["sensor", "switch", "number", "select", "fan"],
-    "translations": "translations"
+    "iot_class": "local_polling"
   }
