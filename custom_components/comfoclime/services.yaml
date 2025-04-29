@@ -23,6 +23,8 @@ set_property:
       selector:
         number:
           step: 0.1
+          min: -32768
+          max: 32767
     byte_count:
       name: Byte-Anzahl
       description: Wie viele Bytes (1 oder 2)
