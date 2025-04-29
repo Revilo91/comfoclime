@@ -46,3 +46,4 @@ set_property:
         number:
           min: 0.01
           step: 0.01
+          max: 100
