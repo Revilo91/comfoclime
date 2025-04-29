@@ -1,11 +1,11 @@
 {
     "domain": "comfoclime",
     "name": "Zehnder ComfoClime",
-    "version": "1.2.0",
-    "documentation": "https://github.com/msfuture/comfoclime",
-    "dependencies": [],
     "codeowners": ["@msfuture"],
-    "requirements": ["requests"],
     "config_flow": true,
-    "iot_class": "local_polling"
+    "dependencies": [],
+    "documentation": "https://github.com/msfuture/comfoclime",
+    "iot_class": "local_polling",
+    "requirements": ["requests"],
+    "version": "1.2.0"
   }
