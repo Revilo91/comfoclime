@@ -64,9 +64,9 @@
         "season": {
             "name": "Jahreszeit",
             "state": {
-                "Heating": "Heizperiode",
-                "Cooling": "Kühlperiode",
-                "Transitional": "Übergangszeit"
+                "heating": "Heizperiode",
+                "cooling": "Kühlperiode",
+                "transitional": "Übergangszeit"
             }
         },
         "temp_rmot": {
@@ -77,33 +77,33 @@
         "temperature_profile": {
           "name": "Temperaturprofil",
           "state": {
-            "Comfort": "Komfort",
-            "Eco": "Eco",
-            "Power": "Power"
+            "comfort": "Komfort",
+            "eco": "Eco",
+            "power": "Power"
             }
         },
         "season_mode": {
             "name": "Jahreszeitwahl",
             "state": {
-                "Heating": "Heizperiode",
-                "Cooling": "Kühlperiode",
-                "Transition": "Übergangszeit"
+                "heating": "Heizperiode",
+                "cooling": "Kühlperiode",
+                "transition": "Übergangszeit"
             }
         },
         "humidity_comfort_control": {
             "name": "Lüftung Feuchteregelung",
             "state": {
-                "Off": "Aus",
-                "AutoOnly": "Nur bei Auto",
-                "On": "An"
+                "off": "Aus",
+                "autoonly": "Nur bei Auto",
+                "on": "An"
             }
         },
         "humidity_protection": {
             "name": "Lüftung Feuchteschutz",
             "state": {
-                "Off": "Aus",
-                "AutoOnly": "Nur bei Auto",
-                "On": "An"
+                "off": "Aus",
+                "autoonly": "Nur bei Auto",
+                "on": "An"
             }
           }
       },

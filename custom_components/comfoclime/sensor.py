@@ -20,10 +20,9 @@ _LOGGER = logging.getLogger(__name__)
 
 
 VALUE_MAPPINGS = {
-    "temperatureProfile": {0: "Comfort", 1: "Power", 2: "Eco"},
-    "season": {0: "Transitional", 1: "Heating", 2: "Cooling"},
-    "heatPumpStatus": {0: "Off", 1: "Heating", 2: "Cooling"},
-    "humidityMode": {0: "Off", 1: "AutoOnly", 2: "On"},
+    "temperatureProfile": {0: "comfort", 1: "power", 2: "eco"},
+    "season": {0: "transitional", 1: "heating", 2: "cooling"},
+    "humidityMode": {0: "off", 1: "autoonly", 2: "on"},
 }
 
 

@@ -64,9 +64,9 @@
         "season": {
             "name": "Season",
             "state": {
-                "Heating": "Heating",
-                "Cooling": "Cooling",
-                "Transitional": "Transitional"
+                "heating": "Heating",
+                "cooling": "Cooling",
+                "transitional": "Transitional"
             }
         },
         "temp_rmot": {
@@ -77,33 +77,33 @@
         "temperature_profile": {
           "name": "Temperature Profile",
           "state": {
-            "Comfort": "Comfort",
-            "Eco": "Eco",
-            "Power": "Power"
+            "comfort": "Comfort",
+            "eco": "Eco",
+            "power": "Power"
           }
         },
         "season_mode": {
             "name": "Season Mode",
             "state": {
-                "Heating": "Heating",
-                "Cooling": "Cooling",
-                "Transition": "Transitional"
+                "heating": "Heating",
+                "cooling": "Cooling",
+                "transition": "Transitional"
             }
         },
         "humidity_comfort_control": {
             "name": "Ventilation Humidity Control",
             "state": {
-                "Off": "Off",
-                "AutoOnly": "Auto Only",
-                "On": "On"
+                "off": "Off",
+                "autoonly": "Auto Only",
+                "on": "On"
             }
         },
         "humidity_protection": {
             "name": "Ventilation Humidity Protection",
             "state": {
-                "Off": "Off",
-                "AutoOnly": "Auto Only",
-                "On": "On"
+                "off": "Off",
+                "autoonly": "Auto Only",
+                "on": "On"
             }
         }
       },
