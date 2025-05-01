@@ -3,6 +3,7 @@ import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import config_validation as cv
 import homeassistant.helpers.device_registry as dr
 
 from .comfoclime_api import ComfoClimeAPI
@@ -12,6 +13,8 @@ from .coordinator import (
 )
 
 DOMAIN = "comfoclime"
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 _LOGGER = logging.getLogger(__name__)
 
