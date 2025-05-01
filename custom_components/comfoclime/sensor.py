@@ -9,6 +9,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
 from .comfoclime_api import ComfoClimeAPI
+from .coordinator import ComfoClimeDashboardCoordinator
 from .entities.sensor_definitions import (
     CONNECTED_DEVICE_PROPERTIES,
     CONNECTED_DEVICE_SENSORS,
@@ -157,7 +158,7 @@ async def async_setup_entry(
     async_add_entities(sensors, True)
 
 
-class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
+class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], SensorEntity):
     def __init__(
         self,
         hass,
@@ -208,7 +209,7 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
             sw_version=self._device.get("version", None),
         )
 
-    async def async_update(self):
+    def _handle_coordinator_update(self) -> None:
         try:
             data = self.coordinator.data
 
@@ -223,6 +224,8 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
         except Exception as e:
             _LOGGER.warning(f"Fehler beim Aktualisieren der Sensorwerte: {e}")
             self._state = None
+
+        self.async_write_ha_state()
 
 
 class ComfoClimeTelemetrySensor(SensorEntity):

@@ -9,6 +9,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
 from .comfoclime_api import ComfoClimeAPI
+from .coordinator import ComfoClimeThermalprofileCoordinator
 from .entities.switch_definitions import SWITCHES
 
 _LOGGER = logging.getLogger(__name__)
@@ -54,7 +55,9 @@ async def async_setup_entry(
     async_add_entities(switches, True)
 
 
-class ComfoClimeModeSwitch(CoordinatorEntity, SwitchEntity):
+class ComfoClimeModeSwitch(
+    CoordinatorEntity[ComfoClimeThermalprofileCoordinator], SwitchEntity
+):
     def __init__(
         self,
         hass,
@@ -97,7 +100,7 @@ class ComfoClimeModeSwitch(CoordinatorEntity, SwitchEntity):
             sw_version=self._device.get("version", None),
         )
 
-    async def async_update(self):
+    def _handle_coordinator_update(self):
         data = self.coordinator.data
         try:
             # Zugriff auf verschachtelte Keys wie ["season"]["status"]
@@ -108,6 +111,7 @@ class ComfoClimeModeSwitch(CoordinatorEntity, SwitchEntity):
         except Exception as e:
             _LOGGER.error(f"Fehler beim Lesen des Switch-Zustands: {e}")
             self._state = None
+        self.async_write_ha_state()
 
     def turn_on(self, **kwargs):
         self._set_status(1)

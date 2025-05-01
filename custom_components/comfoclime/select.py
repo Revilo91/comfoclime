@@ -9,6 +9,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
 from .comfoclime_api import ComfoClimeAPI
+from .coordinator import ComfoClimeThermalprofileCoordinator
 from .entities.select_definitions import PROPERTY_SELECT_ENTITIES, SELECT_ENTITIES
 
 _LOGGER = logging.getLogger(__name__)
@@ -65,7 +66,9 @@ async def async_setup_entry(
     async_add_entities(entities, True)
 
 
-class ComfoClimeSelect(CoordinatorEntity, SelectEntity):
+class ComfoClimeSelect(
+    CoordinatorEntity[ComfoClimeThermalprofileCoordinator], SelectEntity
+):
     def __init__(self, hass, coordinator, api, conf, device=None, entry=None):
         super().__init__(coordinator)
         self._hass = hass
@@ -105,7 +108,7 @@ class ComfoClimeSelect(CoordinatorEntity, SelectEntity):
             sw_version=self._device.get("version", None),
         )
 
-    async def async_update(self):
+    def _handle_coordinator_update(self):
         try:
             data = self.coordinator.data
             val = data
@@ -114,6 +117,7 @@ class ComfoClimeSelect(CoordinatorEntity, SelectEntity):
             self._current = self._options_map.get(val)
         except Exception as e:
             _LOGGER.error(f"Fehler beim Laden von {self._name}: {e}")
+        self.async_write_ha_state()
 
     def select_option(self, option: str):
         value = self._options_reverse.get(option)

@@ -9,11 +9,12 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
 from .comfoclime_api import ComfoClimeAPI
+from .coordinator import ComfoClimeDashboardCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class ComfoClimeFan(CoordinatorEntity, FanEntity):
+class ComfoClimeFan(CoordinatorEntity[ComfoClimeDashboardCoordinator], FanEntity):
     def __init__(self, hass, coordinator, api, device, entry):
         super().__init__(coordinator)
         self._hass = hass
@@ -69,7 +70,7 @@ class ComfoClimeFan(CoordinatorEntity, FanEntity):
         except Exception as e:
             _LOGGER.error(f"Fehler beim Setzen von fanSpeed: {e}")
 
-    async def async_update(self):
+    def _handle_coordinator_update(self):
         try:
             data = self.coordinator.data
             speed = data.get("fanSpeed", 0)
@@ -77,6 +78,7 @@ class ComfoClimeFan(CoordinatorEntity, FanEntity):
         except Exception as e:
             _LOGGER.warning(f"Fehler beim Abrufen von fanSpeed via dashboard: {e}")
             self._current_speed = 0
+        self.async_write_ha_state()
 
 
 async def async_setup_entry(

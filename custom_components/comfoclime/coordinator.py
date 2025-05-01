@@ -19,6 +19,7 @@ class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
         try:
             return await self.api.async_get_dashboard_data(self.hass)
         except Exception as e:
+            _LOGGER.warning(f"Fehler beim Abrufen der Dashboard-Daten: {e}")
             raise UpdateFailed(f"Fehler beim Abrufen der Dashboard-Daten: {e}")
 
 

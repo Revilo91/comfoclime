@@ -9,6 +9,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
 from .comfoclime_api import ComfoClimeAPI
+from .coordinator import ComfoClimeThermalprofileCoordinator
 from .entities.number_definitions import (
     CONNECTED_DEVICE_NUMBER_PROPERTIES,
     NUMBER_ENTITIES,
@@ -62,7 +63,9 @@ async def async_setup_entry(
     async_add_entities(entities, True)
 
 
-class ComfoClimeTemperatureNumber(CoordinatorEntity, NumberEntity):
+class ComfoClimeTemperatureNumber(
+    CoordinatorEntity[ComfoClimeThermalprofileCoordinator], NumberEntity
+):
     def __init__(self, hass, coordinator, api, conf, device=None, entry=None):
         super().__init__(coordinator)
         self._hass = hass
@@ -119,7 +122,7 @@ class ComfoClimeTemperatureNumber(CoordinatorEntity, NumberEntity):
             sw_version=self._device.get("version", None),
         )
 
-    async def async_update(self):
+    def _handle_coordinator_update(self):
         try:
             data = self.coordinator.data
             val = data
@@ -129,6 +132,7 @@ class ComfoClimeTemperatureNumber(CoordinatorEntity, NumberEntity):
         except Exception as e:
             _LOGGER.warning(f"[{self.name}] Fehler beim Update: {e}")
             self._value = None  # besser als Absturz
+        self.async_write_ha_state()
 
     def set_native_value(self, value: float):
         section = self._key_path[0]
