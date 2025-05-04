@@ -135,6 +135,17 @@ CONNECTED_DEVICE_SENSORS = {
             "diagnose": True,
         },
         {
+            "telemetry_id": 4198,
+            "name": "Unknown temp 4198",
+            "unit": "°C",
+            "faktor": 0.1,
+            "signed": True,
+            "byte_count": 2,
+            "device_class": "temperature",
+            "state_class": "measurement",
+            "diagnose": True,
+        },
+        {
             "telemetry_id": 4201,
             "name": "Power Heatpump",
             "translation_key": "power_heatpump",
@@ -175,6 +186,12 @@ CONNECTED_DEVICE_SENSORS = {
         {
             "telemetry_id": 4207,
             "name": "Unknown value 4207",
+            "state_class": "measurement",
+            "diagnose": True,
+        },
+        {
+            "telemetry_id": 4208,
+            "name": "Unknown value 4208",
             "state_class": "measurement",
             "diagnose": True,
         },
