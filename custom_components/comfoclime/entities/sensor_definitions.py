@@ -136,13 +136,8 @@ CONNECTED_DEVICE_SENSORS = {
         },
         {
             "telemetry_id": 4198,
-            "name": "Unknown temp 4198",
-            "unit": "°C",
-            "faktor": 0.1,
-            "signed": True,
-            "byte_count": 2,
-            "device_class": "temperature",
-            "state_class": "measurement",
+            "name": "Unknown value 4198",
+            "byte_count": 1,
             "diagnose": True,
         },
         {

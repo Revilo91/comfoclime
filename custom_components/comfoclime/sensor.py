@@ -268,9 +268,6 @@ class ComfoClimeTelemetrySensor(SensorEntity):
         else:
             self._attr_translation_key = translation_key
         self._attr_has_entity_name = True
-        self._scan_interval = timedelta(
-            seconds=10 if entry.options.get("enable_frequent_updates", False) else 30
-        )
 
     @property
     def state(self):
@@ -280,10 +277,6 @@ class ComfoClimeTelemetrySensor(SensorEntity):
     def device_info(self) -> DeviceInfo:
         if not self._device:
             return None
-
-    @property
-    def scan_interval(self):
-        return self._scan_interval
 
         return DeviceInfo(
             identifiers={(DOMAIN, self._device["uuid"])},
