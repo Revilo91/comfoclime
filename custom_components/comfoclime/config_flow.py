@@ -66,6 +66,12 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         "enable_diagnostics",
                         default=self.entry.options.get("enable_diagnostics", False),
                     ): bool,
+                    vol.Optional(
+                        "enable_frequent_updates",
+                        default=self.entry.options.get(
+                            "enable_frequent_updates", False
+                        ),
+                    ): bool,
                 }
             ),
         )
