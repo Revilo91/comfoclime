@@ -88,6 +88,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     await hass.config_entries.async_forward_entry_unload(entry, "switch")
     await hass.config_entries.async_forward_entry_unload(entry, "number")
     await hass.config_entries.async_forward_entry_unload(entry, "select")
+    await hass.config_entries.async_forward_entry_unload(entry, "fan")
     hass.data[DOMAIN].pop(entry.entry_id)
     return True
 
