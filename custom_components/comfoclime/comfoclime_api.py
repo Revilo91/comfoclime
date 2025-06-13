@@ -300,3 +300,14 @@ class ComfoClimeAPI:
                 f"Fehler beim Schreiben von Property {property_path} mit Payload {payload}: {e}"
             )
             raise
+
+    async def async_reset_system(self, hass):
+        async with self._request_lock:
+            return await hass.async_add_executor_job(self.reset_system)
+
+    def reset_system(self):
+        """Trigger a restart of the ComfoClime device."""
+        url = f"{self.base_url}/system/reset"
+        response = requests.put(url, timeout=5)
+        response.raise_for_status()
+        return response.status_code == 200
