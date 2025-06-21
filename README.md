@@ -15,6 +15,7 @@ ComfoClime is a HVAC solution as additional device for the ComfoAir Q series. It
 * arranging telemetry and property values into different devices
 * reading additional property values of *all* connected devices (sensors)
 * writing additional property values of *all* connected devices (service, numbers)
+* restarting the ComfoClime unit via service call
 * configuration via config flow by host/ip
 * locals in english and german
 

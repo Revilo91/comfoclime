@@ -79,7 +79,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             _LOGGER.error(f"Fehler beim Setzen von Property {path}: {e}")
             raise HomeAssistantError(f"Fehler beim Setzen von Property {path}: {e}")
 
+    async def handle_reset_system_service(call: ServiceCall):
+        try:
+            await api.async_reset_system(hass)
+            _LOGGER.info("ComfoClime Neustart ausgelöst")
+        except Exception as e:
+            _LOGGER.error(f"Fehler beim Neustart des Geräts: {e}")
+            raise HomeAssistantError(f"Fehler beim Neustart des Geräts: {e}")
+
     hass.services.async_register(DOMAIN, "set_property", handle_set_property_service)
+    hass.services.async_register(DOMAIN, "reset_system", handle_reset_system_service)
     return True
 
 
