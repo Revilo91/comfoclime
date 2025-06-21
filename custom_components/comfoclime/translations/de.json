@@ -140,6 +140,12 @@
         },
         "rmot_cooling_threshold": {
             "name": "Lüftung Kühlgrenze RMOT"
+        },
+        "heatpump_min_temp": {
+            "name": "Wärmepumpe minimale Kühltemperatur"
+        },
+        "heatpump_max_temp": {
+            "name": "Wärmepumpe maximale Heiztemperatur"
         }
       },
       "switch": {

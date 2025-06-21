@@ -97,5 +97,29 @@ CONNECTED_DEVICE_NUMBER_PROPERTIES = {
             "faktor": 0.1,
             "byte_count": 2,
         },
-    ]
+    ],
+    20: [
+        {
+            "property": "23/1/4",
+            "name": "Heatpump minimum temperature",
+            "translation_key": "heatpump_min_temp",
+            "min": 10,
+            "max": 17,
+            "step": 1,
+            "unit": "°C",
+            "faktor": 0.1,
+            "byte_count": 2,
+        },
+        {
+            "property": "23/1/3",
+            "name": "Heatpump maximum temperature",
+            "translation_key": "heatpump_max_temp",
+            "min": 40,
+            "max": 60,
+            "step": 1,
+            "unit": "°C",
+            "faktor": 0.1,
+            "byte_count": 2,
+        },
+    ],
 }

@@ -136,10 +136,16 @@
             "name": "Cooling Threshold"
         },
         "rmot_heating_threshold": {
-            "name": "Lüftung Heizgrenze RMOT"
+            "name": "Ventilation heating threshold RMOT"
         },
         "rmot_cooling_threshold": {
-            "name": "Lüftung Kühlgrenze RMOT"
+            "name": "Ventilation cooling threshold RMOT"
+        },
+        "heatpump_min_temp": {
+            "name": "Heatpump minimum cooling temperature"
+        },
+        "heatpump_max_temp": {
+            "name": "Heatpumpt maximum heating temperature"
         }
       },
       "switch": {
