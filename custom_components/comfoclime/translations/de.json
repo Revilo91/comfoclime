@@ -7,11 +7,26 @@
         "outdoor_temperature": {
             "name": "Außentemperatur"
         },
+        "exhaust_temperature": {
+            "name": "Fortluft Temperatur"
+        },
+        "extract_humidity": {
+            "name": "Abluft Feuchtigkeit"
+        },
+        "exhaust_humidity": {
+            "name": "Fortluft Feuchtigkeit"
+        },
+        "outdoor_humidity": {
+            "name": "Außenluft Feuchtigkeit"
+        },
+        "supply_humidity": {
+            "name": "Zuluft Feuchtigkeit"
+        },
         "fan_speed": {
             "name": "Lüfterstufe"
         },
-        "temperature_profile_status": {
-            "name": "Aktives Temperaturprofil"
+        "season_profile_status": {
+            "name": "Aktives Jahreszeitenprofil"
         },
         "supply_air_temperature": {
           "name": "Zulufttemperatur"
@@ -59,7 +74,7 @@
             "name": "Lüftung Ungleichgewicht"
         },
         "heat_pump_status": {
-            "name": "Status Wärmepumpe"
+            "name": "Wärmepumpe Status"
         },
         "season": {
             "name": "Jahreszeit",
@@ -69,8 +84,44 @@
                 "transitional": "Übergangszeit"
             }
         },
+        "temperature_profile_status": {
+          "name": "Aktives Temperaturprofil",
+          "state": {
+            "comfort": "Komfort",
+            "eco": "Eco",
+            "power": "Power"
+            }
+        },
         "temp_rmot": {
             "name": "Lüftung Mittlere Außentemperatur (RMOT)"
+        },
+        "device_mode_status": {
+          "name": "Aktueller Betriebsmodus",
+          "state": {
+            "0": "Aus",
+            "1": "Heizen",
+            "2": "Kühlen"
+            }
+        },
+        "schedule_status": {
+            "name": "Aktiver Zeitplan"
+        },
+        "dashboard_status": {
+            "name": "Status-Feld des Dashboard API"
+        },
+        "device_power_status": {
+          "name": "Einschaltstatus",
+          "state": {
+            "False": "An",
+            "True": "Aus"
+            }
+        },
+        "free_cooling_status": {
+          "name": "Free Cooling",
+          "state": {
+            "False": "Aus",
+            "True": "An"
+            }
         }
       },
       "select": {
