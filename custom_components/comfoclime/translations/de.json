@@ -25,9 +25,6 @@
         "fan_speed": {
             "name": "Lüfterstufe"
         },
-        "season_profile_status": {
-            "name": "Aktives Jahreszeitenprofil"
-        },
         "supply_air_temperature": {
           "name": "Zulufttemperatur"
         },

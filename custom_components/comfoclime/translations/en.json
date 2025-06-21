@@ -25,9 +25,6 @@
         "fan_speed": {
             "name": "Fan Speed Level"
         },
-        "season_profile_status": {
-            "name": "Current Season Profile"
-        },
         "supply_air_temperature": {
           "name": "Supply Air Temperature"
         },
@@ -101,9 +98,9 @@
         "device_mode_status": {
           "name": "Current Operating Mode",
           "state": {
-            "0.0": "Off",
-            "1.0": "Heating",
-            "2.0": "Cooling"
+            "0": "Off",
+            "1": "Heating",
+            "2": "Cooling"
             }
         },
         "schedule_status": {

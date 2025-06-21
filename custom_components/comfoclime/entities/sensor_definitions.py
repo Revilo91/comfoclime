@@ -37,11 +37,6 @@ DASHBOARD_SENSORS = [
         "translation_key": "fan_speed",
     },
     {
-        "key": "seasonProfile",
-        "name": "Season Profile Status",
-        "translation_key": "season_profile_status",
-    },
-    {
         "key": "temperatureProfile",
         "name": "Temperature Profile Status",
         "translation_key": "temperature_profile_status",
@@ -108,6 +103,7 @@ CONNECTED_DEVICE_SENSORS = {
             "telemetry_id": 4149,
             "name": "Device Mode",
             "translation_key": "device_mode_status",
+            "faktor": 1,
         },
         {
             "telemetry_id": 4151,
@@ -165,6 +161,12 @@ CONNECTED_DEVICE_SENSORS = {
             "diagnose": True,
         },
         {
+            "telemetry_id": 4198,
+            "name": "Unknown value 4198",
+            "byte_count": 1,
+            "diagnose": True,
+        },
+        {
             "telemetry_id": 4201,
             "name": "Power Heatpump",
             "translation_key": "power_heatpump",
@@ -205,6 +207,12 @@ CONNECTED_DEVICE_SENSORS = {
         {
             "telemetry_id": 4207,
             "name": "Unknown value 4207",
+            "state_class": "measurement",
+            "diagnose": True,
+        },
+        {
+            "telemetry_id": 4208,
+            "name": "Unknown value 4208",
             "state_class": "measurement",
             "diagnose": True,
         },
