@@ -260,7 +260,7 @@ CONNECTED_DEVICE_SENSORS = {
             "translation_key": "energy_ytd",
             "unit": "kWh",
             "device_class": "energy",
-            "state_class": "measurement",
+            "state_class": "total_increasing",
         },
         {
             "telemetry_id": 130,
@@ -268,7 +268,7 @@ CONNECTED_DEVICE_SENSORS = {
             "translation_key": "energy_total",
             "unit": "kWh",
             "device_class": "energy",
-            "state_class": "measurement",
+            "state_class": "total_increasing",
         },
         {
             "telemetry_id": 209,
