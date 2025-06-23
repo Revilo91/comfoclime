@@ -112,15 +112,15 @@
         "device_power_status": {
           "name": "Power Status",
           "state": {
-            "False": "On",
-            "True": "Off"
+            "false": "On",
+            "true": "Standby"
             }
         },
         "free_cooling_status": {
           "name": "Free Cooling",
           "state": {
-            "False": "Off",
-            "True": "On"
+            "false": "Off",
+            "true": "On"
             }
         }
       },
