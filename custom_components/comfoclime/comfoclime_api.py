@@ -227,7 +227,7 @@ class ComfoClimeAPI:
             "scenario": None,
             "scenarioTimeLeft": None,
             "season": None,
-            "shedule": None,
+            "schedule": None,
             "setPointTemperature": None,
         }
         headers = {"content-type": "application/json; charset=utf-8"}
