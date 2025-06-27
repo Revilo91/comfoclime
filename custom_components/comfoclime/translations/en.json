@@ -7,17 +7,32 @@
         "outdoor_temperature": {
             "name": "Outdoor Temperature"
         },
+        "exhaust_temperature": {
+            "name": "Exhaust Temperature"
+        },
+        "extract_humidity": {
+            "name": "Extract Humidity"
+        },
+        "exhaust_humidity": {
+            "name": "Exhaust Humidity"
+        },
+        "outdoor_humidity": {
+            "name": "Outdoor Humidity"
+        },
+        "supply_humidity": {
+            "name": "Supply Humidity"
+        },
         "fan_speed": {
             "name": "Fan Speed Level"
-        },
-        "temperature_profile_status": {
-            "name": "Active Temperature Profile"
         },
         "supply_air_temperature": {
           "name": "Supply Air Temperature"
         },
         "tpma_temperature": {
             "name": "Mean Outdoor Temperature"
+        },
+        "comfo_clime_status": {
+            "name": "ComfoClime Status"
         },
         "current_comfort_temperature": {
             "name": "Current Comfort Temperature"
@@ -64,13 +79,49 @@
         "season": {
             "name": "Season",
             "state": {
-                "heating": "Heating",
-                "cooling": "Cooling",
-                "transitional": "Transitional"
+                "heating": "Heating period",
+                "cooling": "Cooling period",
+                "transition": "Transitional period"
             }
+        },
+        "temperature_profile_status": {
+          "name": "Current Temperature Profile",
+          "state": {
+            "comfort": "Comfort",
+            "eco": "Eco",
+            "power": "Power"
+          }
         },
         "temp_rmot": {
             "name": "Ventilation Mean Outdoor Temperature (RMOT)"
+        },
+        "device_mode_status": {
+          "name": "Current Operating Mode",
+          "state": {
+            "0": "Off",
+            "1": "Heating",
+            "2": "Cooling"
+            }
+        },
+        "schedule_status": {
+            "name": "Current Schedule"
+        },
+        "dashboard_status": {
+            "name": "Status Field of the Dashboard API"
+        },
+        "device_power_status": {
+          "name": "Power Status",
+          "state": {
+            "false": "On",
+            "true": "Standby"
+            }
+        },
+        "free_cooling_status": {
+          "name": "Free Cooling",
+          "state": {
+            "false": "Off",
+            "true": "On"
+            }
         }
       },
       "select": {
@@ -85,9 +136,9 @@
         "season_mode": {
             "name": "Season Mode",
             "state": {
-                "heating": "Heating",
-                "cooling": "Cooling",
-                "transition": "Transitional"
+                "heating": "Heating period",
+                "cooling": "Cooling period",
+                "transition": "Transitional period"
             }
         },
         "humidity_comfort_control": {
