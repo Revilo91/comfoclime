@@ -228,7 +228,6 @@ class ComfoClimeAPI:
             "scenarioTimeLeft": None,
             "season": None,
             "schedule": None,
-            "setPointTemperature": None,
         }
         headers = {"content-type": "application/json; charset=utf-8"}
         url = f"{self.base_url}/system/{self.uuid}/dashboard"
