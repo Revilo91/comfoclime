@@ -130,9 +130,19 @@ class ComfoClimeAPI:
             raise ValueError("Unerwartetes Property-Format")
         return data
 
-
-
+    def read_property_for_device(
+        self,
+        device_uuid: str,
+        property_path: str,
+        faktor: float = 1.0,
+        signed: bool = True,
+        byte_count: int | None = None,
+    ) -> None | str | float:
+        data = self.read_property_for_device_raw(device_uuid, property_path)
+        if byte_count is None and data:
             byte_count = len(data)
+        else:
+            return None
 
         if byte_count == 1:
             value = data[0]
