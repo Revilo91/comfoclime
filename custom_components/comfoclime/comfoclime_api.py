@@ -111,14 +111,11 @@ class ComfoClimeAPI:
                 byte_count,
             )
 
-    def read_property_for_device(
+    def read_property_for_device_raw(
         self,
         device_uuid: str,
-        property_path: str,
-        faktor: float = 1.0,
-        signed: bool = True,
-        byte_count: int | None = None,
-    ):
+        property_path: str
+    ) -> None | list:
         url = f"{self.base_url}/device/{device_uuid}/property/{property_path}"
         try:
             response = requests.get(url, timeout=5)
@@ -131,8 +128,10 @@ class ComfoClimeAPI:
         data = payload.get("data")
         if not isinstance(data, list) or not data:
             raise ValueError("Unerwartetes Property-Format")
+        return data
 
-        if byte_count is None:
+
+
             byte_count = len(data)
 
         if byte_count == 1:
