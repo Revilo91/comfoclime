@@ -144,6 +144,11 @@ class ComfoClimeAPI:
             value = lsb + (msb << 8)
             if signed and value >= 0x8000:
                 value -= 0x10000
+        elif byte_count > 2:
+            if len(data) != byte_count:
+                raise ValueError(f"Unerwartete Byte-Anzahl: erwartet {byte_count}, erhalten {len(data)}")
+            if all(0 <= byte < 256 for byte in data):
+                return "".join(chr(byte) for byte in data if byte != 0)
         else:
             raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
 
