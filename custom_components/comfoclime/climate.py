@@ -70,15 +70,16 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         self._hvac_mode = hvac_mode
 
         if self._hvac_mode == HVACMode.OFF:
-            pass  # Noch nicht umgesetzt, bzw keine Idee, welchen Wert man da setzten muss.
-        elif self._hvac_mode == HVACMode.FAN_ONLY:
+            self._api.set_device_setting(hpStandby=True)
+        else:
+            self._api.set_device_setting(hpStandby=False)
+
+        if self._hvac_mode == HVACMode.FAN_ONLY:
             self._api.update_thermal_profile({"season": {"season": 0}})
         elif self._hvac_mode == HVACMode.HEAT:
             self._api.update_thermal_profile({"season": {"season": 1}})
         elif self._hvac_mode == HVACMode.COOL:
             self._api.update_thermal_profile({"season": {"season": 2}})
-
-
 
     def set_fan_mode(self, fan_mode):
         """Set new target fan mode."""
@@ -86,10 +87,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             _LOGGER.error(f"Unsupported fan mode: {fan_mode}")
             return
         self._attr_fan_mode = fan_mode
-        self._api.set_device_setting(
-            None,  # temperature_profile
-            self._attr_fan_modes.index(fan_mode)  # fanSpeed
-        )
+        self._api.set_device_setting(fanSpeed=self._attr_fan_modes.index(fan_mode))
 
     def set_temperature(self, **kwargs):
         """Set new target temperature."""

@@ -126,7 +126,7 @@ class ComfoClimeSelect(
 
         try:
             if self._key == "temperatureProfile":
-                self._api.set_device_setting(value)
+                self._api.set_device_setting(temperatureProfile=1)
             else:
                 section = self._key_path[0]
                 key = self._key_path[1]
@@ -200,3 +200,4 @@ class ComfoClimePropertySelect(SelectEntity):
 
         except Exception as e:
             _LOGGER.error(f"Fehler beim Setzen von {self._name}: {e}")
+ # type: ignore
