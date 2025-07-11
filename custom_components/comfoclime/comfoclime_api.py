@@ -165,48 +165,18 @@ class ComfoClimeAPI:
             _LOGGER.warning(f"Fehler beim Abrufen von thermal_profile: {e}")
             return {}  # leer zurückgeben statt crashen
 
-    def update_thermal_profile(self, updates: dict):
+    def update_thermal_profile(self, payload: dict):
         """
-        updates: dict mit Teilwerten, z. B. {"heatingThermalProfileSeasonData": {"comfortTemperature": 20.0}}
+        Aktualisiert den Thermoprofil-Teilwert des ComfoClime-Geräts.
+        Args:
+            payload: dict mit Teilwerten, z.B. {"heatingThermalProfileSeasonData": {"comfortTemperature": 20.0}}
 
-        Diese Methode füllt alle anderen Felder mit None (null), wie von der API gefordert.
         """
-        full_payload = {
-            "season": {
-                "status": None,
-                "season": None,
-                "heatingThresholdTemperature": None,
-                "coolingThresholdTemperature": None,
-            },
-            "temperature": {
-                "status": None,
-                "manualTemperature": None,
-            },
-            "temperatureProfile": None,
-            "heatingThermalProfileSeasonData": {
-                "comfortTemperature": None,
-                "kneePointTemperature": None,
-                "reductionDeltaTemperature": None,
-            },
-            "coolingThermalProfileSeasonData": {
-                "comfortTemperature": None,
-                "kneePointTemperature": None,
-                "temperatureLimit": None,
-            },
-        }
-
-        # Deep-Update: überschreibe gezielt Felder im Payload
-        for section, values in updates.items():
-            if section in full_payload and isinstance(values, dict):
-                full_payload[section].update(values)
-            else:
-                full_payload[section] = values  # z. B. "temperatureProfile": 1
-
         if not self.uuid:
             self.get_uuid()
 
         url = f"{self.base_url}/system/{self.uuid}/thermalprofile"
-        response = requests.put(url, json=full_payload, timeout=5)
+        response = requests.put(url, json=payload, timeout=5)
         response.raise_for_status()
         return response.status_code == 200
 
