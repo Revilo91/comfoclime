@@ -70,9 +70,9 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         self._hvac_mode = hvac_mode
 
         if self._hvac_mode == HVACMode.OFF:
-            self._api.set_device_setting(hpStandby=True)
+            self._api.update_device_dashboard(hpStandby=True)
         else:
-            self._api.set_device_setting(hpStandby=False)
+            self._api.update_device_dashboard(hpStandby=False)
 
         if self._hvac_mode == HVACMode.FAN_ONLY:
             self._api.update_thermal_profile({"season": {"season": 0}})
@@ -87,7 +87,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             _LOGGER.error(f"Unsupported fan mode: {fan_mode}")
             return
         self._attr_fan_mode = fan_mode
-        self._api.set_device_setting(fanSpeed=self._attr_fan_modes.index(fan_mode))
+        self._api.update_device_dashboard(fanSpeed=self._attr_fan_modes.index(fan_mode))
 
     def set_temperature(self, **kwargs):
         """Set new target temperature."""
@@ -98,5 +98,5 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         if not (self._attr_min_temp <= temperature <= self._attr_max_temp):
             _LOGGER.error(f"Temperature {temperature} out of range")
             return
-        self._api.update_thermal_profile({"temperature": {"manualTemperature": temperature, "status": 0}})
+        self._api.update_thermal_profile({"temperature": {"manualTemperature": temperature}})
         self._attr_target_temperature = temperature

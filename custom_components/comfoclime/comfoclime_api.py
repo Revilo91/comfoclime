@@ -210,25 +210,26 @@ class ComfoClimeAPI:
         response.raise_for_status()
         return response.status_code == 200
 
-    def set_device_setting(self,  **payload):
+    def update_device_dashboard(self,  **payload):
         """
         Sets a device setting via the ComfoClime API.
         Args:
             **payload:  The settings to be set as key-value pairs:
-                            - 'caqFreeCoolingAvailable'
-                            - 'exhaustAirFlow'
-                            - 'fanSpeed'
-                            - 'freeCoolingEnabled'
-                            - 'heatPumpStatus'
-                            - 'hpStandby'
-                            - 'indoorTemperature'
-                            - 'outdoorTemperature'
-                            - 'schedule'
-                            - 'season'
-                            - 'setPointTemperature'
-                            - 'status'
-                            - 'supplyAirFlow'
-                            - 'temperatureProfile'
+                            - 'caqFreeCoolingAvailable'.....(RO)
+                            - 'exhaustAirFlow'..............(RO)
+                            - 'fanSpeed'....................(RW)
+                            - 'freeCoolingEnabled'..........(RW)
+                            - 'heatPumpStatus'..............(RO)
+                            - 'hpStandby'...................(RW)
+                            - 'indoorTemperature'...........(RO)
+                            - 'outdoorTemperature'..........(RO)
+                            - 'schedule'....................(RO)
+                            - 'season'......................(RO)
+                            - 'setPointTemperature'.........(RW)
+                            - 'status'......................(RO)
+                            - 'supplyAirFlow'...............(RO)
+                            - 'temperatureProfile'..........(RW)
+            e.g.: update_device_dashboard(fanSpeed=2, hpStandby=False, temperatureProfile=1)
         """
         payload.update({"timestamp": datetime.now().isoformat()})  # Mendetory field for the API
         headers = {"content-type": "application/json; charset=utf-8"}

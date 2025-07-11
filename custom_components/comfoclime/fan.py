@@ -60,7 +60,7 @@ class ComfoClimeFan(CoordinatorEntity[ComfoClimeDashboardCoordinator], FanEntity
         step = max(0, min(step, 3))  # Clamp to 0–3
         try:
             await self._hass.async_add_executor_job(
-                self._api.set_device_setting,
+                self._api.update_device_dashboard,
                 fanSpeed=step
             )
             self._current_speed = step
