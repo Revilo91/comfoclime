@@ -200,4 +200,4 @@ class ComfoClimePropertySelect(SelectEntity):
 
         except Exception as e:
             _LOGGER.error(f"Fehler beim Setzen von {self._name}: {e}")
- # type: ignore
+
