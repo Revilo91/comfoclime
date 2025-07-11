@@ -61,8 +61,7 @@ class ComfoClimeFan(CoordinatorEntity[ComfoClimeDashboardCoordinator], FanEntity
         try:
             await self._hass.async_add_executor_job(
                 self._api.set_device_setting,
-                None,  # temperature_profile
-                step,  # fanSpeed
+                fanSpeed=step
             )
             self._current_speed = step
             self.async_write_ha_state()

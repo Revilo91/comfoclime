@@ -1,7 +1,7 @@
 # comfoclime_api.py
 import asyncio
-import datetime
 import logging
+from datetime import datetime
 
 import requests
 
@@ -210,25 +210,27 @@ class ComfoClimeAPI:
         response.raise_for_status()
         return response.status_code == 200
 
-    def set_device_setting(self, temperature_profile=None, fan_speed=None):
-        if not self.uuid:
-            self.get_uuid()
-        payload = {
-            "@type": None,
-            "name": None,
-            "displayName": None,
-            "description": None,
-            "timestamp": datetime.datetime.now().isoformat(),
-            "status": None,
-            "setPointTemperature": None,
-            "temperatureProfile": temperature_profile,
-            "seasonProfile": None,
-            "fanSpeed": fan_speed,
-            "scenario": None,
-            "scenarioTimeLeft": None,
-            "season": None,
-            "schedule": None,
-        }
+    def set_device_setting(self,  **payload):
+        """
+        Sets a device setting via the ComfoClime API.
+        Args:
+            **payload:  The settings to be set as key-value pairs:
+                            - 'caqFreeCoolingAvailable'
+                            - 'exhaustAirFlow'
+                            - 'fanSpeed'
+                            - 'freeCoolingEnabled'
+                            - 'heatPumpStatus'
+                            - 'hpStandby'
+                            - 'indoorTemperature'
+                            - 'outdoorTemperature'
+                            - 'schedule'
+                            - 'season'
+                            - 'setPointTemperature'
+                            - 'status'
+                            - 'supplyAirFlow'
+                            - 'temperatureProfile'
+        """
+        payload.update({"timestamp": datetime.now().isoformat()})  # Mendetory field for the API
         headers = {"content-type": "application/json; charset=utf-8"}
         url = f"{self.base_url}/system/{self.uuid}/dashboard"
         try:
