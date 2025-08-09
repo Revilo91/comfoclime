@@ -165,6 +165,12 @@ class ComfoClimeAPI:
             _LOGGER.warning(f"Fehler beim Abrufen von thermal_profile: {e}")
             return {}  # leer zurückgeben statt crashen
 
+    async def async_update_thermal_profile(self, hass, payload: dict):
+        async with self._request_lock:
+            return await hass.async_add_executor_job(
+                self.update_thermal_profile, payload
+            )
+
     def update_thermal_profile(self, payload: dict):
         """
         Aktualisiert den Thermoprofil-Teilwert des ComfoClime-Geräts.
@@ -180,7 +186,13 @@ class ComfoClimeAPI:
         response.raise_for_status()
         return response.status_code == 200
 
-    def update_device_dashboard(self,  **payload):
+    async def async_update_device_dashboard(self, hass, payload: dict):
+        async with self._request_lock:
+            return await hass.async_add_executor_job(
+                self.update_device_dashboard, payload
+            )
+
+    def update_device_dashboard(self, payload: dict):
         """
         Sets a device setting via the ComfoClime API.
         Args:
