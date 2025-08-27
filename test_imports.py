@@ -11,7 +11,7 @@ def test_import(module_path, module_name):
         if spec is None:
             print(f"❌ Could not create spec for {module_name}")
             return False
-        
+
         module = importlib.util.module_from_spec(spec)
         sys.modules[module_name] = module
         spec.loader.exec_module(module)
@@ -24,7 +24,7 @@ def test_import(module_path, module_name):
 def main():
     """Run import tests for all ComfoClime modules."""
     print("Testing ComfoClime integration imports...")
-    
+
     base_path = "custom_components/comfoclime"
     modules = [
         ("__init__.py", "comfoclime"),
@@ -38,17 +38,17 @@ def main():
         ("select.py", "select"),
         ("fan.py", "fan"),
     ]
-    
+
     success_count = 0
     total_count = len(modules)
-    
+
     for module_file, module_name in modules:
         module_path = f"{base_path}/{module_file}"
         if test_import(module_path, module_name):
             success_count += 1
-    
+
     print(f"\nResult: {success_count}/{total_count} modules imported successfully")
-    
+
     if success_count == total_count:
         print("🎉 All modules imported successfully! Integration is ready for Home Assistant.")
         return 0

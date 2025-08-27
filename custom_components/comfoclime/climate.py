@@ -56,7 +56,7 @@ async def async_setup_entry(
         api,
         config_entry.entry_id
     )
-    
+
     async_add_entities([climate_entity])
 
 
@@ -210,9 +210,9 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
         temperature = kwargs.get(ATTR_TEMPERATURE)
         if temperature is None:
             return
-            
+
         season = self._get_current_season()
-        
+
         try:
             if season == "heating":
                 updates = {
@@ -299,7 +299,7 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
                 await self.hass.async_add_executor_job(
                     self._api.update_thermal_profile, updates
                 )
-                
+
             # Coordinators aktualisieren
             await self.coordinator.async_request_refresh()
             await self._thermalprofile_coordinator.async_request_refresh()
@@ -312,14 +312,14 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
         if preset_mode not in PRESET_REVERSE_MAPPING:
             _LOGGER.error(f"Unknown preset mode: {preset_mode}")
             return
-            
+
         temperature_profile = PRESET_REVERSE_MAPPING[preset_mode]
-        
+
         try:
             await self.hass.async_add_executor_job(
                 self._api.set_device_setting, temperature_profile, None
             )
-            
+
             # Dashboard coordinator aktualisieren
             await self.coordinator.async_request_refresh()
 

@@ -2,7 +2,7 @@
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 
-HomeAssistant integration of Zehnder ComfoClime (and all devices in ComfoNet bus like the ComfoAir Q) 
+HomeAssistant integration of Zehnder ComfoClime (and all devices in ComfoNet bus like the ComfoAir Q)
 
 ## Features
 ComfoClime is a HVAC solution as additional device for the ComfoAir Q series. It comes with its own app and an propietary JSON API. The ComfoClime unit is connected to the local network via WiFi/WLAN, the API is available only local via HTTP requests without authentication. The integration can also control the ventilation main unit ComfoAir Q. It currently offers:
@@ -37,7 +37,7 @@ The integration provides a comprehensive climate control entity that unifies all
 ### HVAC Modes
 - **Off**: System standby mode
 - **Heat**: Heating mode (automatically sets season to heating)
-- **Cool**: Cooling mode (automatically sets season to cooling)  
+- **Cool**: Cooling mode (automatically sets season to cooling)
 - **Fan Only**: Ventilation only mode (season set to transition)
 
 ### Preset Modes
@@ -67,4 +67,4 @@ Feel free to participate! 🙋‍♂️
 ## Thanks to...
 
 @michaelarnauts and his integration of ComfoConnect, where I discovered a lot of telemetries and properties of the ventilation unit:
-https://github.com/michaelarnauts/aiocomfoconnect 
+https://github.com/michaelarnauts/aiocomfoconnect
