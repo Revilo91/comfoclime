@@ -214,6 +214,20 @@
                 "high": "Hoch"
             }
         }
+      },
+      "climate": {
+        "climate": {
+            "name": "Klimasteuerung",
+            "state_attributes": {
+                "preset_mode": {
+                    "state": {
+                        "comfort": "Komfort",
+                        "power": "Power",
+                        "eco": "Eco"
+                    }
+                }
+            }
+        }
       }
     },
     "config": {
