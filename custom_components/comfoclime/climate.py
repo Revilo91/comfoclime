@@ -1,4 +1,5 @@
 """Climate platform for ComfoClime integration."""
+import asyncio
 import logging
 from typing import Any
 
@@ -205,6 +206,24 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
             return "transition"
         return "transition"
 
+    def _get_main_device_uuid(self) -> str | None:
+        """Get the UUID of the main ComfoClime device."""
+        # Try to get from the entry data
+        try:
+            entry_data = self.hass.data[DOMAIN][self._entry_id]
+            main_device = entry_data.get("main_device")
+            if main_device and main_device.get("uuid"):
+                return main_device["uuid"]
+
+            # Fallback: try to get from API
+            if hasattr(self._api, "uuid") and self._api.uuid:
+                return self._api.uuid
+
+        except Exception as e:
+            _LOGGER.warning(f"Could not get main device UUID: {e}")
+
+        return None
+
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature."""
         temperature = kwargs.get(ATTR_TEMPERATURE)
@@ -212,97 +231,157 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
             return
 
         season = self._get_current_season()
+        _LOGGER.info(f"Setting temperature to {temperature}°C in {season} season")
 
         try:
-            if season == "heating":
-                updates = {
-                    "heatingThermalProfileSeasonData": {
-                        "comfortTemperature": temperature
-                    }
-                }
-            if season == "cooling":
-                updates = {
-                    "coolingThermalProfileSeasonData": {
-                        "comfortTemperature": temperature
-                    }
-                }
-            if season == "transition":
-                _LOGGER.warning("Cannot set temperature in transition season")
+            # Basierend auf API-Dokumentation: Property 22/1/9 = heating comfort, 22/1/10 = cooling comfort
+            device_uuid = self._get_main_device_uuid()
+            if not device_uuid:
+                _LOGGER.error("No main device UUID found")
                 return
 
-            await self.hass.async_add_executor_job(
-                self._api.update_thermal_profile, updates
-            )
+            if season == "heating":
+                # Property 22/1/9: heating comfort temperature (UINT16, factor 0.1)
+                temp_value = int(temperature * 10)  # Convert to 0.1°C units
+                await self._api.async_set_property_for_device(
+                    self.hass,
+                    device_uuid,
+                    "22/1/9",
+                    temp_value,
+                    byte_count=2,
+                    signed=False,
+                    faktor=1.0
+                )
+            elif season == "cooling":
+                # Property 22/1/10: cooling comfort temperature (UINT16, factor 0.1)
+                temp_value = int(temperature * 10)  # Convert to 0.1°C units
+                await self._api.async_set_property_for_device(
+                    self.hass,
+                    device_uuid,
+                    "22/1/10",
+                    temp_value,
+                    byte_count=2,
+                    signed=False,
+                    faktor=1.0
+                )
+            else:
+                # In transition season, try to set heating temperature as fallback
+                _LOGGER.warning("Setting temperature in transition season - using heating profile")
+                temp_value = int(temperature * 10)
+                await self._api.async_set_property_for_device(
+                    self.hass,
+                    device_uuid,
+                    "22/1/9",
+                    temp_value,
+                    byte_count=2,
+                    signed=False,
+                    faktor=1.0
+                )
 
-            # Thermal profile coordinator aktualisieren
+            # Coordinators aktualisieren
             await self._thermalprofile_coordinator.async_request_refresh()
+            await self.coordinator.async_request_refresh()
+            _LOGGER.info(f"Successfully set temperature to {temperature}°C")
 
         except Exception:
             _LOGGER.exception("Failed to set temperature")
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new HVAC mode."""
+        _LOGGER.info(f"Setting HVAC mode to {hvac_mode}")
+
         try:
+            device_uuid = self._get_main_device_uuid()
+            if not device_uuid:
+                _LOGGER.error("No main device UUID found")
+                return
+
             if hvac_mode == HVACMode.OFF:
-                # System ausschalten - auf Standby setzen
+                # System ausschalten - Fan auf standby setzen
+                _LOGGER.info("Turning system OFF - setting fan to standby")
                 await self.hass.async_add_executor_job(
                     self._api.set_device_setting, None, 0
                 )
             elif hvac_mode == HVACMode.HEAT:
                 # Heizmodus aktivieren
+                _LOGGER.info("Activating HEAT mode - setting season to heating")
+                # Erst Fan aktivieren
                 await self.hass.async_add_executor_job(
                     self._api.set_device_setting, None, 1
                 )
-                # Season auf heating setzen wenn möglich
-                thermal_data = self._thermalprofile_coordinator.data or {}
-                season_data = thermal_data.get("season", {})
-                if season_data.get("season") != 1:  # 1 = heating
-                    updates = {
-                        "season": {
-                            "season": 1,
-                            "status": 1  # manual
-                        }
-                    }
-                    await self.hass.async_add_executor_job(
-                        self._api.update_thermal_profile, updates
-                    )
+                # Season auf heating setzen (Property 22/1/3)
+                await self._api.async_set_property_for_device(
+                    self.hass,
+                    device_uuid,
+                    "22/1/3",
+                    1,  # 1 = heating
+                    byte_count=1,
+                    signed=False,
+                    faktor=1.0
+                )
+                # Season mode auf manual setzen (Property 22/1/2)
+                await self._api.async_set_property_for_device(
+                    self.hass,
+                    device_uuid,
+                    "22/1/2",
+                    0,  # 0 = manual, 1 = automatic
+                    byte_count=1,
+                    signed=False,
+                    faktor=1.0
+                )
             elif hvac_mode == HVACMode.COOL:
                 # Kühlmodus aktivieren
+                _LOGGER.info("Activating COOL mode - setting season to cooling")
+                # Erst Fan aktivieren
                 await self.hass.async_add_executor_job(
                     self._api.set_device_setting, None, 1
                 )
-                # Season auf cooling setzen wenn möglich
-                thermal_data = self._thermalprofile_coordinator.data or {}
-                season_data = thermal_data.get("season", {})
-                if season_data.get("season") != 2:  # 2 = cooling
-                    updates = {
-                        "season": {
-                            "season": 2,
-                            "status": 1  # manual
-                        }
-                    }
-                    await self.hass.async_add_executor_job(
-                        self._api.update_thermal_profile, updates
-                    )
+                # Season auf cooling setzen (Property 22/1/3)
+                await self._api.async_set_property_for_device(
+                    self.hass,
+                    device_uuid,
+                    "22/1/3",
+                    2,  # 2 = cooling
+                    byte_count=1,
+                    signed=False,
+                    faktor=1.0
+                )
+                # Season mode auf manual setzen (Property 22/1/2)
+                await self._api.async_set_property_for_device(
+                    self.hass,
+                    device_uuid,
+                    "22/1/2",
+                    0,  # 0 = manual, 1 = automatic
+                    byte_count=1,
+                    signed=False,
+                    faktor=1.0
+                )
             elif hvac_mode == HVACMode.FAN_ONLY:
                 # Nur Lüftung aktivieren
+                _LOGGER.info("Activating FAN_ONLY mode - setting season to transition")
+                # Erst Fan aktivieren
                 await self.hass.async_add_executor_job(
                     self._api.set_device_setting, None, 1
                 )
-                # Season auf transition setzen
-                updates = {
-                    "season": {
-                        "season": 0,  # 0 = transition
-                        "status": 1   # manual
-                    }
-                }
-                await self.hass.async_add_executor_job(
-                    self._api.update_thermal_profile, updates
+                # Season auf transition setzen (Property 22/1/3)
+                await self._api.async_set_property_for_device(
+                    self.hass,
+                    device_uuid,
+                    "22/1/3",
+                    0,  # 0 = transition
+                    byte_count=1,
+                    signed=False,
+                    faktor=1.0
                 )
+
+            # Kurze Pause für System-Update
+            await asyncio.sleep(1)
 
             # Coordinators aktualisieren
             await self.coordinator.async_request_refresh()
             await self._thermalprofile_coordinator.async_request_refresh()
+
+            _LOGGER.info(f"Successfully set HVAC mode to {hvac_mode}")
 
         except Exception:
             _LOGGER.exception("Failed to set HVAC mode %s", hvac_mode)
@@ -314,6 +393,7 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
             return
 
         temperature_profile = PRESET_REVERSE_MAPPING[preset_mode]
+        _LOGGER.info(f"Setting preset mode to {preset_mode} (profile {temperature_profile})")
 
         try:
             await self.hass.async_add_executor_job(
@@ -322,6 +402,7 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
 
             # Dashboard coordinator aktualisieren
             await self.coordinator.async_request_refresh()
+            _LOGGER.info(f"Successfully set preset mode to {preset_mode}")
 
         except Exception:
             _LOGGER.exception("Failed to set preset mode %s", preset_mode)
