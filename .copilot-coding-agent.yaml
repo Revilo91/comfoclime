@@ -1,0 +1,56 @@
+# Copilot Coding Agent Konfigurationsdatei für dieses Repository
+# Siehe https://gh.io/copilot-coding-agent-tips für Best Practices und Details
+
+# Empfohlene Einstellungen und Hinweise:
+
+# 1. Branch-Namenskonventionen
+branch-naming:
+  feature: feature/<feature-name>
+  bugfix: bugfix/<bug-name>
+  refactor: refactor/<refactor-name>
+  docs: docs/<docs-topic>
+
+# 2. Commit-Nachrichtenformat
+commit-message:
+  format: |
+    <type>(<scope>): <description>
+
+    <body>
+
+    <footer>
+  types:
+    - feat
+    - fix
+    - docs
+    - refactor
+    - test
+    - chore
+
+# 3. PR-Konventionen
+pull-request:
+  title-format: "[<type>] <short description>"
+  description-sections:
+    - Motivation
+    - Änderungen
+    - Testanweisungen
+    - Screenshots
+    - Verweise
+
+# 4. Test- und Review-Prozess
+review:
+  require-tests: true
+  require-description: true
+  require-linked-issue: false
+
+# 5. Automatisierung
+automation:
+  enable-copilot-coding-agent: true
+  allow-auto-merge: false
+
+# 6. Sonstiges
+notes:
+  - "Bitte README und CLIMATE_USAGE_GUIDE.md für Implementierungsdetails beachten."
+  - "Python 3.12 wird verwendet."
+  - "Alle Änderungen in custom_components/comfoclime dokumentieren."
+
+# Ende der Konfiguration
