@@ -1,85 +1,146 @@
-# ComfoClime Climate Entity Implementation
+# ComfoClime Climate Entity - Verbesserungen
 
-## Summary
+## Wichtige Korrekturen basierend auf der Home Assistant Climate Entity Dokumentation:
 
-Successfully implemented a comprehensive climate control entity for the ComfoClime Home Assistant integration. The climate entity provides unified control over the heating, cooling, and ventilation system.
+### 1. **Korrekte Entity-Attribute**
+- `_attr_name = None` (nutzt device_info name)
+- `_attr_has_entity_name = True` (für bessere Namensgebung)
+- Korrekte `_attr_supported_features` Definition
 
-## Features Implemented
+### 2. **Verfügbarkeit (Available Property)**
+- Neue `available` Property die sowohl Dashboard- als auch Thermal-Coordinator Status prüft
+- Entity wird nur als verfügbar angezeigt wenn beide Coordinators erfolgreich sind
 
-### 1. Climate Entity (`climate.py`)
-- **HVAC Modes**: OFF, HEAT, COOL, FAN_ONLY
-- **Preset Modes**: comfort, power, eco
-- **Temperature Control**: Target temperature setting with season-aware ranges
-- **Current Temperature**: Display from indoor sensor
-- **HVAC Action Detection**: Shows current system activity (heating/cooling/fan/idle)
+### 3. **Coordinator Management**
+- Thermal Profile Coordinator wird korrekt als Listener hinzugefügt
+- `@callback` Decorator für `_handle_coordinator_update`
+- Reduziertes Logging (debug statt info für häufige Calls)
 
-### 2. Season-Aware Operation
-- Automatic detection of heating/cooling/transition seasons
-- Temperature ranges adjust automatically:
-  - Heating: 15-25°C
-  - Cooling: 20-28°C
-- HVAC modes automatically set appropriate season
+### 4. **Optimierte Property-Implementierung**
+- Entfernung von übermäßigem Logging aus Properties
+- Einfachere min/max Temperature Logik
+- Bessere Null-Checks und Fallbacks
 
-### 3. Integration with Existing API
-- Uses existing `ComfoClimeAPI` methods
-- Integrates with dashboard and thermal profile coordinators
-- Maintains compatibility with existing sensors and controls
+### 5. **Vereinfachte API-Aufrufe**
+- Entfernung von asyncio.sleep() Warteschleifen
+- Direktere Coordinator-Aktualisierung
+- Bessere Fehlerbehandlung
 
-### 4. Translations
-- German translations in `de.json`
-- English translations in `en.json`
+### 6. **Code-Qualität**
+- Entfernung von unnötigen elif-Statements
+- Cleanup von ungenutzten Imports
+- Konsistente Fehlerbehandlung
+
+## Hauptprobleme die behoben wurden:
+
+1. **Übermäßiges Logging**: Properties wurden bei jedem Zugriff geloggt
+2. **Blocking Operations**: Zu viele Sleep-Calls blockierten die UI
+3. **Coordinator Synchronisation**: Thermal Profile Coordinator war nicht korrekt eingebunden
+4. **Entity Availability**: Keine korrekte Verfügbarkeitsprüfung
+5. **Code Redundanz**: Doppelter Logging-Code und unnötige Komplexität
+
+## Erwartete Verbesserungen:
+
+- ✅ Responsive UI (keine Blockierungen mehr)
+- ✅ Korrekte Temperaturanzeige
+- ✅ Funktionierende Set-Operationen
+- ✅ Bessere Fehlerbehandlung
+- ✅ Cleaner Code mit weniger Logging-Spam
 - Climate-specific preset mode translations
 
-## Files Modified/Created
+## Refactoring-Details
 
-### New Files
-- `custom_components/comfoclime/climate.py` - Main climate entity implementation
+### **Vor der Überarbeitung**
+```python
+# Übermäßiges Logging in Properties
+@property
+def current_temperature(self) -> float | None:
+    _LOGGER.info("[ComfoClime Climate] Getting current temperature")
+    if self.coordinator.data:
+        temp = self.coordinator.data.get("indoorTemperature")
+        _LOGGER.info(f"[ComfoClime Climate] Current temperature: {temp}")
+        return temp
+    _LOGGER.warning("[ComfoClime Climate] No coordinator data for temperature")
+    return None
+```
 
-### Modified Files
-- `custom_components/comfoclime/__init__.py` - Added climate platform to setup
-- `custom_components/comfoclime/translations/de.json` - German climate translations
-- `custom_components/comfoclime/translations/en.json` - English climate translations
-- `README.md` - Updated documentation with climate features
+### **Nach der Überarbeitung**
+```python
+# Minimales, effizientes Logging
+@property
+def current_temperature(self) -> float | None:
+    """Return current temperature."""
+    if self.coordinator.data:
+        return self.coordinator.data.get("indoorTemperature")
+    return None
+```
 
-## API Methods Used
+### **Coordinator Management**
+```python
+# Korrekte Dual-Coordinator Integration
+async def async_added_to_hass(self) -> None:
+    """When entity is added to hass."""
+    await super().async_added_to_hass()
+    # Wichtig: Thermal Profile Coordinator als zusätzlichen Listener hinzufügen
+    self._thermalprofile_coordinator.async_add_listener(self._handle_coordinator_update)
 
-### Reading Data
-- `coordinator.data` - Dashboard data (current temperature, fan speed, season)
-- `_thermalprofile_coordinator.data` - Thermal profile data (target temperatures)
+@callback
+def _handle_coordinator_update(self) -> None:
+    """Handle updated data from both coordinators."""
+    self.async_write_ha_state()
+```
 
-### Writing Data
-- `_api.update_thermal_profile(updates)` - Set target temperatures and seasons
-- `_api.set_device_setting(temperature_profile, fan_speed)` - Set preset modes and fan control
+### **Availability Check**
+```python
+@property
+def available(self) -> bool:
+    """Return if entity is available."""
+    return (
+        self.coordinator.last_update_success
+        and self._thermalprofile_coordinator.last_update_success
+    )
+```
 
-## HVAC Mode Logic
+## Testing-Empfehlungen
 
-| Season | Fan Active | HVAC Mode |
-|--------|------------|-----------|
-| heating | True | HEAT |
-| cooling | True | COOL |
-| transition | True | FAN_ONLY |
-| Any | False | OFF |
+### 1. **Home Assistant Neustart**
+```bash
+# In HA Container/Core:
+service home-assistant restart
+```
 
-## Temperature Profile Mapping
+### 2. **Log-Monitoring**
+```yaml
+# In configuration.yaml hinzufügen:
+logger:
+  default: info
+  logs:
+    custom_components.comfoclime: debug
+```
 
-| Preset | Value | Description |
-|--------|-------|-------------|
-| comfort | 0 | Maximum comfort |
-| power | 1 | Power mode |
-| eco | 2 | Energy efficient |
+### 3. **Funktions-Tests**
+- ✅ Climate Entity erscheint in Integration
+- ✅ Temperatur wird korrekt angezeigt
+- ✅ HVAC Modi sind funktional (OFF/HEAT/COOL/FAN_ONLY)
+- ✅ Preset Modi funktionieren (comfort/power/eco)
+- ✅ Zieltemperatur kann gesetzt werden
+- ✅ Keine Blockierungen in der UI
 
-## Installation Instructions
+### 4. **Developer Tools Testing**
+```yaml
+# Service Call Beispiele:
+service: climate.set_temperature
+target:
+  entity_id: climate.comfoclime_climate
+data:
+  temperature: 22
 
-1. Copy the entire `custom_components/comfoclime/` folder to your Home Assistant custom components directory
-2. Restart Home Assistant
-3. Add the ComfoClime integration via Configuration > Integrations
-4. The climate entity will appear as "ComfoClime Climate"
-
-## Usage in Home Assistant
-
-The climate entity provides:
-- Thermostat card in Lovelace UI
-- Service calls for automation
+service: climate.set_hvac_mode
+target:
+  entity_id: climate.comfoclime_climate
+data:
+  hvac_mode: heat
+```
 - Climate control in Home Assistant app
 - Voice control compatibility (Alexa, Google Assistant)
 
