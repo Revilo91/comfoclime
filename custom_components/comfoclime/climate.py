@@ -213,17 +213,19 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         season = season_data.get("season", 0)
         status = season_data.get("status", 1)  # 0=manual, 1=automatic
 
-        # Wenn status=1 (automatic), dann ist das System "aus"
+        # Basierend auf Season - in Übergangszeit ist immer Lüftung aktiv
+        if season == 0:  # transitional/transition - always fan_only regardless of status
+            return HVACMode.FAN_ONLY
+        
+        # Für Heiz-/Kühlsaison: Wenn status=1 (automatic), dann ist das System "aus"
         if status == 1:
             return HVACMode.OFF
 
-        # Basierend auf Season
+        # Basierend auf Season für manuelle Modi
         if season == 1:  # heating
             return HVACMode.HEAT
         if season == 2:  # cooling
             return HVACMode.COOL
-        if season == 0:  # transition
-            return HVACMode.FAN_ONLY
 
         return HVACMode.OFF
 
@@ -240,7 +242,11 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         season = season_data.get("season", 0)
         status = season_data.get("status", 1)
 
-        if status == 1:  # automatic = aus
+        # In Übergangszeit ist immer Lüftung aktiv, unabhängig vom Status
+        if season == 0:  # transitional
+            return HVACAction.FAN
+
+        if status == 1:  # automatic = aus für Heiz-/Kühlsaison
             return HVACAction.OFF
 
         current_temp = self.current_temperature
@@ -258,7 +264,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         elif season in [1, 2]:
             return HVACAction.IDLE
 
-        return HVACAction.FAN  # transition season
+        return HVACAction.FAN  # fallback (should not be reached)
 
     @property
     def preset_mode(self) -> str | None:
