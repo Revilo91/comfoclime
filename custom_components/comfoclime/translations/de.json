@@ -214,6 +214,11 @@
                 "high": "Hoch"
             }
         }
+      },
+      "climate": {
+        "climate": {
+            "name": "Klimasteuerung"
+        }
       }
     },
     "config": {

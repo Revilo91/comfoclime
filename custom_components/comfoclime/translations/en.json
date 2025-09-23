@@ -217,6 +217,11 @@
                 "high": "High"
             }
         }
+      },
+      "climate": {
+        "climate": {
+            "name": "Climate Control"
+        }
       }
     },
     "config": {
