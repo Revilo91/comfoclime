@@ -213,8 +213,8 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         season = season_data.get("season", 0)
         status = season_data.get("status", 1)  # 0=manual, 1=automatic
 
-        # Basierend auf Season - in Übergangszeit ist immer Lüftung aktiv
-        if season == 0:  # transitional/transition - always fan_only regardless of status
+        # Basierend auf Season - in Übergangszeit ("transitional") ist immer Lüftung aktiv
+        if season == 0:  # transitional - always fan_only regardless of status
             return HVACMode.FAN_ONLY
         
         # Für Heiz-/Kühlsaison: Wenn status=1 (automatic), dann ist das System "aus"
