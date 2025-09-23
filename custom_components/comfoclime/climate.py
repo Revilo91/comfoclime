@@ -129,34 +129,14 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
     @property
     def current_temperature(self) -> float | None:
-        """Return current temperature from standardized API status."""
-        # First try standardized API status endpoint
-        if hasattr(self._api, 'get_status'):
-            try:
-                status_data = self._api.get_status()
-                if status_data and "temperature" in status_data:
-                    return status_data["temperature"]
-            except Exception:
-                _LOGGER.debug("Failed to get temperature from status API, falling back to dashboard")
-
-        # Fallback to existing dashboard data
+        """Return current temperature from dashboard data."""
         if self.coordinator.data:
             return self.coordinator.data.get("indoorTemperature")
         return None
 
     @property
     def target_temperature(self) -> float | None:
-        """Return target temperature from standardized API status."""
-        # First try standardized API status endpoint
-        if hasattr(self._api, 'get_status'):
-            try:
-                status_data = self._api.get_status()
-                if status_data and "target_temperature" in status_data:
-                    return status_data["target_temperature"]
-            except Exception:
-                _LOGGER.debug("Failed to get target temperature from status API, falling back")
-
-        # Fallback to existing thermal profile data
+        """Return target temperature from thermal profile data."""
         thermal_data = self._thermalprofile_coordinator.data
         if not thermal_data:
             return None
@@ -187,25 +167,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
     @property
     def hvac_mode(self) -> HVACMode:
-        """Return current HVAC mode from standardized API status."""
-        # First try standardized API status endpoint
-        if hasattr(self._api, "get_status"):
-            try:
-                status_data = self._api.get_status()
-                if status_data and "hvac_mode" in status_data:
-                    api_mode = status_data["hvac_mode"]
-                    # Map API modes back to Home Assistant HVAC modes
-                    mode_mapping = {
-                        "off": HVACMode.OFF,
-                        "heat": HVACMode.HEAT,
-                        "cool": HVACMode.COOL,
-                        "fan_only": HVACMode.FAN_ONLY,
-                    }
-                    return mode_mapping.get(api_mode, HVACMode.OFF)
-            except Exception:
-                _LOGGER.debug("Failed to get HVAC mode from status API, falling back")
-
-        # Fallback to existing thermal profile data
+        """Return current HVAC mode from thermal profile data."""
         if not self._thermalprofile_coordinator.data:
             return HVACMode.OFF
 
@@ -268,17 +230,8 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
     @property
     def preset_mode(self) -> str | None:
-        """Return current preset mode from standardized API status."""
-        # First try standardized API status endpoint
-        if hasattr(self._api, "get_status"):
-            try:
-                status_data = self._api.get_status()
-                if status_data and "preset" in status_data:
-                    return status_data["preset"]
-            except Exception:
-                _LOGGER.debug("Failed to get preset from status API, falling back")
-
-        # Fallback: Prüfe Dashboard Coordinator (für aktuellen Zustand)
+        """Return current preset mode from coordinator data."""
+        # Prüfe Dashboard Coordinator (für aktuellen Zustand)
         if self.coordinator.data:
             temp_profile = self.coordinator.data.get("temperatureProfile")
             if isinstance(temp_profile, int):
@@ -309,105 +262,109 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         return False
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
-        """Set new target temperature using standardized API endpoint."""
+        """Set new target temperature by updating thermal profile."""
         temperature = kwargs.get(ATTR_TEMPERATURE)
         if temperature is None:
             _LOGGER.warning("No temperature provided in kwargs")
             return
 
-        # Determine season based on current HVAC mode
-        hvac_mode = self.hvac_mode
-        season = None
-        if hvac_mode == HVACMode.HEAT:
-            season = "heating"
-        elif hvac_mode == HVACMode.COOL:
-            season = "cooling"
-
         try:
-            # Use standardized API endpoint
-            await self._api.async_set_temperature(self.hass, temperature, season)
+            # Determine which season comfort temperature to update based on current HVAC mode
+            hvac_mode = self.hvac_mode
+            updates = {}
+            
+            if hvac_mode == HVACMode.HEAT:
+                # Update heating comfort temperature
+                updates = {
+                    "heatingThermalProfileSeasonData": {
+                        "comfortTemperature": temperature
+                    }
+                }
+            elif hvac_mode == HVACMode.COOL:
+                # Update cooling comfort temperature
+                updates = {
+                    "coolingThermalProfileSeasonData": {
+                        "comfortTemperature": temperature
+                    }
+                }
+            else:
+                # For OFF or FAN_ONLY modes, update manual temperature
+                updates = {
+                    "temperature": {
+                        "manualTemperature": temperature
+                    }
+                }
+
+            # Update thermal profile using working API method
+            await self.hass.async_add_executor_job(
+                self._api.update_thermal_profile, updates
+            )
 
             # Request refresh of coordinators
             await self.coordinator.async_request_refresh()
             await self._thermalprofile_coordinator.async_request_refresh()
 
-        except ComfoClimeConnectionError:
-            _LOGGER.error("Connection to ComfoClime failed")
-        except ComfoClimeTimeoutError:
-            _LOGGER.warning("Timeout setting temperature")
-        except ComfoClimeAuthenticationError:
-            _LOGGER.error("Authentication failed")
-        except Exception:
-            _LOGGER.exception(f"Failed to set temperature to {temperature}")
+        except Exception as e:
+            _LOGGER.error(f"Failed to set temperature to {temperature}: {e}")
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
-        """Set new HVAC mode using standardized API endpoint."""
-        # Map Home Assistant HVAC modes to API modes
-        mode_mapping = {
-            HVACMode.OFF: "off",
-            HVACMode.HEAT: "heat",
-            HVACMode.COOL: "cool",
-            HVACMode.FAN_ONLY: "fan_only",
-        }
-
-        api_mode = mode_mapping.get(hvac_mode)
-        if not api_mode:
-            _LOGGER.error(f"Unsupported HVAC mode: {hvac_mode}")
-            return
-
+        """Set new HVAC mode by updating season and status."""
         try:
-            # Use standardized API endpoint
-            await self._api.async_set_hvac_mode(self.hass, api_mode)
+            # Map HVAC modes to season/status values
+            if hvac_mode == HVACMode.OFF:
+                # Set status to automatic (1) which turns the system off
+                updates = {"season": {"status": 1}}
+            elif hvac_mode == HVACMode.FAN_ONLY:
+                # Set season to transitional (0) 
+                updates = {"season": {"season": 0, "status": 0}}
+            elif hvac_mode == HVACMode.HEAT:
+                # Set season to heating (1) and status to manual (0)
+                updates = {"season": {"season": 1, "status": 0}}
+            elif hvac_mode == HVACMode.COOL:
+                # Set season to cooling (2) and status to manual (0)
+                updates = {"season": {"season": 2, "status": 0}}
+            else:
+                _LOGGER.error(f"Unsupported HVAC mode: {hvac_mode}")
+                return
+
+            # Update thermal profile using working API method
+            await self.hass.async_add_executor_job(
+                self._api.update_thermal_profile, updates
+            )
 
             # Request refresh of coordinators
             await self.coordinator.async_request_refresh()
             await self._thermalprofile_coordinator.async_request_refresh()
 
-        except ComfoClimeConnectionError:
-            _LOGGER.error("Connection to ComfoClime failed")
-        except ComfoClimeTimeoutError:
-            _LOGGER.warning("Timeout setting HVAC mode")
-        except ComfoClimeAuthenticationError:
-            _LOGGER.error("Authentication failed")
-        except Exception:
-            _LOGGER.exception(f"Failed to set HVAC mode {hvac_mode}")
+        except Exception as e:
+            _LOGGER.error(f"Failed to set HVAC mode {hvac_mode}: {e}")
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
-        """Set preset mode using standardized API endpoint."""
+        """Set preset mode by updating temperature profile."""
         if preset_mode not in PRESET_REVERSE_MAPPING:
             _LOGGER.error(f"Unknown preset mode: {preset_mode}")
             return
 
         try:
-            # Use standardized API endpoint
-            await self._api.async_set_preset(self.hass, preset_mode)
+            # Map preset mode to temperature profile value
+            temperature_profile = PRESET_REVERSE_MAPPING[preset_mode]
+            
+            # Use working API method to set device setting
+            await self.hass.async_add_executor_job(
+                self._api.set_device_setting, temperature_profile
+            )
 
             # Request refresh of coordinators
             await self.coordinator.async_request_refresh()
             await self._thermalprofile_coordinator.async_request_refresh()
 
-        except ComfoClimeConnectionError:
-            _LOGGER.error("Connection to ComfoClime failed")
-        except ComfoClimeTimeoutError:
-            _LOGGER.warning("Timeout setting preset mode")
-        except ComfoClimeAuthenticationError:
-            _LOGGER.error("Authentication failed")
-        except Exception:
-            _LOGGER.exception(f"Failed to set preset mode {preset_mode}")
+        except Exception as e:
+            _LOGGER.error(f"Failed to set preset mode {preset_mode}: {e}")
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return debug information as extra state attributes."""
         attrs = {}
-
-        # Add standardized API status if available
-        if hasattr(self._api, "get_status"):
-            try:
-                status_data = self._api.get_status()
-                if status_data:
-                    attrs["api_status"] = status_data
-            except Exception:
-                attrs["api_status"] = "unavailable"
 
         # Add thermal profile data for debugging
         if self._thermalprofile_coordinator.data:
@@ -421,14 +378,36 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
                 "temperature_profile": self.coordinator.data.get("temperatureProfile"),
             }
 
+        # Add current mappings for debugging
+        thermal_data = self._thermalprofile_coordinator.data
+        if thermal_data:
+            season_data = thermal_data.get("season", {})
+            attrs["current_mappings"] = {
+                "season_season": season_data.get("season"),
+                "season_status": season_data.get("status"),
+                "temperature_profile": thermal_data.get("temperatureProfile"),
+                "hvac_mode_calculated": str(self.hvac_mode),
+                "preset_mode_calculated": self.preset_mode,
+            }
+
         # Add API mapping documentation
         attrs["api_mappings"] = {
-            "temperature_endpoint": "/api/temperature",
-            "hvac_mode_endpoint": "/api/hvac_mode",
-            "preset_endpoint": "/api/preset",
-            "status_endpoint": "/api/status",
-            "supported_hvac_modes": ["off", "heat", "cool", "fan_only"],
-            "supported_presets": ["comfort", "power", "eco"],
+            "hvac_modes": {
+                "off": "season.status=1 (automatic)",
+                "fan_only": "season.season=0 (transitional)",
+                "heat": "season.season=1 + season.status=0",
+                "cool": "season.season=2 + season.status=0"
+            },
+            "preset_modes": {
+                "comfort": "temperatureProfile=0",
+                "power": "temperatureProfile=1", 
+                "eco": "temperatureProfile=2"
+            },
+            "working_methods": {
+                "hvac_mode": "update_thermal_profile(season)",
+                "preset_mode": "set_device_setting(temperature_profile)",
+                "temperature": "update_thermal_profile(seasonData)"
+            }
         }
 
         return attrs
