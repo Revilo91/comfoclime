@@ -129,34 +129,14 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
     @property
     def current_temperature(self) -> float | None:
-        """Return current temperature from standardized API status."""
-        # First try standardized API status endpoint
-        if hasattr(self._api, 'get_status'):
-            try:
-                status_data = self._api.get_status()
-                if status_data and "temperature" in status_data:
-                    return status_data["temperature"]
-            except Exception:
-                _LOGGER.debug("Failed to get temperature from status API, falling back to dashboard")
-
-        # Fallback to existing dashboard data
+        """Return current temperature from dashboard data."""
         if self.coordinator.data:
             return self.coordinator.data.get("indoorTemperature")
         return None
 
     @property
     def target_temperature(self) -> float | None:
-        """Return target temperature from standardized API status."""
-        # First try standardized API status endpoint
-        if hasattr(self._api, 'get_status'):
-            try:
-                status_data = self._api.get_status()
-                if status_data and "target_temperature" in status_data:
-                    return status_data["target_temperature"]
-            except Exception:
-                _LOGGER.debug("Failed to get target temperature from status API, falling back")
-
-        # Fallback to existing thermal profile data
+        """Return target temperature from thermal profile data."""
         thermal_data = self._thermalprofile_coordinator.data
         if not thermal_data:
             return None
@@ -187,25 +167,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
     @property
     def hvac_mode(self) -> HVACMode:
-        """Return current HVAC mode from standardized API status."""
-        # First try standardized API status endpoint
-        if hasattr(self._api, "get_status"):
-            try:
-                status_data = self._api.get_status()
-                if status_data and "hvac_mode" in status_data:
-                    api_mode = status_data["hvac_mode"]
-                    # Map API modes back to Home Assistant HVAC modes
-                    mode_mapping = {
-                        "off": HVACMode.OFF,
-                        "heat": HVACMode.HEAT,
-                        "cool": HVACMode.COOL,
-                        "fan_only": HVACMode.FAN_ONLY,
-                    }
-                    return mode_mapping.get(api_mode, HVACMode.OFF)
-            except Exception:
-                _LOGGER.debug("Failed to get HVAC mode from status API, falling back")
-
-        # Fallback to existing thermal profile data
+        """Return current HVAC mode from thermal profile data."""
         if not self._thermalprofile_coordinator.data:
             return HVACMode.OFF
 
@@ -268,17 +230,8 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
     @property
     def preset_mode(self) -> str | None:
-        """Return current preset mode from standardized API status."""
-        # First try standardized API status endpoint
-        if hasattr(self._api, "get_status"):
-            try:
-                status_data = self._api.get_status()
-                if status_data and "preset" in status_data:
-                    return status_data["preset"]
-            except Exception:
-                _LOGGER.debug("Failed to get preset from status API, falling back")
-
-        # Fallback: Prüfe Dashboard Coordinator (für aktuellen Zustand)
+        """Return current preset mode from coordinator data."""
+        # Prüfe Dashboard Coordinator (für aktuellen Zustand)
         if self.coordinator.data:
             temp_profile = self.coordinator.data.get("temperatureProfile")
             if isinstance(temp_profile, int):
@@ -413,15 +366,6 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         """Return debug information as extra state attributes."""
         attrs = {}
 
-        # Add standardized API status if available
-        if hasattr(self._api, "get_status"):
-            try:
-                status_data = self._api.get_status()
-                if status_data:
-                    attrs["api_status"] = status_data
-            except Exception:
-                attrs["api_status"] = "unavailable"
-
         # Add thermal profile data for debugging
         if self._thermalprofile_coordinator.data:
             attrs["thermal_profile"] = self._thermalprofile_coordinator.data
@@ -434,14 +378,36 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
                 "temperature_profile": self.coordinator.data.get("temperatureProfile"),
             }
 
+        # Add current mappings for debugging
+        thermal_data = self._thermalprofile_coordinator.data
+        if thermal_data:
+            season_data = thermal_data.get("season", {})
+            attrs["current_mappings"] = {
+                "season_season": season_data.get("season"),
+                "season_status": season_data.get("status"),
+                "temperature_profile": thermal_data.get("temperatureProfile"),
+                "hvac_mode_calculated": str(self.hvac_mode),
+                "preset_mode_calculated": self.preset_mode,
+            }
+
         # Add API mapping documentation
         attrs["api_mappings"] = {
-            "temperature_endpoint": "/api/temperature",
-            "hvac_mode_endpoint": "/api/hvac_mode",
-            "preset_endpoint": "/api/preset",
-            "status_endpoint": "/api/status",
-            "supported_hvac_modes": ["off", "heat", "cool", "fan_only"],
-            "supported_presets": ["comfort", "power", "eco"],
+            "hvac_modes": {
+                "off": "season.status=1 (automatic)",
+                "fan_only": "season.season=0 (transitional)",
+                "heat": "season.season=1 + season.status=0",
+                "cool": "season.season=2 + season.status=0"
+            },
+            "preset_modes": {
+                "comfort": "temperatureProfile=0",
+                "power": "temperatureProfile=1", 
+                "eco": "temperatureProfile=2"
+            },
+            "working_methods": {
+                "hvac_mode": "update_thermal_profile(season)",
+                "preset_mode": "set_device_setting(temperature_profile)",
+                "temperature": "update_thermal_profile(seasonData)"
+            }
         }
 
         return attrs
