@@ -3,84 +3,138 @@
 
 ## API-Integration nach ComfoClimeAPI.md
 
-Die Integration basiert auf der offiziellen [ComfoClimeAPI Dokumentation](https://github.com/msfuture/comfoclime_api/blob/main/ComfoClimeAPI.md). Die wichtigsten Vorgaben für die Entwicklung und Nutzung der API sind:
+Die Integration basiert auf der offiziellen [ComfoClimeAPI Dokumentation](https://github.com/revilo91/comfoclime_api/blob/main/ComfoClimeAPI.md). Die wichtigsten Vorgaben für die Entwicklung und Nutzung der API sind:
 
 ### Authentifizierung
-- Die API verwendet einen Token-Mechanismus. Der Token wird über `/api/auth` abgerufen und muss für alle weiteren Requests im Header `Authorization: Bearer <token>` gesetzt werden.
-- Token-Handling und Erneuerung sind zentral im Coordinator zu implementieren.
+- Die API verwendet keine Token-basierte Authentifizierung
+- Alle Endpunkte sind direkt über HTTP GET/PUT Requests erreichbar
+- Die IP-Adresse oder der Hostname des ComfoClime-Geräts wird für die Verbindung verwendet
 
-### Endpunkte und Methoden
-- **Status abfragen:**
-    - `GET /api/status` → Liefert alle aktuellen Werte und Zustände als JSON.
-- **Temperatur setzen:**
-    - `POST /api/temperature` mit Payload `{ "temperature": <float>, "season": "heating|cooling" }`
-- **HVAC-Modus setzen:**
-    - `POST /api/hvac_mode` mit Payload `{ "mode": "heat|cool|off|fan_only" }`
-- **Preset-Modus setzen:**
-    - `POST /api/preset` mit Payload `{ "preset": "comfort|eco|power" }`
-- **Lüfterstufe setzen:**
-    - `POST /api/fan_speed` mit Payload `{ "speed": <int> }`
-- **Weitere Endpunkte:** Siehe ComfoClimeAPI.md für alle verfügbaren Methoden und deren Payloads.
-
-### Fehlerbehandlung
-- Prüfe alle Responses auf HTTP-Status und Fehlercodes.
-- Implementiere ein zentrales Exception-Handling für Netzwerkfehler, Authentifizierungsfehler und ungültige Payloads.
-- Nutze die Fehlerklassen aus der API-Doku (`ComfoClimeConnectionError`, `ComfoClimeTimeoutError`, etc.).
-
-### Datenmodell
-- Die API liefert alle Werte als JSON. Die Zuordnung zu Home Assistant-Entitäten erfolgt im Coordinator.
-- Verwende die in der Doku beschriebenen Keys und Werte für Sensoren, Climate, Switches etc.
-- Beispiel für Status-Response:
+### Hauptendpunkte und Methoden
+- **Dashboard-Status abfragen:**
+    - `GET /system/{UUID}/dashboard` → Liefert alle aktuellen Werte und Zustände als JSON
+    - Beispiel Response:
     ```json
     {
-        "temperature": 21.5,
-        "season": "heating",
-        "hvac_mode": "heat",
-        "preset": "comfort",
-        "fan_speed": 2,
-        ...
+        "indoorTemperature": 25.4,
+        "outdoorTemperature": 27.8,
+        "exhaustAirFlow": 485,
+        "supplyAirFlow": 484,
+        "fanSpeed": 2,
+        "seasonProfile": 0,
+        "temperatureProfile": 0,
+        "season": 2,
+        "schedule": 0,
+        "status": 1,
+        "heatPumpStatus": 5,
+        "hpStandby": false,
+        "freeCoolingEnabled": false,
+        "caqFreeCoolingAvailable": true
     }
     ```
 
+- **Geräteinformationen abfragen:**
+    - `GET /system/{UUID}/devices` → Liste aller verbundenen Geräte
+
+- **Thermalprofil abfragen:**
+    - `GET /system/{UUID}/thermalprofile` → Temperaturprofile und Schwellenwerte
+
+- **Alarme abfragen:**
+    - `GET /system/{UUID}/alarms` → Fehlermeldungen aller Geräte
+
+### Property-System für Einstellungen
+- **Properties lesen:**
+    - `GET /device/{UUID}/property/X/Y/Z` → Liest Eigenschaft von Gerät
+    - X = Unit, Y = Subunit, Z = Property
+
+- **Properties schreiben:**
+    - `PUT /device/{UUID}/method/X/Y/3` → Schreibt Eigenschaft zu Gerät
+    - Body: `{ "data": [property_id, value_bytes...] }`
+
+### Wichtige Properties für ComfoClime
+- **Saison (Unit 22, Subunit 1):**
+    - Property 2: Season automatic on/off
+    - Property 3: Season select (0=transitional, 1=heating, 2=cooling)
+
+- **Temperatur (Unit 22, Subunit 1):**
+    - Property 8: Automatic temperature select
+    - Property 9: Comfort temp heating
+    - Property 10: Comfort temp cooling
+    - Property 13: Manual mode target temperature
+
+- **Temperaturprofil (Unit 22, Subunit 1):**
+    - Property 29: ComfoClime temp profile (0=Comfort, 1=Power, 2=Eco)
+
+### Sensor-Endpunkte
+- **Telemetrie lesen:**
+    - `GET /device/{UUID}/telemetry/N` → Liest Sensor N
+    - Wichtige Sensoren:
+        - 4154: Indoor temperature
+        - 4193: Supply temperature
+        - 4194: Exhaust temperature
+        - 4149: ComfoClime mode (0=off, 1=heating, 2=cooling)
+
+### Fehlerbehandlung
+- Prüfe alle Responses auf HTTP-Status und Fehlercodes
+- Implementiere ein zentrales Exception-Handling für Netzwerkfehler und ungültige Payloads
+- Nutze die Fehlerklassen aus der API-Doku (`ComfoClimeConnectionError`, `ComfoClimeTimeoutError`, etc.)
+
+### Datenmodell
+- Die API liefert alle Werte als JSON oder Byte-Arrays
+- UUID = Seriennummer des Geräts (wie in der ComfoClime App angezeigt)
+- Temperaturwerte in °C als UINT16 (geteilt durch 10 für echte Temperatur)
+- Heat Pump Status als Bitfeld (siehe Dokumentation)
+
 ### Best Practices
-- Alle API-Calls sind asynchron (`async def`).
-- Token-Handling und API-Fehlerbehandlung sind zentral im Coordinator.
-- Nutze die in der Doku empfohlenen Payloads und Response-Keys.
-- Dokumentiere alle API-Mappings im Code.
+- Alle API-Calls sind asynchron (`async def`)
+- Verwende die UUID des ComfoClime-Geräts für alle system/* Endpunkte
+- Dokumentiere alle API-Mappings im Code
+- Beachte die verschiedenen Betriebsmodi (auto/manual, heating/cooling)
 
 ---
 
 ## Ergänzende Hinweise für Copilot
 
-- Die Implementierung muss sich strikt an die Endpunkt- und Payload-Vorgaben aus [ComfoClimeAPI.md](https://github.com/msfuture/comfoclime_api/blob/main/ComfoClimeAPI.md) halten.
+- Die Implementierung muss sich strikt an die Endpunkt- und Payload-Vorgaben aus [ComfoClimeAPI.md](https://github.com/revilo91/comfoclime_api/blob/main/ComfoClimeAPI.md) halten.
+- Die API verwendet UUID-basierte Endpunkte ohne Token-Authentifizierung
 - Neue Entitäten oder Funktionen müssen vorab mit der API-Doku abgeglichen werden.
 - Bei Unsicherheiten immer die API-Doku referenzieren.
-- Die Authentifizierung ist Pflicht für alle Requests.
 - Fehlerbehandlung und Logging sind zentral zu implementieren.
 - Die Zuordnung von API-Keys zu Home Assistant-Attributen ist im Code zu dokumentieren.
+- UUID des ComfoClime-Geräts wird für alle API-Calls benötigt
 
 ---
 
 ## Ressourcen
-- [ComfoClimeAPI.md](https://github.com/msfuture/comfoclime_api/blob/main/ComfoClimeAPI.md)
+- [ComfoClimeAPI.md](https://github.com/revilo91/comfoclime_api/blob/main/ComfoClimeAPI.md)
 - `CLIMATE_IMPLEMENTATION.md` – Implementierungsdetails
 - `CLIMATE_USAGE_GUIDE.md` – Benutzeranleitung
 - Home Assistant Developer Docs
 
 ---
 
-## Beispiel: API-Call mit Authentifizierung
+## Beispiel: API-Call ohne Authentifizierung
 
 ```python
 import aiohttp
 
-async def get_status(token: str, host: str) -> dict:
-        url = f"http://{host}/api/status"
-        headers = {"Authorization": f"Bearer {token}"}
-        async with aiohttp.ClientSession() as session:
-                async with session.get(url, headers=headers) as resp:
-                        resp.raise_for_status()
-                        return await resp.json()
+async def get_dashboard_status(uuid: str, host: str) -> dict:
+    """Holt Dashboard-Status vom ComfoClime-Gerät."""
+    url = f"http://{host}/system/{uuid}/dashboard"
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+async def set_temperature_property(uuid: str, host: str, temp_value: int) -> bool:
+    """Setzt Zieltemperatur über Property-System."""
+    url = f"http://{host}/device/{uuid}/method/22/1/3"
+    # Property 13 = Manual target temperature, Wert als UINT16 (temp * 10)
+    data = {"data": [13, temp_value & 0xFF, (temp_value >> 8) & 0xFF]}
+    async with aiohttp.ClientSession() as session:
+        async with session.put(url, json=data) as resp:
+            resp.raise_for_status()
+            return resp.status == 200
 ```
 
 ---
@@ -92,8 +146,9 @@ async def get_status(token: str, host: str) -> dict:
 ---
 
 ## Testing
-- Mocke API-Calls mit gültigen und ungültigen Responses laut Doku.
-- Teste Authentifizierungs- und Fehlerfälle explizit.
+- Mocke API-Calls mit gültigen und ungültigen Responses laut Doku
+- Teste Property-System und Sensor-Endpunkte explizit
+- Verwende echte UUID-Strukturen in Tests
 
 ---
 
