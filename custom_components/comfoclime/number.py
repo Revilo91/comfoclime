@@ -85,23 +85,46 @@ class ComfoClimeTemperatureNumber(
         self._attr_translation_key = conf["translation_key"]
         self._attr_has_entity_name = True
 
+    def _get_automatic_temperature_status(self):
+        """Helper method to get the automatic temperature status from coordinator data.
+
+        Returns:
+            int or None: 1 if automatic mode is ON, 0 if OFF, None if unable to determine
+        """
+        try:
+            coordinator_data = self.coordinator.data
+            return coordinator_data.get("temperature", {}).get("status")
+        except Exception as e:
+            _LOGGER.debug(f"Could not check automatic temperature status: {e}")
+            return None
+
     @property
     def available(self):
-        """Return True if entity is available."""
-        # For manual temperature setting, check if automatic mode is disabled
+        """Return True if entity is available based on automatic temperature mode.
+
+        - Manual temperature: only available when automatic mode is OFF (status = 0)
+        - Heating/Cooling comfort temperatures: only available when automatic mode is ON (status = 1)
+        - Other entities: always available
+        """
+        automatic_status = self._get_automatic_temperature_status()
+
+        # If we can't determine status, make entity available to avoid breaking functionality
+        if automatic_status is None:
+            return True
+
+        # Manual temperature is only available when automatic mode is disabled
         if self._key_path[0] == "temperature" and self._key_path[1] == "manualTemperature":
-            try:
-                coordinator_data = self.coordinator.data
-                automatic_temperature_status = coordinator_data.get("temperature", {}).get("status")
-                
-                # Only available if automatic mode is disabled (status = 0)
-                return automatic_temperature_status == 0
-            except Exception as e:
-                _LOGGER.debug(f"Could not check automatic temperature status for availability: {e}")
-                # Return True if we can't determine the status to avoid breaking functionality
-                return True
-        
-        # For all other temperature entities, use default availability
+            return automatic_status == 0
+
+        # Heating/Cooling comfort temperatures are only available when automatic mode is enabled
+        is_heating_cooling_comfort = (
+            self._key_path[0] in ["heatingThermalProfileSeasonData", "coolingThermalProfileSeasonData"] and
+            self._key_path[1] == "comfortTemperature"
+        )
+        if is_heating_cooling_comfort:
+            return automatic_status == 1
+
+        # All other temperature entities are always available
         return True
 
     @property
@@ -154,24 +177,33 @@ class ComfoClimeTemperatureNumber(
         self.async_write_ha_state()
 
     def set_native_value(self, value: float):
-        # Check if this is a manual temperature setting
+        """Set the temperature value after checking automatic mode constraints."""
+        automatic_status = self._get_automatic_temperature_status()
+
+        # Validate manual temperature can only be set when automatic mode is OFF
         if self._key_path[0] == "temperature" and self._key_path[1] == "manualTemperature":
-            # Check if automatic comfort temperature is enabled
-            try:
-                coordinator_data = self.coordinator.data
-                automatic_temperature_status = coordinator_data.get("temperature", {}).get("status")
-                
-                if automatic_temperature_status == 1:
-                    _LOGGER.warning(f"Cannot set manual temperature: automatic comfort temperature is enabled")
-                    # Don't proceed with setting the temperature
-                    return
-            except Exception as e:
-                _LOGGER.warning(f"Could not check automatic temperature status: {e}")
-                # Proceed anyway if we can't determine the status
+            if automatic_status == 1:
+                _LOGGER.warning(
+                    "Cannot set manual temperature: automatic comfort temperature is enabled. "
+                    "Please disable the automatic comfort temperature switch first."
+                )
+                return
+
+        # Validate heating/cooling comfort temperatures can only be set when automatic mode is ON
+        is_heating_cooling_comfort = (
+            self._key_path[0] in ["heatingThermalProfileSeasonData", "coolingThermalProfileSeasonData"] and
+            self._key_path[1] == "comfortTemperature"
+        )
+        if is_heating_cooling_comfort:
+            if automatic_status == 0:
+                _LOGGER.warning(
+                    f"Cannot set {self._name}: automatic comfort temperature is disabled. "
+                    "Please enable the automatic comfort temperature switch first."
+                )
+                return
 
         section = self._key_path[0]
         key = self._key_path[1]
-
         update = {section: {key: value}}
 
         try:
