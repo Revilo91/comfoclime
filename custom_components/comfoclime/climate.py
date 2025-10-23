@@ -401,28 +401,20 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         """Set setPointTemperature via dashboard API.
         
         According to API documentation, setPointTemperature is set via the dashboard
-        PUT endpoint in manual mode.
+        PUT endpoint in manual mode. Only fields documented in the API spec are included.
         """
-        import datetime
         import requests
         
         if not self._api.uuid:
             await self.hass.async_add_executor_job(self._api.get_uuid)
         
         def _set_dashboard_temperature():
+            # Only include fields documented in the ComfoClime API spec
+            # Fields like scenario, scenarioTimeLeft, @type, name, displayName, description
+            # are NOT part of the official API and should not be included
             payload = {
-                "@type": None,
-                "name": None,
-                "displayName": None,
-                "description": None,
-                "timestamp": datetime.datetime.now().isoformat(),
-                "status": None,
                 "setPointTemperature": temperature,
-                "temperatureProfile": None,
-                "seasonProfile": None,
                 "fanSpeed": None,
-                "scenario": None,
-                "scenarioTimeLeft": None,
                 "season": None,
                 "schedule": None,
             }
