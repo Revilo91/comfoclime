@@ -178,7 +178,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         # Basierend auf Season - in Übergangszeit ("transitional") ist immer Lüftung aktiv
         if season == 0:  # transitional - always fan_only regardless of status
             return HVACMode.FAN_ONLY
-        
+
         # Für Heiz-/Kühlsaison: Wenn status=1 (automatic), dann ist das System "aus"
         if status == 1:
             return HVACMode.OFF
@@ -224,7 +224,13 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         elif season == 2 and temp_diff > 0.5:  # cooling
             return HVACAction.COOLING
         elif season in [1, 2]:
-            return HVACAction.IDLE
+            # Bisher wurde hier IDLE zurückgegeben. Wunsch: Solange der Lüfter läuft
+            # (also System aktiv ist) statt "Leerlauf" den Ventilations-Status anzeigen.
+            # Daher geben wir FAN zurück. "Leerlauf" (IDLE) taucht damit nur noch auf,
+            # wenn der Lüfter tatsächlich steht – dieser Fall wird weiter oben bereits
+            # als OFF behandelt. Sollte später ein echter Unterschied zwischen OFF und
+            # IDLE nötig sein, kann hier eine differenziertere Logik ergänzt werden.
+            return HVACAction.FAN
 
         return HVACAction.FAN  # fallback (should not be reached)
 
@@ -256,7 +262,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
         if isinstance(fan_speed, str):
             return fan_speed not in ["0", "standby", ""]
-        elif isinstance(fan_speed, int):
+        if isinstance(fan_speed, int):
             return fan_speed > 0
 
         return False
@@ -272,7 +278,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             # Determine which season comfort temperature to update based on current HVAC mode
             hvac_mode = self.hvac_mode
             updates = {}
-            
+
             if hvac_mode == HVACMode.HEAT:
                 # Update heating comfort temperature
                 updates = {
@@ -304,8 +310,8 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             await self.coordinator.async_request_refresh()
             await self._thermalprofile_coordinator.async_request_refresh()
 
-        except Exception as e:
-            _LOGGER.error(f"Failed to set temperature to {temperature}: {e}")
+        except Exception:
+            _LOGGER.exception(f"Failed to set temperature to {temperature}")
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new HVAC mode by updating season and status."""
@@ -315,7 +321,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
                 # Set status to automatic (1) which turns the system off
                 updates = {"season": {"status": 1}}
             elif hvac_mode == HVACMode.FAN_ONLY:
-                # Set season to transitional (0) 
+                # Set season to transitional (0)
                 updates = {"season": {"season": 0, "status": 0}}
             elif hvac_mode == HVACMode.HEAT:
                 # Set season to heating (1) and status to manual (0)
@@ -336,8 +342,8 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             await self.coordinator.async_request_refresh()
             await self._thermalprofile_coordinator.async_request_refresh()
 
-        except Exception as e:
-            _LOGGER.error(f"Failed to set HVAC mode {hvac_mode}: {e}")
+        except Exception:
+            _LOGGER.exception(f"Failed to set HVAC mode {hvac_mode}")
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set preset mode by updating temperature profile."""
@@ -348,7 +354,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         try:
             # Map preset mode to temperature profile value
             temperature_profile = PRESET_REVERSE_MAPPING[preset_mode]
-            
+
             # Use working API method to set device setting
             await self.hass.async_add_executor_job(
                 self._api.set_device_setting, temperature_profile
@@ -358,8 +364,8 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             await self.coordinator.async_request_refresh()
             await self._thermalprofile_coordinator.async_request_refresh()
 
-        except Exception as e:
-            _LOGGER.error(f"Failed to set preset mode {preset_mode}: {e}")
+        except Exception:
+            _LOGGER.exception(f"Failed to set preset mode {preset_mode}")
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -400,7 +406,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             },
             "preset_modes": {
                 "comfort": "temperatureProfile=0",
-                "power": "temperatureProfile=1", 
+                "power": "temperatureProfile=1",
                 "eco": "temperatureProfile=2"
             },
             "working_methods": {
