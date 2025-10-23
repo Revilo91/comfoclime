@@ -244,19 +244,14 @@ class ComfoClimeAPI:
     def set_device_setting(self, temperature_profile=None, fan_speed=None):
         if not self.uuid:
             self.get_uuid()
+        # Only include fields documented in the ComfoClime API spec
+        # Fields like scenario, scenarioTimeLeft, @type, name, displayName, description, timestamp, status
+        # are NOT part of the official API and should not be included
         payload = {
-            "@type": None,
-            "name": None,
-            "displayName": None,
-            "description": None,
-            "timestamp": datetime.datetime.now().isoformat(),
-            "status": None,
             "setPointTemperature": None,
             "temperatureProfile": temperature_profile,
             "seasonProfile": None,
             "fanSpeed": fan_speed,
-            "scenario": None,
-            "scenarioTimeLeft": None,
             "season": None,
             "schedule": None,
         }
