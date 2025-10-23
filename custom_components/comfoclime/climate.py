@@ -138,8 +138,9 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
     def target_temperature(self) -> float | None:
         """Return target temperature from thermal profile data.
         
-        Returns comfortTemperature when temperature.status=1 (automatic mode).
-        Returns manualTemperature when temperature.status=0 (manual mode).
+        According to API documentation:
+        - In manual mode (temperature.status=0): Returns setPointTemperature from dashboard
+        - In automatic mode (temperature.status=1): Returns comfortTemperature for current season
         """
         thermal_data = self._thermalprofile_coordinator.data
         if not thermal_data:
@@ -147,8 +148,14 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
         temp_data = thermal_data.get("temperature", {})
         
-        # When automatic mode is OFF (status=0), always use manual temperature
+        # When automatic mode is OFF (status=0), use setPointTemperature from dashboard
         if self._get_temperature_status() == 0:
+            # In manual mode, the dashboard contains setPointTemperature
+            if self.coordinator.data:
+                set_point = self.coordinator.data.get("setPointTemperature")
+                if set_point is not None:
+                    return set_point
+            # Fallback to manualTemperature from thermal profile
             return temp_data.get("manualTemperature")
         
         # When automatic mode is ON (status=1), use comfort temperature based on season
@@ -180,9 +187,8 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         if not self._thermalprofile_coordinator.data:
             return HVACMode.OFF
 
-        season_data = self._thermalprofile_coordinator.data.get("season", {})
         season = self._get_current_season()
-        status = season_data.get("status", 1)  # 0=manual, 1=automatic
+        status = self._get_season_status()
 
         # Basierend auf Season - in Übergangszeit ("transitional") ist immer Lüftung aktiv
         if season == 0:  # transitional - always fan_only regardless of status
@@ -209,9 +215,8 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             return HVACAction.OFF
 
         # Season für Art der Aktion
-        season_data = self._thermalprofile_coordinator.data.get("season", {}) if self._thermalprofile_coordinator.data else {}
         season = self._get_current_season()
-        status = season_data.get("status", 1)
+        status = self._get_season_status()
 
         # In Übergangszeit ist immer Lüftung aktiv, unabhängig vom Status
         if season == 0:  # transitional
@@ -302,13 +307,30 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         
         season_data = thermal_data.get("season", {})
         return season_data.get("season", 0)
+    
+    def _get_season_status(self) -> int:
+        """Get the season.status value from thermal profile.
+        
+        Returns:
+            0 for manual season mode
+            1 for automatic season mode (default)
+        """
+        thermal_data = self._thermalprofile_coordinator.data
+        if not thermal_data:
+            return 1  # default to automatic
+        
+        season_data = thermal_data.get("season", {})
+        return season_data.get("status", 1)
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature by updating thermal profile.
         
         Respects the temperature.status switch:
         - When temperature.status=1 (automatic ON): Updates comfortTemperature for current season
-        - When temperature.status=0 (automatic OFF): Updates manualTemperature only
+        - When temperature.status=0 (automatic OFF): Updates setPointTemperature via dashboard API
+        
+        According to API documentation, setPointTemperature should be set via the dashboard
+        endpoint when in manual mode, not via thermalprofile.
         """
         temperature = kwargs.get(ATTR_TEMPERATURE)
         if temperature is None:
@@ -323,17 +345,18 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
                 return
             
             temp_status = self._get_temperature_status()
-            updates = {}
             
             # When automatic comfort temperature switch is OFF (status=0)
-            # Only update manual temperature, regardless of HVAC mode
+            # Use dashboard API with setPointTemperature
             if temp_status == 0:
-                _LOGGER.debug(f"Automatic comfort temperature is OFF - setting manualTemperature to {temperature}")
-                updates = {
-                    "temperature": {
-                        "manualTemperature": temperature
-                    }
-                }
+                _LOGGER.debug(f"Automatic comfort temperature is OFF - setting setPointTemperature to {temperature} via dashboard API")
+                # Use set_device_setting which uses the dashboard API
+                await self.hass.async_add_executor_job(
+                    self._api.set_device_setting, None, None
+                )
+                # Now we need to set setPointTemperature - let's update set_device_setting to support it
+                # For now, use a direct dashboard update
+                await self._set_setpoint_temperature(temperature)
             else:
                 # When automatic comfort temperature switch is ON (status=1)
                 # Update the appropriate comfort temperature based on current season/HVAC mode
@@ -348,6 +371,9 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
                             "comfortTemperature": temperature
                         }
                     }
+                    await self.hass.async_add_executor_job(
+                        self._api.update_thermal_profile, updates
+                    )
                 elif hvac_mode == HVACMode.COOL or season == 2:
                     # Update cooling comfort temperature
                     _LOGGER.debug(f"Automatic comfort temperature is ON - setting cooling comfortTemperature to {temperature}")
@@ -356,19 +382,13 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
                             "comfortTemperature": temperature
                         }
                     }
+                    await self.hass.async_add_executor_job(
+                        self._api.update_thermal_profile, updates
+                    )
                 else:
-                    # For transitional season or FAN_ONLY/OFF modes, update manual temperature
-                    _LOGGER.debug(f"Transitional season or OFF/FAN_ONLY mode - setting manualTemperature to {temperature}")
-                    updates = {
-                        "temperature": {
-                            "manualTemperature": temperature
-                        }
-                    }
-
-            # Update thermal profile using working API method
-            await self.hass.async_add_executor_job(
-                self._api.update_thermal_profile, updates
-            )
+                    # For transitional season or FAN_ONLY/OFF modes, use setPointTemperature
+                    _LOGGER.debug(f"Transitional season or OFF/FAN_ONLY mode - setting setPointTemperature to {temperature}")
+                    await self._set_setpoint_temperature(temperature)
 
             # Request refresh of coordinators
             await self.coordinator.async_request_refresh()
@@ -376,6 +396,46 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
         except Exception:
             _LOGGER.exception(f"Failed to set temperature to {temperature}")
+    
+    async def _set_setpoint_temperature(self, temperature: float) -> None:
+        """Set setPointTemperature via dashboard API.
+        
+        According to API documentation, setPointTemperature is set via the dashboard
+        PUT endpoint in manual mode.
+        """
+        import datetime
+        import requests
+        
+        if not self._api.uuid:
+            await self.hass.async_add_executor_job(self._api.get_uuid)
+        
+        def _set_dashboard_temperature():
+            payload = {
+                "@type": None,
+                "name": None,
+                "displayName": None,
+                "description": None,
+                "timestamp": datetime.datetime.now().isoformat(),
+                "status": None,
+                "setPointTemperature": temperature,
+                "temperatureProfile": None,
+                "seasonProfile": None,
+                "fanSpeed": None,
+                "scenario": None,
+                "scenarioTimeLeft": None,
+                "season": None,
+                "schedule": None,
+            }
+            headers = {"content-type": "application/json; charset=utf-8"}
+            url = f"{self._api.base_url}/system/{self._api.uuid}/dashboard"
+            try:
+                response = requests.put(url, json=payload, timeout=5, headers=headers)
+                response.raise_for_status()
+            except Exception as e:
+                _LOGGER.error(f"Fehler beim Setzen von setPointTemperature: {e}")
+                raise
+        
+        await self.hass.async_add_executor_job(_set_dashboard_temperature)
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new HVAC mode by updating season and status."""
