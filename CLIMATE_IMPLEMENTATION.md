@@ -31,6 +31,13 @@
 - Cleanup von ungenutzten Imports
 - Konsistente Fehlerbehandlung
 
+### 7. **Temperature Status Switch Unterstützung (NEU)**
+- ✅ `async_set_temperature` prüft nun `temperature.status` Switch
+- ✅ Automatik-Modus (status=1): Aktualisiert `comfortTemperature` für aktive Saison
+- ✅ Manuell-Modus (status=0): Aktualisiert nur `manualTemperature`
+- ✅ `target_temperature` Property zeigt korrekte Temperatur basierend auf Modus an
+- ✅ Helper-Methoden für bessere Code-Organisation
+
 ## Hauptprobleme die behoben wurden:
 
 1. **Übermäßiges Logging**: Properties wurden bei jedem Zugriff geloggt
@@ -38,14 +45,16 @@
 3. **Coordinator Synchronisation**: Thermal Profile Coordinator war nicht korrekt eingebunden
 4. **Entity Availability**: Keine korrekte Verfügbarkeitsprüfung
 5. **Code Redundanz**: Doppelter Logging-Code und unnötige Komplexität
+6. **Temperature Status Ignoriert**: Switch-Status wurde nicht beachtet (BEHOBEN)
 
 ## Erwartete Verbesserungen:
 
 - ✅ Responsive UI (keine Blockierungen mehr)
-- ✅ Korrekte Temperaturanzeige
-- ✅ Funktionierende Set-Operationen
+- ✅ Korrekte Temperaturanzeige basierend auf temperature.status
+- ✅ Funktionierende Set-Operationen mit korrekter Switch-Logik
 - ✅ Bessere Fehlerbehandlung
 - ✅ Cleaner Code mit weniger Logging-Spam
+- ✅ Korrekte Unterscheidung zwischen manuellem und automatischem Temperatur-Modus
 - Climate-specific preset mode translations
 
 ## Refactoring-Details
