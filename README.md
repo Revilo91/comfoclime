@@ -19,7 +19,15 @@ ComfoClime is a HVAC solution as additional device for the ComfoAir Q series. It
 * configuration via config flow by host/ip
 * locals in english and german
 
-All reverse engineered knowledge about the API is found here: https://github.com/msfuture/comfoclime_api/blob/main/ComfoClimeAPI.md
+## API Documentation
+
+API documentation with practical Python examples:
+
+* **[ComfoClimeAPI.md](ComfoClimeAPI.md)** - Concise API reference with Python code examples
+* **[Original documentation](https://github.com/msfuture/comfoclime_api/blob/main/ComfoClimeAPI.md)** - Detailed reverse engineered API knowledge
+* **[PDO Protocol](https://github.com/michaelarnauts/aiocomfoconnect/blob/master/docs/PROTOCOL-PDO.md)** - Telemetry sensor protocol
+* **[RMI Protocol](https://github.com/michaelarnauts/aiocomfoconnect/blob/master/docs/PROTOCOL-RMI.md)** - Property access protocol
+
 Feel free to extend!
 
 ## Installation
