@@ -208,45 +208,43 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
     @property
     def hvac_action(self) -> HVACAction:
-        """Return current HVAC action."""
-        # Fan Speed für Systemaktivität
-        fan_speed = self.coordinator.data.get("fanSpeed") if self.coordinator.data else None
-        if not self._is_system_active(fan_speed):
+        """Return current HVAC action based on dashboard heatPumpStatus.
+        
+        According to ComfoClime API documentation, heatPumpStatus values:
+        - 0: heat pump is off
+        - 1: starting up
+        - 3: heating
+        - 5: cooling
+        - Other values: transitional states (defrost, etc.)
+        
+        Reference: https://github.com/msfuture/comfoclime_api/blob/main/ComfoClimeAPI.md#heat-pump-status-codes
+        """
+        if not self.coordinator.data:
             return HVACAction.OFF
-
-        # Season für Art der Aktion
-        season = self._get_current_season()
-        status = self._get_season_status()
-
-        # In Übergangszeit ist immer Lüftung aktiv, unabhängig vom Status
-        if season == 0:  # transitional
-            return HVACAction.FAN
-
-        if status == 1:  # automatic = aus für Heiz-/Kühlsaison
+        
+        heat_pump_status = self.coordinator.data.get("heatPumpStatus")
+        
+        if heat_pump_status is None:
             return HVACAction.OFF
-
-        current_temp = self.current_temperature
-        target_temp = self.target_temperature
-
-        if current_temp is None or target_temp is None:
-            return HVACAction.FAN
-
-        temp_diff = current_temp - target_temp
-
-        if season == 1 and temp_diff < -0.5:  # heating
+        
+        # Map heat pump status codes to HVAC actions
+        if heat_pump_status == 0:
+            # Heat pump is off
+            return HVACAction.OFF
+        elif heat_pump_status == 1:
+            # Starting up - show as idle (preparing to heat/cool)
+            return HVACAction.IDLE
+        elif heat_pump_status == 3:
+            # Actively heating
             return HVACAction.HEATING
-        elif season == 2 and temp_diff > 0.5:  # cooling
+        elif heat_pump_status == 5:
+            # Actively cooling
             return HVACAction.COOLING
-        elif season in [1, 2]:
-            # Bisher wurde hier IDLE zurückgegeben. Wunsch: Solange der Lüfter läuft
-            # (also System aktiv ist) statt "Leerlauf" den Ventilations-Status anzeigen.
-            # Daher geben wir FAN zurück. "Leerlauf" (IDLE) taucht damit nur noch auf,
-            # wenn der Lüfter tatsächlich steht – dieser Fall wird weiter oben bereits
-            # als OFF behandelt. Sollte später ein echter Unterschied zwischen OFF und
-            # IDLE nötig sein, kann hier eine differenziertere Logik ergänzt werden.
-            return HVACAction.FAN
-
-        return HVACAction.FAN  # fallback (should not be reached)
+        else:
+            # Other status codes (17, 19, 21, 67, 75, 83, etc.)
+            # These are transitional states like defrost, anti-freeze, etc.
+            # Show as idle since heat pump is running but not actively heating/cooling
+            return HVACAction.IDLE
 
     @property
     def preset_mode(self) -> str | None:
@@ -268,18 +266,6 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
                 return PRESET_MAPPING.get(int(temp_profile))
 
         return None
-
-    def _is_system_active(self, fan_speed) -> bool:
-        """Check if ventilation system is running."""
-        if not fan_speed:
-            return False
-
-        if isinstance(fan_speed, str):
-            return fan_speed not in ["0", "standby", ""]
-        if isinstance(fan_speed, int):
-            return fan_speed > 0
-
-        return False
 
     def _get_temperature_status(self) -> int:
         """Get the temperature.status value from thermal profile.
@@ -498,6 +484,8 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
                 "indoor_temperature": self.coordinator.data.get("indoorTemperature"),
                 "fan_speed": self.coordinator.data.get("fanSpeed"),
                 "temperature_profile": self.coordinator.data.get("temperatureProfile"),
+                "heat_pump_status": self.coordinator.data.get("heatPumpStatus"),
+                "hp_standby": self.coordinator.data.get("hpStandby"),
             }
 
         # Add current mappings for debugging
