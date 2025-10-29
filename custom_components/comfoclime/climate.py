@@ -7,7 +7,6 @@ from homeassistant.components.climate import (
     ClimateEntityFeature,
     HVACAction,
     HVACMode,
-    ATTR_FAN_MODE,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
@@ -17,11 +16,6 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
 from .coordinator import ComfoClimeDashboardCoordinator
-from .comfoclime_api import (
-    ComfoClimeConnectionError,
-    ComfoClimeTimeoutError,
-    ComfoClimeAuthenticationError,
-)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -153,7 +147,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
     @property
     def target_temperature(self) -> float | None:
         """Return target temperature from thermal profile data.
-        
+
         According to API documentation:
         - In manual mode (temperature.status=0): Returns setPointTemperature from dashboard
         - In automatic mode (temperature.status=1): Returns comfortTemperature for current season
@@ -163,7 +157,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             return None
 
         temp_data = thermal_data.get("temperature", {})
-        
+
         # When automatic mode is OFF (status=0), use setPointTemperature from dashboard
         if self._get_temperature_status() == 0:
             # In manual mode, the dashboard contains setPointTemperature
@@ -173,7 +167,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
                     return set_point
             # Fallback to manualTemperature from thermal profile
             return temp_data.get("manualTemperature")
-        
+
         # When automatic mode is ON (status=1), use comfort temperature based on season
         season = self._get_current_season()
 
@@ -200,7 +194,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
     @property
     def hvac_mode(self) -> HVACMode:
         """Return current HVAC mode from dashboard data.
-        
+
         Maps the season field from dashboard to HVAC mode:
         - season 0 (transitional) → FAN_ONLY
         - season 1 (heating) → HEAT
@@ -209,45 +203,45 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         """
         if not self.coordinator.data:
             return HVACMode.OFF
-        
+
         # Check if device is in standby (powered off)
         hp_standby = self.coordinator.data.get("hpStandby")
         if hp_standby is True:
             return HVACMode.OFF
-        
+
         # Map season from dashboard to HVAC mode
         season = self.coordinator.data.get("season")
-        
+
         if season == 0:  # transitional
             return HVACMode.FAN_ONLY
         elif season == 1:  # heating
             return HVACMode.HEAT
         elif season == 2:  # cooling
             return HVACMode.COOL
-        
+
         return HVACMode.OFF
 
     @property
     def hvac_action(self) -> HVACAction:
         """Return current HVAC action based on dashboard heatPumpStatus.
-        
+
         According to ComfoClime API documentation, heatPumpStatus values:
         - 0: heat pump is off
         - 1: starting up
         - 3: heating
         - 5: cooling
         - Other values: transitional states (defrost, etc.)
-        
+
         Reference: https://github.com/msfuture/comfoclime_api/blob/main/ComfoClimeAPI.md#heat-pump-status-codes
         """
         if not self.coordinator.data:
             return HVACAction.OFF
-        
+
         heat_pump_status = self.coordinator.data.get("heatPumpStatus")
-        
+
         if heat_pump_status is None:
             return HVACAction.OFF
-        
+
         # Map heat pump status codes to HVAC actions
         if heat_pump_status == 0:
             # Heat pump is off
@@ -291,7 +285,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
     @property
     def fan_mode(self) -> str | None:
         """Return current fan mode from dashboard data.
-        
+
         Maps fanSpeed from dashboard (0-3) to fan mode strings:
         - 0: auto (automatic mode)
         - 1: low
@@ -313,7 +307,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
     def _get_temperature_status(self) -> int:
         """Get the temperature.status value from thermal profile.
-        
+
         Returns:
             1 if automatic comfort temperature is enabled (default)
             0 if manual temperature mode is active
@@ -321,26 +315,26 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         thermal_data = self._thermalprofile_coordinator.data
         if not thermal_data:
             return 1  # default to automatic
-        
+
         temp_data = thermal_data.get("temperature", {})
         return temp_data.get("status", 1)
-    
+
     def _get_current_season(self) -> int:
         """Get the current season value from thermal profile.
-        
+
         Returns:
             0 for transitional, 1 for heating, 2 for cooling
         """
         thermal_data = self._thermalprofile_coordinator.data
         if not thermal_data:
             return 0
-        
+
         season_data = thermal_data.get("season", {})
         return season_data.get("season", 0)
-    
+
     def _get_season_status(self) -> int:
         """Get the season.status value from thermal profile.
-        
+
         Returns:
             0 for manual season mode
             1 for automatic season mode (default)
@@ -348,17 +342,17 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         thermal_data = self._thermalprofile_coordinator.data
         if not thermal_data:
             return 1  # default to automatic
-        
+
         season_data = thermal_data.get("season", {})
         return season_data.get("status", 1)
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature by updating thermal profile.
-        
+
         Respects the temperature.status switch:
         - When temperature.status=1 (automatic ON): Updates comfortTemperature for current season
         - When temperature.status=0 (automatic OFF): Updates setPointTemperature via dashboard API
-        
+
         According to API documentation, setPointTemperature should be set via the dashboard
         endpoint when in manual mode, not via thermalprofile.
         """
@@ -373,9 +367,9 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             if not thermal_data:
                 _LOGGER.error("No thermal profile data available")
                 return
-            
+
             temp_status = self._get_temperature_status()
-            
+
             # When automatic comfort temperature switch is OFF (status=0)
             # Use dashboard API with setPointTemperature
             if temp_status == 0:
@@ -392,7 +386,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
                 # Update the appropriate comfort temperature based on current season/HVAC mode
                 hvac_mode = self.hvac_mode
                 season = self._get_current_season()
-                
+
                 if hvac_mode == HVACMode.HEAT or season == 1:
                     # Update heating comfort temperature
                     _LOGGER.debug(f"Automatic comfort temperature is ON - setting heating comfortTemperature to {temperature}")
@@ -426,18 +420,18 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
         except Exception:
             _LOGGER.exception(f"Failed to set temperature to {temperature}")
-    
+
     async def _set_setpoint_temperature(self, temperature: float) -> None:
         """Set setPointTemperature via dashboard API.
-        
+
         According to API documentation, setPointTemperature is set via the dashboard
         PUT endpoint in manual mode. Only fields documented in the API spec are included.
         """
         import requests
-        
+
         if not self._api.uuid:
             await self.hass.async_add_executor_job(self._api.get_uuid)
-        
+
         def _set_dashboard_temperature():
             # Only include fields documented in the ComfoClime API spec
             # Fields like scenario, scenarioTimeLeft, @type, name, displayName, description
@@ -456,7 +450,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             except Exception as e:
                 _LOGGER.error(f"Fehler beim Setzen von setPointTemperature: {e}")
                 raise
-        
+
         await self.hass.async_add_executor_job(_set_dashboard_temperature)
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
@@ -515,7 +509,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         """Set fan mode by updating fan speed in dashboard.
-        
+
         Maps fan mode strings to fanSpeed values:
         - auto: 0
         - low: 1
