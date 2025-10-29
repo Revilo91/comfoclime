@@ -531,6 +531,8 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             fan_speed = FAN_MODE_REVERSE_MAPPING[fan_mode]
 
             # Use API method to set fan speed via dashboard
+            # set_device_setting(temperature_profile, fan_speed)
+            # First parameter (temperature_profile) is None to only update fan speed
             await self.hass.async_add_executor_job(
                 self._api.set_device_setting, None, fan_speed
             )

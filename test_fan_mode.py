@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Test fan_mode functionality in climate entity."""
+"""Test fan_mode functionality in climate entity.
+
+Note: Mappings are duplicated here instead of importing from climate.py
+to allow testing without requiring Home Assistant dependencies.
+This is intentional for standalone unit tests.
+"""
 
 import sys
 
