@@ -114,12 +114,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         )
 
         # HVAC modes
-        self._attr_hvac_modes = [
-            HVACMode.OFF,
-            HVACMode.HEAT,
-            HVACMode.COOL,
-            HVACMode.FAN_ONLY,
-        ]
+        self._attr_hvac_modes = list(HVAC_MODE_MAPPING.keys())
 
         # Preset modes
         self._attr_preset_modes = list(PRESET_REVERSE_MAPPING.keys())
