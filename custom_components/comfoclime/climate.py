@@ -481,7 +481,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
                 response.raise_for_status()
                 _LOGGER.debug(f"Set hpStandby to {hp_standby}")
             except Exception as e:
-                _LOGGER.error(f"Fehler beim Setzen von hpStandby: {e}")
+                _LOGGER.error(f"Error setting hpStandby: {e}")
                 raise
 
         await self.hass.async_add_executor_job(_set_dashboard_hp_standby)

@@ -17,7 +17,6 @@ class MockAPI:
     """Mock API for testing."""
     def __init__(self):
         self.thermal_profile_updates = []
-        self.dashboard_updates = []
         self.uuid = "test-uuid"
         self.base_url = "http://test-device"
     
