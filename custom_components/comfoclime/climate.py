@@ -610,67 +610,35 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Return debug information as extra state attributes."""
+        """Return all interface data as extra state attributes.
+        
+        Exposes all available data from the ComfoClime API interfaces:
+        - Dashboard data from /system/{UUID}/dashboard
+        - Thermal profile data from /system/{UUID}/thermalprofile
+        """
         attrs = {}
 
-        # Add thermal profile data for debugging
+        # Add complete dashboard data from Dashboard API interface
+        if self.coordinator.data:
+            attrs["dashboard"] = self.coordinator.data
+
+        # Add complete thermal profile data from Thermal Profile API interface
         if self._thermalprofile_coordinator.data:
             attrs["thermal_profile"] = self._thermalprofile_coordinator.data
 
-        # Add dashboard data for debugging
-        if self.coordinator.data:
-            attrs["dashboard_data"] = {
-                "indoor_temperature": self.coordinator.data.get("indoorTemperature"),
-                "fan_speed": self.coordinator.data.get("fanSpeed"),
-                "temperature_profile": self.coordinator.data.get("temperatureProfile"),
-                "heat_pump_status": self.coordinator.data.get("heatPumpStatus"),
-                "hp_standby": self.coordinator.data.get("hpStandby"),
-            }
-
-        # Add current mappings for debugging
+        # Add calculated/derived values for convenience
         thermal_data = self._thermalprofile_coordinator.data
         if thermal_data:
             season_data = thermal_data.get("season", {})
             temp_data = thermal_data.get("temperature", {})
-            attrs["current_mappings"] = {
+            attrs["calculated"] = {
                 "season_season": season_data.get("season"),
                 "season_status": season_data.get("status"),
                 "temperature_status": temp_data.get("status"),
                 "temperature_profile": thermal_data.get("temperatureProfile"),
-                "hvac_mode_calculated": str(self.hvac_mode),
-                "preset_mode_calculated": self.preset_mode,
+                "hvac_mode": str(self.hvac_mode),
+                "preset_mode": self.preset_mode,
                 "temperature_mode": "automatic" if self._get_temperature_status() == 1 else "manual",
             }
-
-        # Add API mapping documentation
-        attrs["api_mappings"] = {
-            "hvac_modes": {
-                "off": "season.status=1 (automatic)",
-                "fan_only": "season.season=0 (transitional)",
-                "heat": "season.season=1 + season.status=0",
-                "cool": "season.season=2 + season.status=0"
-            },
-            "preset_modes": {
-                "comfort": "temperatureProfile=0",
-                "power": "temperatureProfile=1",
-                "eco": "temperatureProfile=2"
-            },
-            "fan_modes": {
-                "auto": "fanSpeed=0",
-                "low": "fanSpeed=1",
-                "medium": "fanSpeed=2",
-                "high": "fanSpeed=3"
-            },
-            "temperature_modes": {
-                "automatic": "temperature.status=1 (uses comfortTemperature)",
-                "manual": "temperature.status=0 (uses manualTemperature)"
-            },
-            "working_methods": {
-                "hvac_mode": "update_thermal_profile(season)",
-                "preset_mode": "set_device_setting(temperature_profile)",
-                "fan_mode": "set_device_setting(None, fan_speed)",
-                "temperature": "update_thermal_profile(seasonData or temperature)"
-            }
-        }
 
         return attrs
