@@ -225,6 +225,14 @@
                         "power": "Power",
                         "eco": "Eco"
                     }
+                },
+                "fan_mode": {
+                    "state": {
+                        "auto": "Auto",
+                        "low": "Niedrig",
+                        "medium": "Mittel",
+                        "high": "Hoch"
+                    }
                 }
             }
         }

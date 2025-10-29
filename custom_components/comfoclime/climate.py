@@ -7,6 +7,7 @@ from homeassistant.components.climate import (
     ClimateEntityFeature,
     HVACAction,
     HVACMode,
+    ATTR_FAN_MODE,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
@@ -32,6 +33,17 @@ PRESET_MAPPING = {
 }
 
 PRESET_REVERSE_MAPPING = {v: k for k, v in PRESET_MAPPING.items()}
+
+# Fan Mode Mapping (based on fan.py implementation)
+# fanSpeed from dashboard: 0, 1, 2, 3
+FAN_MODE_MAPPING = {
+    0: "auto",      # Speed 0 - automatic mode
+    1: "low",       # Speed 1
+    2: "medium",    # Speed 2
+    3: "high",      # Speed 3
+}
+
+FAN_MODE_REVERSE_MAPPING = {v: k for k, v in FAN_MODE_MAPPING.items()}
 
 
 async def async_setup_entry(
@@ -95,10 +107,14 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         self._attr_supported_features = (
             ClimateEntityFeature.TARGET_TEMPERATURE
             | ClimateEntityFeature.PRESET_MODE
+            | ClimateEntityFeature.FAN_MODE
         )
 
         # Preset modes
         self._attr_preset_modes = list(PRESET_REVERSE_MAPPING.keys())
+
+        # Fan modes
+        self._attr_fan_modes = list(FAN_MODE_REVERSE_MAPPING.keys())
 
         # Add thermal profile coordinator listener
         self._thermalprofile_coordinator.async_add_listener(self._handle_coordinator_update)
@@ -271,6 +287,29 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
                 return PRESET_MAPPING.get(int(temp_profile))
 
         return None
+
+    @property
+    def fan_mode(self) -> str | None:
+        """Return current fan mode from dashboard data.
+        
+        Maps fanSpeed from dashboard (0-3) to fan mode strings:
+        - 0: auto (automatic mode)
+        - 1: low
+        - 2: medium
+        - 3: high
+        """
+        if self.coordinator.data:
+            fan_speed = self.coordinator.data.get("fanSpeed")
+            if isinstance(fan_speed, int):
+                return FAN_MODE_MAPPING.get(fan_speed)
+            if isinstance(fan_speed, str) and fan_speed.isdigit():
+                return FAN_MODE_MAPPING.get(int(fan_speed))
+        return None
+
+    @property
+    def fan_modes(self) -> list[str] | None:
+        """Return the list of available fan modes."""
+        return self._attr_fan_modes
 
     def _get_temperature_status(self) -> int:
         """Get the temperature.status value from thermal profile.
@@ -474,6 +513,34 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         except Exception:
             _LOGGER.exception(f"Failed to set preset mode {preset_mode}")
 
+    async def async_set_fan_mode(self, fan_mode: str) -> None:
+        """Set fan mode by updating fan speed in dashboard.
+        
+        Maps fan mode strings to fanSpeed values:
+        - auto: 0
+        - low: 1
+        - medium: 2
+        - high: 3
+        """
+        if fan_mode not in FAN_MODE_REVERSE_MAPPING:
+            _LOGGER.error(f"Unknown fan mode: {fan_mode}")
+            return
+
+        try:
+            # Map fan mode to fan speed value
+            fan_speed = FAN_MODE_REVERSE_MAPPING[fan_mode]
+
+            # Use API method to set fan speed via dashboard
+            await self.hass.async_add_executor_job(
+                self._api.set_device_setting, None, fan_speed
+            )
+
+            # Request refresh of coordinator
+            await self.coordinator.async_request_refresh()
+
+        except Exception:
+            _LOGGER.exception(f"Failed to set fan mode {fan_mode}")
+
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return debug information as extra state attributes."""
@@ -521,6 +588,12 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
                 "power": "temperatureProfile=1",
                 "eco": "temperatureProfile=2"
             },
+            "fan_modes": {
+                "auto": "fanSpeed=0",
+                "low": "fanSpeed=1",
+                "medium": "fanSpeed=2",
+                "high": "fanSpeed=3"
+            },
             "temperature_modes": {
                 "automatic": "temperature.status=1 (uses comfortTemperature)",
                 "manual": "temperature.status=0 (uses manualTemperature)"
@@ -528,6 +601,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             "working_methods": {
                 "hvac_mode": "update_thermal_profile(season)",
                 "preset_mode": "set_device_setting(temperature_profile)",
+                "fan_mode": "set_device_setting(None, fan_speed)",
                 "temperature": "update_thermal_profile(seasonData or temperature)"
             }
         }
