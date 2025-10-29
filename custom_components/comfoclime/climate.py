@@ -47,14 +47,22 @@ FAN_MODE_MAPPING = {
 
 FAN_MODE_REVERSE_MAPPING = {v: k for k, v in FAN_MODE_MAPPING.items()}
 
-HVAC_MODE_MAPPING ={
-    None: HVACMode.OFF,
-    0: HVACMode.HEAT,
-    1: HVACMode.COOL,
-    2: HVACMode.FAN_ONLY,
+# HVAC Mode Mapping (season values to HVAC modes)
+# Season from dashboard: 0 (transitional), 1 (heating), 2 (cooling)
+HVAC_MODE_MAPPING = {
+    0: HVACMode.FAN_ONLY,  # transitional
+    1: HVACMode.HEAT,      # heating
+    2: HVACMode.COOL,      # cooling
 }
 
-HVAC_MODE_REVERSE_MAPPING = {v: k for k, v in HVAC_MODE_MAPPING.items()}
+# Reverse mapping for setting HVAC modes
+# Maps HVAC mode to (season_value, hp_standby_value)
+HVAC_MODE_REVERSE_MAPPING = {
+    HVACMode.OFF: (None, False),       # Turn off device via hpStandby
+    HVACMode.FAN_ONLY: (0, False),     # Transitional season, fan only
+    HVACMode.HEAT: (1, True),          # Heating season, device active
+    HVACMode.COOL: (2, True),          # Cooling season, device active
+}
 
 
 async def async_setup_entry(
@@ -114,7 +122,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         )
 
         # HVAC modes
-        self._attr_hvac_modes = list(HVAC_MODE_MAPPING.keys())
+        self._attr_hvac_modes = list(HVAC_MODE_REVERSE_MAPPING.keys())
 
         # Preset modes
         self._attr_preset_modes = list(PRESET_REVERSE_MAPPING.keys())
@@ -221,17 +229,9 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         if hp_standby is True:
             return HVACMode.OFF
 
-        # Map season from dashboard to HVAC mode
+        # Map season from dashboard to HVAC mode using mapping
         season = self.coordinator.data.get("season")
-
-        if season == 0:  # transitional
-            return HVACMode.FAN_ONLY
-        elif season == 1:  # heating
-            return HVACMode.HEAT
-        elif season == 2:  # cooling
-            return HVACMode.COOL
-
-        return HVACMode.OFF
+        return HVAC_MODE_MAPPING.get(season, HVACMode.OFF)
 
     @property
     def hvac_action(self) -> HVACAction:
@@ -534,29 +534,12 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new HVAC mode by updating season and hpStandby via dashboard API."""
         try:
-            # Map HVAC modes to season values and hpStandby
-            if hvac_mode == HVACMode.OFF:
-                # Set hpStandby to false to turn off ComfoClime via heat pump
-                season_value = None
-                hp_standby_value = False
-            elif hvac_mode == HVACMode.FAN_ONLY:
-                # Set season to transitional (0)
-                # Set hpStandby to false for fan only mode
-                season_value = 0
-                hp_standby_value = False
-            elif hvac_mode == HVACMode.HEAT:
-                # Set season to heating (1)
-                # Set hpStandby to true to ensure device is active
-                season_value = 1
-                hp_standby_value = True
-            elif hvac_mode == HVACMode.COOL:
-                # Set season to cooling (2)
-                # Set hpStandby to true to ensure device is active
-                season_value = 2
-                hp_standby_value = True
-            else:
+            # Use HVAC_MODE_REVERSE_MAPPING to get season and hpStandby values
+            if hvac_mode not in HVAC_MODE_REVERSE_MAPPING:
                 _LOGGER.error(f"Unsupported HVAC mode: {hvac_mode}")
                 return
+
+            season_value, hp_standby_value = HVAC_MODE_REVERSE_MAPPING[hvac_mode]
 
             # Update season and hpStandby via dashboard API
             await self._set_dashboard_hvac_settings(season_value, hp_standby_value)
