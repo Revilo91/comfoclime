@@ -57,10 +57,11 @@ def test_async_set_hvac_mode_logic():
     
     test_cases = [
         # (hvac_mode, expected_hp_standby, expected_season, description)
-        (HVACMode.OFF, False, None, "OFF mode sets hpStandby to False and season to None"),
-        (HVACMode.FAN_ONLY, False, 0, "FAN_ONLY mode sets hpStandby to False and season to 0"),
-        (HVACMode.HEAT, True, 1, "HEAT mode sets hpStandby to True and season to 1"),
-        (HVACMode.COOL, True, 2, "COOL mode sets hpStandby to True and season to 2"),
+        # Note: hpStandby=True means device in standby (OFF/FAN_ONLY), hpStandby=False means device active (HEAT/COOL)
+        (HVACMode.OFF, True, None, "OFF mode sets hpStandby to True and season to None"),
+        (HVACMode.FAN_ONLY, True, 0, "FAN_ONLY mode sets hpStandby to True and season to 0"),
+        (HVACMode.HEAT, False, 1, "HEAT mode sets hpStandby to False and season to 1"),
+        (HVACMode.COOL, False, 2, "COOL mode sets hpStandby to False and season to 2"),
     ]
     
     all_passed = True
@@ -70,17 +71,18 @@ def test_async_set_hvac_mode_logic():
         # Instead we verify the expected values
         
         # Determine what hpStandby and season should be set to based on mode
+        # Using the correct logic: hpStandby=True means device in standby (OFF/FAN_ONLY)
         if hvac_mode == HVACMode.OFF:
-            hp_standby_value = False
+            hp_standby_value = True
             season_value = None
         elif hvac_mode == HVACMode.FAN_ONLY:
-            hp_standby_value = False
+            hp_standby_value = True
             season_value = 0
         elif hvac_mode == HVACMode.HEAT:
-            hp_standby_value = True
+            hp_standby_value = False
             season_value = 1
         elif hvac_mode == HVACMode.COOL:
-            hp_standby_value = True
+            hp_standby_value = False
             season_value = 2
         
         # Check if it matches expected
@@ -103,10 +105,10 @@ def test_async_set_hvac_mode_logic():
         print("✅ All tests passed!")
         print("=" * 70)
         print("\nSummary:")
-        print("- OFF mode → hpStandby: False, season: None (turns off device)")
-        print("- FAN_ONLY mode → hpStandby: False, season: 0 (transitional)")
-        print("- HEAT mode → hpStandby: True, season: 1 (heating)")
-        print("- COOL mode → hpStandby: True, season: 2 (cooling)")
+        print("- OFF mode → hpStandby: True, season: None (turns off device via standby)")
+        print("- FAN_ONLY mode → hpStandby: True, season: 0 (transitional, heat pump in standby)")
+        print("- HEAT mode → hpStandby: False, season: 1 (heating, heat pump active)")
+        print("- COOL mode → hpStandby: False, season: 2 (cooling, heat pump active)")
         return 0
     else:
         print("=" * 70)

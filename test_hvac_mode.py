@@ -34,19 +34,21 @@ class MockClimateEntity:
         - season 0 (transitional) → FAN_ONLY
         - season 1 (heating) → HEAT
         - season 2 (cooling) → COOL
-        - hpStandby true → OFF (device powered off)
+        - hpStandby true + season None → OFF (device powered off)
         """
         if not self.coordinator.data:
             return HVACMode.OFF
         
-        # Check if device is in standby (powered off)
+        # Get season and hpStandby values
         hp_standby = self.coordinator.data.get("hpStandby")
-        if hp_standby is True:
+        season = self.coordinator.data.get("season")
+        
+        # Check if device is in standby (powered off)
+        # Only consider it OFF if hpStandby=True AND season is None
+        if hp_standby is True and season is None:
             return HVACMode.OFF
         
         # Map season from dashboard to HVAC mode
-        season = self.coordinator.data.get("season")
-        
         if season == 0:  # transitional
             return HVACMode.FAN_ONLY
         elif season == 1:  # heating
@@ -66,11 +68,13 @@ def test_hvac_mode():
         # (dashboard_data, expected_mode, description)
         ({}, HVACMode.OFF, "No data"),
         ({"season": None}, HVACMode.OFF, "Season is None"),
-        ({"season": 0, "hpStandby": False}, HVACMode.FAN_ONLY, "Transitional season"),
-        ({"season": 1, "hpStandby": False}, HVACMode.HEAT, "Heating season"),
-        ({"season": 2, "hpStandby": False}, HVACMode.COOL, "Cooling season"),
-        ({"season": 1, "hpStandby": True}, HVACMode.OFF, "Device in standby (powered off)"),
-        ({"season": 2, "hpStandby": True}, HVACMode.OFF, "Cooling season but device in standby"),
+        ({"season": None, "hpStandby": True}, HVACMode.OFF, "Season is None and hpStandby True (device off)"),
+        ({"season": 0, "hpStandby": False}, HVACMode.FAN_ONLY, "Transitional season, hpStandby False"),
+        ({"season": 0, "hpStandby": True}, HVACMode.FAN_ONLY, "Transitional season, hpStandby True (fan only mode)"),
+        ({"season": 1, "hpStandby": False}, HVACMode.HEAT, "Heating season, hpStandby False"),
+        ({"season": 1, "hpStandby": True}, HVACMode.HEAT, "Heating season, hpStandby True (season takes precedence)"),
+        ({"season": 2, "hpStandby": False}, HVACMode.COOL, "Cooling season, hpStandby False"),
+        ({"season": 2, "hpStandby": True}, HVACMode.COOL, "Cooling season, hpStandby True (season takes precedence)"),
     ]
     
     all_passed = True
