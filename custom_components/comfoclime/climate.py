@@ -57,11 +57,11 @@ HVAC_MODE_MAPPING = {
 
 # Reverse mapping for setting HVAC modes
 # Maps HVAC mode to (season_value, hp_standby_value)
-# Note: hpStandby=True means device is in standby (powered off), so OFF mode uses True
-#       hpStandby=False means device is active (not in standby), so other modes use False
+# Note: hpStandby=True means device is in standby (powered off), so OFF and FAN_ONLY use True
+#       hpStandby=False means device is active (heating/cooling), so HEAT/COOL use False
 HVAC_MODE_REVERSE_MAPPING = {
     HVACMode.OFF: (None, True),        # Turn off device via hpStandby (device in standby)
-    HVACMode.FAN_ONLY: (0, False),     # Transitional season, device active
+    HVACMode.FAN_ONLY: (0, True),      # Transitional season, device in standby (fan only)
     HVACMode.HEAT: (1, False),          # Heating season, device active
     HVACMode.COOL: (2, False),          # Cooling season, device active
 }
@@ -222,19 +222,23 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         - season 1 (heating) → HEAT
         - season 2 (cooling) → COOL
         - season None or unknown → OFF (default fallback)
-        - hpStandby true → OFF (device powered off)
+        - hpStandby true + season None → OFF (device powered off)
         """
         if not self.coordinator.data:
             return HVACMode.OFF
 
-        # Check if device is in standby (powered off)
+        # Get season and hpStandby values
         hp_standby = self.coordinator.data.get("hpStandby")
-        if hp_standby is True:
+        season = self.coordinator.data.get("season")
+        
+        # Check if device is in standby (powered off)
+        # Only consider it OFF if hpStandby=True AND season is None
+        # If season is set, respect the season even if hpStandby=True
+        if hp_standby is True and season is None:
             return HVACMode.OFF
 
         # Map season from dashboard to HVAC mode using mapping
         # Falls back to OFF if season is None or unknown
-        season = self.coordinator.data.get("season")
         return HVAC_MODE_MAPPING.get(season, HVACMode.OFF)
 
     @property
