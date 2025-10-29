@@ -47,6 +47,15 @@ FAN_MODE_MAPPING = {
 
 FAN_MODE_REVERSE_MAPPING = {v: k for k, v in FAN_MODE_MAPPING.items()}
 
+HVAC_MODE_MAPPING ={
+    None: HVACMode.OFF,
+    0: HVACMode.HEAT,
+    1: HVACMode.COOL,
+    2: HVACMode.FAN_ONLY,
+}
+
+HVAC_MODE_REVERSE_MAPPING = {v: k for k, v in HVAC_MODE_MAPPING.items()}
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
