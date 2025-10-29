@@ -17,12 +17,13 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from . import DOMAIN
 from .coordinator import ComfoClimeDashboardCoordinator
 
+
 _LOGGER = logging.getLogger(__name__)
 
 # Temperature Profile Presets
 PRESET_MAPPING = {
     0: "comfort",
-    1: "power",
+    1: "boost",
     2: "eco",
 }
 
@@ -31,7 +32,7 @@ PRESET_REVERSE_MAPPING = {v: k for k, v in PRESET_MAPPING.items()}
 # Fan Mode Mapping (based on fan.py implementation)
 # fanSpeed from dashboard: 0, 1, 2, 3
 FAN_MODE_MAPPING = {
-    0: "auto",      # Speed 0 - automatic mode
+    0: "off",       # Speed 0
     1: "low",       # Speed 1
     2: "medium",    # Speed 2
     3: "high",      # Speed 3
@@ -287,7 +288,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         """Return current fan mode from dashboard data.
 
         Maps fanSpeed from dashboard (0-3) to fan mode strings:
-        - 0: auto (automatic mode)
+        - 0: off
         - 1: low
         - 2: medium
         - 3: high
@@ -380,7 +381,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
                 )
                 # Now we need to set setPointTemperature - let's update set_device_setting to support it
                 # For now, use a direct dashboard update
-                await self._set_setpoint_temperature(temperature)
+                await self.async_set_setpoint_temperature(temperature)
             else:
                 # When automatic comfort temperature switch is ON (status=1)
                 # Update the appropriate comfort temperature based on current season/HVAC mode
@@ -412,7 +413,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
                 else:
                     # For transitional season or FAN_ONLY/OFF modes, use setPointTemperature
                     _LOGGER.debug(f"Transitional season or OFF/FAN_ONLY mode - setting setPointTemperature to {temperature}")
-                    await self._set_setpoint_temperature(temperature)
+                    await self.async_set_setpoint_temperature(temperature)
 
             # Request refresh of coordinators
             await self.coordinator.async_request_refresh()
@@ -421,7 +422,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         except Exception:
             _LOGGER.exception(f"Failed to set temperature to {temperature}")
 
-    async def _set_setpoint_temperature(self, temperature: float) -> None:
+    async def async_set_setpoint_temperature(self, temperature: float) -> None:
         """Set setPointTemperature via dashboard API.
 
         According to API documentation, setPointTemperature is set via the dashboard
@@ -611,7 +612,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return all interface data as extra state attributes.
-        
+
         Exposes all available data from the ComfoClime API interfaces:
         - Dashboard data from /system/{UUID}/dashboard
         - Thermal profile data from /system/{UUID}/thermalprofile
