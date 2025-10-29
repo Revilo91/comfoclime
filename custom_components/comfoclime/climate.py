@@ -507,7 +507,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
         Args:
             season: Season value (0=transitional, 1=heating, 2=cooling, None=no change)
-            hp_standby: Heat pump standby state (False=off, True=active)
+            hp_standby: Heat pump standby state (True=standby/off, False=active)
         """
         import requests
 
