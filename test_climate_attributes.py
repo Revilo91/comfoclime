@@ -6,7 +6,6 @@ is properly exposed as attributes in the Climate sensor entity.
 """
 
 import sys
-sys.path.append('custom_components/comfoclime')
 
 
 def test_extra_state_attributes():

@@ -152,13 +152,17 @@ template:
       - name: "ComfoClime Heat Pump Status"
         state: >
           {% set status = state_attr('climate.comfoclime', 'dashboard')['heatPumpStatus'] %}
+          {# Heat pump status codes: 0=Off, 1=Starting, 3=Heating, 5=Cooling #}
+          {# See https://github.com/msfuture/comfoclime_api/blob/main/ComfoClimeAPI.md #}
           {% set statuses = {0: 'Off', 1: 'Starting', 3: 'Heating', 5: 'Cooling'} %}
           {{ statuses.get(status, 'Unknown') }}
       
       - name: "ComfoClime Season"
         state: >
           {% set season = state_attr('climate.comfoclime', 'dashboard')['season'] %}
-          {{ ['Transitional', 'Heating', 'Cooling'][season] }}
+          {# Season codes: 0=Transitional, 1=Heating, 2=Cooling #}
+          {% set seasons = {0: 'Transitional', 1: 'Heating', 2: 'Cooling'} %}
+          {{ seasons.get(season, 'Unknown') }}
       
       - name: "ComfoClime Heating Comfort Temperature"
         unit_of_measurement: "°C"
