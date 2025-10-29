@@ -219,6 +219,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         - season 0 (transitional) → FAN_ONLY
         - season 1 (heating) → HEAT
         - season 2 (cooling) → COOL
+        - season None or unknown → OFF (default fallback)
         - hpStandby true → OFF (device powered off)
         """
         if not self.coordinator.data:
@@ -230,6 +231,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             return HVACMode.OFF
 
         # Map season from dashboard to HVAC mode using mapping
+        # Falls back to OFF if season is None or unknown
         season = self.coordinator.data.get("season")
         return HVAC_MODE_MAPPING.get(season, HVACMode.OFF)
 
