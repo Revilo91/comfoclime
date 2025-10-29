@@ -453,22 +453,63 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
         await self.hass.async_add_executor_job(_set_dashboard_temperature)
 
+    async def _set_hp_standby(self, hp_standby: bool) -> None:
+        """Set hpStandby via dashboard API.
+
+        According to issue requirements, this controls the heat pump standby state:
+        - hpStandby: false when HVAC mode is OFF (turns off ComfoClime via heat pump)
+        - hpStandby: true for all other HVAC modes (ensures device is active)
+        """
+        import requests
+
+        if not self._api.uuid:
+            await self.hass.async_add_executor_job(self._api.get_uuid)
+
+        def _set_dashboard_hp_standby():
+            # Only include fields documented in the ComfoClime API spec
+            payload = {
+                "setPointTemperature": None,
+                "fanSpeed": None,
+                "season": None,
+                "schedule": None,
+                "hpStandby": hp_standby,
+            }
+            headers = {"content-type": "application/json; charset=utf-8"}
+            url = f"{self._api.base_url}/system/{self._api.uuid}/dashboard"
+            try:
+                response = requests.put(url, json=payload, timeout=5, headers=headers)
+                response.raise_for_status()
+                _LOGGER.debug(f"Set hpStandby to {hp_standby}")
+            except Exception as e:
+                _LOGGER.error(f"Fehler beim Setzen von hpStandby: {e}")
+                raise
+
+        await self.hass.async_add_executor_job(_set_dashboard_hp_standby)
+
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
-        """Set new HVAC mode by updating season and status."""
+        """Set new HVAC mode by updating season, status, and hpStandby."""
         try:
-            # Map HVAC modes to season/status values
+            # Map HVAC modes to season/status values and hpStandby
             if hvac_mode == HVACMode.OFF:
                 # Set status to automatic (1) which turns the system off
+                # Set hpStandby to false to turn off ComfoClime via heat pump
                 updates = {"season": {"status": 1}}
+                hp_standby_value = False
             elif hvac_mode == HVACMode.FAN_ONLY:
                 # Set season to transitional (0)
+                # Set hpStandby to true to ensure device is active
                 updates = {"season": {"season": 0, "status": 0}}
+                hp_standby_value = True
             elif hvac_mode == HVACMode.HEAT:
                 # Set season to heating (1) and status to manual (0)
+                # Set hpStandby to true to ensure device is active
                 updates = {"season": {"season": 1, "status": 0}}
+                hp_standby_value = True
             elif hvac_mode == HVACMode.COOL:
                 # Set season to cooling (2) and status to manual (0)
+                # Set hpStandby to true to ensure device is active
                 updates = {"season": {"season": 2, "status": 0}}
+                hp_standby_value = True
             else:
                 _LOGGER.error(f"Unsupported HVAC mode: {hvac_mode}")
                 return
@@ -477,6 +518,9 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             await self.hass.async_add_executor_job(
                 self._api.update_thermal_profile, updates
             )
+
+            # Update hpStandby via dashboard API
+            await self._set_hp_standby(hp_standby_value)
 
             # Request refresh of coordinators
             await self.coordinator.async_request_refresh()
