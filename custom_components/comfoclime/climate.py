@@ -3,6 +3,13 @@ import logging
 from typing import Any
 
 from homeassistant.components.climate import (
+    FAN_HIGH,
+    FAN_LOW,
+    FAN_MEDIUM,
+    FAN_OFF,
+    PRESET_BOOST,
+    PRESET_COMFORT,
+    PRESET_ECO,
     ClimateEntity,
     ClimateEntityFeature,
     HVACAction,
@@ -22,9 +29,9 @@ _LOGGER = logging.getLogger(__name__)
 
 # Temperature Profile Presets
 PRESET_MAPPING = {
-    0: "comfort",
-    1: "boost",
-    2: "eco",
+    0: PRESET_COMFORT,
+    1: PRESET_BOOST,
+    2: PRESET_ECO,
 }
 
 PRESET_REVERSE_MAPPING = {v: k for k, v in PRESET_MAPPING.items()}
@@ -32,10 +39,10 @@ PRESET_REVERSE_MAPPING = {v: k for k, v in PRESET_MAPPING.items()}
 # Fan Mode Mapping (based on fan.py implementation)
 # fanSpeed from dashboard: 0, 1, 2, 3
 FAN_MODE_MAPPING = {
-    0: "off",       # Speed 0
-    1: "low",       # Speed 1
-    2: "medium",    # Speed 2
-    3: "high",      # Speed 3
+    0: FAN_OFF,     # Speed 0
+    1: FAN_LOW,     # Speed 1
+    2: FAN_MEDIUM,  # Speed 2
+    3: FAN_HIGH,    # Speed 3
 }
 
 FAN_MODE_REVERSE_MAPPING = {v: k for k, v in FAN_MODE_MAPPING.items()}
@@ -90,6 +97,13 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         self._attr_precision = 0.5
         self._attr_target_temperature_step = 0.5
 
+        # Supported features
+        self._attr_supported_features = (
+            ClimateEntityFeature.TARGET_TEMPERATURE
+            | ClimateEntityFeature.PRESET_MODE
+            | ClimateEntityFeature.FAN_MODE
+        )
+
         # HVAC modes
         self._attr_hvac_modes = [
             HVACMode.OFF,
@@ -97,13 +111,6 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             HVACMode.COOL,
             HVACMode.FAN_ONLY,
         ]
-
-        # Supported features
-        self._attr_supported_features = (
-            ClimateEntityFeature.TARGET_TEMPERATURE
-            | ClimateEntityFeature.PRESET_MODE
-            | ClimateEntityFeature.FAN_MODE
-        )
 
         # Preset modes
         self._attr_preset_modes = list(PRESET_REVERSE_MAPPING.keys())
