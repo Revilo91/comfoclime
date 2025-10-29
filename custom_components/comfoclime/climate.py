@@ -183,27 +183,32 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
     @property
     def hvac_mode(self) -> HVACMode:
-        """Return current HVAC mode from thermal profile data."""
-        if not self._thermalprofile_coordinator.data:
+        """Return current HVAC mode from dashboard data.
+        
+        Maps the season field from dashboard to HVAC mode:
+        - season 0 (transitional) → FAN_ONLY
+        - season 1 (heating) → HEAT
+        - season 2 (cooling) → COOL
+        - hpStandby true → OFF (device powered off)
+        """
+        if not self.coordinator.data:
             return HVACMode.OFF
-
-        season = self._get_current_season()
-        status = self._get_season_status()
-
-        # Basierend auf Season - in Übergangszeit ("transitional") ist immer Lüftung aktiv
-        if season == 0:  # transitional - always fan_only regardless of status
+        
+        # Check if device is in standby (powered off)
+        hp_standby = self.coordinator.data.get("hpStandby")
+        if hp_standby is True:
+            return HVACMode.OFF
+        
+        # Map season from dashboard to HVAC mode
+        season = self.coordinator.data.get("season")
+        
+        if season == 0:  # transitional
             return HVACMode.FAN_ONLY
-
-        # Für Heiz-/Kühlsaison: Wenn status=1 (automatic), dann ist das System "aus"
-        if status == 1:
-            return HVACMode.OFF
-
-        # Basierend auf Season für manuelle Modi
-        if season == 1:  # heating
+        elif season == 1:  # heating
             return HVACMode.HEAT
-        if season == 2:  # cooling
+        elif season == 2:  # cooling
             return HVACMode.COOL
-
+        
         return HVACMode.OFF
 
     @property
