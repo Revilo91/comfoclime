@@ -57,11 +57,13 @@ HVAC_MODE_MAPPING = {
 
 # Reverse mapping for setting HVAC modes
 # Maps HVAC mode to (season_value, hp_standby_value)
+# Note: hpStandby=True means device is in standby (powered off), so OFF mode uses True
+#       hpStandby=False means device is active (not in standby), so other modes use False
 HVAC_MODE_REVERSE_MAPPING = {
-    HVACMode.OFF: (None, False),       # Turn off device via hpStandby
-    HVACMode.FAN_ONLY: (0, False),     # Transitional season, fan only
-    HVACMode.HEAT: (1, True),          # Heating season, device active
-    HVACMode.COOL: (2, True),          # Cooling season, device active
+    HVACMode.OFF: (None, True),        # Turn off device via hpStandby (device in standby)
+    HVACMode.FAN_ONLY: (0, False),     # Transitional season, device active
+    HVACMode.HEAT: (1, False),          # Heating season, device active
+    HVACMode.COOL: (2, False),          # Cooling season, device active
 }
 
 
@@ -470,9 +472,9 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
     async def _set_hp_standby(self, hp_standby: bool) -> None:
         """Set hpStandby via dashboard API.
 
-        According to issue requirements, this controls the heat pump standby state:
-        - hpStandby: false when HVAC mode is OFF (turns off ComfoClime via heat pump)
-        - hpStandby: true for all other HVAC modes (ensures device is active)
+        Controls the heat pump standby state:
+        - hpStandby: True → Device is in standby (powered off), HVAC mode reads as OFF
+        - hpStandby: False → Device is active (not in standby), HVAC mode based on season
         """
         import requests
 
