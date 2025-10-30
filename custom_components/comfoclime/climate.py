@@ -79,10 +79,10 @@ async def async_setup_entry(
 ) -> None:
     """Set up ComfoClime climate entities."""
     data = hass.data[DOMAIN][config_entry.entry_id]
-    api = data["api"]
-    dashboard_coordinator = data["coordinator"]
-    thermalprofile_coordinator = data["tpcoordinator"]
-    main_device = data.get("main_device")
+    api: ComfoClimeAPI = data["api"]
+    dashboard_coordinator: ComfoClimeDashboardCoordinator = data["coordinator"]
+    thermalprofile_coordinator: ComfoClimeThermalprofileCoordinator = data["tpcoordinator"]
+    main_device: dict[str, Any] | None = data.get("main_device")
 
     if not main_device:
         _LOGGER.warning("No main device found - cannot create climate entity")
