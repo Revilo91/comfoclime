@@ -185,7 +185,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             return None
 
         temp_data = thermal_data.get("temperature", {})
-        
+
         # Check temperature mode
         if self._get_temperature_status() == 0:
             # Manual mode: use manualTemperature from thermal profile
@@ -231,7 +231,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         # Get season and hpStandby values
         hp_standby = self.coordinator.data.get("hpStandby")
         season = self.coordinator.data.get("season")
-        
+
         # Check if device is in standby (powered off)
         # Only consider it OFF if hpStandby=True AND season is None
         # If season is set, respect the season even if hpStandby=True
@@ -285,7 +285,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
     @property
     def preset_mode(self) -> str | None:
         """Return current preset mode from dashboard data.
-        
+
         Dashboard provides temperatureProfile directly, so we use that as primary source.
         Falls back to thermal profile coordinator for backward compatibility.
         """
@@ -377,9 +377,9 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
         try:
             _LOGGER.debug(f"Setting temperature to {temperature}°C via dashboard API")
-            
+
             # Use consolidated dashboard update method
-            await self._update_dashboard(set_point_temperature=temperature)
+            await self.async_update_dashboard(set_point_temperature=temperature)
 
             # Request refresh of coordinators
             # Both coordinators are refreshed to ensure UI consistency
@@ -389,7 +389,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         except Exception:
             _LOGGER.exception(f"Failed to set temperature to {temperature}")
 
-    async def _update_dashboard(
+    async def async_update_dashboard(
         self,
         set_point_temperature: float | None = None,
         fan_speed: int | None = None,
@@ -424,7 +424,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
                 "season": season,
                 "schedule": schedule,
             }
-            
+
             # Add hpStandby only if provided (to maintain backward compatibility)
             if hp_standby is not None:
                 payload["hpStandby"] = hp_standby
@@ -452,7 +452,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             season_value, hp_standby_value = HVAC_MODE_REVERSE_MAPPING[hvac_mode]
 
             # Update season and hpStandby via consolidated dashboard method
-            await self._update_dashboard(season=season_value, hp_standby=hp_standby_value)
+            await self.async_update_dashboard(season=season_value, hp_standby=hp_standby_value)
 
             # Request refresh of coordinators
             await self.coordinator.async_request_refresh()
