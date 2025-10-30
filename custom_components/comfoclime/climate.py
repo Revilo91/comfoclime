@@ -545,19 +545,4 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         if self._thermalprofile_coordinator.data:
             attrs["thermal_profile"] = self._thermalprofile_coordinator.data
 
-        # Add calculated/derived values for convenience
-        thermal_data = self._thermalprofile_coordinator.data
-        if thermal_data:
-            season_data = thermal_data.get("season", {})
-            temp_data = thermal_data.get("temperature", {})
-            attrs["calculated"] = {
-                "season_season": season_data.get("season"),
-                "season_status": season_data.get("status"),
-                "temperature_status": temp_data.get("status"),
-                "temperature_profile": thermal_data.get("temperatureProfile"),
-                "hvac_mode": str(self.hvac_mode),
-                "preset_mode": self.preset_mode,
-                "temperature_mode": "automatic" if self._get_temperature_status() == 1 else "manual",
-            }
-
         return attrs
