@@ -18,11 +18,16 @@ from homeassistant.components.climate import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
-from .coordinator import ComfoClimeDashboardCoordinator
+from .comfoclime_api import ComfoClimeAPI
+from .coordinator import (
+    ComfoClimeDashboardCoordinator,
+    ComfoClimeThermalprofileCoordinator,
+)
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -74,10 +79,10 @@ async def async_setup_entry(
 ) -> None:
     """Set up ComfoClime climate entities."""
     data = hass.data[DOMAIN][config_entry.entry_id]
-    api = data["api"]
-    dashboard_coordinator = data["coordinator"]
-    thermalprofile_coordinator = data["tpcoordinator"]
-    main_device = data.get("main_device")
+    api: ComfoClimeAPI = data["api"]
+    dashboard_coordinator: ComfoClimeDashboardCoordinator = data["coordinator"]
+    thermalprofile_coordinator: ComfoClimeThermalprofileCoordinator = data["tpcoordinator"]
+    main_device: dict[str, Any] | None = data.get("main_device")
 
     if not main_device:
         _LOGGER.warning("No main device found - cannot create climate entity")
@@ -97,7 +102,14 @@ async def async_setup_entry(
 class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], ClimateEntity):
     """ComfoClime Climate entity."""
 
-    def __init__(self, dashboard_coordinator, thermalprofile_coordinator, api, device, entry):
+    def __init__(
+        self,
+        dashboard_coordinator: ComfoClimeDashboardCoordinator,
+        thermalprofile_coordinator: ComfoClimeThermalprofileCoordinator,
+        api: ComfoClimeAPI,
+        device: dict[str, Any],
+        entry: ConfigEntry,
+    ) -> None:
         """Initialize the climate entity."""
         super().__init__(dashboard_coordinator)
         self._api = api
@@ -149,7 +161,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         )
 
     @property
-    def device_info(self):
+    def device_info(self) -> DeviceInfo:
         """Return device information."""
         return {
             "identifiers": {(DOMAIN, self._device["uuid"])},
@@ -364,6 +376,11 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         season_data = thermal_data.get("season", {})
         return season_data.get("season", 0)
 
+    async def _async_refresh_coordinators(self) -> None:
+        """Refresh both dashboard and thermal profile coordinators."""
+        await self.coordinator.async_request_refresh()
+        await self._thermalprofile_coordinator.async_request_refresh()
+
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature via dashboard API.
 
@@ -383,8 +400,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
             # Request refresh of coordinators
             # Both coordinators are refreshed to ensure UI consistency
-            await self.coordinator.async_request_refresh()
-            await self._thermalprofile_coordinator.async_request_refresh()
+            await self._async_refresh_coordinators()
 
         except Exception:
             _LOGGER.exception(f"Failed to set temperature to {temperature}")
@@ -455,8 +471,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             await self.async_update_dashboard(season=season_value, hp_standby=hp_standby_value)
 
             # Request refresh of coordinators
-            await self.coordinator.async_request_refresh()
-            await self._thermalprofile_coordinator.async_request_refresh()
+            await self._async_refresh_coordinators()
 
         except Exception:
             _LOGGER.exception(f"Failed to set HVAC mode {hvac_mode}")
@@ -477,8 +492,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             )
 
             # Request refresh of coordinators
-            await self.coordinator.async_request_refresh()
-            await self._thermalprofile_coordinator.async_request_refresh()
+            await self._async_refresh_coordinators()
 
         except Exception:
             _LOGGER.exception(f"Failed to set preset mode {preset_mode}")
@@ -507,8 +521,8 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
                 self._api.set_device_setting, None, fan_speed
             )
 
-            # Request refresh of coordinator
-            await self.coordinator.async_request_refresh()
+            # Request refresh of coordinators
+            await self._async_refresh_coordinators()
 
         except Exception:
             _LOGGER.exception(f"Failed to set fan mode {fan_mode}")
