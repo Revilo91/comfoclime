@@ -18,11 +18,16 @@ from homeassistant.components.climate import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
-from .coordinator import ComfoClimeDashboardCoordinator
+from .comfoclime_api import ComfoClimeAPI
+from .coordinator import (
+    ComfoClimeDashboardCoordinator,
+    ComfoClimeThermalprofileCoordinator,
+)
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -97,7 +102,14 @@ async def async_setup_entry(
 class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], ClimateEntity):
     """ComfoClime Climate entity."""
 
-    def __init__(self, dashboard_coordinator, thermalprofile_coordinator, api, device, entry):
+    def __init__(
+        self,
+        dashboard_coordinator: ComfoClimeDashboardCoordinator,
+        thermalprofile_coordinator: ComfoClimeThermalprofileCoordinator,
+        api: ComfoClimeAPI,
+        device: dict[str, Any],
+        entry: ConfigEntry,
+    ) -> None:
         """Initialize the climate entity."""
         super().__init__(dashboard_coordinator)
         self._api = api
@@ -149,7 +161,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         )
 
     @property
-    def device_info(self):
+    def device_info(self) -> DeviceInfo:
         """Return device information."""
         return {
             "identifiers": {(DOMAIN, self._device["uuid"])},
