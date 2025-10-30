@@ -376,6 +376,11 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         season_data = thermal_data.get("season", {})
         return season_data.get("season", 0)
 
+    async def _async_refresh_coordinators(self) -> None:
+        """Refresh both dashboard and thermal profile coordinators."""
+        await self.coordinator.async_request_refresh()
+        await self._thermalprofile_coordinator.async_request_refresh()
+
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature via dashboard API.
 
@@ -395,8 +400,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
             # Request refresh of coordinators
             # Both coordinators are refreshed to ensure UI consistency
-            await self.coordinator.async_request_refresh()
-            await self._thermalprofile_coordinator.async_request_refresh()
+            await self._async_refresh_coordinators()
 
         except Exception:
             _LOGGER.exception(f"Failed to set temperature to {temperature}")
@@ -467,8 +471,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             await self.async_update_dashboard(season=season_value, hp_standby=hp_standby_value)
 
             # Request refresh of coordinators
-            await self.coordinator.async_request_refresh()
-            await self._thermalprofile_coordinator.async_request_refresh()
+            await self._async_refresh_coordinators()
 
         except Exception:
             _LOGGER.exception(f"Failed to set HVAC mode {hvac_mode}")
@@ -489,8 +492,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             )
 
             # Request refresh of coordinators
-            await self.coordinator.async_request_refresh()
-            await self._thermalprofile_coordinator.async_request_refresh()
+            await self._async_refresh_coordinators()
 
         except Exception:
             _LOGGER.exception(f"Failed to set preset mode {preset_mode}")
