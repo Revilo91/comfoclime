@@ -521,8 +521,8 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
                 self._api.set_device_setting, None, fan_speed
             )
 
-            # Request refresh of coordinator
-            await self.coordinator.async_request_refresh()
+            # Request refresh of coordinators
+            await self._async_refresh_coordinators()
 
         except Exception:
             _LOGGER.exception(f"Failed to set fan mode {fan_mode}")
