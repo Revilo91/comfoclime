@@ -381,8 +381,10 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             # Use consolidated dashboard update method
             await self._update_dashboard(set_point_temperature=temperature)
 
-            # Request refresh of coordinator
+            # Request refresh of coordinators
+            # Both coordinators are refreshed to ensure UI consistency
             await self.coordinator.async_request_refresh()
+            await self._thermalprofile_coordinator.async_request_refresh()
 
         except Exception:
             _LOGGER.exception(f"Failed to set temperature to {temperature}")
