@@ -125,7 +125,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
         # Temperature settings
         self._attr_temperature_unit = UnitOfTemperature.CELSIUS
-        self._attr_precision = 0.5
+        self._attr_precision = 0.1
         self._attr_target_temperature_step = 0.5
 
         # Supported features
