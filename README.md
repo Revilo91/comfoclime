@@ -57,6 +57,27 @@ The climate entity automatically:
 - Shows appropriate HVAC actions (heating/cooling/fan/idle)
 - Manages system state based on fan activity
 
+### Heat Pump Status Interpretation
+The climate entity uses **bitwise operations** to accurately determine the current HVAC action from the heat pump status code:
+
+- **Bit 1 (0x02)**: Heating mode flag
+- **Bit 2 (0x04)**: Cooling mode flag
+
+This ensures correct interpretation of all status codes, including transitional states:
+
+| Status Code | Binary | HVAC Action | Description |
+|-------------|--------|-------------|-------------|
+| 0 | 0000 0000 | Off | Heat pump is off |
+| 1 | 0000 0001 | Idle | Starting up |
+| 3 | 0000 0011 | Heating | Actively heating |
+| 5 | 0000 0101 | Cooling | Actively cooling |
+| 17 | 0001 0001 | Idle | Transitional state |
+| 19 | 0001 0011 | Heating | Heating in transitional state |
+| 21 | 0001 0101 | Cooling | Cooling in transitional state |
+| 67 | 0100 0011 | Heating | Heating mode |
+| 75 | 0100 1011 | Heating | Heating mode (both bits set, heating priority) |
+| 83 | 0101 0011 | Heating | Heating mode |
+
 ## Current ToDo / development
 There are many more telemetry and property values, that make sense to be offered by the integration. The ComfoClime unit itself is fully integrated but there are some missing sensors, switches and numbers of the ComfoAirQ unit to be added in the future. You are missing one? The definitions are in seperate files in the entities folder, so you can try them yourself. If they are working you can open an issue or directly open a pull request.
 
