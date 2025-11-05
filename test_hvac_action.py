@@ -62,6 +62,8 @@ class MockClimateEntity:
         # Bitwise operation to determine heating/cooling state
         # Bit 1 (0x02) indicates heating
         # Bit 2 (0x04) indicates cooling
+        # If both bits are set (e.g., status 75), heating takes priority
+        # This is intentional as heating typically has higher priority for safety
         is_heating = bool(heat_pump_status & 0x02)
         is_cooling = bool(heat_pump_status & 0x04)
         
