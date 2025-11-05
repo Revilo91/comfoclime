@@ -64,8 +64,8 @@ class MockClimateEntity:
         # Bit 2 (0x04) indicates cooling
         # If both bits are set (e.g., status 75), heating takes priority
         # This is intentional as heating typically has higher priority for safety
-        is_heating = bool(heat_pump_status & 0x02)
-        is_cooling = bool(heat_pump_status & 0x04)
+        is_heating = bool(heat_pump_status & 0x02)  # Check bit 1
+        is_cooling = bool(heat_pump_status & 0x04)  # Check bit 2
         
         if is_heating:
             return HVACAction.HEATING
