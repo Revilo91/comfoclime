@@ -29,14 +29,26 @@ class MockClimateEntity:
     @property
     def hvac_action(self):
         """Return current HVAC action based on dashboard heatPumpStatus.
+
+        Uses bitwise operations to determine the current action:
+        - Bit 0 (0x01): Device is active/running
+        - Bit 1 (0x02): Heating mode flag
+        - Bit 2 (0x04): Cooling mode flag
         
-        According to ComfoClime API documentation, heatPumpStatus values:
-        - 0: heat pump is off
-        - 1: starting up
-        - 3: heating
-        - 5: cooling
-        - Other values: transitional states (defrost, etc.)
-        
+        Heat pump status codes (from API documentation):
+        Code | Binary      | Meaning
+        -----|-------------|--------
+        0    | 0000 0000  | Off
+        1    | 0000 0001  | Starting up (active, no mode)
+        3    | 0000 0011  | Heating (active + heating flag)
+        5    | 0000 0101  | Cooling (active + cooling flag)
+        17   | 0001 0001  | Transitional (active + other flags)
+        19   | 0001 0011  | Heating + transitional state
+        21   | 0001 0101  | Cooling + transitional state
+        67   | 0100 0011  | Heating + other state
+        75   | 0100 1011  | Heating + cooling + other
+        83   | 0101 0011  | Heating + other state
+
         Reference: https://github.com/msfuture/comfoclime_api/blob/main/ComfoClimeAPI.md#heat-pump-status-codes
         """
         if not self.coordinator.data:
@@ -44,47 +56,42 @@ class MockClimateEntity:
         
         heat_pump_status = self.coordinator.data.get("heatPumpStatus")
         
-        if heat_pump_status is None:
+        if heat_pump_status is None or heat_pump_status == 0:
             return HVACAction.OFF
         
-        # Map heat pump status codes to HVAC actions
-        if heat_pump_status == 0:
-            # Heat pump is off
-            return HVACAction.OFF
-        elif heat_pump_status == 1:
-            # Starting up - show as idle (preparing to heat/cool)
-            return HVACAction.IDLE
-        elif heat_pump_status == 3:
-            # Actively heating
+        # Bitwise operation to determine heating/cooling state
+        # Bit 1 (0x02) indicates heating
+        # Bit 2 (0x04) indicates cooling
+        is_heating = bool(heat_pump_status & 0x02)
+        is_cooling = bool(heat_pump_status & 0x04)
+        
+        if is_heating:
             return HVACAction.HEATING
-        elif heat_pump_status == 5:
-            # Actively cooling
+        elif is_cooling:
             return HVACAction.COOLING
         else:
-            # Other status codes (17, 19, 21, 67, 75, 83, etc.)
-            # These are transitional states like defrost, anti-freeze, etc.
-            # Show as idle since heat pump is running but not actively heating/cooling
+            # Device is active but not heating or cooling (starting up or idle)
             return HVACAction.IDLE
 
 
 def test_hvac_action():
-    """Test hvac_action mapping for different heatPumpStatus values."""
+    """Test hvac_action mapping for different heatPumpStatus values using bitwise operations."""
     
-    print("Testing hvac_action based on heatPumpStatus...\n")
+    print("Testing hvac_action based on heatPumpStatus (bitwise operation)...\n")
     
     test_cases = [
         # (heatPumpStatus, expected_action, description)
         (None, HVACAction.OFF, "No heatPumpStatus data"),
-        (0, HVACAction.OFF, "Heat pump off"),
-        (1, HVACAction.IDLE, "Starting up"),
-        (3, HVACAction.HEATING, "Actively heating"),
-        (5, HVACAction.COOLING, "Actively cooling"),
-        (17, HVACAction.IDLE, "Transitional state 17"),
-        (19, HVACAction.IDLE, "Transitional state 19 (defrost)"),
-        (21, HVACAction.IDLE, "Transitional state 21"),
-        (67, HVACAction.IDLE, "Transitional state 67"),
-        (75, HVACAction.IDLE, "Transitional state 75"),
-        (83, HVACAction.IDLE, "Transitional state 83"),
+        (0, HVACAction.OFF, "Heat pump off (0000 0000)"),
+        (1, HVACAction.IDLE, "Starting up (0000 0001) - bit 0 only"),
+        (3, HVACAction.HEATING, "Actively heating (0000 0011) - bits 0,1"),
+        (5, HVACAction.COOLING, "Actively cooling (0000 0101) - bits 0,2"),
+        (17, HVACAction.IDLE, "Transitional state 17 (0001 0001) - no heat/cool bits"),
+        (19, HVACAction.HEATING, "Heating state 19 (0001 0011) - bit 1 set"),
+        (21, HVACAction.COOLING, "Cooling state 21 (0001 0101) - bit 2 set"),
+        (67, HVACAction.HEATING, "Heating state 67 (0100 0011) - bit 1 set"),
+        (75, HVACAction.HEATING, "Heating priority 75 (0100 1011) - bits 1,2 set, heating priority"),
+        (83, HVACAction.HEATING, "Heating state 83 (0101 0011) - bit 1 set"),
     ]
     
     all_passed = True
@@ -105,7 +112,14 @@ def test_hvac_action():
         all_passed = all_passed and passed
         
         status_icon = "✓" if passed else "✗"
-        print(f"{status_icon} heatPumpStatus={heat_pump_status}: {description}")
+        
+        # Show binary representation for non-None values
+        if heat_pump_status is not None:
+            binary = format(heat_pump_status, '08b')
+            print(f"{status_icon} Status {heat_pump_status:3d} (0b{binary}): {description}")
+        else:
+            print(f"{status_icon} Status None: {description}")
+        
         print(f"  Expected: {expected_action}, Got: {actual_action}")
         
         if not passed:
