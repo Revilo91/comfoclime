@@ -258,12 +258,24 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
     def hvac_action(self) -> HVACAction:
         """Return current HVAC action based on dashboard heatPumpStatus.
 
-        According to ComfoClime API documentation, heatPumpStatus values:
-        - 0: heat pump is off
-        - 1: starting up
-        - 3: heating
-        - 5: cooling
-        - Other values: transitional states (defrost, etc.)
+        Uses bitwise operations to determine the current action:
+        - Bit 0 (0x01): Device is active/running
+        - Bit 1 (0x02): Heating mode flag
+        - Bit 2 (0x04): Cooling mode flag
+        
+        Heat pump status codes (from API documentation):
+        Code | Binary      | Meaning
+        -----|-------------|--------
+        0    | 0000 0000  | Off
+        1    | 0000 0001  | Starting up (active, no mode)
+        3    | 0000 0011  | Heating (active + heating flag)
+        5    | 0000 0101  | Cooling (active + cooling flag)
+        17   | 0001 0001  | Transitional (active + other flags)
+        19   | 0001 0011  | Heating + transitional state
+        21   | 0001 0101  | Cooling + transitional state
+        67   | 0100 0011  | Heating + other state
+        75   | 0100 1011  | Heating + cooling + other
+        83   | 0101 0011  | Heating + other state
 
         Reference: https://github.com/msfuture/comfoclime_api/blob/main/ComfoClimeAPI.md#heat-pump-status-codes
         """
@@ -272,26 +284,23 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
         heat_pump_status = self.coordinator.data.get("heatPumpStatus")
 
-        if heat_pump_status is None:
+        if heat_pump_status is None or heat_pump_status == 0:
             return HVACAction.OFF
 
-        # Map heat pump status codes to HVAC actions
-        if heat_pump_status == 0:
-            # Heat pump is off
-            return HVACAction.OFF
-        elif heat_pump_status == 1:
-            # Starting up - show as idle (preparing to heat/cool)
-            return HVACAction.IDLE
-        elif heat_pump_status == 3:
-            # Actively heating
+        # Bitwise operation to determine heating/cooling state
+        # Bit 1 (0x02) indicates heating
+        # Bit 2 (0x04) indicates cooling
+        # If both bits are set (e.g., status 75), heating takes priority
+        # This is intentional as heating typically has higher priority for safety
+        is_heating = bool(heat_pump_status & 0x02)  # Check bit 1
+        is_cooling = bool(heat_pump_status & 0x04)  # Check bit 2
+
+        if is_heating:
             return HVACAction.HEATING
-        elif heat_pump_status == 5:
-            # Actively cooling
+        elif is_cooling:
             return HVACAction.COOLING
         else:
-            # Other status codes (17, 19, 21, 67, 75, 83, etc.)
-            # These are transitional states like defrost, anti-freeze, etc.
-            # Show as idle since heat pump is running but not actively heating/cooling
+            # Device is active but not heating or cooling (starting up or idle)
             return HVACAction.IDLE
 
     @property
