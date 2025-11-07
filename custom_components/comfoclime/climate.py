@@ -509,9 +509,18 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             # Map preset mode to profile value (0=comfort, 1=boost, 2=eco)
             profile_value = PRESET_REVERSE_MAPPING[preset_mode]
 
-            # Use working API method to set device setting
-            await self.hass.async_add_executor_job(
-                self._api.set_device_setting, temperature_profile=temperature_profile
+            _LOGGER.debug(
+                f"Setting preset mode to {preset_mode} (profile={profile_value}) "
+                f"via dashboard API - activates automatic mode"
+            )
+
+            # Set both temperatureProfile and seasonProfile to the preset value
+            # and activate automatic mode (status=1)
+            # This replaces setPointTemperature with preset-based control
+            await self.async_update_dashboard(
+                temperature_profile=profile_value,
+                season_profile=profile_value,
+                status=1,
             )
 
             # Request refresh of coordinator
