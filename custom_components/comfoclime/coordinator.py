@@ -11,7 +11,7 @@ class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
             hass,
             _LOGGER,
             name="ComfoClime Dashboard",
-            update_interval=timedelta(seconds=30),
+            update_interval=timedelta(seconds=10),
         )
         self.api = api
 
@@ -29,7 +29,7 @@ class ComfoClimeThermalprofileCoordinator(DataUpdateCoordinator):
             hass,
             _LOGGER,
             name="ComfoClime Thermalprofile",
-            update_interval=timedelta(seconds=30),
+            update_interval=timedelta(seconds=10),
         )
         self.api = api
 
