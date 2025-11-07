@@ -10,6 +10,7 @@ from homeassistant.components.climate import (
     PRESET_BOOST,
     PRESET_COMFORT,
     PRESET_ECO,
+    PRESET_NONE,
     ClimateEntity,
     ClimateEntityFeature,
     HVACAction,
@@ -33,6 +34,8 @@ from .coordinator import (
 _LOGGER = logging.getLogger(__name__)
 
 # Temperature Profile Presets
+# status=0 (manual mode) maps to PRESET_NONE (Manual)
+# status=1 (automatic mode) uses temperatureProfile values:
 PRESET_MAPPING = {
     0: PRESET_COMFORT,
     1: PRESET_BOOST,
@@ -40,6 +43,9 @@ PRESET_MAPPING = {
 }
 
 PRESET_REVERSE_MAPPING = {v: k for k, v in PRESET_MAPPING.items()}
+
+# Add manual preset mode (status=0)
+PRESET_MANUAL = PRESET_NONE  # "none" preset means manual temperature control
 
 # Fan Mode Mapping (based on fan.py implementation)
 # fanSpeed from dashboard: 0, 1, 2, 3
@@ -61,14 +67,13 @@ HVAC_MODE_MAPPING = {
 }
 
 # Reverse mapping for setting HVAC modes
-# Maps HVAC mode to (season_value, hp_standby_value)
-# Note: hpStandby=True means device is in standby (powered off), so OFF and FAN_ONLY use True
-#       hpStandby=False means device is active (heating/cooling), so HEAT/COOL use False
+# Maps HVAC mode to season value (0=transitional, 1=heating, 2=cooling)
+# OFF mode is handled separately via hpStandby field
 HVAC_MODE_REVERSE_MAPPING = {
-    HVACMode.OFF: (None, True),        # Turn off device via hpStandby (device in standby)
-    HVACMode.FAN_ONLY: (0, True),      # Transitional season, device active (fan only)
-    HVACMode.HEAT: (1, False),          # Heating season, device active
-    HVACMode.COOL: (2, False),          # Cooling season, device active
+    HVACMode.OFF: None,        # Turn off device via hpStandby=True
+    HVACMode.FAN_ONLY: 0,      # Transitional season (fan only)
+    HVACMode.HEAT: 1,          # Heating season
+    HVACMode.COOL: 2,          # Cooling season
 }
 
 
@@ -138,14 +143,11 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         # HVAC modes
         self._attr_hvac_modes = list(HVAC_MODE_REVERSE_MAPPING.keys())
 
-        # Preset modes
-        self._attr_preset_modes = list(PRESET_REVERSE_MAPPING.keys())
+        # Preset modes (automatic profiles + manual mode)
+        self._attr_preset_modes = [PRESET_MANUAL] + list(PRESET_REVERSE_MAPPING.keys())
 
         # Fan modes
         self._attr_fan_modes = list(FAN_MODE_REVERSE_MAPPING.keys())
-
-        # Add thermal profile coordinator listener
-        self._thermalprofile_coordinator.async_add_listener(self._handle_coordinator_update)
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -155,10 +157,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
     @property
     def available(self) -> bool:
         """Return True if entity is available."""
-        return (
-            self.coordinator.last_update_success
-            and self._thermalprofile_coordinator.last_update_success
-        )
+        return self.coordinator.last_update_success
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -182,39 +181,21 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
     def target_temperature(self) -> float | None:
         """Return target temperature from dashboard data.
 
-        The dashboard provides setPointTemperature which reflects the current target.
-        Falls back to thermal profile data if not available in dashboard.
+        The dashboard provides setPointTemperature in manual mode (status=0).
+        In automatic mode (status=1), the target temperature is determined by
+        the selected preset profile and current season.
         """
-        # Primary source: dashboard setPointTemperature
-        if self.coordinator.data:
-            set_point = self.coordinator.data.get("setPointTemperature")
-            if set_point is not None:
-                return set_point
-
-        # Fallback: thermal profile data for backward compatibility
-        thermal_data = self._thermalprofile_coordinator.data
-        if not thermal_data:
+        if not self.coordinator.data:
             return None
 
-        temp_data = thermal_data.get("temperature", {})
+        # Manual mode: dashboard provides setPointTemperature directly
+        set_point = self.coordinator.data.get("setPointTemperature")
+        if set_point is not None:
+            return set_point
 
-        # Check temperature mode
-        if self._get_temperature_status() == 0:
-            # Manual mode: use manualTemperature from thermal profile
-            return temp_data.get("manualTemperature")
-
-        # Automatic mode: use comfort temperature based on season
-        season = self._get_current_season()
-
-        if season == 1:  # heating
-            heating_data = thermal_data.get("heatingThermalProfileSeasonData", {})
-            return heating_data.get("comfortTemperature")
-        elif season == 2:  # cooling
-            cooling_data = thermal_data.get("coolingThermalProfileSeasonData", {})
-            return cooling_data.get("comfortTemperature")
-
-        # Fallback: manual temperature (for transitional season)
-        return temp_data.get("manualTemperature")
+        # Automatic mode: No direct target temperature available from dashboard
+        # The system uses preset-based temperature control
+        return None
 
     @property
     def min_temp(self) -> float:
@@ -305,24 +286,27 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
     def preset_mode(self) -> str | None:
         """Return current preset mode from dashboard data.
 
-        Dashboard provides temperatureProfile directly, so we use that as primary source.
-        Falls back to thermal profile coordinator for backward compatibility.
+        Returns PRESET_MANUAL (none) if in manual mode (status=0 or setPointTemperature is set).
+        Returns preset name (comfort/boost/eco) if in automatic mode (status=1).
         """
-        # Primary source: Dashboard data (most current)
-        if self.coordinator.data:
-            temp_profile = self.coordinator.data.get("temperatureProfile")
-            if isinstance(temp_profile, int):
-                return PRESET_MAPPING.get(temp_profile)
-            if isinstance(temp_profile, str) and temp_profile.isdigit():
-                return PRESET_MAPPING.get(int(temp_profile))
+        if not self.coordinator.data:
+            return None
 
-        # Fallback: Thermal Profile Coordinator (for backward compatibility)
-        if self._thermalprofile_coordinator.data:
-            temp_profile = self._thermalprofile_coordinator.data.get("temperatureProfile")
-            if isinstance(temp_profile, int):
-                return PRESET_MAPPING.get(temp_profile)
-            if isinstance(temp_profile, str) and temp_profile.isdigit():
-                return PRESET_MAPPING.get(int(temp_profile))
+        # Check if in manual mode by presence of setPointTemperature
+        # or explicit status field (status=0 means manual mode)
+        set_point = self.coordinator.data.get("setPointTemperature")
+        status = self.coordinator.data.get("status")
+
+        # Manual mode: setPointTemperature is set or status=0
+        if set_point is not None or status == 0:
+            return PRESET_MANUAL
+
+        # Automatic mode: return the temperatureProfile preset
+        temp_profile = self.coordinator.data.get("temperatureProfile")
+        if isinstance(temp_profile, int):
+            return PRESET_MAPPING.get(temp_profile)
+        if isinstance(temp_profile, str) and temp_profile.isdigit():
+            return PRESET_MAPPING.get(int(temp_profile))
 
         return None
 
@@ -349,50 +333,31 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         """Return the list of available fan modes."""
         return self._attr_fan_modes
 
-    def _get_temperature_status(self) -> int:
-        """Get the temperature.status value from thermal profile.
-
-        Returns:
-            1 if automatic comfort temperature is enabled (default)
-            0 if manual temperature mode is active
-        """
-        thermal_data = self._thermalprofile_coordinator.data
-        if not thermal_data:
-            return 1  # default to automatic
-
-        temp_data = thermal_data.get("temperature", {})
-        return temp_data.get("status", 1)
-
     def _get_current_season(self) -> int:
-        """Get the current season value from dashboard or thermal profile.
+        """Get the current season value from dashboard.
 
         Returns:
             0 for transitional, 1 for heating, 2 for cooling
         """
-        # Primary source: dashboard
         if self.coordinator.data:
             season = self.coordinator.data.get("season")
             if isinstance(season, int):
                 return season
-
-        # Fallback: thermal profile
-        thermal_data = self._thermalprofile_coordinator.data
-        if not thermal_data:
-            return 0
-
-        season_data = thermal_data.get("season", {})
-        return season_data.get("season", 0)
+        return 0
 
     async def _async_refresh_coordinators(self) -> None:
-        """Refresh both dashboard and thermal profile coordinators."""
+        """Refresh dashboard coordinator after a short delay.
+
+        The delay ensures the device has processed the change before we fetch new data.
+        """
+        # Request immediate refresh of dashboard coordinator
         await self.coordinator.async_request_refresh()
-        await self._thermalprofile_coordinator.async_request_refresh()
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
-        """Set new target temperature via dashboard API.
+        """Set new target temperature via dashboard API in manual mode.
 
-        According to issue requirements, all temperature changes should be made via
-        the dashboard API using setPointTemperature, not via thermalprofile.
+        Setting a manual temperature activates manual mode (status=0) and replaces
+        the preset profiles (seasonProfile, temperatureProfile) with setPointTemperature.
         """
         temperature = kwargs.get(ATTR_TEMPERATURE)
         if temperature is None:
@@ -400,13 +365,13 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             return
 
         try:
-            _LOGGER.debug(f"Setting temperature to {temperature}°C via dashboard API")
+            _LOGGER.debug(f"Setting manual temperature to {temperature}°C via dashboard API")
 
-            # Use consolidated dashboard update method
+            # Setting setPointTemperature implicitly activates manual mode (status=0)
+            # and replaces seasonProfile/temperatureProfile
             await self.async_update_dashboard(set_point_temperature=temperature)
 
-            # Request refresh of coordinators
-            # Both coordinators are refreshed to ensure UI consistency
+            # Request refresh of coordinator
             await self._async_refresh_coordinators()
 
         except Exception:
@@ -419,18 +384,28 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         season: int | None = None,
         hp_standby: bool | None = None,
         schedule: int | None = None,
+        temperature_profile: int | None = None,
+        season_profile: int | None = None,
+        status: int | None = None,
     ) -> None:
         """Update dashboard settings via API.
 
         Consolidated method for all dashboard updates. Only fields that are provided
         (not None) will be included in the update payload.
 
+        The API distinguishes between two modes:
+        - Automatic mode (status=1): Uses preset profiles (seasonProfile, temperatureProfile)
+        - Manual mode (status=0): Uses manual temperature (setPointTemperature)
+
         Args:
-            set_point_temperature: Target temperature (°C)
+            set_point_temperature: Target temperature (°C) - activates manual mode
             fan_speed: Fan speed (0-3)
             season: Season value (0=transitional, 1=heating, 2=cooling)
             hp_standby: Heat pump standby state (True=standby/off, False=active)
             schedule: Schedule mode
+            temperature_profile: Temperature profile/preset (0=comfort, 1=boost, 2=eco)
+            season_profile: Season profile/preset (0=comfort, 1=boost, 2=eco)
+            status: Temperature control mode (0=manual, 1=automatic)
         """
         import requests
 
@@ -446,6 +421,9 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
                 "fanSpeed": fan_speed,
                 "season": season,
                 "schedule": schedule,
+                "temperatureProfile": temperature_profile,
+                "seasonProfile": season_profile,
+                "status": status,
             }
 
             # Add hpStandby only if provided (to maintain backward compatibility)
@@ -465,47 +443,80 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         await self.hass.async_add_executor_job(_update)
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
-        """Set new HVAC mode by updating season and hpStandby via dashboard API."""
+        """Set new HVAC mode by updating season via dashboard API.
+
+        The HVAC mode is determined by the season field in the dashboard:
+        - OFF: Sets hpStandby=True (device off)
+        - FAN_ONLY: Sets season=0 (transitional), hpStandby=False
+        - HEAT: Sets season=1 (heating), hpStandby=False
+        - COOL: Sets season=2 (cooling), hpStandby=False
+        """
         try:
-            # Use HVAC_MODE_REVERSE_MAPPING to get season and hpStandby values
+            # Use HVAC_MODE_REVERSE_MAPPING to get season value
             if hvac_mode not in HVAC_MODE_REVERSE_MAPPING:
                 _LOGGER.error(f"Unsupported HVAC mode: {hvac_mode}")
                 return
 
-            season_value, hp_standby_value = HVAC_MODE_REVERSE_MAPPING[hvac_mode]
+            season_value = HVAC_MODE_REVERSE_MAPPING[hvac_mode]
 
-            # Update season and hpStandby via consolidated dashboard method
-            await self.async_update_dashboard(season=season_value, hp_standby=hp_standby_value)
+            # OFF mode: Set hpStandby=True to turn off the device
+            if hvac_mode == HVACMode.OFF:
+                _LOGGER.debug("Setting HVAC mode to OFF - setting hpStandby=True")
+                await self.async_update_dashboard(hp_standby=True)
+            else:
+                # Active modes: Set season and hpStandby=False
+                _LOGGER.debug(f"Setting HVAC mode to {hvac_mode} - setting season={season_value}, hpStandby=False")
+                await self.async_update_dashboard(season=season_value, hp_standby=False)
 
-            # Request refresh of coordinators
+            # Request refresh of coordinator
             await self._async_refresh_coordinators()
 
         except Exception:
             _LOGGER.exception(f"Failed to set HVAC mode {hvac_mode}")
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
-        """Set preset mode by updating temperature profile."""
-        if preset_mode not in PRESET_REVERSE_MAPPING:
-            _LOGGER.error(f"Unknown preset mode: {preset_mode}")
-            return
+        """Set preset mode via dashboard API.
 
+        Setting PRESET_MANUAL (none) switches to manual temperature control mode.
+        Setting other presets (comfort/boost/eco) activates automatic mode with
+        both seasonProfile and temperatureProfile set to the selected preset value.
+        """
         try:
-            # Map preset mode to temperature profile value
-            temperature_profile = PRESET_REVERSE_MAPPING[preset_mode]
+            # Manual mode: User wants to use manual temperature control
+            if preset_mode == PRESET_MANUAL:
+                _LOGGER.debug(
+                    "Switching to manual temperature control mode - "
+                    "user needs to set temperature manually"
+                )
+                # Set status=0 to activate manual mode
+                # setPointTemperature should be set separately via async_set_temperature
+                await self.async_update_dashboard(status=0)
+
+                # Request refresh of coordinator
+                await self._async_refresh_coordinators()
+                return
+
+            # Automatic mode with preset profile
+            if preset_mode not in PRESET_REVERSE_MAPPING:
+                _LOGGER.error(f"Unknown preset mode: {preset_mode}")
+                return
+
+            # Map preset mode to profile value (0=comfort, 1=boost, 2=eco)
+            profile_value = PRESET_REVERSE_MAPPING[preset_mode]
 
             # Use working API method to set device setting
             await self.hass.async_add_executor_job(
                 self._api.set_device_setting, temperature_profile=temperature_profile
             )
 
-            # Request refresh of coordinators
+            # Request refresh of coordinator
             await self._async_refresh_coordinators()
 
         except Exception:
             _LOGGER.exception(f"Failed to set preset mode {preset_mode}")
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
-        """Set fan mode by updating fan speed in dashboard.
+        """Set fan mode by updating fan speed via dashboard API.
 
         Maps fan mode strings to fanSpeed values:
         - off: 0
@@ -521,14 +532,10 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             # Map fan mode to fan speed value
             fan_speed = FAN_MODE_REVERSE_MAPPING[fan_mode]
 
-            # Use API method to set fan speed via dashboard
-            # set_device_setting(temperature_profile, fan_speed)
-            # First parameter (temperature_profile) is None to only update fan speed
-            await self.hass.async_add_executor_job(
-                self._api.set_device_setting, None, fan_speed
-            )
+            # Update fan speed via dashboard API
+            await self.async_update_dashboard(fan_speed=fan_speed)
 
-            # Request refresh of coordinators
+            # Request refresh of coordinator
             await self._async_refresh_coordinators()
 
         except Exception:
@@ -536,20 +543,15 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Return all interface data as extra state attributes.
+        """Return dashboard data as extra state attributes.
 
-        Exposes all available data from the ComfoClime API interfaces:
+        Exposes all available data from the ComfoClime Dashboard API interface:
         - Dashboard data from /system/{UUID}/dashboard
-        - Thermal profile data from /system/{UUID}/thermalprofile
         """
         attrs = {}
 
         # Add complete dashboard data from Dashboard API interface
         if self.coordinator.data:
             attrs["dashboard"] = self.coordinator.data
-
-        # Add complete thermal profile data from Thermal Profile API interface
-        if self._thermalprofile_coordinator.data:
-            attrs["thermal_profile"] = self._thermalprofile_coordinator.data
 
         return attrs
