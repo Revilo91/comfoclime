@@ -59,15 +59,15 @@ FAN_MODE_MAPPING = {
 FAN_MODE_REVERSE_MAPPING = {v: k for k, v in FAN_MODE_MAPPING.items()}
 
 # HVAC Mode Mapping (season values to HVAC modes)
-# Season from dashboard: 0 (transitional), 1 (heating), 2 (cooling)
+# Season from dashboard: 0 (transition), 1 (heating), 2 (cooling)
 HVAC_MODE_MAPPING = {
-    0: HVACMode.FAN_ONLY,  # transitional
+    0: HVACMode.FAN_ONLY,  # transition
     1: HVACMode.HEAT,      # heating
     2: HVACMode.COOL,      # cooling
 }
 
 # Reverse mapping for setting HVAC modes
-# Maps HVAC mode to season value (0=transitional, 1=heating, 2=cooling)
+# Maps HVAC mode to season value (0=transition, 1=heating, 2=cooling)
 # OFF mode is handled separately via hpStandby field
 HVAC_MODE_REVERSE_MAPPING = {
     HVACMode.OFF: None,        # Turn off device via hpStandby=True
@@ -212,7 +212,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         """Return current HVAC mode from dashboard data.
 
         Maps the season field from dashboard to HVAC mode:
-        - season 0 (transitional) → FAN_ONLY
+        - season 0 (transition) → FAN_ONLY
         - season 1 (heating) → HEAT
         - season 2 (cooling) → COOL
         - season None or unknown → OFF (default fallback)
@@ -250,8 +250,8 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         3    | 0000 0011  | Heating (active + heating flag)
         5    | 0000 0101  | Cooling (active + cooling flag)
         17   | 0001 0001  | Transitional (active + other flags)
-        19   | 0001 0011  | Heating + transitional state
-        21   | 0001 0101  | Cooling + transitional state
+        19   | 0001 0011  | Heating + transition state
+        21   | 0001 0101  | Cooling + transition state
         67   | 0100 0011  | Heating + other state
         75   | 0100 1011  | Heating + cooling + other
         83   | 0101 0011  | Heating + other state
@@ -337,7 +337,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         """Get the current season value from dashboard.
 
         Returns:
-            0 for transitional, 1 for heating, 2 for cooling
+            0 for transition, 1 for heating, 2 for cooling
         """
         if self.coordinator.data:
             season = self.coordinator.data.get("season")
@@ -350,6 +350,11 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
         The delay ensures the device has processed the change before we fetch new data.
         """
+        import asyncio
+
+        # Wait 1 second for device to process the change
+        await asyncio.sleep(1)
+
         # Request immediate refresh of dashboard coordinator
         await self.coordinator.async_request_refresh()
 
@@ -400,7 +405,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         Args:
             set_point_temperature: Target temperature (°C) - activates manual mode
             fan_speed: Fan speed (0-3)
-            season: Season value (0=transitional, 1=heating, 2=cooling)
+            season: Season value (0=transition, 1=heating, 2=cooling)
             hp_standby: Heat pump standby state (True=standby/off, False=active)
             schedule: Schedule mode
             temperature_profile: Temperature profile/preset (0=comfort, 1=boost, 2=eco)
@@ -447,7 +452,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
         The HVAC mode is determined by the season field in the dashboard:
         - OFF: Sets hpStandby=True (device off)
-        - FAN_ONLY: Sets season=0 (transitional), hpStandby=False
+        - FAN_ONLY: Sets season=0 (transition), hpStandby=False
         - HEAT: Sets season=1 (heating), hpStandby=False
         - COOL: Sets season=2 (cooling), hpStandby=False
         """
