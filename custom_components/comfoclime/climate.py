@@ -495,7 +495,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
             # Use working API method to set device setting
             await self.hass.async_add_executor_job(
-                self._api.set_device_setting, temperature_profile
+                self._api.set_device_setting, temperature_profile=temperature_profile
             )
 
             # Request refresh of coordinators
