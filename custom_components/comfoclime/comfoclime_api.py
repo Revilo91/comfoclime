@@ -241,28 +241,89 @@ class ComfoClimeAPI:
         response.raise_for_status()
         return response.status_code == 200
 
-    def set_device_setting(self, temperature_profile=None, fan_speed=None):
+    def update_dashboard(
+        self,
+        set_point_temperature: float | None = None,
+        fan_speed: int | None = None,
+        season: int | None = None,
+        hp_standby: bool | None = None,
+        schedule: int | None = None,
+        temperature_profile: int | None = None,
+        season_profile: int | None = None,
+        status: int | None = None,
+    ) -> dict:
+        """Update dashboard settings via API.
+
+        Modern method for dashboard updates. Only fields that are provided
+        (not None) will be included in the update payload.
+
+        The API distinguishes between two modes:
+        - Automatic mode (status=1): Uses preset profiles (seasonProfile, temperatureProfile)
+        - Manual mode (status=0): Uses manual temperature (setPointTemperature)
+
+        Args:
+            set_point_temperature: Target temperature (°C) - activates manual mode
+            fan_speed: Fan speed (0-3)
+            season: Season value (0=transition, 1=heating, 2=cooling)
+            hp_standby: Heat pump standby state (True=standby/off, False=active)
+            schedule: Schedule mode
+            temperature_profile: Temperature profile/preset (0=comfort, 1=boost, 2=eco)
+            season_profile: Season profile/preset (0=comfort, 1=boost, 2=eco)
+            status: Temperature control mode (0=manual, 1=automatic)
+
+        Returns:
+            Response JSON from the API
+
+        Raises:
+            requests.RequestException: If the API request fails
+        """
         if not self.uuid:
             self.get_uuid()
-        # Only include fields documented in the ComfoClime API spec
-        # Fields like scenario, scenarioTimeLeft, @type, name, displayName, description, timestamp, status
-        # are NOT part of the official API and should not be included
-        payload = {
-            "setPointTemperature": None,
-            "temperatureProfile": temperature_profile,
-            "seasonProfile": None,
-            "fanSpeed": fan_speed,
-            "season": None,
-            "schedule": None,
-        }
+
+        # Dynamically build payload; only include keys explicitly provided.
+        payload: dict = {}
+        if set_point_temperature is not None:
+            payload["setPointTemperature"] = set_point_temperature
+        if fan_speed is not None:
+            payload["fanSpeed"] = fan_speed
+        if season is not None:
+            payload["season"] = season
+        if schedule is not None:
+            payload["schedule"] = schedule
+        if temperature_profile is not None:
+            payload["temperatureProfile"] = temperature_profile
+        if season_profile is not None:
+            payload["seasonProfile"] = season_profile
+        if status is not None:
+            payload["status"] = status
+        if hp_standby is not None:
+            payload["hpStandby"] = hp_standby
+
+        if not payload:
+            _LOGGER.debug("No dashboard fields to update (empty payload) - skipping PUT")
+            return {}
+
         headers = {"content-type": "application/json; charset=utf-8"}
         url = f"{self.base_url}/system/{self.uuid}/dashboard"
         try:
             response = requests.put(url, json=payload, timeout=5, headers=headers)
             response.raise_for_status()
+            try:
+                resp_json = response.json()
+            except Exception:
+                resp_json = {"text": response.text}
+            _LOGGER.debug(f"Dashboard update OK payload={payload} response={resp_json}")
+            return resp_json
         except Exception as e:
-            _LOGGER.error(f"Fehler beim Schreiben der Geräteeinstellung: {e}")
+            _LOGGER.error(f"Error updating dashboard (payload={payload}): {e}")
             raise
+
+    async def async_update_dashboard(self, hass, **kwargs):
+        """Async wrapper for update_dashboard method."""
+        async with self._request_lock:
+            return await hass.async_add_executor_job(
+                lambda: self.update_dashboard(**kwargs)
+            )
 
     async def async_set_property_for_device(
         self,

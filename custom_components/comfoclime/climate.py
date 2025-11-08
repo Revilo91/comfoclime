@@ -379,80 +379,18 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         except Exception:
             _LOGGER.exception(f"Failed to set temperature to {temperature}")
 
-    async def async_update_dashboard(
-        self,
-        set_point_temperature: float | None = None,
-        fan_speed: int | None = None,
-        season: int | None = None,
-        hp_standby: bool | None = None,
-        schedule: int | None = None,
-        temperature_profile: int | None = None,
-        season_profile: int | None = None,
-        status: int | None = None,
-    ) -> None:
+    async def async_update_dashboard(self, **kwargs) -> None:
         """Update dashboard settings via API.
 
-        Consolidated method for all dashboard updates. Only fields that are provided
-        (not None) will be included in the update payload.
-
-        The API distinguishes between two modes:
-        - Automatic mode (status=1): Uses preset profiles (seasonProfile, temperatureProfile)
-        - Manual mode (status=0): Uses manual temperature (setPointTemperature)
+        Wrapper method that delegates to the API's update_dashboard method.
+        This ensures all dashboard updates go through the centralized API method.
 
         Args:
-            set_point_temperature: Target temperature (°C) - activates manual mode
-            fan_speed: Fan speed (0-3)
-            season: Season value (0=transition, 1=heating, 2=cooling)
-            hp_standby: Heat pump standby state (True=standby/off, False=active)
-            schedule: Schedule mode
-            temperature_profile: Temperature profile/preset (0=comfort, 1=boost, 2=eco)
-            season_profile: Season profile/preset (0=comfort, 1=boost, 2=eco)
-            status: Temperature control mode (0=manual, 1=automatic)
+            **kwargs: Dashboard fields to update (set_point_temperature, fan_speed,
+                     season, hp_standby, schedule, temperature_profile,
+                     season_profile, status)
         """
-        import requests
-
-        if not self._api.uuid:
-            await self.hass.async_add_executor_job(self._api.get_uuid)
-
-        def _update():
-            # Dynamically build payload; only include keys explicitly provided.
-            payload: dict[str, Any] = {}
-            if set_point_temperature is not None:
-                payload["setPointTemperature"] = set_point_temperature
-            if fan_speed is not None:
-                payload["fanSpeed"] = fan_speed
-            if season is not None:
-                payload["season"] = season
-            if schedule is not None:
-                payload["schedule"] = schedule
-            if temperature_profile is not None:
-                payload["temperatureProfile"] = temperature_profile
-            if season_profile is not None:
-                payload["seasonProfile"] = season_profile
-            if status is not None:
-                payload["status"] = status
-            if hp_standby is not None:
-                payload["hpStandby"] = hp_standby
-
-            if not payload:
-                _LOGGER.debug("No dashboard fields to update (empty payload) - skipping PUT")
-                return
-
-            headers = {"content-type": "application/json; charset=utf-8"}
-            url = f"{self._api.base_url}/system/{self._api.uuid}/dashboard"
-            try:
-                response = requests.put(url, json=payload, timeout=5, headers=headers)
-                response.raise_for_status()
-                try:
-                    resp_json = response.json()
-                except Exception:
-                    resp_json = response.text
-                _LOGGER.debug(f"Dashboard update OK payload={payload} response={resp_json}")
-            except Exception as e:
-                _LOGGER.error(f"Error updating dashboard (payload={payload}): {e}")
-                raise
-
-        await self.hass.async_add_executor_job(_update)
+        await self._api.async_update_dashboard(self.hass, **kwargs)
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new HVAC mode by updating season via dashboard API.
