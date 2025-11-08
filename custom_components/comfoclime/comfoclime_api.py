@@ -346,6 +346,34 @@ class ComfoClimeAPI:
                 lambda: self.update_dashboard(**kwargs)
             )
 
+    async def async_update_thermal_profile(self, hass, updates: dict):
+        """Async wrapper for update_thermal_profile method."""
+        async with self._request_lock:
+            return await hass.async_add_executor_job(
+                lambda: self.update_thermal_profile(updates)
+            )
+
+    async def async_set_hvac_season(self, hass, season: int, hp_standby: bool = False):
+        """Set HVAC season and standby state in a single atomic operation.
+
+        This method updates both the season (via thermal profile) and hpStandby
+        (via dashboard) in a single lock to prevent race conditions.
+
+        Args:
+            hass: Home Assistant instance
+            season: Season value (0=transition, 1=heating, 2=cooling)
+            hp_standby: Heat pump standby state (False=active, True=standby/off)
+        """
+        async with self._request_lock:
+            def _update():
+                # First update dashboard to set hpStandby
+                self.update_dashboard(hp_standby=hp_standby)
+                # Then update thermal profile to set season
+                if not hp_standby:  # Only set season if device is active
+                    self.update_thermal_profile({"season": {"season": season}})
+
+            return await hass.async_add_executor_job(_update)
+
     async def async_set_property_for_device(
         self,
         hass,
