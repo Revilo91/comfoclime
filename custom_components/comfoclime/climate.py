@@ -1,4 +1,5 @@
 """Climate platform for ComfoClime integration."""
+
 import logging
 from typing import Any
 
@@ -29,7 +30,6 @@ from .coordinator import (
     ComfoClimeDashboardCoordinator,
     ComfoClimeThermalprofileCoordinator,
 )
-
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -98,7 +98,7 @@ async def async_setup_entry(
         thermalprofile_coordinator,
         api,
         main_device,
-        config_entry
+        config_entry,
     )
 
     async_add_entities([climate_entity])
@@ -152,6 +152,14 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
+        # Update internal state from coordinator data
+        # This ensures the entity reflects the latest data from ComfoClime
+        try:
+            if self.coordinator.data:
+                _LOGGER.debug(f"Coordinator update received: {self.coordinator.data}")
+        except Exception:
+            _LOGGER.exception("Fehler beim Verarbeiten der Coordinator-Daten")
+
         self.async_write_ha_state()
 
     @property
@@ -269,11 +277,12 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
         if is_heating:
             return HVACAction.HEATING
-        elif is_cooling:
+
+        if is_cooling:
             return HVACAction.COOLING
-        else:
-            # Device is active but not heating or cooling (starting up or idle)
-            return HVACAction.IDLE
+
+        # Device is active but not heating or cooling (starting up or idle)
+        return HVACAction.IDLE
 
     @property
     def preset_mode(self) -> str | None:
@@ -339,17 +348,11 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         return 0
 
     async def _async_refresh_coordinators(self) -> None:
-        """Refresh dashboard coordinator after a short delay.
+        """Refresh dashboard coordinator to get latest data from ComfoClime.
 
-        The delay ensures the device has processed the change before we fetch new data.
+        Uses add_job to trigger coordinator refresh, consistent with other entities.
         """
-        import asyncio
-
-        # Wait 1 second for device to process the change
-        await asyncio.sleep(1)
-
-        # Request immediate refresh of dashboard coordinator
-        await self.coordinator.async_request_refresh()
+        self._hass.add_job(self.coordinator.async_request_refresh)
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature via dashboard API in manual mode.
