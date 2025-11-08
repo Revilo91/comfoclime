@@ -179,22 +179,15 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
     @property
     def target_temperature(self) -> float | None:
-        """Return target temperature from dashboard data.
+        """Return target temperature for display.
 
-        The dashboard provides setPointTemperature in manual mode (status=0).
-        In automatic mode (status=1), the target temperature is determined by
-        the selected preset profile and current season.
+        Uses manualTemperature from thermal profile as the display value.
+        This represents the last set temperature.
         """
-        if not self.coordinator.data:
-            return None
-
-        # Manual mode: dashboard provides setPointTemperature directly
-        set_point = self.coordinator.data.get("setPointTemperature")
-        if set_point is not None:
-            return set_point
-
-        # Automatic mode: No direct target temperature available from dashboard
-        # The system uses preset-based temperature control
+        tp = self._thermalprofile_coordinator.data or {}
+        temp = (tp.get("temperature") or {}).get("manualTemperature")
+        if isinstance(temp, (int, float)):
+            return temp
         return None
 
     @property
@@ -372,9 +365,13 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         try:
             _LOGGER.debug(f"Setting manual temperature to {temperature}°C via dashboard API")
 
-            # Setting setPointTemperature implicitly activates manual mode (status=0)
-            # and replaces seasonProfile/temperatureProfile
-            await self.async_update_dashboard(set_point_temperature=temperature)
+            # Setting setPointTemperature should explicitly switch to manual mode (status=0)
+            # and replaces seasonProfile/temperatureProfile. We send status=0 to ensure
+            # the device leaves automatic preset control when user changes temperature.
+            await self.async_update_dashboard(
+                set_point_temperature=temperature,
+                status=0,
+            )
 
             # Request refresh of coordinator
             await self._async_refresh_coordinators()
@@ -418,31 +415,41 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             await self.hass.async_add_executor_job(self._api.get_uuid)
 
         def _update():
-            # Build payload with only fields documented in the ComfoClime API spec
-            # Fields like scenario, scenarioTimeLeft, @type, name, displayName, description
-            # are NOT part of the official API and should not be included
-            payload = {
-                "setPointTemperature": set_point_temperature,
-                "fanSpeed": fan_speed,
-                "season": season,
-                "schedule": schedule,
-                "temperatureProfile": temperature_profile,
-                "seasonProfile": season_profile,
-                "status": status,
-            }
-
-            # Add hpStandby only if provided (to maintain backward compatibility)
+            # Dynamically build payload; only include keys explicitly provided.
+            payload: dict[str, Any] = {}
+            if set_point_temperature is not None:
+                payload["setPointTemperature"] = set_point_temperature
+            if fan_speed is not None:
+                payload["fanSpeed"] = fan_speed
+            if season is not None:
+                payload["season"] = season
+            if schedule is not None:
+                payload["schedule"] = schedule
+            if temperature_profile is not None:
+                payload["temperatureProfile"] = temperature_profile
+            if season_profile is not None:
+                payload["seasonProfile"] = season_profile
+            if status is not None:
+                payload["status"] = status
             if hp_standby is not None:
                 payload["hpStandby"] = hp_standby
+
+            if not payload:
+                _LOGGER.debug("No dashboard fields to update (empty payload) - skipping PUT")
+                return
 
             headers = {"content-type": "application/json; charset=utf-8"}
             url = f"{self._api.base_url}/system/{self._api.uuid}/dashboard"
             try:
                 response = requests.put(url, json=payload, timeout=5, headers=headers)
                 response.raise_for_status()
-                _LOGGER.debug(f"Dashboard updated: {payload}")
+                try:
+                    resp_json = response.json()
+                except Exception:
+                    resp_json = response.text
+                _LOGGER.debug(f"Dashboard update OK payload={payload} response={resp_json}")
             except Exception as e:
-                _LOGGER.error(f"Error updating dashboard: {e}")
+                _LOGGER.error(f"Error updating dashboard (payload={payload}): {e}")
                 raise
 
         await self.hass.async_add_executor_job(_update)
@@ -567,5 +574,11 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         # Add complete dashboard data from Dashboard API interface
         if self.coordinator.data:
             attrs["dashboard"] = self.coordinator.data
+
+        # For transparency: expose last_manual_temperature from thermal profile if available
+        tp = getattr(self._thermalprofile_coordinator, "data", None) or {}
+        manual_temp = (tp.get("temperature") or {}).get("manualTemperature")
+        if isinstance(manual_temp, (int, float)):
+            attrs["last_manual_temperature"] = manual_temp
 
         return attrs
