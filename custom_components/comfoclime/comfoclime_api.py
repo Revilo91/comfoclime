@@ -257,6 +257,24 @@ class ComfoClimeAPI:
         Modern method for dashboard updates. Only fields that are provided
         (not None) will be included in the update payload.
 
+        # Android app export from @msfuture
+        payload = {
+            "@type": None,
+            "name": None,
+            "displayName": None,
+            "description": None,
+            "timestamp": datetime.datetime.now().isoformat(),
+            "status": status,
+            "setPointTemperature": set_point_temperature,
+            "temperatureProfile": temperature_profile,
+            "seasonProfile": season_profile,
+            "fanSpeed": fan_speed,
+            "scenario": None,
+            "scenarioTimeLeft": None,
+            "season": season,
+            "schedule": None,
+        }
+
         The API distinguishes between two modes:
         - Automatic mode (status=1): Uses preset profiles (seasonProfile, temperatureProfile)
         - Manual mode (status=0): Uses manual temperature (setPointTemperature)
@@ -302,6 +320,9 @@ class ComfoClimeAPI:
         if not payload:
             _LOGGER.debug("No dashboard fields to update (empty payload) - skipping PUT")
             return {}
+
+        # Add timestamp to payload
+        payload["timestamp"] = datetime.datetime.now().isoformat()
 
         headers = {"content-type": "application/json; charset=utf-8"}
         url = f"{self.base_url}/system/{self.uuid}/dashboard"
