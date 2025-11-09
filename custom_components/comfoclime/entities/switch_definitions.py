@@ -10,3 +10,13 @@ SWITCHES = [
         "translation_key": "automatic_comfort_temperature",
     },
 ]
+
+PROPERTY_SWITCHES = {
+    20: [
+        {
+            "path": "22/1/2",
+            "name": "Automatic Season (Property)",
+            "translation_key": "automatic_season_property",
+        },
+    ],
+}
