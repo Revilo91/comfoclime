@@ -187,8 +187,6 @@ class ComfoClimePropertySelect(SelectEntity):
             self._current = self._options_map.get(val)
         except Exception as e:
             _LOGGER.error(f"Fehler beim Laden von {self._name}: {e}")
-        
-        self.async_write_ha_state()
 
     def select_option(self, option: str):
         value = self._options_reverse.get(option)
