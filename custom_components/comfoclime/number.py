@@ -247,6 +247,8 @@ class ComfoClimePropertyNumber(NumberEntity):
                 f"Fehler beim Abrufen von Property {self._property_path}: {e}"
             )
             self._value = None
+        
+        self.async_write_ha_state()
 
     async def async_set_native_value(self, value):
         try:
