@@ -300,6 +300,8 @@ class ComfoClimeTelemetrySensor(SensorEntity):
         except Exception as e:
             _LOGGER.error(f"Fehler beim Aktualisieren von Telemetrie {self._id}: {e}")
             self._state = None
+        
+        self.async_write_ha_state()
 
 
 class ComfoClimePropertySensor(SensorEntity):
@@ -377,3 +379,5 @@ class ComfoClimePropertySensor(SensorEntity):
         except Exception as e:
             _LOGGER.error(f"Fehler beim Abrufen von Property {self._path}: {e}")
             self._state = None
+        
+        self.async_write_ha_state()
