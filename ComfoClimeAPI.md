@@ -2,6 +2,10 @@
 
 A practical guide to the Zehnder ComfoClime REST API with Python examples. The API provides local HTTP access (no authentication required) to control ComfoClime and connected ComfoNet devices.
 
+This documentation is part of the [ComfoClime Home Assistant Integration](https://github.com/Revilo91/comfoclime) and serves both as:
+- **API Reference**: Complete REST API documentation for developers
+- **Integration Guide**: Examples and patterns used in the Home Assistant integration
+
 **Base URL**: `http://{DEVICE_IP}` or `http://comfoclime.local`
 
 ## Quick Start
@@ -50,6 +54,16 @@ print(f"Fan speed: {dashboard['fanSpeed']}")
   - [PDO Protocol (Telemetry)](#pdo-protocol-telemetry)
   - [RMI Protocol (Properties)](#rmi-protocol-properties)
 - [Python Examples](#python-examples)
+  - [Complete API Client](#complete-api-client)
+  - [Async Version (for Home Assistant)](#async-version-for-home-assistant)
+  - [Heat Pump Status Decoder](#heat-pump-status-decoder)
+  - [Bitwise Heat Pump Status Interpretation](#bitwise-heat-pump-status-interpretation)
+- [Home Assistant Integration](#home-assistant-integration)
+  - [Climate Control Entity](#climate-control-entity)
+  - [Integration Architecture](#integration-architecture)
+  - [Integration-Specific API Usage](#integration-specific-api-usage)
+  - [Entity Organization](#entity-organization)
+  - [Supported Features](#supported-features)
 
 ## Core Concepts
 
@@ -151,13 +165,92 @@ data = get_dashboard("http://192.168.1.100", uuid)
 
 #### PUT /system/{UUID}/dashboard
 
-Set temperature profile or fan speed.
+Set temperature profile, fan speed, season, or other dashboard settings. The modern API uses a flexible payload system.
 
 ```python
 import datetime
 
+def update_dashboard(base_url, uuid, **kwargs):
+    """Modern dashboard update method (flexible parameters).
+    
+    The API distinguishes between two temperature control modes:
+    - Automatic mode (status=1): Uses preset profiles (seasonProfile, temperatureProfile)
+    - Manual mode (status=0): Uses manual temperature (setPointTemperature)
+    
+    Args:
+        set_point_temperature: Target temperature (°C) - activates manual mode
+        fan_speed: Fan speed (0-3)
+        season: Season value (0=transition, 1=heating, 2=cooling)
+        hp_standby: Heat pump standby state (True=standby/off, False=active)
+        schedule: Schedule mode
+        temperature_profile: Temperature profile (0=comfort, 1=power, 2=eco)
+        season_profile: Season profile (0=comfort, 1=power, 2=eco)
+        status: Temperature control mode (0=manual, 1=automatic)
+    """
+    # Build payload dynamically with only provided fields
+    payload = {}
+    
+    if kwargs.get("set_point_temperature") is not None:
+        payload["setPointTemperature"] = kwargs["set_point_temperature"]
+    if kwargs.get("fan_speed") is not None:
+        payload["fanSpeed"] = kwargs["fan_speed"]
+    if kwargs.get("season") is not None:
+        payload["season"] = kwargs["season"]
+    if kwargs.get("schedule") is not None:
+        payload["schedule"] = kwargs["schedule"]
+    if kwargs.get("temperature_profile") is not None:
+        payload["temperatureProfile"] = kwargs["temperature_profile"]
+    if kwargs.get("season_profile") is not None:
+        payload["seasonProfile"] = kwargs["season_profile"]
+    if kwargs.get("status") is not None:
+        payload["status"] = kwargs["status"]
+    if kwargs.get("hp_standby") is not None:
+        payload["hpStandby"] = kwargs["hp_standby"]
+    
+    # Add timestamp
+    payload["timestamp"] = datetime.datetime.now().isoformat()
+    
+    response = requests.put(
+        f"{base_url}/system/{uuid}/dashboard",
+        json=payload,
+        headers={"content-type": "application/json; charset=utf-8"}
+    )
+    return response.status_code == 200
+
+# Examples:
+
+# 1. Set fan speed to level 2
+update_dashboard("http://192.168.1.100", uuid, fan_speed=2)
+
+# 2. Set manual temperature to 22°C (activates manual mode)
+update_dashboard("http://192.168.1.100", uuid, 
+                set_point_temperature=22.0, 
+                status=0)  # 0=manual mode
+
+# 3. Set comfort preset (automatic mode)
+update_dashboard("http://192.168.1.100", uuid,
+                temperature_profile=0,  # 0=comfort
+                status=1)  # 1=automatic mode
+
+# 4. Turn off heat pump (standby mode)
+update_dashboard("http://192.168.1.100", uuid, hp_standby=True)
+
+# 5. Set heating mode (activate heat pump and set season)
+update_dashboard("http://192.168.1.100", uuid,
+                season=1,  # 1=heating
+                hp_standby=False)
+
+# 6. Set cooling mode
+update_dashboard("http://192.168.1.100", uuid,
+                season=2,  # 2=cooling
+                hp_standby=False)
+```
+
+**Legacy method (still works but less flexible):**
+
+```python
 def set_fan_speed(base_url, uuid, fan_speed):
-    """Set fan speed (0-3)"""
+    """Legacy method: Set fan speed (0-3)"""
     payload = {
         "@type": None,
         "name": None,
@@ -575,6 +668,107 @@ class ComfoClimeAPI:
         response.raise_for_status()
         return response.json()["devices"]
     
+    # Modern dashboard update method
+    def update_dashboard(self, **kwargs) -> dict:
+        """Update dashboard settings (modern flexible method).
+        
+        Args:
+            set_point_temperature: Target temperature (°C)
+            fan_speed: Fan speed (0-3)
+            season: Season value (0=transition, 1=heating, 2=cooling)
+            hp_standby: Heat pump standby state (True=off, False=active)
+            schedule: Schedule mode
+            temperature_profile: Temperature profile (0=comfort, 1=power, 2=eco)
+            season_profile: Season profile (0=comfort, 1=power, 2=eco)
+            status: Control mode (0=manual, 1=automatic)
+        """
+        import datetime
+        uuid = self.get_uuid()
+        
+        # Build payload with only provided fields
+        payload = {}
+        if kwargs.get("set_point_temperature") is not None:
+            payload["setPointTemperature"] = kwargs["set_point_temperature"]
+        if kwargs.get("fan_speed") is not None:
+            payload["fanSpeed"] = kwargs["fan_speed"]
+        if kwargs.get("season") is not None:
+            payload["season"] = kwargs["season"]
+        if kwargs.get("schedule") is not None:
+            payload["schedule"] = kwargs["schedule"]
+        if kwargs.get("temperature_profile") is not None:
+            payload["temperatureProfile"] = kwargs["temperature_profile"]
+        if kwargs.get("season_profile") is not None:
+            payload["seasonProfile"] = kwargs["season_profile"]
+        if kwargs.get("status") is not None:
+            payload["status"] = kwargs["status"]
+        if kwargs.get("hp_standby") is not None:
+            payload["hpStandby"] = kwargs["hp_standby"]
+        
+        payload["timestamp"] = datetime.datetime.now().isoformat()
+        
+        response = requests.put(
+            f"{self.base_url}/system/{uuid}/dashboard",
+            json=payload,
+            headers={"content-type": "application/json; charset=utf-8"}
+        )
+        response.raise_for_status()
+        return response.json()
+    
+    def get_thermal_profile(self) -> dict:
+        """Get thermal profile settings"""
+        uuid = self.get_uuid()
+        response = requests.get(f"{self.base_url}/system/{uuid}/thermalprofile")
+        response.raise_for_status()
+        return response.json()
+    
+    def update_thermal_profile(self, updates: dict) -> bool:
+        """Update thermal profile settings.
+        
+        Args:
+            updates: Dict with partial values, e.g. 
+                    {"heatingThermalProfileSeasonData": {"comfortTemperature": 20.0}}
+        """
+        uuid = self.get_uuid()
+        
+        # Full payload structure with nulls
+        full_payload = {
+            "season": {
+                "status": None,
+                "season": None,
+                "heatingThresholdTemperature": None,
+                "coolingThresholdTemperature": None,
+            },
+            "temperature": {
+                "status": None,
+                "manualTemperature": None,
+            },
+            "temperatureProfile": None,
+            "heatingThermalProfileSeasonData": {
+                "comfortTemperature": None,
+                "kneePointTemperature": None,
+                "reductionDeltaTemperature": None,
+            },
+            "coolingThermalProfileSeasonData": {
+                "comfortTemperature": None,
+                "kneePointTemperature": None,
+                "temperatureLimit": None,
+            },
+        }
+        
+        # Deep update: override specific fields
+        for section, values in updates.items():
+            if section in full_payload and isinstance(values, dict):
+                full_payload[section].update(values)
+            else:
+                full_payload[section] = values
+        
+        response = requests.put(
+            f"{self.base_url}/system/{uuid}/thermalprofile",
+            json=full_payload
+        )
+        response.raise_for_status()
+        return response.status_code == 200
+    
     # Telemetry
     def read_telemetry(self, device_uuid: str, telemetry_id: int, 
                        factor: float = 1.0, signed: bool = True) -> float:
@@ -648,46 +842,53 @@ class ComfoClimeAPI:
         )
         return response.status_code == 200
     
-    # High-level methods
+    # High-level HVAC control methods (Home Assistant integration style)
+    def set_hvac_mode_heat(self) -> bool:
+        """Set HVAC mode to heating"""
+        return self.update_dashboard(season=1, hp_standby=False)
+    
+    def set_hvac_mode_cool(self) -> bool:
+        """Set HVAC mode to cooling"""
+        return self.update_dashboard(season=2, hp_standby=False)
+    
+    def set_hvac_mode_fan_only(self) -> bool:
+        """Set HVAC mode to fan only (transition season)"""
+        return self.update_dashboard(season=0, hp_standby=False)
+    
+    def set_hvac_mode_off(self) -> bool:
+        """Turn off heat pump (standby mode)"""
+        return self.update_dashboard(hp_standby=True)
+    
+    def set_manual_temperature(self, temperature: float) -> bool:
+        """Set manual target temperature (switches to manual mode)"""
+        return self.update_dashboard(
+            set_point_temperature=temperature,
+            status=0  # 0=manual mode
+        )
+    
+    def set_preset_comfort(self) -> bool:
+        """Set comfort preset (switches to automatic mode)"""
+        return self.update_dashboard(temperature_profile=0, status=1)
+    
+    def set_preset_power(self) -> bool:
+        """Set power preset (switches to automatic mode)"""
+        return self.update_dashboard(temperature_profile=1, status=1)
+    
+    def set_preset_eco(self) -> bool:
+        """Set eco preset (switches to automatic mode)"""
+        return self.update_dashboard(temperature_profile=2, status=1)
+    
     def set_fan_speed(self, speed: int) -> bool:
         """Set fan speed (0-3)"""
-        import datetime
-        uuid = self.get_uuid()
-        payload = {
-            "@type": None, "name": None, "displayName": None,
-            "description": None, "timestamp": datetime.datetime.now().isoformat(),
-            "status": None, "setPointTemperature": None,
-            "temperatureProfile": None, "seasonProfile": None,
-            "fanSpeed": speed, "scenario": None,
-            "scenarioTimeLeft": None, "season": None, "schedule": None
-        }
-        response = requests.put(
-            f"{self.base_url}/system/{uuid}/dashboard",
-            json=payload,
-            headers={"content-type": "application/json; charset=utf-8"}
-        )
-        return response.status_code == 200
+        return self.update_dashboard(fan_speed=speed)
     
-    def set_temperature_profile(self, profile: int) -> bool:
-        """Set temperature profile (0=Comfort, 1=Power, 2=Eco)"""
-        import datetime
-        uuid = self.get_uuid()
-        payload = {
-            "@type": None, "name": None, "displayName": None,
-            "description": None, "timestamp": datetime.datetime.now().isoformat(),
-            "status": None, "setPointTemperature": None,
-            "temperatureProfile": profile, "seasonProfile": None,
-            "fanSpeed": None, "scenario": None,
-            "scenarioTimeLeft": None, "season": None, "schedule": None
-        }
-        response = requests.put(
-            f"{self.base_url}/system/{uuid}/dashboard",
-            json=payload,
-            headers={"content-type": "application/json; charset=utf-8"}
-        )
+    def reset_system(self) -> bool:
+        """Restart the ComfoClime device"""
+        response = requests.put(f"{self.base_url}/system/reset")
+        response.raise_for_status()
         return response.status_code == 200
 
-# Usage example
+# Usage examples
 api = ComfoClimeAPI("192.168.1.100")
 
 # Get basic info
@@ -699,30 +900,23 @@ dashboard = api.get_dashboard()
 print(f"Indoor: {dashboard['indoorTemperature']}°C")
 print(f"Fan: {dashboard['fanSpeed']}")
 
-# List devices
-devices = api.get_devices()
-for device in devices:
-    print(f"{device['name']}: {device['uuid']}")
+# HVAC control examples
+api.set_hvac_mode_heat()              # Switch to heating mode
+api.set_manual_temperature(22.5)      # Set manual temperature to 22.5°C
+api.set_preset_comfort()              # Use comfort preset
+api.set_fan_speed(2)                  # Set fan to medium speed
+api.set_hvac_mode_off()               # Turn off heat pump
 
 # Read telemetry
 tpma_temp = api.read_telemetry(uuid, 4145, factor=0.1)
 print(f"TPMA: {tpma_temp}°C")
 
-# Read property
+# Read/write properties
 serial = api.read_property(uuid, 1, 1, 4)
 print(f"Serial: {serial}")
 
-# Write property
 api.write_property(uuid, 22, 1, 9, 21.5, factor=0.1)  # Set heating comfort
 print("Heating comfort set to 21.5°C")
-
-# Set fan speed
-api.set_fan_speed(2)
-print("Fan speed set to 2")
-
-# Set temperature profile
-api.set_temperature_profile(0)  # Comfort mode
-print("Temperature profile set to Comfort")
 ```
 
 ### Async Version (for Home Assistant)
@@ -804,31 +998,55 @@ asyncio.run(main())
 
 ```python
 def decode_heat_pump_status(status_code: int) -> dict:
-    """Decode heat pump status bitfield"""
+    """Decode heat pump status bitfield with bitwise operations.
+    
+    The status code is a bitfield where:
+    - Bit 0 (0x01): Device is active/running
+    - Bit 1 (0x02): Heating mode flag
+    - Bit 2 (0x04): Cooling mode flag
+    - Other bits: Various states (defrost, transition, etc.)
+    """
     status_names = {
         0: "Off",
         1: "Starting",
         3: "Heating",
         5: "Cooling",
-        17: "Unknown (17)",
-        19: "Defrost (Cooling)",
-        21: "Cooling (Hot Day)",
-        67: "Defrost Phase 1",
-        75: "Defrost Phase 3 (Active)",
-        83: "Defrost Phase 2"
+        17: "Idle (Transitional)",
+        19: "Heating (Transitional)",
+        21: "Cooling (Transitional)",
+        67: "Heating",
+        75: "Heating (Multi-mode)",
+        83: "Heating"
     }
     
-    # Bit interpretation (hypothetical)
+    # Bit interpretation using bitwise operations
     bits = {
-        "running": bool(status_code & 0x01),
-        "heating": bool(status_code & 0x02),
-        "cooling": bool(status_code & 0x04),
-        "defrost": bool(status_code & 0x40)
+        "running": bool(status_code & 0x01),    # Bit 0
+        "heating": bool(status_code & 0x02),    # Bit 1
+        "cooling": bool(status_code & 0x04),    # Bit 2
+        "flag_8": bool(status_code & 0x08),     # Bit 3 (transition/other)
+        "flag_16": bool(status_code & 0x10),    # Bit 4
+        "flag_32": bool(status_code & 0x20),    # Bit 5
+        "flag_64": bool(status_code & 0x40),    # Bit 6 (defrost/other)
+        "flag_128": bool(status_code & 0x80),   # Bit 7
     }
+    
+    # Determine current action (as used in Home Assistant integration)
+    if status_code == 0:
+        action = "off"
+    elif bits["heating"]:
+        action = "heating"
+    elif bits["cooling"]:
+        action = "cooling"
+    elif bits["running"]:
+        action = "idle"
+    else:
+        action = "off"
     
     return {
         "code": status_code,
         "description": status_names.get(status_code, f"Unknown ({status_code})"),
+        "action": action,
         "bits": bits,
         "binary": f"{status_code:08b}"
     }
@@ -837,16 +1055,205 @@ def decode_heat_pump_status(status_code: int) -> dict:
 dashboard = api.get_dashboard()
 status = decode_heat_pump_status(dashboard["heatPumpStatus"])
 print(f"Heat Pump: {status['description']}")
+print(f"Action: {status['action']}")
 print(f"Binary: {status['binary']}")
-print(f"Running: {status['bits']['running']}")
+print(f"Heating: {status['bits']['heating']}, Cooling: {status['bits']['cooling']}")
 ```
+
+### Bitwise Heat Pump Status Interpretation
+
+The Home Assistant integration uses **bitwise operations** to accurately interpret heat pump status codes:
+
+```python
+def get_hvac_action(heat_pump_status: int) -> str:
+    """Determine HVAC action from heat pump status using bitwise operations.
+    
+    Heat pump status is a bitfield:
+    - Bit 0 (0x01): Device is active/running
+    - Bit 1 (0x02): Heating mode flag
+    - Bit 2 (0x04): Cooling mode flag
+    
+    Status codes interpretation:
+    Code | Binary      | Action
+    -----|-------------|--------
+    0    | 0000 0000  | Off
+    1    | 0000 0001  | Idle (starting)
+    3    | 0000 0011  | Heating (active + heating flag)
+    5    | 0000 0101  | Cooling (active + cooling flag)
+    17   | 0001 0001  | Idle (transitional)
+    19   | 0001 0011  | Heating (heating + transition)
+    21   | 0001 0101  | Cooling (cooling + transition)
+    67   | 0100 0011  | Heating
+    75   | 0100 1011  | Heating (both bits set, heating priority)
+    83   | 0101 0011  | Heating
+    """
+    if heat_pump_status is None or heat_pump_status == 0:
+        return "off"
+    
+    # Bitwise check for heating/cooling flags
+    is_heating = bool(heat_pump_status & 0x02)  # Check bit 1
+    is_cooling = bool(heat_pump_status & 0x04)  # Check bit 2
+    
+    # Heating has priority if both bits are set
+    if is_heating:
+        return "heating"
+    
+    if is_cooling:
+        return "cooling"
+    
+    # Device is active but not heating or cooling
+    return "idle"
+
+# Usage
+dashboard = api.get_dashboard()
+action = get_hvac_action(dashboard["heatPumpStatus"])
+print(f"Current action: {action}")
+```
+
+## Home Assistant Integration
+
+This API documentation is part of the [ComfoClime Home Assistant Integration](https://github.com/Revilo91/comfoclime). The integration provides:
+
+### Climate Control Entity
+
+A comprehensive climate control entity that unifies all temperature and ventilation control:
+
+**HVAC Modes:**
+- **Off**: System standby mode (via `hpStandby=True`)
+- **Heat**: Heating mode (sets `season=1` via thermal profile)
+- **Cool**: Cooling mode (sets `season=2` via thermal profile)
+- **Fan Only**: Ventilation only mode (sets `season=0` - transition)
+
+**Preset Modes:**
+- **Manual** (none): Manual temperature control (via `setPointTemperature`)
+- **Comfort**: Comfort temperature profile (`temperatureProfile=0`)
+- **Boost** (Power): Power saving profile (`temperatureProfile=1`)
+- **Eco**: Energy efficient profile (`temperatureProfile=2`)
+
+**Features:**
+- Target temperature control for heating (15-25°C) and cooling (20-28°C)
+- Current temperature display from indoor sensor
+- Fan speed control (0=off, 1=low, 2=medium, 3=high)
+- Automatic temperature range adjustment based on season
+- Smart season detection and HVAC action display
+
+### Integration Architecture
+
+```
+┌─────────────────────────────────────────┐
+│   Home Assistant Climate Entity         │
+│  ┌─────────────────────────────────┐   │
+│  │  HVAC Mode (Heat/Cool/Fan/Off)  │   │
+│  │  Preset Mode (Comfort/Eco/...)  │   │
+│  │  Target Temperature             │   │
+│  │  Fan Mode (Low/Medium/High)     │   │
+│  └─────────────────────────────────┘   │
+└────────────┬────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────┐
+│      ComfoClimeAPI (Python)             │
+│  ┌─────────────────────────────────┐   │
+│  │  update_dashboard()             │   │
+│  │  update_thermal_profile()       │   │
+│  │  async_set_hvac_season()        │   │
+│  └─────────────────────────────────┘   │
+└────────────┬────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────┐
+│    ComfoClime REST API (HTTP)           │
+│  • PUT /system/{UUID}/dashboard         │
+│  • PUT /system/{UUID}/thermalprofile    │
+│  • GET /system/{UUID}/dashboard         │
+│  • GET/PUT /device/{UUID}/...           │
+└─────────────────────────────────────────┘
+```
+
+### Integration-Specific API Usage
+
+The Home Assistant integration uses these patterns:
+
+**Setting HVAC Mode to Heat:**
+```python
+# Atomically set season and activate device
+await api.async_set_hvac_season(hass, season=1, hp_standby=False)
+```
+
+**Setting HVAC Mode to Off:**
+```python
+# Deactivate heat pump via dashboard
+await api.async_update_dashboard(hass, hp_standby=True)
+```
+
+**Setting Manual Temperature:**
+```python
+# Switch to manual mode with specific temperature
+await api.async_update_dashboard(
+    hass, 
+    set_point_temperature=22.0, 
+    status=0  # 0=manual mode
+)
+```
+
+**Setting Temperature Preset:**
+```python
+# Switch to automatic mode with comfort preset
+await api.async_update_dashboard(
+    hass,
+    temperature_profile=0,  # 0=comfort, 1=power, 2=eco
+    status=1  # 1=automatic mode
+)
+```
+
+**Setting Fan Speed:**
+```python
+# Set fan to medium speed
+await api.async_update_dashboard(hass, fan_speed=2)
+```
+
+### Entity Organization
+
+The integration creates multiple devices and entities:
+
+**ComfoClime Device:**
+- Climate entity (HVAC control)
+- Sensors (temperatures, status)
+- Numbers (thermal profile settings)
+- Selects (profiles, modes)
+- Fan entity (ventilation control)
+
+**ComfoAir Q Device:**
+- Sensors (telemetry values)
+- Numbers (properties)
+- Selects (modes)
+
+**ComfoHub Device** (if connected):
+- Sensors (telemetry values)
+
+All devices are automatically discovered when the integration connects to the ComfoClime unit.
+
+### Supported Features
+
+- ✅ Climate control entity with HVAC modes (heat/cool/fan_only/off)
+- ✅ Preset modes (comfort/power/eco/manual)
+- ✅ Fan speed control (0-3)
+- ✅ Target temperature setting
+- ✅ Reading dashboard data (sensors)
+- ✅ Reading and writing thermal profile (numbers, selects)
+- ✅ Reading telemetry values of all connected devices (sensors)
+- ✅ Reading and writing property values (numbers, service calls)
+- ✅ Device organization (ComfoClime, ComfoAir Q, ComfoHub)
+- ✅ Configuration via config flow
+- ✅ Service calls (reset system, write properties)
+- ✅ Localization (English, German)
 
 ## Additional Resources
 
+- **Home Assistant Integration**: [comfoclime](https://github.com/Revilo91/comfoclime)
 - **Original API Documentation**: [ComfoClimeAPI.md](https://github.com/msfuture/comfoclime_api/blob/main/ComfoClimeAPI.md)
 - **PDO Protocol**: [PROTOCOL-PDO.md](https://github.com/michaelarnauts/aiocomfoconnect/blob/master/docs/PROTOCOL-PDO.md)
 - **RMI Protocol**: [PROTOCOL-RMI.md](https://github.com/michaelarnauts/aiocomfoconnect/blob/master/docs/PROTOCOL-RMI.md)
-- **Home Assistant Integration**: [comfoclime](https://github.com/Revilo91/comfoclime)
 
 ## License
 
