@@ -3,4 +3,4 @@
 /.history
 
 # Home Assistant development files
-.devcontainer/
+.devcontainer/ha-config/
