@@ -156,10 +156,14 @@ class ComfoClimeAPI:
         byte_count: int | None = None,
     ) -> None | str | float:
         data = self.read_property_for_device_raw(device_uuid, property_path)
-        if byte_count is None and data:
-            byte_count = len(data)
-        else:
+
+        # Wenn data leer/None ist, können wir nicht fortfahren
+        if not data:
             return None
+
+        # Wenn byte_count nicht angegeben wurde, verwende die Länge der Daten
+        if byte_count is None:
+            byte_count = len(data)
 
         if byte_count == 1:
             value = data[0]

@@ -93,14 +93,14 @@ class ComfoClimeTemperatureNumber(
             try:
                 coordinator_data = self.coordinator.data
                 automatic_temperature_status = coordinator_data.get("temperature", {}).get("status")
-                
+
                 # Only available if automatic mode is disabled (status = 0)
                 return automatic_temperature_status == 0
             except Exception as e:
                 _LOGGER.debug(f"Could not check automatic temperature status for availability: {e}")
                 # Return True if we can't determine the status to avoid breaking functionality
                 return True
-        
+
         # For all other temperature entities, use default availability
         return True
 
@@ -160,7 +160,7 @@ class ComfoClimeTemperatureNumber(
             try:
                 coordinator_data = self.coordinator.data
                 automatic_temperature_status = coordinator_data.get("temperature", {}).get("status")
-                
+
                 if automatic_temperature_status == 1:
                     _LOGGER.warning(f"Cannot set manual temperature: automatic comfort temperature is enabled")
                     # Don't proceed with setting the temperature
@@ -183,6 +183,8 @@ class ComfoClimeTemperatureNumber(
 
 
 class ComfoClimePropertyNumber(NumberEntity):
+    _attr_should_poll = True
+
     def __init__(self, hass, api, config, device, entry):
         self._hass = hass
         self._api = api
