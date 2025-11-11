@@ -8,15 +8,8 @@
       "onAutoForward": "notify"
     }
   },
-  "postCreateCommand": "container install",
+  "postCreateCommand": "bash .devcontainer/setup.sh",
   "postStartCommand": "container start",
-  "mounts": [
-    {
-      "source": "${localWorkspaceFolder}",
-      "target": "/workspaces/comfoclime",
-      "type": "bind"
-    }
-  ],
   "customizations": {
     "vscode": {
       "extensions": [

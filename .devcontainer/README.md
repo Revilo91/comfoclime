@@ -22,9 +22,12 @@ Diese Konfiguration ermöglicht es dir, die ComfoClime Custom Component direkt i
 
 Nach dem Start des Containers:
 
-1. Warte auf die Benachrichtigung, dass Port 8123 weitergeleitet wurde
-2. Klicke auf "Open in Browser" oder öffne manuell: `http://localhost:8123`
-3. Beim ersten Start musst du einen Benutzer für Home Assistant erstellen
+1. Der Setup-Prozess läuft automatisch und richtet alles ein
+2. Warte auf die Benachrichtigung, dass Port 8123 weitergeleitet wurde
+3. Klicke auf "Open in Browser" oder öffne manuell: `http://localhost:8123`
+4. Beim ersten Start musst du einen Benutzer für Home Assistant erstellen
+
+**Hinweis:** Die Custom Component ist bereits im Home Assistant Config-Verzeichnis verlinkt und wird automatisch geladen.
 
 ## ComfoClime Integration hinzufügen
 
@@ -56,6 +59,8 @@ Die Custom Component befindet sich unter:
 ```
 /workspaces/comfoclime/custom_components/comfoclime/
 ```
+
+Die Component wird automatisch als symbolischer Link nach `/config/custom_components/comfoclime` verlinkt, sodass Home Assistant sie laden kann.
 
 Alle Änderungen an den Python-Dateien erfordern einen Neustart von Home Assistant:
 1. Im Terminal: `container restart`
@@ -134,12 +139,24 @@ container enter
 ```
 .devcontainer/
 ├── devcontainer.json      # Container-Konfiguration
+├── setup.sh               # Automatisches Setup-Script
 ├── configuration.yaml     # Home Assistant Konfiguration
 ├── automations.yaml       # Test-Automatisierungen
 ├── scripts.yaml           # Test-Scripts
 ├── scenes.yaml            # Test-Szenen
 └── README.md             # Diese Datei
 ```
+
+## Wie funktioniert das Setup?
+
+Beim ersten Start des Containers wird automatisch das `setup.sh` Script ausgeführt:
+
+1. **Home Assistant Installation**: Installiert Home Assistant Core
+2. **Symbolischer Link**: Verlinkt `/workspaces/comfoclime/custom_components/comfoclime` nach `/config/custom_components/comfoclime`
+3. **Konfigurationsdateien**: Kopiert die Test-Konfiguration nach `/config/`
+4. **Fertig**: Home Assistant startet automatisch und lädt die ComfoClime Integration
+
+Das bedeutet: Alle Änderungen am Code im Workspace werden sofort in Home Assistant sichtbar (nach einem Neustart).
 
 ## Nützliche Links
 
