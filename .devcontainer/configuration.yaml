@@ -1,0 +1,26 @@
+# Home Assistant configuration for testing ComfoClime custom component
+# This configuration file is used in the devcontainer to provide a minimal
+# Home Assistant setup for testing the ComfoClime integration.
+
+# Configure a default setup of Home Assistant (frontend, api, etc)
+default_config:
+
+# Enable the logger with debug mode for the custom component
+logger:
+  default: info
+  logs:
+    custom_components.comfoclime: debug
+
+# Text frontend for development
+lovelace:
+  mode: yaml
+
+# Example automation to show the component is working
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+# Uncomment to configure the ComfoClime integration manually
+# If you prefer to use the UI config flow, don't uncomment this
+# comfoclime:
+#   host: "YOUR_COMFOCLIME_IP_HERE"

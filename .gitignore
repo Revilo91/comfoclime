@@ -1,3 +1,15 @@
 **/__pycache__
 .vscode
 /.history
+
+# Home Assistant development files
+.devcontainer/.storage/
+.devcontainer/home-assistant.log
+.devcontainer/home-assistant_v2.db
+.devcontainer/.HA_VERSION
+.devcontainer/deps/
+.devcontainer/tts/
+.devcontainer/.cloud/
+.devcontainer/.cache/
+.devcontainer/www/
+.devcontainer/blueprints/
