@@ -46,8 +46,16 @@ async def async_setup_entry(
         model_id = device.get("modelTypeId")
         dev_uuid = device.get("uuid")
         if dev_uuid == "NULL":
+            _LOGGER.debug(f"Skipping device with NULL uuid")
             continue
-        for number_def in CONNECTED_DEVICE_NUMBER_PROPERTIES.get(model_id, []):
+
+        number_properties = CONNECTED_DEVICE_NUMBER_PROPERTIES.get(model_id, [])
+        _LOGGER.debug(
+            f"Found {len(number_properties)} number properties for model_id {model_id}"
+        )
+
+        for number_def in number_properties:
+            _LOGGER.debug(f"Creating number entity for property: {number_def}")
             entities.extend(
                 [
                     ComfoClimePropertyNumber(
@@ -60,6 +68,7 @@ async def async_setup_entry(
                 ]
             )
 
+    _LOGGER.debug(f"Adding {len(entities)} number entities to Home Assistant")
     async_add_entities(entities, True)
 
 
@@ -213,6 +222,11 @@ class ComfoClimePropertyNumber(NumberEntity):
         self._signed = config.get("signed", True)
         self._byte_count = config.get("byte_count", 2)
 
+        _LOGGER.debug(
+            f"ComfoClimePropertyNumber initialized: path={self._property_path}, "
+            f"device={device.get('uuid')}, unique_id={self._attr_unique_id}"
+        )
+
     @property
     def name(self):
         return self._config.get("name", "Property Number")
@@ -234,6 +248,9 @@ class ComfoClimePropertyNumber(NumberEntity):
         )
 
     async def async_update(self):
+        _LOGGER.debug(
+            f"async_update called for {self._property_path} (device {self._device['uuid']})"
+        )
         try:
             value = await self._api.async_read_property_for_device(
                 self._hass,
@@ -243,9 +260,12 @@ class ComfoClimePropertyNumber(NumberEntity):
                 signed=self._signed,
                 byte_count=self._byte_count,
             )
+            _LOGGER.debug(
+                f"Property {self._property_path} updated: {value}"
+            )
             self._value = value
         except Exception as e:
-            _LOGGER.error(
+            _LOGGER.exception(
                 f"Fehler beim Abrufen von Property {self._property_path}: {e}"
             )
             self._value = None

@@ -31,6 +31,18 @@ API documentation with practical Python examples:
 
 Feel free to extend!
 
+## Development & Testing
+
+Want to test or develop this integration? Use the included **GitHub Codespace** or **Dev Container** setup!
+
+🚀 **Quick Start:**
+- Click "Code" → "Codespaces" → "Create codespace" on GitHub
+- Or open in VS Code with Dev Containers extension
+- Home Assistant runs automatically on port 8123
+- See [.devcontainer/README.md](.devcontainer/README.md) for detailed instructions
+
+This provides a complete Home Assistant development environment with debugging support.
+
 ## Installation
 
 * add this repository via HACS (user defined repositories, URL: `https://github.com/msfuture/comfoclime`)

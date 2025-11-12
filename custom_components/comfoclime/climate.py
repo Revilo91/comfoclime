@@ -8,6 +8,7 @@ from homeassistant.components.climate import (
     FAN_LOW,
     FAN_MEDIUM,
     FAN_OFF,
+    PRESET_AWAY,
     PRESET_BOOST,
     PRESET_COMFORT,
     PRESET_ECO,
@@ -46,6 +47,35 @@ PRESET_REVERSE_MAPPING = {v: k for k, v in PRESET_MAPPING.items()}
 
 # Add manual preset mode (status=0)
 PRESET_MANUAL = PRESET_NONE  # "none" preset means manual temperature control
+
+# Scenario Modes - special operating modes
+SCENARIO_COOKING = 4  # Kochen - 30 minutes high ventilation
+SCENARIO_PARTY = 5    # Party - 30 minutes high ventilation
+SCENARIO_HOLIDAY = 7  # Urlaub - 24 hours reduced mode
+SCENARIO_BOOST_MODE = 8  # Boost - 30 minutes maximum power
+
+PRESET_SCENARIO_COOKING = "cooking"
+PRESET_SCENARIO_PARTY = "party"
+# PRESET_SCENARIO_HOLIDAY = "holiday"
+# PRESET_SCENARIO_BOOST_MODE = "boost_mode"
+
+# Scenario mapping
+SCENARIO_MAPPING = {
+    SCENARIO_COOKING: PRESET_SCENARIO_COOKING,
+    SCENARIO_PARTY: PRESET_SCENARIO_PARTY,
+    SCENARIO_HOLIDAY: PRESET_AWAY,
+    SCENARIO_BOOST_MODE: PRESET_BOOST,
+}
+
+SCENARIO_REVERSE_MAPPING = {v: k for k, v in SCENARIO_MAPPING.items()}
+
+# Default durations for scenarios in seconds (based on Mode_info.json)
+SCENARIO_DEFAULT_DURATIONS = {
+    SCENARIO_COOKING: 1800,      # 30 minutes (1798s in example)
+    SCENARIO_PARTY: 1800,         # 30 minutes (1798s in example)
+    SCENARIO_HOLIDAY: 86400,      # 24 hours (86303s in example)
+    SCENARIO_BOOST_MODE: 1800,    # 30 minutes (1797s in example)
+}
 
 # Fan Mode Mapping (based on fan.py implementation)
 # fanSpeed from dashboard: 0, 1, 2, 3
@@ -143,8 +173,12 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         # HVAC modes
         self._attr_hvac_modes = list(HVAC_MODE_REVERSE_MAPPING.keys())
 
-        # Preset modes (automatic profiles + manual mode)
-        self._attr_preset_modes = [PRESET_MANUAL] + list(PRESET_REVERSE_MAPPING.keys())
+        # Preset modes (automatic profiles + manual mode + scenario modes)
+        self._attr_preset_modes = (
+            [PRESET_MANUAL]
+            + list(PRESET_REVERSE_MAPPING.keys())
+            + list(SCENARIO_REVERSE_MAPPING.keys())
+        )
 
         # Fan modes
         self._attr_fan_modes = list(FAN_MODE_REVERSE_MAPPING.keys())
@@ -302,9 +336,15 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
         Returns PRESET_MANUAL (none) if in manual mode (status=0 or setPointTemperature is set).
         Returns preset name (comfort/boost/eco) if in automatic mode (status=1).
+        Returns scenario mode (cooking/party/holiday/boost_mode) if a scenario is active.
         """
         if not self.coordinator.data:
             return None
+
+        # Check for active scenario mode first
+        scenario = self.coordinator.data.get("scenario")
+        if isinstance(scenario, int) and scenario in SCENARIO_MAPPING:
+            return SCENARIO_MAPPING[scenario]
 
         # Check if in manual mode by presence of setPointTemperature
         # or explicit status field (status=0 means manual mode)
@@ -452,14 +492,46 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         except Exception:
             _LOGGER.exception(f"Failed to set HVAC mode {hvac_mode}")
 
-    async def async_set_preset_mode(self, preset_mode: str) -> None:
+    async def async_set_preset_mode(self, preset_mode: str, duration: int | None = None) -> None:
         """Set preset mode via dashboard API.
 
         Setting PRESET_MANUAL (none) switches to manual temperature control mode.
         Setting other presets (comfort/boost/eco) activates automatic mode with
         both seasonProfile and temperatureProfile set to the selected preset value.
+        Setting scenario modes (cooking/party/holiday/boost_mode) activates special operating modes.
+
+        Args:
+            preset_mode: The preset mode to activate
+            duration: Optional duration in seconds for scenario modes. If not provided,
+                     default durations are used (30min for cooking/party/boost, 24h for holiday)
         """
         try:
+            # Scenario modes: Special operating modes
+            if preset_mode in SCENARIO_REVERSE_MAPPING:
+                scenario_value = SCENARIO_REVERSE_MAPPING[preset_mode]
+
+                # Determine scenario duration
+                if duration is None:
+                    # Use default duration from mapping
+                    duration = SCENARIO_DEFAULT_DURATIONS.get(scenario_value, 1800)
+
+                _LOGGER.debug(
+                    f"Activating scenario mode {preset_mode} (scenario={scenario_value}, "
+                    f"scenarioTimeLeft={duration}s) via dashboard API"
+                )
+
+                # Activate scenario mode with duration
+                # scenario field activates the mode
+                # scenarioTimeLeft sets the duration in seconds
+                await self.async_update_dashboard(
+                    scenario=scenario_value,
+                    scenario_time_left=duration,
+                )
+
+                # Schedule non-blocking refresh of coordinators
+                self._async_refresh_coordinators()
+                return
+
             # Manual mode: User wants to use manual temperature control
             if preset_mode == PRESET_MANUAL:
                 _LOGGER.debug(
@@ -534,12 +606,27 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
         Exposes all available data from the ComfoClime Dashboard API interface:
         - Dashboard data from /system/{UUID}/dashboard
+        - Scenario time left (remaining duration of active scenario in seconds)
         """
         attrs = {}
 
         # Add complete dashboard data from Dashboard API interface
         if self.coordinator.data:
             attrs["dashboard"] = self.coordinator.data
+
+            # Add scenario time left as a separate attribute for easier access
+            scenario_time_left = self.coordinator.data.get("scenarioTimeLeft")
+            if scenario_time_left is not None:
+                attrs["scenario_time_left"] = scenario_time_left
+                # Convert to human-readable format
+                hours, remainder = divmod(scenario_time_left, 3600)
+                minutes, seconds = divmod(remainder, 60)
+                if hours > 0:
+                    attrs["scenario_time_left_formatted"] = f"{int(hours)}h {int(minutes)}m"
+                elif minutes > 0:
+                    attrs["scenario_time_left_formatted"] = f"{int(minutes)}m {int(seconds)}s"
+                else:
+                    attrs["scenario_time_left_formatted"] = f"{int(seconds)}s"
 
         # For transparency: expose last_manual_temperature from thermal profile if available
         tp = getattr(self._thermalprofile_coordinator, "data", None) or {}
