@@ -68,6 +68,14 @@ SCENARIO_MAPPING = {
 
 SCENARIO_REVERSE_MAPPING = {v: k for k, v in SCENARIO_MAPPING.items()}
 
+# Default durations for scenarios in seconds (based on Mode_info.json)
+SCENARIO_DEFAULT_DURATIONS = {
+    SCENARIO_COOKING: 1800,      # 30 minutes (1798s in example)
+    SCENARIO_PARTY: 1800,         # 30 minutes (1798s in example)
+    SCENARIO_HOLIDAY: 86400,      # 24 hours (86303s in example)
+    SCENARIO_BOOST_MODE: 1800,    # 30 minutes (1797s in example)
+}
+
 # Fan Mode Mapping (based on fan.py implementation)
 # fanSpeed from dashboard: 0, 1, 2, 3
 FAN_MODE_MAPPING = {
@@ -483,28 +491,40 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         except Exception:
             _LOGGER.exception(f"Failed to set HVAC mode {hvac_mode}")
 
-    async def async_set_preset_mode(self, preset_mode: str) -> None:
+    async def async_set_preset_mode(self, preset_mode: str, duration: int | None = None) -> None:
         """Set preset mode via dashboard API.
 
         Setting PRESET_MANUAL (none) switches to manual temperature control mode.
         Setting other presets (comfort/boost/eco) activates automatic mode with
         both seasonProfile and temperatureProfile set to the selected preset value.
         Setting scenario modes (cooking/party/holiday/boost_mode) activates special operating modes.
+
+        Args:
+            preset_mode: The preset mode to activate
+            duration: Optional duration in seconds for scenario modes. If not provided,
+                     default durations are used (30min for cooking/party/boost, 24h for holiday)
         """
         try:
             # Scenario modes: Special operating modes
             if preset_mode in SCENARIO_REVERSE_MAPPING:
                 scenario_value = SCENARIO_REVERSE_MAPPING[preset_mode]
+
+                # Determine scenario duration
+                if duration is None:
+                    # Use default duration from mapping
+                    duration = SCENARIO_DEFAULT_DURATIONS.get(scenario_value, 1800)
+
                 _LOGGER.debug(
-                    f"Activating scenario mode {preset_mode} (scenario={scenario_value}) "
-                    f"via dashboard API"
+                    f"Activating scenario mode {preset_mode} (scenario={scenario_value}, "
+                    f"scenarioTimeLeft={duration}s) via dashboard API"
                 )
 
-                # Activate scenario mode
-                # scenario field is set to activate the mode
-                # scenarioTimeLeft will be automatically set by the device
+                # Activate scenario mode with duration
+                # scenario field activates the mode
+                # scenarioTimeLeft sets the duration in seconds
                 await self.async_update_dashboard(
                     scenario=scenario_value,
+                    scenario_time_left=duration,
                 )
 
                 # Schedule non-blocking refresh of coordinators

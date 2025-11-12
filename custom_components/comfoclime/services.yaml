@@ -52,3 +52,42 @@ set_property:
 reset_system:
   name: Reset System
   description: Startet das ComfoClime-Gerät neu.
+
+set_scenario_mode:
+  name: Set Scenario Mode
+  description: Aktiviert einen Szenario-Modus mit optionaler Dauer.
+  fields:
+    entity_id:
+      name: Climate Entity
+      description: Die Climate-Entität (ComfoClime Klimasteuerung)
+      required: true
+      selector:
+        entity:
+          integration: comfoclime
+          domain: climate
+    scenario:
+      name: Szenario
+      description: Das zu aktivierende Szenario
+      required: true
+      selector:
+        select:
+          options:
+            - label: "Kochen (30 Min.)"
+              value: "cooking"
+            - label: "Party (30 Min.)"
+              value: "party"
+            - label: "Urlaub (24 Std.)"
+              value: "holiday"
+            - label: "Boost (30 Min.)"
+              value: "boost_mode"
+    duration:
+      name: Dauer (Sekunden)
+      description: Optionale Dauer in Sekunden (Standard ist voreingestellt pro Szenario)
+      required: false
+      example: 1800
+      selector:
+        number:
+          min: 60
+          max: 86400
+          step: 60
+          unit_of_measurement: "s"
