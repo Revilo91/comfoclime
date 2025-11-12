@@ -226,8 +226,17 @@
                         "eco": "Eco",
                         "cooking": "Kochen",
                         "party": "Party",
-                        "holiday": "Urlaub",
-                        "boost_mode": "Boost"
+                        "away": "Aus/Urlaub",
+                        "boost": "Boost"
+                    },
+                    "state_icon": {
+                        "comfort": "mdi:home-thermometer",
+                        "power": "mdi:flash",
+                        "eco": "mdi:leaf",
+                        "cooking": "mdi:pot-steam",
+                        "party": "mdi:party-popper",
+                        "away": "mdi:beach",
+                        "boost": "mdi:rocket-launch"
                     }
                 },
                 "fan_mode": {
