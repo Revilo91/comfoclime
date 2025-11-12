@@ -223,7 +223,11 @@
                     "state": {
                         "comfort": "Komfort",
                         "power": "Power",
-                        "eco": "Eco"
+                        "eco": "Eco",
+                        "cooking": "Kochen",
+                        "party": "Party",
+                        "holiday": "Urlaub",
+                        "boost_mode": "Boost"
                     }
                 },
                 "fan_mode": {
