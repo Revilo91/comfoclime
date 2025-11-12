@@ -47,6 +47,35 @@ PRESET_REVERSE_MAPPING = {v: k for k, v in PRESET_MAPPING.items()}
 # Add manual preset mode (status=0)
 PRESET_MANUAL = PRESET_NONE  # "none" preset means manual temperature control
 
+# Scenario Modes - special operating modes
+SCENARIO_COOKING = 4  # Kochen - 30 minutes high ventilation
+SCENARIO_PARTY = 5    # Party - 30 minutes high ventilation
+SCENARIO_HOLIDAY = 7  # Urlaub - 24 hours reduced mode
+SCENARIO_BOOST_MODE = 8  # Boost - 30 minutes maximum power
+
+PRESET_SCENARIO_COOKING = "cooking"
+PRESET_SCENARIO_PARTY = "party"
+PRESET_SCENARIO_HOLIDAY = "holiday"
+PRESET_SCENARIO_BOOST_MODE = "boost_mode"
+
+# Scenario mapping
+SCENARIO_MAPPING = {
+    SCENARIO_COOKING: PRESET_SCENARIO_COOKING,
+    SCENARIO_PARTY: PRESET_SCENARIO_PARTY,
+    SCENARIO_HOLIDAY: PRESET_SCENARIO_HOLIDAY,
+    SCENARIO_BOOST_MODE: PRESET_SCENARIO_BOOST_MODE,
+}
+
+SCENARIO_REVERSE_MAPPING = {v: k for k, v in SCENARIO_MAPPING.items()}
+
+# Default durations for scenarios in seconds (based on Mode_info.json)
+SCENARIO_DEFAULT_DURATIONS = {
+    SCENARIO_COOKING: 1800,      # 30 minutes (1798s in example)
+    SCENARIO_PARTY: 1800,         # 30 minutes (1798s in example)
+    SCENARIO_HOLIDAY: 86400,      # 24 hours (86303s in example)
+    SCENARIO_BOOST_MODE: 1800,    # 30 minutes (1797s in example)
+}
+
 # Fan Mode Mapping (based on fan.py implementation)
 # fanSpeed from dashboard: 0, 1, 2, 3
 FAN_MODE_MAPPING = {
@@ -452,14 +481,46 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         except Exception:
             _LOGGER.exception(f"Failed to set HVAC mode {hvac_mode}")
 
-    async def async_set_preset_mode(self, preset_mode: str) -> None:
+    async def async_set_preset_mode(self, preset_mode: str, duration: int | None = None) -> None:
         """Set preset mode via dashboard API.
 
         Setting PRESET_MANUAL (none) switches to manual temperature control mode.
         Setting other presets (comfort/boost/eco) activates automatic mode with
         both seasonProfile and temperatureProfile set to the selected preset value.
+        Setting scenario modes (cooking/party/holiday/boost_mode) activates special operating modes.
+
+        Args:
+            preset_mode: The preset mode to activate
+            duration: Optional duration in seconds for scenario modes. If not provided,
+                     default durations are used (30min for cooking/party/boost, 24h for holiday)
         """
         try:
+            # Scenario modes: Special operating modes
+            if preset_mode in SCENARIO_REVERSE_MAPPING:
+                scenario_value = SCENARIO_REVERSE_MAPPING[preset_mode]
+
+                # Determine scenario duration
+                if duration is None:
+                    # Use default duration from mapping
+                    duration = SCENARIO_DEFAULT_DURATIONS.get(scenario_value, 1800)
+
+                _LOGGER.debug(
+                    f"Activating scenario mode {preset_mode} (scenario={scenario_value}, "
+                    f"scenarioTimeLeft={duration}s) via dashboard API"
+                )
+
+                # Activate scenario mode with duration
+                # scenario field activates the mode
+                # scenarioTimeLeft sets the duration in seconds
+                await self.async_update_dashboard(
+                    scenario=scenario_value,
+                    scenario_time_left=duration,
+                )
+
+                # Schedule non-blocking refresh of coordinators
+                self._async_refresh_coordinators()
+                return
+
             # Manual mode: User wants to use manual temperature control
             if preset_mode == PRESET_MANUAL:
                 _LOGGER.debug(

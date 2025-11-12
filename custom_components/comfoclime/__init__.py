@@ -87,8 +87,54 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             _LOGGER.error(f"Fehler beim Neustart des Geräts: {e}")
             raise HomeAssistantError(f"Fehler beim Neustart des Geräts: {e}")
 
+    async def handle_set_scenario_mode_service(call: ServiceCall):
+        """Handle set_scenario_mode service call."""
+        entity_id = call.data["entity_id"]
+        scenario = call.data["scenario"]
+        duration = call.data.get("duration")
+
+        # Get the climate entity
+        climate_entity = None
+        for entity in hass.data.get("climate", {}).values():
+            if hasattr(entity, "entity_id") and entity.entity_id == entity_id:
+                climate_entity = entity
+                break
+
+        if not climate_entity:
+            # Try to find the entity via entity registry
+            entity_reg = hass.helpers.entity_registry.async_get(hass)
+            entity_entry = entity_reg.async_get(entity_id)
+            if entity_entry:
+                # Get the entity from the platform
+                platform = hass.data.get(DOMAIN, {}).get(entity_entry.config_entry_id, {})
+                # Since we can't easily get the entity instance, we'll call the preset mode directly
+                # via the climate service
+                await hass.services.async_call(
+                    "climate",
+                    "set_preset_mode",
+                    {
+                        "entity_id": entity_id,
+                        "preset_mode": scenario,
+                    },
+                    blocking=True,
+                )
+                _LOGGER.info(f"Scenario mode {scenario} activated via climate service")
+                return
+
+        if climate_entity and hasattr(climate_entity, "async_set_preset_mode"):
+            try:
+                # Call the preset mode with optional duration parameter
+                await climate_entity.async_set_preset_mode(scenario, duration=duration)
+                _LOGGER.info(f"Scenario mode {scenario} set with duration {duration}s")
+            except Exception as e:
+                _LOGGER.error(f"Error setting scenario mode: {e}")
+                raise HomeAssistantError(f"Error setting scenario mode: {e}")
+        else:
+            raise HomeAssistantError(f"Climate entity {entity_id} not found or does not support scenarios")
+
     hass.services.async_register(DOMAIN, "set_property", handle_set_property_service)
     hass.services.async_register(DOMAIN, "reset_system", handle_reset_system_service)
+    hass.services.async_register(DOMAIN, "set_scenario_mode", handle_set_scenario_mode_service)
     return True
 
 

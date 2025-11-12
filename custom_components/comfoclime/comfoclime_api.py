@@ -129,9 +129,7 @@ class ComfoClimeAPI:
             )
 
     def read_property_for_device_raw(
-        self,
-        device_uuid: str,
-        property_path: str
+        self, device_uuid: str, property_path: str
     ) -> None | list:
         url = f"{self.base_url}/device/{device_uuid}/property/{property_path}"
         try:
@@ -176,7 +174,9 @@ class ComfoClimeAPI:
                 value -= 0x10000
         elif byte_count > 2:
             if len(data) != byte_count:
-                raise ValueError(f"Unerwartete Byte-Anzahl: erwartet {byte_count}, erhalten {len(data)}")
+                raise ValueError(
+                    f"Unerwartete Byte-Anzahl: erwartet {byte_count}, erhalten {len(data)}"
+                )
             if all(0 <= byte < 256 for byte in data):
                 return "".join(chr(byte) for byte in data if byte != 0)
         else:
@@ -255,6 +255,9 @@ class ComfoClimeAPI:
         temperature_profile: int | None = None,
         season_profile: int | None = None,
         status: int | None = None,
+        scenario: int | None = None,
+        scenario_time_left: int | None = None,
+        scenario_start_delay: int | None = None,
     ) -> dict:
         """Update dashboard settings via API.
 
@@ -277,6 +280,9 @@ class ComfoClimeAPI:
             "scenarioTimeLeft": None,
             "season": season,
             "schedule": None,
+            "scenario": None,
+            "scenarioTimeLeft": None,
+            "scenarioStartDelay": None
         }
 
         The API distinguishes between two modes:
@@ -292,6 +298,9 @@ class ComfoClimeAPI:
             temperature_profile: Temperature profile/preset (0=comfort, 1=boost, 2=eco)
             season_profile: Season profile/preset (0=comfort, 1=boost, 2=eco)
             status: Temperature control mode (0=manual, 1=automatic)
+            scenario: Scenario mode (4=Kochen, 5=Party, 7=Urlaub, 8=Boost)
+            scenario_time_left: Duration for scenario in seconds (e.g., 1800 for 30min)
+            scenario_start_delay: Start delay for scenario in seconds (optional)
 
         Returns:
             Response JSON from the API
@@ -320,9 +329,17 @@ class ComfoClimeAPI:
             payload["status"] = status
         if hp_standby is not None:
             payload["hpStandby"] = hp_standby
+        if scenario is not None:
+            payload["scenario"] = scenario
+        if scenario_time_left is not None:
+            payload["scenarioTimeLeft"] = scenario_time_left
+        if scenario_start_delay is not None:
+            payload["scenarioStartDelay"] = scenario_start_delay
 
         if not payload:
-            _LOGGER.debug("No dashboard fields to update (empty payload) - skipping PUT")
+            _LOGGER.debug(
+                "No dashboard fields to update (empty payload) - skipping PUT"
+            )
             return {}
 
         # Add timestamp to payload
@@ -369,6 +386,7 @@ class ComfoClimeAPI:
             hp_standby: Heat pump standby state (False=active, True=standby/off)
         """
         async with self._request_lock:
+
             def _update():
                 # First update dashboard to set hpStandby
                 self.update_dashboard(hp_standby=hp_standby)
