@@ -122,6 +122,12 @@
             "false": "Off",
             "true": "On"
             }
+        },
+        "scenario_time_left": {
+          "name": "Scenario Time Left"
+        },
+        "scenario": {
+          "name": "Active Scenario"
         }
       },
       "select": {

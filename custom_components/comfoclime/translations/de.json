@@ -119,6 +119,12 @@
             "false": "Aus",
             "true": "An"
             }
+        },
+        "scenario_time_left": {
+          "name": "Szenario Restzeit"
+        },
+        "scenario": {
+          "name": "Aktives Szenario"
         }
       },
       "select": {
