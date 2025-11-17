@@ -28,6 +28,12 @@
         "supply_air_temperature": {
           "name": "Zulufttemperatur"
         },
+        "supply_coil_temperature": {
+            "name": "Zuluft Gastemperatur"
+        },
+        "exhaust_coil_temperature": {
+            "name": "Abluft Gastemperatur"
+        },
         "tpma_temperature": {
             "name": "Mittlere Außentemperatur"
         },

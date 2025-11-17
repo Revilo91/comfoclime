@@ -28,6 +28,12 @@
         "supply_air_temperature": {
           "name": "Supply Air Temperature"
         },
+        "supply_coil_temperature": {
+            "name": "Supply Coil Temperature"
+        },
+        "exhaust_coil_temperature": {
+            "name": "Supply Coil Temperature"
+        },
         "tpma_temperature": {
             "name": "Mean Outdoor Temperature"
         },
