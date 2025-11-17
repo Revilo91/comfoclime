@@ -87,7 +87,7 @@ set_scenario_mode:
       example: 1800
       selector:
         number:
-          min: 60
-          max: 86400
-          step: 60
-          unit_of_measurement: "s"
+          min: 1
+          max: 43200
+          step: 1
+          unit_of_measurement: "min"

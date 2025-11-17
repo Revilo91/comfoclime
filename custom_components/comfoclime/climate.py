@@ -49,7 +49,7 @@ PRESET_MANUAL = PRESET_NONE  # "none" preset means manual temperature control
 
 # Scenario Modes - special operating modes
 SCENARIO_COOKING = 4  # Kochen - 30 minutes high ventilation
-SCENARIO_PARTY = 5    # Party - 30 minutes high ventilation
+SCENARIO_PARTY = 5  # Party - 30 minutes high ventilation
 SCENARIO_HOLIDAY = 7  # Urlaub - 24 hours reduced mode
 SCENARIO_BOOST_MODE = 8  # Boost - 30 minutes maximum power
 
@@ -70,10 +70,10 @@ SCENARIO_REVERSE_MAPPING = {v: k for k, v in SCENARIO_MAPPING.items()}
 
 # Default durations for scenarios in seconds (based on Mode_info.json)
 SCENARIO_DEFAULT_DURATIONS = {
-    SCENARIO_COOKING: 1800,      # 30 minutes (1798s in example)
-    SCENARIO_PARTY: 1800,         # 30 minutes (1798s in example)
-    SCENARIO_HOLIDAY: 86400,      # 24 hours (86303s in example)
-    SCENARIO_BOOST_MODE: 1800,    # 30 minutes (1797s in example)
+    SCENARIO_COOKING: 30,
+    SCENARIO_PARTY: 30,
+    SCENARIO_HOLIDAY: 1440,  # 24h
+    SCENARIO_BOOST_MODE: 30,
 }
 
 # Fan Mode Mapping (based on fan.py implementation)
@@ -91,8 +91,8 @@ FAN_MODE_REVERSE_MAPPING = {v: k for k, v in FAN_MODE_MAPPING.items()}
 # Season from dashboard: 0 (transition), 1 (heating), 2 (cooling)
 HVAC_MODE_MAPPING = {
     0: HVACMode.FAN_ONLY,  # transition
-    1: HVACMode.HEAT,      # heating
-    2: HVACMode.COOL,      # cooling
+    1: HVACMode.HEAT,  # heating
+    2: HVACMode.COOL,  # cooling
 }
 
 # Reverse mapping for setting HVAC modes
@@ -470,9 +470,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
                     f"atomically setting season={season_value} and hpStandby=False"
                 )
                 await self._api.async_set_hvac_season(
-                    self.hass,
-                    season=season_value,
-                    hp_standby=False
+                    self.hass, season=season_value, hp_standby=False
                 )
 
             # Schedule non-blocking refresh of coordinators
@@ -481,46 +479,17 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         except Exception:
             _LOGGER.exception(f"Failed to set HVAC mode {hvac_mode}")
 
-    async def async_set_preset_mode(self, preset_mode: str, duration: int | None = None) -> None:
+    async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set preset mode via dashboard API.
 
         Setting PRESET_MANUAL (none) switches to manual temperature control mode.
         Setting other presets (comfort/boost/eco) activates automatic mode with
         both seasonProfile and temperatureProfile set to the selected preset value.
-        Setting scenario modes (cooking/party/holiday/boost_mode) activates special operating modes.
 
         Args:
             preset_mode: The preset mode to activate
-            duration: Optional duration in seconds for scenario modes. If not provided,
-                     default durations are used (30min for cooking/party/boost, 24h for holiday)
         """
         try:
-            # Scenario modes: Special operating modes
-            if preset_mode in SCENARIO_REVERSE_MAPPING:
-                scenario_value = SCENARIO_REVERSE_MAPPING[preset_mode]
-
-                # Determine scenario duration
-                if duration is None:
-                    # Use default duration from mapping
-                    duration = SCENARIO_DEFAULT_DURATIONS.get(scenario_value, 1800)
-
-                _LOGGER.debug(
-                    f"Activating scenario mode {preset_mode} (scenario={scenario_value}, "
-                    f"scenarioTimeLeft={duration}s) via dashboard API"
-                )
-
-                # Activate scenario mode with duration
-                # scenario field activates the mode
-                # scenarioTimeLeft sets the duration in seconds
-                await self.async_update_dashboard(
-                    scenario=scenario_value,
-                    scenario_time_left=duration,
-                )
-
-                # Schedule non-blocking refresh of coordinators
-                self._async_refresh_coordinators()
-                return
-
             # Manual mode: User wants to use manual temperature control
             if preset_mode == PRESET_MANUAL:
                 _LOGGER.debug(
@@ -562,6 +531,46 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
 
         except Exception:
             _LOGGER.exception(f"Failed to set preset mode {preset_mode}")
+
+    async def async_set_scenario_mode(self, scenario_mode: str, duration: int) -> None:
+        """Set preset mode via dashboard API.
+
+        Setting scenario modes (cooking/party/holiday/boost_mode) activates special operating modes.
+
+        Args:
+            scenario_mode: The scenario mode to activate
+            duration:   Optional duration in seconds for scenario modes. If not provided,
+                        default durations are used (30min for cooking/party/boost, 24h for holiday)
+        """
+        try:
+            # Scenario modes: Special operating modes
+            if scenario_mode in SCENARIO_REVERSE_MAPPING:
+                scenario_value = SCENARIO_REVERSE_MAPPING[scenario_mode]
+
+                # Determine scenario duration
+                if duration is None:
+                    # Use default duration from mapping
+                    duration = SCENARIO_DEFAULT_DURATIONS.get(scenario_value, 30)
+
+                _LOGGER.debug(
+                    f"Activating scenario mode {scenario_mode} (scenario={scenario_value}, "
+                    f"scenarioTimeLeft={duration}min) via dashboard API"
+                )
+
+                # Activate scenario mode with duration
+                # scenario field activates the mode
+                # scenarioTimeLeft sets the duration in seconds
+                await self.async_update_dashboard(
+                    scenario=scenario_value,
+                    scenario_time_left=duration * 60,
+                )
+
+                # Schedule non-blocking refresh of coordinators
+                self._async_refresh_coordinators()
+                return
+
+        except Exception:
+            _LOGGER.exception(f"Failed to set preset mode {scenario_mode}")
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         """Set fan mode by updating fan speed via dashboard API.

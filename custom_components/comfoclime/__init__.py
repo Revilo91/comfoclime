@@ -111,20 +111,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
                 # via the climate service
                 await hass.services.async_call(
                     "climate",
-                    "set_preset_mode",
+                    "set_scenario_mode",
                     {
                         "entity_id": entity_id,
-                        "preset_mode": scenario,
+                        "scenario_mode": scenario,
                     },
                     blocking=True,
                 )
                 _LOGGER.info(f"Scenario mode {scenario} activated via climate service")
                 return
 
-        if climate_entity and hasattr(climate_entity, "async_set_preset_mode"):
+        if climate_entity and hasattr(climate_entity, "async_set_scenario_mode"):
             try:
                 # Call the preset mode with optional duration parameter
-                await climate_entity.async_set_preset_mode(scenario, duration=duration)
+                await climate_entity.async_set_scenario_mode(scenario, duration=duration)
                 _LOGGER.info(f"Scenario mode {scenario} set with duration {duration}s")
             except Exception as e:
                 _LOGGER.error(f"Error setting scenario mode: {e}")
