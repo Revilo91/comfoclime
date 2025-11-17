@@ -16,7 +16,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
 from .comfoclime_api import ComfoClimeAPI
-from .coordinator import ComfoClimeDashboardCoordinator
+from .coordinator import ComfoClimeDashboardCoordinator, ComfoClimeThermalprofileCoordinator
 from .entities.sensor_definitions import (
     CONNECTED_DEVICE_PROPERTIES,
     CONNECTED_DEVICE_SENSORS,
@@ -67,6 +67,25 @@ async def async_setup_entry(
         ComfoClimeSensor(
             hass=hass,
             coordinator=coordinator,
+            api=api,
+            sensor_type=sensor_def["key"],
+            name=sensor_def["name"],
+            translation_key=sensor_def["translation_key"],
+            unit=sensor_def.get("unit"),
+            device_class=sensor_def.get("device_class"),
+            state_class=sensor_def.get("state_class"),
+            entity_category=sensor_def.get("entity_category"),
+            device=main_device,
+            entry=entry,
+        )
+        for sensor_def in DASHBOARD_SENSORS
+    ]
+    sensors.extend(sensor_list)
+    # ThermalProfile-Sensoren
+    sensor_list = [
+        ComfoClimeSensor(
+            hass=hass,
+            coordinator=tp_coordinator,
             api=api,
             sensor_type=sensor_def["key"],
             name=sensor_def["name"],

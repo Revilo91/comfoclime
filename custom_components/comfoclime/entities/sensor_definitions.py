@@ -70,7 +70,7 @@ DASHBOARD_SENSORS = [
         "key": "hpStandby",
         "name": "Device Power Status",
         "translation_key": "device_power_status",
-        "entity_category": "config",
+        "entity_category": "diagnostic",
     },
     {
         "key": "freeCoolingEnabled",
