@@ -8,6 +8,51 @@ import requests
 _LOGGER = logging.getLogger(__name__)
 
 
+def _decode_raw_value(raw, factor=1.0, signed=True, byte_count=2):
+    """Decode a raw dashboard value with optional signed two's complement conversion.
+    
+    This helper centralizes decoding logic for dashboard numeric fields that may
+    represent signed INT16 values. The dashboard API sometimes returns values
+    that are already scaled incorrectly or as unsigned integers when they should
+    be signed.
+    
+    Args:
+        raw: Raw value (int, float, or None) from dashboard API
+        factor: Scaling factor to apply after decoding (default: 1.0)
+        signed: Whether to apply two's complement for negative values (default: True)
+        byte_count: Number of bytes (1 or 2) for two's complement threshold (default: 2)
+    
+    Returns:
+        Decoded and scaled value (float) or None if raw is None/unconvertible
+        
+    Example:
+        # Negative temperature incorrectly returned as unsigned value
+        _decode_raw_value(65519, factor=0.1, signed=True, byte_count=2)  # Returns -1.7
+    """
+    if raw is None:
+        return None
+    
+    try:
+        # If raw is a float with large absolute value, assume it was incorrectly scaled
+        # and reverse-scale it back to integer
+        if isinstance(raw, float) and abs(raw) > 1000:
+            raw = round(raw / factor)
+        
+        # Convert to integer
+        raw_int = int(raw)
+        
+        # Apply two's complement conversion for signed values
+        if signed:
+            if byte_count == 1 and raw_int >= 0x80:
+                raw_int -= 0x100
+            elif byte_count == 2 and raw_int >= 0x8000:
+                raw_int -= 0x10000
+        
+        return raw_int * factor
+    except (ValueError, TypeError):
+        return None
+
+
 # Exception classes as per ComfoClimeAPI.md documentation
 class ComfoClimeError(Exception):
     """Base exception for ComfoClime API errors."""
@@ -53,7 +98,26 @@ class ComfoClimeAPI:
             f"{self.base_url}/system/{self.uuid}/dashboard", timeout=5
         )
         response.raise_for_status()
-        return response.json()
+        data = response.json()
+        
+        # Decode temperature fields that may be returned as unsigned INT16
+        # when they should be signed (e.g., negative temperatures)
+        temp_fields = [
+            "indoorTemperature",
+            "outdoorTemperature", 
+            "exhaustTemperature",
+            "supplyTemperature",
+            "runningMeanOutdoorTemperature",
+            "setPointTemperature",  # Manual mode target temperature
+        ]
+        
+        for field in temp_fields:
+            if field in data:
+                data[field] = _decode_raw_value(
+                    data[field], factor=0.1, signed=True, byte_count=2
+                )
+        
+        return data
 
     async def async_get_connected_devices(self, hass):
         async with self._request_lock:
