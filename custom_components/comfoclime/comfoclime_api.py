@@ -108,6 +108,7 @@ class ComfoClimeAPI:
             "exhaustTemperature",
             "supplyTemperature",
             "runningMeanOutdoorTemperature",
+            "setPointTemperature",  # Manual mode target temperature
         ]
         
         for field in temp_fields:
