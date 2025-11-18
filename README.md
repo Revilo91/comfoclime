@@ -82,8 +82,8 @@ This ensures correct interpretation of all status codes, including transitional 
 | 17 | 0001 0001 | Idle | Transitional state |
 | 19 | 0001 0011 | Heating | Heating in transitional state |
 | 21 | 0001 0101 | Cooling | Cooling in transitional state |
-| 67 | 0100 0011 | Heating | Heating mode |
-| 75 | 0100 1011 | Heating | Heating mode (both bits set, heating priority) |
+| 67 | 0100 0011 | Heating | Heating mode (defrosting?) |
+| 75 | 0100 1011 | Heating | Heating mode (defrosting + drying?) |
 | 83 | 0101 0011 | Heating | Heating mode |
 
 ## Current ToDo / development
