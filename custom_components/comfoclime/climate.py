@@ -50,10 +50,10 @@ PRESET_MANUAL = PRESET_NONE  # "none" preset means manual temperature control
 # Fan Mode Mapping (based on fan.py implementation)
 # fanSpeed from dashboard: 0, 1, 2, 3
 FAN_MODE_MAPPING = {
-    0: FAN_OFF,     # Speed 0
-    1: FAN_LOW,     # Speed 1
+    0: FAN_OFF,  # Speed 0
+    1: FAN_LOW,  # Speed 1
     2: FAN_MEDIUM,  # Speed 2
-    3: FAN_HIGH,    # Speed 3
+    3: FAN_HIGH,  # Speed 3
 }
 
 FAN_MODE_REVERSE_MAPPING = {v: k for k, v in FAN_MODE_MAPPING.items()}
@@ -62,18 +62,18 @@ FAN_MODE_REVERSE_MAPPING = {v: k for k, v in FAN_MODE_MAPPING.items()}
 # Season from dashboard: 0 (transition), 1 (heating), 2 (cooling)
 HVAC_MODE_MAPPING = {
     0: HVACMode.FAN_ONLY,  # transition
-    1: HVACMode.HEAT,      # heating
-    2: HVACMode.COOL,      # cooling
+    1: HVACMode.HEAT,  # heating
+    2: HVACMode.COOL,  # cooling
 }
 
 # Reverse mapping for setting HVAC modes
 # Maps HVAC mode to season value (0=transition, 1=heating, 2=cooling)
 # OFF mode is handled separately via hpStandby field
 HVAC_MODE_REVERSE_MAPPING = {
-    HVACMode.OFF: None,        # Turn off device via hpStandby=True
-    HVACMode.FAN_ONLY: 0,      # Transitional season (fan only)
-    HVACMode.HEAT: 1,          # Heating season
-    HVACMode.COOL: 2,          # Cooling season
+    HVACMode.OFF: None,  # Turn off device via hpStandby=True
+    HVACMode.FAN_ONLY: 0,  # Transitional season (fan only)
+    HVACMode.HEAT: 1,  # Heating season
+    HVACMode.COOL: 2,  # Cooling season
 }
 
 
@@ -86,7 +86,9 @@ async def async_setup_entry(
     data = hass.data[DOMAIN][config_entry.entry_id]
     api: ComfoClimeAPI = data["api"]
     dashboard_coordinator: ComfoClimeDashboardCoordinator = data["coordinator"]
-    thermalprofile_coordinator: ComfoClimeThermalprofileCoordinator = data["tpcoordinator"]
+    thermalprofile_coordinator: ComfoClimeThermalprofileCoordinator = data[
+        "tpcoordinator"
+    ]
     main_device: dict[str, Any] | None = data.get("main_device")
 
     if not main_device:
@@ -104,7 +106,9 @@ async def async_setup_entry(
     async_add_entities([climate_entity])
 
 
-class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], ClimateEntity):
+class ComfoClimeClimate(
+    CoordinatorEntity[ComfoClimeDashboardCoordinator], ClimateEntity
+):
     """ComfoClime Climate entity."""
 
     def __init__(
@@ -369,7 +373,9 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
         # Schedule non-blocking refresh for both coordinators
         # This prevents the UI from becoming unresponsive while waiting for updates
         self.hass.async_create_task(self.coordinator.async_request_refresh())
-        self.hass.async_create_task(self._thermalprofile_coordinator.async_request_refresh())
+        self.hass.async_create_task(
+            self._thermalprofile_coordinator.async_request_refresh()
+        )
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature via dashboard API in manual mode.
@@ -383,7 +389,9 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             return
 
         try:
-            _LOGGER.debug(f"Setting manual temperature to {temperature}°C via dashboard API")
+            _LOGGER.debug(
+                f"Setting manual temperature to {temperature}°C via dashboard API"
+            )
 
             # Setting setPointTemperature should explicitly switch to manual mode (status=0)
             # and replaces seasonProfile/temperatureProfile. We send status=0 to ensure
@@ -394,7 +402,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             )
 
             # Schedule non-blocking refresh of coordinators
-            self._async_refresh_coordinators()
+            await self._async_refresh_coordinators()
 
         except Exception:
             _LOGGER.exception(f"Failed to set temperature to {temperature}")
@@ -441,13 +449,11 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
                     f"atomically setting season={season_value} and hpStandby=False"
                 )
                 await self._api.async_set_hvac_season(
-                    self.hass,
-                    season=season_value,
-                    hp_standby=False
+                    self.hass, season=season_value, hp_standby=False
                 )
 
             # Schedule non-blocking refresh of coordinators
-            self._async_refresh_coordinators()
+            await self._async_refresh_coordinators()
 
         except Exception:
             _LOGGER.exception(f"Failed to set HVAC mode {hvac_mode}")
@@ -471,7 +477,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
                 await self.async_update_dashboard(status=0)
 
                 # Schedule non-blocking refresh of coordinators
-                self._async_refresh_coordinators()
+                await self._async_refresh_coordinators()
                 return
 
             # Automatic mode with preset profile
@@ -497,7 +503,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             )
 
             # Schedule non-blocking refresh of coordinators
-            self._async_refresh_coordinators()
+            await self._async_refresh_coordinators()
 
         except Exception:
             _LOGGER.exception(f"Failed to set preset mode {preset_mode}")
@@ -523,7 +529,7 @@ class ComfoClimeClimate(CoordinatorEntity[ComfoClimeDashboardCoordinator], Clima
             await self.async_update_dashboard(fan_speed=fan_speed)
 
             # Schedule non-blocking refresh of coordinators
-            self._async_refresh_coordinators()
+            await self._async_refresh_coordinators()
 
         except Exception:
             _LOGGER.exception(f"Failed to set fan mode {fan_mode}")
