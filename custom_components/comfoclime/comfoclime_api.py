@@ -103,12 +103,12 @@ class ComfoClimeAPI:
         # Decode temperature fields that may be returned as unsigned INT16
         # when they should be signed (e.g., negative temperatures)
         temp_fields = [
-            "indoorTemperature",
+            # "indoorTemperature",
             "outdoorTemperature", 
-            "exhaustTemperature",
-            "supplyTemperature",
-            "runningMeanOutdoorTemperature",
-            "setPointTemperature",  # Manual mode target temperature
+            # "exhaustTemperature",
+            # "supplyTemperature",
+            # "runningMeanOutdoorTemperature",
+            # "setPointTemperature",  # Manual mode target temperature
         ]
         
         for field in temp_fields:

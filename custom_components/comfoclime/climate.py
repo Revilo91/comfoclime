@@ -335,7 +335,7 @@ class ComfoClimeClimate(
 
         status_mapping = {
             0x00: HVACAction.OFF,
-            0x01: HVACAction.IDLE,
+            # 0x01: HVACAction.IDLE,
             0x02: HVACAction.HEATING,
             0x04: HVACAction.COOLING,
             0x08: HVACAction.DRYING,  # Not sure
