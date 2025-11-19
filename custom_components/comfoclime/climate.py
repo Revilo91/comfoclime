@@ -280,7 +280,7 @@ class ComfoClimeClimate(
         return HVAC_MODE_MAPPING.get(season, HVACMode.OFF)
 
     @property
-    def hvac_action(self) -> HVACAction:
+    def hvac_action(self) -> list[HVACAction]:
         """Return current HVAC action based on dashboard heatPumpStatus.
 
         Heat pump status codes (from API documentation):
@@ -295,12 +295,12 @@ class ComfoClimeClimate(
         Reference: https://github.com/msfuture/comfoclime_api/blob/main/ComfoClimeAPI.md#heat-pump-status-codes
         """
         if not self.coordinator.data:
-            return HVACAction.OFF
+            return [HVACAction.OFF]
 
         heat_pump_status = self.coordinator.data.get("heatPumpStatus")
 
-        if heat_pump_status is None:
-            return HVACAction.OFF
+        if heat_pump_status in [None, 0]:
+            return [HVACAction.OFF]
 
         status_mapping = {
             0x02: HVACAction.HEATING,
@@ -317,7 +317,7 @@ class ComfoClimeClimate(
         ]
 
         if not active_flags:
-            return HVACAction.IDLE
+            return [HVACAction.IDLE]
 
         return active_flags
 
