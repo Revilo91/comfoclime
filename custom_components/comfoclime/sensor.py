@@ -22,6 +22,7 @@ from .entities.sensor_definitions import (
     CONNECTED_DEVICE_SENSORS,
     DASHBOARD_SENSORS,
     TELEMETRY_SENSORS,
+    THERMALPROFILE_SENSORS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -82,6 +83,7 @@ async def async_setup_entry(
     ]
     sensors.extend(sensor_list)
     # ThermalProfile-Sensoren
+    tp_coordinator = data["tpcoordinator"]
     sensor_list = [
         ComfoClimeSensor(
             hass=hass,
@@ -97,7 +99,7 @@ async def async_setup_entry(
             device=main_device,
             entry=entry,
         )
-        for sensor_def in DASHBOARD_SENSORS
+        for sensor_def in THERMALPROFILE_SENSORS
     ]
     sensors.extend(sensor_list)
 
@@ -220,7 +222,10 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
         self._device = device
         self._entry = entry
         self._attr_config_entry_id = entry.entry_id
-        self._attr_unique_id = f"{entry.entry_id}_dashboard_{sensor_type}"
+        # Determine if this is a thermal profile sensor based on coordinator type
+        is_thermal_profile = isinstance(coordinator, ComfoClimeThermalprofileCoordinator)
+        prefix = "thermalprofile" if is_thermal_profile else "dashboard"
+        self._attr_unique_id = f"{entry.entry_id}_{prefix}_{sensor_type.replace('.', '_')}"
         if not translation_key:
             self._attr_name = name
         else:
@@ -248,7 +253,18 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
         try:
             data = self.coordinator.data
 
-            raw_value = data.get(self._type)
+            # Handle nested keys (e.g., "season.status" or "heatingThermalProfileSeasonData.comfortTemperature")
+            if "." in self._type:
+                keys = self._type.split(".")
+                raw_value = data
+                for key in keys:
+                    if isinstance(raw_value, dict) and key in raw_value:
+                        raw_value = raw_value[key]
+                    else:
+                        raw_value = None
+                        break
+            else:
+                raw_value = data.get(self._type)
 
             # Wenn es eine definierte Übersetzung gibt, wende sie an
             if self._type in VALUE_MAPPINGS:
