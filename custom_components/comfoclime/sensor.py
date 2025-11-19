@@ -16,7 +16,10 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
 from .comfoclime_api import ComfoClimeAPI
-from .coordinator import ComfoClimeDashboardCoordinator, ComfoClimeThermalprofileCoordinator
+from .coordinator import (
+    ComfoClimeDashboardCoordinator,
+    ComfoClimeThermalprofileCoordinator,
+)
 from .entities.sensor_definitions import (
     CONNECTED_DEVICE_PROPERTIES,
     CONNECTED_DEVICE_SENSORS,
