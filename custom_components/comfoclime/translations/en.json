@@ -211,6 +211,9 @@
         },
         "automatic_comfort_temperature": {
             "name": "Automatic Comfort Temperature"
+        },
+        "heatpump_onoff": {
+            "name": "Heatpump on/off"
         }
       },
       "fan": {

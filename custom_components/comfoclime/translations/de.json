@@ -208,6 +208,9 @@
         },
         "automatic_comfort_temperature": {
             "name": "Automatische Komforttemperatur"
+        },
+        "heatpump_onoff": {
+            "name": "Wärmepumpe an/aus"
         }
       },
       "fan": {
