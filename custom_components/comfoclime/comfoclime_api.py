@@ -8,23 +8,6 @@ import requests
 _LOGGER = logging.getLogger(__name__)
 
 
-# Exception classes as per ComfoClimeAPI.md documentation
-class ComfoClimeError(Exception):
-    """Base exception for ComfoClime API errors."""
-
-
-class ComfoClimeConnectionError(ComfoClimeError):
-    """Exception for connection errors."""
-
-
-class ComfoClimeTimeoutError(ComfoClimeError):
-    """Exception for timeout errors."""
-
-
-class ComfoClimeAuthenticationError(ComfoClimeError):
-    """Exception for authentication errors."""
-
-
 class ComfoClimeAPI:
     def __init__(self, base_url):
         self.base_url = base_url.rstrip("/")
@@ -129,9 +112,7 @@ class ComfoClimeAPI:
             )
 
     def read_property_for_device_raw(
-        self,
-        device_uuid: str,
-        property_path: str
+        self, device_uuid: str, property_path: str
     ) -> None | list:
         url = f"{self.base_url}/device/{device_uuid}/property/{property_path}"
         try:
@@ -176,7 +157,9 @@ class ComfoClimeAPI:
                 value -= 0x10000
         elif byte_count > 2:
             if len(data) != byte_count:
-                raise ValueError(f"Unerwartete Byte-Anzahl: erwartet {byte_count}, erhalten {len(data)}")
+                raise ValueError(
+                    f"Unerwartete Byte-Anzahl: erwartet {byte_count}, erhalten {len(data)}"
+                )
             if all(0 <= byte < 256 for byte in data):
                 return "".join(chr(byte) for byte in data if byte != 0)
         else:
@@ -322,7 +305,9 @@ class ComfoClimeAPI:
             payload["hpStandby"] = hp_standby
 
         if not payload:
-            _LOGGER.debug("No dashboard fields to update (empty payload) - skipping PUT")
+            _LOGGER.debug(
+                "No dashboard fields to update (empty payload) - skipping PUT"
+            )
             return {}
 
         # Add timestamp to payload
@@ -369,6 +354,7 @@ class ComfoClimeAPI:
             hp_standby: Heat pump standby state (False=active, True=standby/off)
         """
         async with self._request_lock:
+
             def _update():
                 # First update dashboard to set hpStandby
                 self.update_dashboard(hp_standby=hp_standby)
