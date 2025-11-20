@@ -7,18 +7,21 @@ HomeAssistant integration of Zehnder ComfoClime (and all devices in ComfoNet bus
 ## Features
 ComfoClime is a HVAC solution as additional device for the ComfoAir Q series. It comes with its own app and an propietary JSON API. The ComfoClime unit is connected to the local network via WiFi/WLAN, the API is available only local via HTTP requests without authentication. The integration can also control the ventilation main unit ComfoAir Q. It currently offers:
 
-* reading the dashboard data similar to the official app (sensors)
-* **climate control entity with HVAC modes (heat/cool/fan_only/off) and preset modes (comfort/power/eco)**
-* writing the active temperature profile (select)
-* setting the ventilation fan speed (fan)
-* reading and writing the thermalprofile (sensors, selects and numbers)
-* reading additional telemetry values of *all* connected devices (sensors; known already from ComfoConnect integration)
-* arranging telemetry and property values into different devices
-* reading additional property values of *all* connected devices (sensors)
-* writing additional property values of *all* connected devices (service, numbers)
+* reading the dashboard data similar to the official app
+* climate control entity with HVAC modes (heat/cool/fan_only/off) and preset modes (comfort/power/eco)
+* reading and writing the active temperature profile
+* setting the ventilation fan speed
+* autodiscovering all connected devices
+* property (r/w) and telemetry (r/o) values of *all* connected devices
 * restarting the ComfoClime unit via service call
 * configuration via config flow by host/ip
 * locals in english and german
+
+## Installation
+* add this repository via HACS (user defined repositories, URL: `https://github.com/msfuture/comfoclime`)
+* install the "Zehnder ComfoClime" integration in HACS
+* restart Home Assistant
+* add the ComfoClime device (connected devices like the ComfoAir Q are detected and added automatically)
 
 ## API Documentation
 
@@ -94,14 +97,12 @@ This ensures correct interpretation of all status codes, including transitional 
 | 17 | 0001 0001 | Idle | Transitional state |
 | 19 | 0001 0011 | Heating | Heating in transitional state |
 | 21 | 0001 0101 | Cooling | Cooling in transitional state |
-| 67 | 0100 0011 | Heating | Heating mode |
-| 75 | 0100 1011 | Heating | Heating mode (both bits set, heating priority) |
+| 67 | 0100 0011 | Heating | Heating mode (defrosting?) |
+| 75 | 0100 1011 | Heating | Heating mode (defrosting + drying?) |
 | 83 | 0101 0011 | Heating | Heating mode |
 
 ## Current ToDo / development
 There are many more telemetry and property values, that make sense to be offered by the integration. The ComfoClime unit itself is fully integrated but there are some missing sensors, switches and numbers of the ComfoAirQ unit to be added in the future. You are missing one? The definitions are in seperate files in the entities folder, so you can try them yourself. If they are working you can open an issue or directly open a pull request.
-
-Also I appreciate any suggestions or pull requests that clean up my messy code 😊
 
 Feel free to participate! 🙋‍♂️
 

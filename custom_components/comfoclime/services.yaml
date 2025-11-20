@@ -4,14 +4,14 @@ set_property:
   fields:
     device_id:
       name: Gerät
-      description: Das Zielgerät (z. B. ComfoClime 24)
+      description: Das Zielgerät (z.B. ComfoClime 24)
       required: true
       selector:
         device:
           integration: comfoclime
     path:
       name: Property-Pfad
-      description: Pfadangabe im Format X/Y/Z, z. B. 29/1/10
+      description: Pfadangabe im Format X/Y/Z, z.B. 29/1/10
       required: true
       example: "29/1/10"
       selector:
@@ -72,22 +72,29 @@ set_scenario_mode:
       selector:
         select:
           options:
-            - label: "Kochen (30 Min.)"
+            - label: "Kochen"
               value: "cooking"
-            - label: "Party (30 Min.)"
+            - label: "Party"
               value: "party"
-            - label: "Urlaub (24 Std.)"
+            - label: "Urlaub"
               value: "holiday"
-            - label: "Boost (30 Min.)"
+            - label: "Boost"
               value: "boost_mode"
     duration:
-      name: Dauer (Sekunden)
-      description: Optionale Dauer in Sekunden (Standard ist voreingestellt pro Szenario)
+      name: Dauer (Minuten)
+      description: Optionale Dauer in Minuten (Standard ist voreingestellt pro Szenario)
       required: false
-      example: 1800
+      example: 1
       selector:
         number:
-          min: 60
-          max: 86400
-          step: 60
-          unit_of_measurement: "s"
+          min: 1
+          max: 43200
+          step: 1
+          unit_of_measurement: "min"
+    start_delay:
+      name: Startzeit
+      description: Optionaler Startzeitpunkt (Datum und Uhrzeit). Wenn nicht angegeben, startet das Szenario sofort.
+      required: false
+      example: "2024-01-15 18:30:00"
+      selector:
+        datetime:

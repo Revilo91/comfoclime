@@ -1,7 +1,14 @@
 import logging
 
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import (
+    EntityCategory,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -9,12 +16,16 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
 from .comfoclime_api import ComfoClimeAPI
-from .coordinator import ComfoClimeDashboardCoordinator
+from .coordinator import (
+    ComfoClimeDashboardCoordinator,
+    ComfoClimeThermalprofileCoordinator,
+)
 from .entities.sensor_definitions import (
     CONNECTED_DEVICE_PROPERTIES,
     CONNECTED_DEVICE_SENSORS,
     DASHBOARD_SENSORS,
     TELEMETRY_SENSORS,
+    THERMALPROFILE_SENSORS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -67,10 +78,31 @@ async def async_setup_entry(
             unit=sensor_def.get("unit"),
             device_class=sensor_def.get("device_class"),
             state_class=sensor_def.get("state_class"),
+            entity_category=sensor_def.get("entity_category"),
             device=main_device,
             entry=entry,
         )
         for sensor_def in DASHBOARD_SENSORS
+    ]
+    sensors.extend(sensor_list)
+    # ThermalProfile-Sensoren
+    tp_coordinator = data["tpcoordinator"]
+    sensor_list = [
+        ComfoClimeSensor(
+            hass=hass,
+            coordinator=tp_coordinator,
+            api=api,
+            sensor_type=sensor_def["key"],
+            name=sensor_def["name"],
+            translation_key=sensor_def["translation_key"],
+            unit=sensor_def.get("unit"),
+            device_class=sensor_def.get("device_class"),
+            state_class=sensor_def.get("state_class"),
+            entity_category=sensor_def.get("entity_category"),
+            device=main_device,
+            entry=entry,
+        )
+        for sensor_def in THERMALPROFILE_SENSORS
     ]
     sensors.extend(sensor_list)
 
@@ -88,6 +120,7 @@ async def async_setup_entry(
             byte_count=sensor_def.get("byte_count"),
             device_class=sensor_def.get("device_class"),
             state_class=sensor_def.get("state_class"),
+            entity_category=sensor_def.get("entity_category"),
             entry=entry,
         )
         for sensor_def in TELEMETRY_SENSORS
@@ -151,6 +184,9 @@ async def async_setup_entry(
                 signed=prop_def.get("signed", True),
                 byte_count=prop_def.get("byte_count"),
                 mapping_key=prop_def.get("mapping_key", ""),
+                device_class=prop_def.get("device_class"),
+                state_class=prop_def.get("state_class"),
+                entity_category=prop_def.get("entity_category"),
                 device=device,
                 override_device_uuid=dev_uuid,
                 entry=entry,
@@ -172,6 +208,7 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
         unit=None,
         device_class=None,
         state_class=None,
+        entity_category=None,
         device=None,
         entry=None,
     ):
@@ -182,12 +219,16 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
         self._name = name
         self._state = None
         self._attr_native_unit_of_measurement = unit
-        self._attr_device_class = device_class
-        self._attr_state_class = state_class
+        self._attr_device_class = SensorDeviceClass(device_class) if device_class else None
+        self._attr_state_class = SensorStateClass(state_class) if state_class else None
+        self._attr_entity_category = EntityCategory(entity_category) if entity_category else None
         self._device = device
         self._entry = entry
         self._attr_config_entry_id = entry.entry_id
-        self._attr_unique_id = f"{entry.entry_id}_dashboard_{sensor_type}"
+        # Determine if this is a thermal profile sensor based on coordinator type
+        is_thermal_profile = isinstance(coordinator, ComfoClimeThermalprofileCoordinator)
+        prefix = "thermalprofile" if is_thermal_profile else "dashboard"
+        self._attr_unique_id = f"{entry.entry_id}_{prefix}_{sensor_type.replace('.', '_')}"
         if not translation_key:
             self._attr_name = name
         else:
@@ -215,7 +256,18 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
         try:
             data = self.coordinator.data
 
-            raw_value = data.get(self._type)
+            # Handle nested keys (e.g., "season.status" or "heatingThermalProfileSeasonData.comfortTemperature")
+            if "." in self._type:
+                keys = self._type.split(".")
+                raw_value = data
+                for key in keys:
+                    if isinstance(raw_value, dict) and key in raw_value:
+                        raw_value = raw_value[key]
+                    else:
+                        raw_value = None
+                        break
+            else:
+                raw_value = data.get(self._type)
 
             # Wenn es eine definierte Übersetzung gibt, wende sie an
             if self._type in VALUE_MAPPINGS:
@@ -243,8 +295,9 @@ class ComfoClimeTelemetrySensor(SensorEntity):
         signed=True,
         byte_count=None,
         device_class=None,
-        device=None,
         state_class=None,
+        entity_category=None,
+        device=None,
         override_device_uuid=None,
         entry=None,
     ):
@@ -257,8 +310,9 @@ class ComfoClimeTelemetrySensor(SensorEntity):
         self._byte_count = byte_count
         self._state = None
         self._attr_native_unit_of_measurement = unit
-        self._attr_device_class = device_class
-        self._attr_state_class = state_class
+        self._attr_device_class = SensorDeviceClass(device_class) if device_class else None
+        self._attr_state_class = SensorStateClass(state_class) if state_class else None
+        self._attr_entity_category = EntityCategory(entity_category) if entity_category else None
         self._device = device
         self._override_uuid = override_device_uuid
         self._entry = entry
@@ -317,6 +371,7 @@ class ComfoClimePropertySensor(SensorEntity):
         byte_count: int | None = None,
         device_class: str | None = None,
         state_class: str | None = None,
+        entity_category: str | None = None,
         mapping_key: str | None = None,
         device: dict | None = None,
         override_device_uuid: str | None = None,
@@ -330,8 +385,9 @@ class ComfoClimePropertySensor(SensorEntity):
         self._signed = signed
         self._byte_count = byte_count
         self._attr_native_unit_of_measurement = unit
-        self._attr_device_class = device_class
-        self._attr_state_class = state_class
+        self._attr_device_class = SensorDeviceClass(device_class) if device_class else None
+        self._attr_state_class = SensorStateClass(state_class) if state_class else None
+        self._attr_entity_category = EntityCategory(entity_category) if entity_category else None
         self._mapping_key = mapping_key
         self._device = device
         self._override_uuid = override_device_uuid
