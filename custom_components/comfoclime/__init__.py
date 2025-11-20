@@ -118,6 +118,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
                     f"Duration must be a positive number, got: {duration}"
                 )
 
+        # Validate start_delay format if provided
+        if start_delay is not None:
+            if not isinstance(start_delay, str):
+                raise HomeAssistantError(
+                    f"start_delay must be a datetime string (e.g. '2025-11-21 12:00:00'), got: {type(start_delay).__name__}"
+                )
+
         _LOGGER.debug(
             f"Service call: set_scenario_mode for {entity_id}, "
             f"scenario={scenario}, duration={duration}, start_delay={start_delay}"

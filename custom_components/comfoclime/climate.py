@@ -1,6 +1,7 @@
 """Climate platform for ComfoClime integration."""
 
 import logging
+from datetime import datetime
 from typing import Any
 
 from homeassistant.components.climate import (
@@ -50,7 +51,7 @@ PRESET_MANUAL = PRESET_NONE  # "none" preset means manual temperature control
 
 # Scenario Modes - special operating modes
 SCENARIO_COOKING = 4  # Kochen - 30 minutes high ventilation
-SCENARIO_PARTY = 5    # Party - 30 minutes high ventilation
+SCENARIO_PARTY = 5  # Party - 30 minutes high ventilation
 SCENARIO_HOLIDAY = 7  # Urlaub - 24 hours reduced mode
 SCENARIO_BOOST_MODE = 8  # Boost - 30 minutes maximum power
 
@@ -71,10 +72,10 @@ SCENARIO_REVERSE_MAPPING = {v: k for k, v in SCENARIO_MAPPING.items()}
 
 # Default durations for scenarios in seconds (based on Mode_info.json)
 SCENARIO_DEFAULT_DURATIONS = {
-    SCENARIO_COOKING: 1800,      # 30 minutes (1798s in example)
-    SCENARIO_PARTY: 1800,         # 30 minutes (1798s in example)
-    SCENARIO_HOLIDAY: 86400,      # 24 hours (86303s in example)
-    SCENARIO_BOOST_MODE: 1800,    # 30 minutes (1797s in example)
+    SCENARIO_COOKING: 1800,  # 30 minutes (1798s in example)
+    SCENARIO_PARTY: 1800,  # 30 minutes (1798s in example)
+    SCENARIO_HOLIDAY: 86400,  # 24 hours (86303s in example)
+    SCENARIO_BOOST_MODE: 1800,  # 30 minutes (1797s in example)
 }
 
 # Fan Mode Mapping (based on fan.py implementation)
@@ -490,7 +491,9 @@ class ComfoClimeClimate(
         except Exception:
             _LOGGER.exception(f"Failed to set HVAC mode {hvac_mode}")
 
-    async def async_set_preset_mode(self, preset_mode: str, duration: int | None = None) -> None:
+    async def async_set_preset_mode(
+        self, preset_mode: str, duration: int | None = None
+    ) -> None:
         """Set preset mode via dashboard API.
 
         Setting PRESET_MANUAL (none) switches to manual temperature control mode.
@@ -573,7 +576,7 @@ class ComfoClimeClimate(
             _LOGGER.exception(f"Failed to set preset mode {preset_mode}")
 
     async def async_set_scenario_mode(
-        self, scenario_mode: str, duration: int, start_delay = None
+        self, scenario_mode: str, duration: int, start_delay: str = None
     ) -> None:
         """Set preset mode via dashboard API.
 
@@ -583,6 +586,8 @@ class ComfoClimeClimate(
             scenario_mode: The scenario mode to activate
             duration:   Optional duration in seconds for scenario modes. If not provided,
                         default durations are used (30min for cooking/party/boost, 24h for holiday)
+            start_delay: Optional delay as datetime string (e.g. "2025-11-21 12:00:00").
+                        Will be converted to seconds from now.
         """
         try:
             # Scenario modes: Special operating modes
@@ -594,9 +599,29 @@ class ComfoClimeClimate(
                     # Use default duration from mapping
                     duration = SCENARIO_DEFAULT_DURATIONS.get(scenario_value, 30)
 
+                # Calculate start_delay in seconds from now
+                start_delay_seconds = None
+                if start_delay is not None:
+                    try:
+                        target_time = datetime.fromisoformat(start_delay)
+                        delta = target_time - datetime.now()
+                        start_delay_seconds = int(delta.total_seconds())
+
+                        if start_delay_seconds < 0:
+                            _LOGGER.warning(
+                                f"Start delay time {start_delay} is in the past, ignoring"
+                            )
+                            start_delay_seconds = None
+                    except ValueError as e:
+                        _LOGGER.error(
+                            f"Invalid start_delay format '{start_delay}': {e}. "
+                            "Expected ISO format like '2025-11-21 12:00:00'"
+                        )
+                        start_delay_seconds = None
+
                 _LOGGER.debug(
                     f"Activating scenario mode {scenario_mode} (scenario={scenario_value}, "
-                    f"scenarioTimeLeft={duration}min, scenarioStartDelay={start_delay}) via dashboard API"
+                    f"scenarioTimeLeft={duration}min, scenarioStartDelay={start_delay_seconds}s) via dashboard API"
                 )
 
                 # Activate scenario mode with duration
@@ -605,9 +630,7 @@ class ComfoClimeClimate(
                 await self.async_update_dashboard(
                     scenario=scenario_value,
                     scenario_time_left=duration * 60,
-                    scenario_start_delay=(
-                        start_delay * 60 if start_delay is not None else None
-                    ),
+                    scenario_start_delay=start_delay_seconds,
                 )
 
                 # Schedule non-blocking refresh of coordinators
@@ -665,9 +688,13 @@ class ComfoClimeClimate(
                 hours, remainder = divmod(scenario_time_left, 3600)
                 minutes, seconds = divmod(remainder, 60)
                 if hours > 0:
-                    attrs["scenario_time_left_formatted"] = f"{int(hours)}h {int(minutes)}m"
+                    attrs["scenario_time_left_formatted"] = (
+                        f"{int(hours)}h {int(minutes)}m"
+                    )
                 elif minutes > 0:
-                    attrs["scenario_time_left_formatted"] = f"{int(minutes)}m {int(seconds)}s"
+                    attrs["scenario_time_left_formatted"] = (
+                        f"{int(minutes)}m {int(seconds)}s"
+                    )
                 else:
                     attrs["scenario_time_left_formatted"] = f"{int(seconds)}s"
 
