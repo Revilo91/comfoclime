@@ -227,6 +227,95 @@
                 }
             }
         },
+        "season_mode": {
+            "name": "Jahreszeitwahl",
+            "state": {
+                "heating": "Heizperiode",
+                "cooling": "Kühlperiode",
+                "transition": "Übergangszeit"
+            }
+        },
+        "humidity_comfort_control": {
+            "name": "Lüftung Feuchteregelung",
+            "state": {
+                "off": "Aus",
+                "autoonly": "Nur bei Auto",
+                "on": "An"
+            }
+        },
+        "humidity_protection": {
+            "name": "Lüftung Feuchteschutz",
+            "state": {
+                "off": "Aus",
+                "autoonly": "Nur bei Auto",
+                "on": "An"
+            }
+        }
+    },
+    "number": {
+        "heating_comfort_temperature": {
+            "name": "Komforttemperatur Heizen"
+        },
+        "heating_knee_point": {
+            "name": "Knickpunkt Heizkurve Heizen"
+        },
+        "heating_reduction_delta": {
+            "name": "Temperaturreduktion Heizen"
+        },
+        "cooling_comfort_temperature": {
+            "name": "Komforttemperatur Kühlen"
+        },
+        "cooling_knee_point": {
+            "name": "Knickpunkt Heizkurve Kühlen"
+        },
+        "cooling_temperature_limit": {
+            "name": "Temperaturlimit Kühlen"
+        },
+        "manual_comfort_temperature": {
+            "name": "Manuelle Komforttemperatur"
+        },
+        "heating_threshold": {
+            "name": "Heizgrenze"
+        },
+        "cooling_threshold": {
+            "name": "Kühlgrenze"
+        },
+        "rmot_heating_threshold": {
+            "name": "Lüftung Heizgrenze RMOT"
+        },
+        "rmot_cooling_threshold": {
+            "name": "Lüftung Kühlgrenze RMOT"
+        },
+        "heatpump_min_temp": {
+            "name": "Wärmepumpe minimale Kühltemperatur"
+        },
+        "heatpump_max_temp": {
+            "name": "Wärmepumpe maximale Heiztemperatur"
+        }
+    },
+    "switch": {
+        "automatic_season_detection": {
+            "name": "Automatische Jahreszeiterkennung"
+        },
+        "automatic_comfort_temperature": {
+            "name": "Automatische Komforttemperatur"
+        },
+        "heatpump_onoff": {
+            "name": "Wärmepumpe an/aus"
+        }
+    },
+    "fan": {
+        "fan_speed": {
+            "name": "Lüfter Stufe",
+            "state": {
+                "off": "Abwesend",
+                "low": "Niedrig",
+                "medium": "Mittel",
+                "high": "Hoch"
+            }
+        }
+    },
+    "climate": {
         "climate": {
             "climate": {
                 "name": "Klimasteuerung",

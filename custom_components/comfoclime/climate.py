@@ -423,7 +423,7 @@ class ComfoClimeClimate(
             )
 
             # Schedule non-blocking refresh of coordinators
-            self._async_refresh_coordinators()
+            await self._async_refresh_coordinators()
 
         except Exception:
             _LOGGER.exception(f"Failed to set temperature to {temperature}")
@@ -474,7 +474,7 @@ class ComfoClimeClimate(
                 )
 
             # Schedule non-blocking refresh of coordinators
-            self._async_refresh_coordinators()
+            await self._async_refresh_coordinators()
 
         except Exception:
             _LOGGER.exception(f"Failed to set HVAC mode {hvac_mode}")
@@ -501,7 +501,7 @@ class ComfoClimeClimate(
                 await self.async_update_dashboard(status=0)
 
                 # Schedule non-blocking refresh of coordinators
-                self._async_refresh_coordinators()
+                await self._async_refresh_coordinators()
                 return
 
             # Automatic mode with preset profile
@@ -527,7 +527,7 @@ class ComfoClimeClimate(
             )
 
             # Schedule non-blocking refresh of coordinators
-            self._async_refresh_coordinators()
+            await self._async_refresh_coordinators()
 
         except Exception:
             _LOGGER.exception(f"Failed to set preset mode {preset_mode}")
@@ -593,7 +593,7 @@ class ComfoClimeClimate(
             await self.async_update_dashboard(fan_speed=fan_speed)
 
             # Schedule non-blocking refresh of coordinators
-            self._async_refresh_coordinators()
+            await self._async_refresh_coordinators()
 
         except Exception:
             _LOGGER.exception(f"Failed to set fan mode {fan_mode}")

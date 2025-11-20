@@ -7,18 +7,21 @@ HomeAssistant integration of Zehnder ComfoClime (and all devices in ComfoNet bus
 ## Features
 ComfoClime is a HVAC solution as additional device for the ComfoAir Q series. It comes with its own app and an propietary JSON API. The ComfoClime unit is connected to the local network via WiFi/WLAN, the API is available only local via HTTP requests without authentication. The integration can also control the ventilation main unit ComfoAir Q. It currently offers:
 
-* reading the dashboard data similar to the official app (sensors)
-* **climate control entity with HVAC modes (heat/cool/fan_only/off) and preset modes (comfort/power/eco)**
-* writing the active temperature profile (select)
-* setting the ventilation fan speed (fan)
-* reading and writing the thermalprofile (sensors, selects and numbers)
-* reading additional telemetry values of *all* connected devices (sensors; known already from ComfoConnect integration)
-* arranging telemetry and property values into different devices
-* reading additional property values of *all* connected devices (sensors)
-* writing additional property values of *all* connected devices (service, numbers)
+* reading the dashboard data similar to the official app
+* climate control entity with HVAC modes (heat/cool/fan_only/off) and preset modes (comfort/power/eco)
+* reading and writing the active temperature profile
+* setting the ventilation fan speed
+* autodiscovering all connected devices
+* property (r/w) and telemetry (r/o) values of *all* connected devices
 * restarting the ComfoClime unit via service call
 * configuration via config flow by host/ip
 * locals in english and german
+
+## Installation
+* add this repository via HACS (user defined repositories, URL: `https://github.com/msfuture/comfoclime`)
+* install the "Zehnder ComfoClime" integration in HACS
+* restart Home Assistant
+* add the ComfoClime device (connected devices like the ComfoAir Q are detected and added automatically)
 
 ## API Documentation
 
@@ -30,13 +33,6 @@ API documentation with practical Python examples:
 * **[RMI Protocol](https://github.com/michaelarnauts/aiocomfoconnect/blob/master/docs/PROTOCOL-RMI.md)** - Property access protocol
 
 Feel free to extend!
-
-## Installation
-
-* add this repository via HACS (user defined repositories, URL: `https://github.com/msfuture/comfoclime`)
-* install the "Zehnder ComfoClime" integration in HACS
-* restart Home Assistant
-* add the ComfoClime device (connected devices like the ComfoAir Q are detected and added automatically)
 
 ## Climate Control Features
 
@@ -88,8 +84,6 @@ This ensures correct interpretation of all status codes, including transitional 
 
 ## Current ToDo / development
 There are many more telemetry and property values, that make sense to be offered by the integration. The ComfoClime unit itself is fully integrated but there are some missing sensors, switches and numbers of the ComfoAirQ unit to be added in the future. You are missing one? The definitions are in seperate files in the entities folder, so you can try them yourself. If they are working you can open an issue or directly open a pull request.
-
-Also I appreciate any suggestions or pull requests that clean up my messy code 😊
 
 Feel free to participate! 🙋‍♂️
 

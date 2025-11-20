@@ -257,6 +257,7 @@ CONNECTED_DEVICE_SENSORS = {
             "byte_count": 2,
             "device_class": "temperature",
             "state_class": "measurement",
+            "diagnose": True,
         },
         {
             "telemetry_id": 4196,
@@ -268,6 +269,7 @@ CONNECTED_DEVICE_SENSORS = {
             "byte_count": 2,
             "device_class": "temperature",
             "state_class": "measurement",
+            "diagnose": True,
         },
         {
             "telemetry_id": 4197,
