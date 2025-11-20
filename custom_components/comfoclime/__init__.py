@@ -6,6 +6,7 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 
+from .climate import SCENARIO_REVERSE_MAPPING
 from .comfoclime_api import ComfoClimeAPI
 from .coordinator import (
     ComfoClimeDashboardCoordinator,
@@ -105,7 +106,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         start_delay = call.data.get("start_delay")
 
         # Validate scenario parameter
-        valid_scenarios = ["cooking", "party", "away", "boost"]
+        valid_scenarios = list(SCENARIO_REVERSE_MAPPING.keys())
         if scenario not in valid_scenarios:
             raise HomeAssistantError(
                 f"Invalid scenario '{scenario}'. Must be one of: {', '.join(valid_scenarios)}"

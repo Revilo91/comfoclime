@@ -58,8 +58,6 @@ SCENARIO_BOOST_MODE = 8  # Boost - 30 minutes maximum power
 
 PRESET_SCENARIO_COOKING = "cooking"
 PRESET_SCENARIO_PARTY = "party"
-# PRESET_SCENARIO_HOLIDAY = "holiday"
-# PRESET_SCENARIO_BOOST_MODE = "boost_mode"
 
 # Scenario mapping
 SCENARIO_MAPPING = {
@@ -73,10 +71,10 @@ SCENARIO_REVERSE_MAPPING = {v: k for k, v in SCENARIO_MAPPING.items()}
 
 # Default durations for scenarios in seconds (based on Mode_info.json)
 SCENARIO_DEFAULT_DURATIONS = {
-    SCENARIO_COOKING: 1800,  # 30 minutes (1798s in example)
-    SCENARIO_PARTY: 1800,  # 30 minutes (1798s in example)
-    SCENARIO_HOLIDAY: 86400,  # 24 hours (86303s in example)
-    SCENARIO_BOOST_MODE: 1800,  # 30 minutes (1797s in example)
+    SCENARIO_COOKING: 30,
+    SCENARIO_PARTY: 30,
+    SCENARIO_HOLIDAY: 1440,  # 24 hours
+    SCENARIO_BOOST_MODE: 30,
 }
 
 # Fan Mode Mapping (based on fan.py implementation)
@@ -632,7 +630,7 @@ class ComfoClimeClimate(
                             "Expected ISO format like '2025-11-21 12:00:00'"
                         )
                         start_delay_seconds = None
-                elif start_delay is None and scenario_mode == 7:
+                elif start_delay is None and scenario_mode == SCENARIO_MAPPING[SCENARIO_HOLIDAY]:
                     _LOGGER.warning("No start_delay provided for holiday scenario!")
 
                 _LOGGER.debug(

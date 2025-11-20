@@ -240,20 +240,7 @@
                     "state": {
                         "comfort": "Komfort",
                         "power": "Power",
-                        "eco": "Eco",
-                        "cooking": "Kochen",
-                        "party": "Party",
-                        "away": "Aus/Urlaub",
-                        "boost": "Boost"
-                    },
-                    "state_icon": {
-                        "comfort": "mdi:home-thermometer",
-                        "power": "mdi:flash",
-                        "eco": "mdi:leaf",
-                        "cooking": "mdi:pot-steam",
-                        "party": "mdi:party-popper",
-                        "away": "mdi:beach",
-                        "boost": "mdi:rocket-launch"
+                        "eco": "Eco"
                     }
                 },
                 "fan_mode": {

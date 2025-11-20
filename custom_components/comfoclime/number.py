@@ -46,7 +46,7 @@ async def async_setup_entry(
         model_id = device.get("modelTypeId")
         dev_uuid = device.get("uuid")
         if dev_uuid == "NULL":
-            _LOGGER.debug(f"Skipping device with NULL uuid")
+            _LOGGER.debug(f"Skipping device with NULL uuid (model_id: {model_id})")
             continue
 
         number_properties = CONNECTED_DEVICE_NUMBER_PROPERTIES.get(model_id, [])
@@ -264,9 +264,9 @@ class ComfoClimePropertyNumber(NumberEntity):
                 f"Property {self._property_path} updated: {value}"
             )
             self._value = value
-        except Exception as e:
+        except Exception:
             _LOGGER.exception(
-                f"Fehler beim Abrufen von Property {self._property_path}: {e}"
+                f"Fehler beim Abrufen von Property {self._property_path}"
             )
             self._value = None
 

@@ -1,7 +1,7 @@
 # comfoclime_api.py
 import asyncio
-import datetime
 import logging
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import requests
@@ -415,7 +415,7 @@ class ComfoClimeAPI:
 
         # Add timestamp to payload
         tz = ZoneInfo(self.hass.config.time_zone)
-        payload["timestamp"] = datetime.datetime.now(tz).isoformat()
+        payload["timestamp"] = datetime.now(tz).isoformat()
 
         headers = {"content-type": "application/json; charset=utf-8"}
         url = f"{self.base_url}/system/{self.uuid}/dashboard"
