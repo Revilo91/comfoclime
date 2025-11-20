@@ -502,7 +502,7 @@ class ComfoClimeClimate(
 
         Args:
             preset_mode: The preset mode to activate
-            duration: Optional duration in seconds for scenario modes. If not provided,
+            duration: Optional duration in minutes for scenario modes. If not provided,
                      default durations are used (30min for cooking/party/boost, 24h for holiday)
         """
         try:

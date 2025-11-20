@@ -282,7 +282,7 @@ class ComfoClimePropertyNumber(NumberEntity):
                 signed=self._signed,
             )
             self._value = value
-        except Exception as e:
-            _LOGGER.error(
-                f"Fehler beim Schreiben von Property {self._property_path}: {e}"
+        except Exception:
+            _LOGGER.exception(
+                f"Fehler beim Schreiben von Property {self._property_path}"
             )

@@ -95,5 +95,6 @@ set_scenario_mode:
       name: Startzeit
       description: Optionaler Startzeitpunkt (Datum und Uhrzeit). Wenn nicht angegeben, startet das Szenario sofort.
       required: false
+      example: "2025-11-20T14:30:00"
       selector:
         datetime:
