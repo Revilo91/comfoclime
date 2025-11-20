@@ -120,7 +120,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
         _LOGGER.debug(
             f"Service call: set_scenario_mode for {entity_id}, "
-            f"scenario={scenario}, duration={duration}"
+            f"scenario={scenario}, duration={duration}, start_delay={start_delay}"
         )
 
         # Get climate entity from component
@@ -147,7 +147,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
                 else:
                     _LOGGER.info(
                         f"Scenario mode '{scenario}' activated for {entity_id} "
-                        f"with duration {duration} min"
+                        f"with duration {duration} min and start_delay {start_delay}"
                     )
                     return
 
