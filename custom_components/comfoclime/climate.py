@@ -177,12 +177,8 @@ class ComfoClimeClimate(
         # HVAC modes
         self._attr_hvac_modes = list(HVAC_MODE_REVERSE_MAPPING.keys())
 
-        # Preset modes (automatic profiles + manual mode + scenario modes)
-        self._attr_preset_modes = (
-            [PRESET_MANUAL]
-            + list(PRESET_REVERSE_MAPPING.keys())
-            + list(SCENARIO_REVERSE_MAPPING.keys())
-        )
+        # Preset modes (automatic profiles + manual mode)
+        self._attr_preset_modes = [PRESET_MANUAL] + list(PRESET_REVERSE_MAPPING.keys())
 
         # Fan modes
         self._attr_fan_modes = list(FAN_MODE_REVERSE_MAPPING.keys())
@@ -332,15 +328,9 @@ class ComfoClimeClimate(
 
         Returns PRESET_MANUAL (none) if in manual mode (status=0 or setPointTemperature is set).
         Returns preset name (comfort/boost/eco) if in automatic mode (status=1).
-        Returns scenario mode (cooking/party/holiday/boost_mode) if a scenario is active.
         """
         if not self.coordinator.data:
             return None
-
-        # Check for active scenario mode first
-        scenario = self.coordinator.data.get("scenario")
-        if isinstance(scenario, int) and scenario in SCENARIO_MAPPING:
-            return SCENARIO_MAPPING[scenario]
 
         # Check if in manual mode by presence of setPointTemperature
         # or explicit status field (status=0 means manual mode)
@@ -490,48 +480,17 @@ class ComfoClimeClimate(
         except Exception:
             _LOGGER.exception(f"Failed to set HVAC mode {hvac_mode}")
 
-    async def async_set_preset_mode(
-        self, preset_mode: str, duration: int | None = None
-    ) -> None:
+    async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set preset mode via dashboard API.
 
         Setting PRESET_MANUAL (none) switches to manual temperature control mode.
         Setting other presets (comfort/boost/eco) activates automatic mode with
         both seasonProfile and temperatureProfile set to the selected preset value.
-        Setting scenario modes (cooking/party/holiday/boost_mode) activates special operating modes.
 
         Args:
             preset_mode: The preset mode to activate
-            duration: Optional duration in minutes for scenario modes. If not provided,
-                     default durations are used (30min for cooking/party/boost, 24h for holiday)
         """
         try:
-            # Scenario modes: Special operating modes
-            if preset_mode in SCENARIO_REVERSE_MAPPING:
-                scenario_value = SCENARIO_REVERSE_MAPPING[preset_mode]
-
-                # Determine scenario duration
-                if duration is None:
-                    # Use default duration from mapping
-                    duration = SCENARIO_DEFAULT_DURATIONS.get(scenario_value, 1800)
-
-                _LOGGER.debug(
-                    f"Activating scenario mode {preset_mode} (scenario={scenario_value}, "
-                    f"scenarioTimeLeft={duration}s) via dashboard API"
-                )
-
-                # Activate scenario mode with duration
-                # scenario field activates the mode
-                # scenarioTimeLeft sets the duration in minutes
-                await self.async_update_dashboard(
-                    scenario=scenario_value,
-                    scenario_time_left=duration,
-                )
-
-                # Schedule non-blocking refresh of coordinators
-                self._async_refresh_coordinators()
-                return
-
             # Manual mode: User wants to use manual temperature control
             if preset_mode == PRESET_MANUAL:
                 _LOGGER.debug(
