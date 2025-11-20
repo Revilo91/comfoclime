@@ -6,12 +6,12 @@ Die ComfoClime Integration unterstützt jetzt Szenario-Modi als Preset-Optionen 
 
 ## Verfügbare Szenario-Modi
 
-| Szenario    | Preset Name    | Wert | Standard-Dauer       | Beschreibung                             |
-| ----------- | -------------- | ---- | -------------------- | ---------------------------------------- |
-| 🍳 Kochen   | `cooking`    | 4    | 30 Minuten           | Hohe Lüftung für Kochaktivitäten      |
-| 🎉 Party    | `party`      | 5    | 30 Minuten           | Hohe Lüftung für Gäste                |
-| 🏖️ Urlaub | `holiday`    | 7    | 24 Stunden (1440min) | Reduzierter Betrieb während Abwesenheit |
-| ⚡ Boost    | `boost_mode` | 8    | 30 Minuten          | Maximale Leistung                        |
+| Szenario    | Preset Name | Wert | Standard-Dauer       | Beschreibung                             |
+| ----------- | ----------- | ---- | -------------------- | ---------------------------------------- |
+| 🍳 Kochen   | `cooking` | 4    | 30 Minuten           | Hohe Lüftung für Kochaktivitäten      |
+| 🎉 Party    | `party`   | 5    | 30 Minuten           | Hohe Lüftung für Gäste                |
+| 🏖️ Urlaub | `away`    | 7    | 24 Stunden (1440min) | Reduzierter Betrieb während Abwesenheit |
+| ⚡ Boost    | `boost`   | 8    | 30 Minuten           | Maximale Leistung                        |
 
 ## Verwendung
 
@@ -163,7 +163,7 @@ Beim Aktivieren eines Szenarios werden folgende Parameter an die Dashboard API g
 ```python
 {
     "scenario": 4,              # Szenario-Wert (4, 5, 7, oder 8)
-    "scenarioTimeLeft": 1800,   # Dauer in Sekunden
+    "scenarioTimeLeft": 1800,   # Dauer in Sekunden (interner API-Parameter; wird im Code aus Minuten * 60 berechnet, Benutzer geben die Dauer in Minuten an)
     "timestamp": "2024-11-12T10:30:00Z"
 }
 ```
