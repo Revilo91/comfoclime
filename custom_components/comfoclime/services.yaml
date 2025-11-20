@@ -77,9 +77,9 @@ set_scenario_mode:
             - label: "Party"
               value: "party"
             - label: "Urlaub"
-              value: "holiday"
+              value: "away"
             - label: "Boost"
-              value: "boost_mode"
+              value: "boost"
     duration:
       name: Dauer (Minuten)
       description: Optionale Dauer in Minuten (Standard ist voreingestellt pro Szenario)

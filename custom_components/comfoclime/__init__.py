@@ -105,7 +105,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         start_delay = call.data.get("start_delay")
 
         # Validate scenario parameter
-        valid_scenarios = ["cooking", "party", "holiday", "boost_mode"]
+        valid_scenarios = ["cooking", "party", "away", "boost"]
         if scenario not in valid_scenarios:
             raise HomeAssistantError(
                 f"Invalid scenario '{scenario}'. Must be one of: {', '.join(valid_scenarios)}"
