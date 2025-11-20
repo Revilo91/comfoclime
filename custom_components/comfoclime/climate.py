@@ -522,7 +522,7 @@ class ComfoClimeClimate(
 
                 # Activate scenario mode with duration
                 # scenario field activates the mode
-                # scenarioTimeLeft sets the duration in seconds
+                # scenarioTimeLeft sets the duration in minutes
                 await self.async_update_dashboard(
                     scenario=scenario_value,
                     scenario_time_left=duration,
@@ -583,7 +583,7 @@ class ComfoClimeClimate(
 
         Args:
             scenario_mode: The scenario mode to activate
-            duration:   Optional duration in seconds for scenario modes. If not provided,
+            duration:   Optional duration in minutes for scenario modes. If not provided,
                         default durations are used (30min for cooking/party/boost, 24h for holiday)
             start_delay: Optional delay as datetime string (e.g. "2025-11-21 12:00:00").
                         Will be converted to seconds from now.
