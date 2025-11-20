@@ -6,12 +6,12 @@ Die ComfoClime Integration unterstützt jetzt Szenario-Modi als Preset-Optionen 
 
 ## Verfügbare Szenario-Modi
 
-| Szenario | Preset Name | Wert | Standard-Dauer | Beschreibung |
-|----------|-------------|------|----------------|--------------|
-| 🍳 Kochen | `cooking` | 4 | 30 Minuten (1800s) | Hohe Lüftung für Kochaktivitäten |
-| 🎉 Party | `party` | 5 | 30 Minuten (1800s) | Hohe Lüftung für Gäste |
-| 🏖️ Urlaub | `holiday` | 7 | 24 Stunden (86400s) | Reduzierter Betrieb während Abwesenheit |
-| ⚡ Boost | `boost_mode` | 8 | 30 Minuten (1800s) | Maximale Leistung |
+| Szenario    | Preset Name    | Wert | Standard-Dauer       | Beschreibung                             |
+| ----------- | -------------- | ---- | -------------------- | ---------------------------------------- |
+| 🍳 Kochen   | `cooking`    | 4    | 30 Minuten           | Hohe Lüftung für Kochaktivitäten      |
+| 🎉 Party    | `party`      | 5    | 30 Minuten           | Hohe Lüftung für Gäste                |
+| 🏖️ Urlaub | `holiday`    | 7    | 24 Stunden (1440min) | Reduzierter Betrieb während Abwesenheit |
+| ⚡ Boost    | `boost_mode` | 8    | 30 Minuten          | Maximale Leistung                        |
 
 ## Verwendung
 
@@ -172,10 +172,10 @@ Beim Aktivieren eines Szenarios werden folgende Parameter an die Dashboard API g
 
 ```python
 SCENARIO_DEFAULT_DURATIONS = {
-    4: 1800,   # Kochen: 30 Minuten
-    5: 1800,   # Party: 30 Minuten
-    7: 86400,  # Urlaub: 24 Stunden
-    8: 1800,   # Boost: 30 Minuten
+    4: 30,   # Kochen: 30 Minuten
+    5: 30,   # Party: 30 Minuten
+    7: 1440,  # Urlaub: 24 Stunden
+    8: 30,   # Boost: 30 Minuten
 }
 ```
 
@@ -197,6 +197,7 @@ SCENARIO_DEFAULT_DURATIONS = {
 ### Restzeit wird nicht angezeigt
 
 Die Restzeit wird als Attribut der Climate Entity bereitgestellt. Stelle sicher, dass:
+
 - Die Dashboard-Daten erfolgreich abgerufen werden
 - Der Coordinator läuft (Update-Intervall: 30 Sekunden)
 
