@@ -1,13 +1,16 @@
 """Climate platform for ComfoClime integration."""
 
 import logging
+from datetime import datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from homeassistant.components.climate import (
     FAN_HIGH,
     FAN_LOW,
     FAN_MEDIUM,
     FAN_OFF,
+    PRESET_AWAY,
     PRESET_BOOST,
     PRESET_COMFORT,
     PRESET_ECO,
@@ -55,15 +58,13 @@ SCENARIO_BOOST_MODE = 8  # Boost - 30 minutes maximum power
 
 PRESET_SCENARIO_COOKING = "cooking"
 PRESET_SCENARIO_PARTY = "party"
-PRESET_SCENARIO_HOLIDAY = "holiday"
-PRESET_SCENARIO_BOOST_MODE = "boost_mode"
 
 # Scenario mapping
 SCENARIO_MAPPING = {
     SCENARIO_COOKING: PRESET_SCENARIO_COOKING,
     SCENARIO_PARTY: PRESET_SCENARIO_PARTY,
-    SCENARIO_HOLIDAY: PRESET_SCENARIO_HOLIDAY,
-    SCENARIO_BOOST_MODE: PRESET_SCENARIO_BOOST_MODE,
+    SCENARIO_HOLIDAY: PRESET_AWAY,
+    SCENARIO_BOOST_MODE: PRESET_BOOST,
 }
 
 SCENARIO_REVERSE_MAPPING = {v: k for k, v in SCENARIO_MAPPING.items()}
@@ -72,7 +73,7 @@ SCENARIO_REVERSE_MAPPING = {v: k for k, v in SCENARIO_MAPPING.items()}
 SCENARIO_DEFAULT_DURATIONS = {
     SCENARIO_COOKING: 30,
     SCENARIO_PARTY: 30,
-    SCENARIO_HOLIDAY: 1440,  # 24h
+    SCENARIO_HOLIDAY: 1440,  # 24 hours
     SCENARIO_BOOST_MODE: 30,
 }
 
@@ -533,7 +534,7 @@ class ComfoClimeClimate(
             _LOGGER.exception(f"Failed to set preset mode {preset_mode}")
 
     async def async_set_scenario_mode(
-        self, scenario_mode: str, duration: int, start_delay: int = None
+        self, scenario_mode: str, duration: int, start_delay: str = None
     ) -> None:
         """Set preset mode via dashboard API.
 
@@ -541,9 +542,12 @@ class ComfoClimeClimate(
 
         Args:
             scenario_mode: The scenario mode to activate
-            duration:   Optional duration in seconds for scenario modes. If not provided,
+            duration:   Optional duration in minutes for scenario modes. If not provided,
                         default durations are used (30min for cooking/party/boost, 24h for holiday)
+            start_delay: Optional delay as datetime string (e.g. "2025-11-21 12:00:00").
+                        Will be converted to seconds from now.
         """
+
         try:
             # Scenario modes: Special operating modes
             if scenario_mode in SCENARIO_REVERSE_MAPPING:
@@ -554,9 +558,43 @@ class ComfoClimeClimate(
                     # Use default duration from mapping
                     duration = SCENARIO_DEFAULT_DURATIONS.get(scenario_value, 30)
 
+                # Calculate start_delay in seconds from now
+                start_delay_seconds = None
+                if start_delay is not None:
+                    try:
+                        # Get Home Assistant's timezone
+                        tz = ZoneInfo(self.hass.config.time_zone)
+
+                        # Parse target time and localize to HA timezone
+                        target_time = datetime.fromisoformat(start_delay)
+                        if target_time.tzinfo is None:
+                            # If no timezone info, assume HA's timezone
+                            target_time = target_time.replace(tzinfo=tz)
+
+                        # Get current time in HA timezone
+                        now = datetime.now(tz)
+
+                        # Calculate delta
+                        delta = target_time - now
+                        start_delay_seconds = int(delta.total_seconds())
+
+                        if start_delay_seconds < 0:
+                            _LOGGER.warning(
+                                f"Start delay time {start_delay} is in the past, ignoring"
+                            )
+                            start_delay_seconds = None
+                    except ValueError:
+                        _LOGGER.exception(
+                            f"Invalid start_delay format '{start_delay}'. "
+                            "Expected ISO format like '2025-11-21 12:00:00'"
+                        )
+                        start_delay_seconds = None
+                elif start_delay is None and scenario_mode == SCENARIO_MAPPING[SCENARIO_HOLIDAY]:
+                    _LOGGER.warning("No start_delay provided for holiday scenario!")
+
                 _LOGGER.debug(
                     f"Activating scenario mode {scenario_mode} (scenario={scenario_value}, "
-                    f"scenarioTimeLeft={duration}min) via dashboard API"
+                    f"scenarioTimeLeft={duration}min, scenarioStartDelay={start_delay_seconds}s) via dashboard API"
                 )
 
                 # Activate scenario mode with duration
@@ -565,9 +603,7 @@ class ComfoClimeClimate(
                 await self.async_update_dashboard(
                     scenario=scenario_value,
                     scenario_time_left=duration * 60,
-                    scenario_start_delay=(
-                        start_delay * 60 if start_delay is not None else None
-                    ),
+                    scenario_start_delay=start_delay_seconds,
                 )
 
                 # Schedule non-blocking refresh of coordinators
@@ -609,12 +645,31 @@ class ComfoClimeClimate(
 
         Exposes all available data from the ComfoClime Dashboard API interface:
         - Dashboard data from /system/{UUID}/dashboard
+        - Scenario time left (remaining duration of active scenario in seconds)
         """
         attrs = {}
 
         # Add complete dashboard data from Dashboard API interface
         if self.coordinator.data:
             attrs["dashboard"] = self.coordinator.data
+
+            # Add scenario time left as a separate attribute for easier access
+            scenario_time_left = self.coordinator.data.get("scenarioTimeLeft")
+            if scenario_time_left is not None:
+                attrs["scenario_time_left"] = scenario_time_left
+                # Convert to human-readable format
+                hours, remainder = divmod(scenario_time_left, 3600)
+                minutes, seconds = divmod(remainder, 60)
+                if hours > 0:
+                    attrs["scenario_time_left_formatted"] = (
+                        f"{int(hours)}h {int(minutes)}m"
+                    )
+                elif minutes > 0:
+                    attrs["scenario_time_left_formatted"] = (
+                        f"{int(minutes)}m {int(seconds)}s"
+                    )
+                else:
+                    attrs["scenario_time_left_formatted"] = f"{int(seconds)}s"
 
         # For transparency: expose last_manual_temperature from thermal profile if available
         tp = getattr(self._thermalprofile_coordinator, "data", None) or {}

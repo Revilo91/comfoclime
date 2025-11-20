@@ -115,8 +115,8 @@ class ComfoClimeSelect(
             for k in self._key_path:
                 val = val.get(k)
             self._current = self._options_map.get(val)
-        except Exception as e:
-            _LOGGER.error(f"Fehler beim Laden von {self._name}: {e}")
+        except Exception:
+            _LOGGER.exception(f"Fehler beim Laden von {self._name}")
         self.async_write_ha_state()
 
     def select_option(self, option: str):
@@ -136,8 +136,8 @@ class ComfoClimeSelect(
 
             self._current = option
             self._hass.add_job(self.coordinator.async_request_refresh)
-        except Exception as e:
-            _LOGGER.error(f"Fehler beim Setzen von {self._name}: {e}")
+        except Exception:
+            _LOGGER.exception(f"Fehler beim Setzen von {self._name}")
 
 
 class ComfoClimePropertySelect(SelectEntity):
@@ -185,8 +185,8 @@ class ComfoClimePropertySelect(SelectEntity):
                 self._hass, self._device["uuid"], self._path, byte_count=1
             )
             self._current = self._options_map.get(val)
-        except Exception as e:
-            _LOGGER.error(f"Fehler beim Laden von {self._name}: {e}")
+        except Exception:
+            _LOGGER.exception(f"Fehler beim Laden von {self._name}")
 
     def select_option(self, option: str):
         value = self._options_reverse.get(option)
@@ -199,5 +199,5 @@ class ComfoClimePropertySelect(SelectEntity):
             )
             self._current = option
 
-        except Exception as e:
-            _LOGGER.error(f"Fehler beim Setzen von {self._name}: {e}")
+        except Exception:
+            _LOGGER.exception(f"Fehler beim Setzen von {self._name}")
