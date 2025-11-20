@@ -40,7 +40,7 @@ service: comfoclime.set_scenario_mode
 data:
   entity_id: climate.comfoclime
   scenario: cooking
-  duration: 3600  # 1 Stunde in Sekunden
+  duration: 60  # 1 Stunde in Sekunden
 ```
 
 ### Via Automation
@@ -70,7 +70,7 @@ service: comfoclime.set_scenario_mode
 data:
   entity_id: climate.comfoclime
   scenario: party
-  duration: 7200
+  duration: 120
 ```
 
 ## Restzeit-Anzeige
@@ -142,7 +142,7 @@ cards:
       service: climate.set_preset_mode
       service_data:
         entity_id: climate.comfoclime
-        preset_mode: holiday
+        preset_mode: away
   - type: button
     name: Boost
     icon: mdi:rocket-launch
@@ -151,7 +151,7 @@ cards:
       service: climate.set_preset_mode
       service_data:
         entity_id: climate.comfoclime
-        preset_mode: boost_mode
+        preset_mode: boost
 ```
 
 ## API Details
