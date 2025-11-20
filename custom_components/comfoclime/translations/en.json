@@ -242,19 +242,19 @@
                             "comfort": "Comfort",
                             "power": "Power",
                             "eco": "Eco",
-                        "cooking": "Cooking",
-                        "party": "Party",
-                        "away": "Off/Holiday",
-                        "boost": "Boost"
-                    },
-                    "state_icon": {
-                        "comfort": "mdi:home-thermometer",
-                        "power": "mdi:flash",
-                        "eco": "mdi:leaf",
-                        "cooking": "mdi:pot-steam",
-                        "party": "mdi:party-popper",
-                        "away": "mdi:beach",
-                        "boost": "mdi:rocket-launch"
+                            "cooking": "Cooking",
+                            "party": "Party",
+                            "away": "Off/Holiday",
+                            "boost": "Boost"
+                        },
+                        "state_icon": {
+                            "comfort": "mdi:home-thermometer",
+                            "power": "mdi:flash",
+                            "eco": "mdi:leaf",
+                            "cooking": "mdi:pot-steam",
+                            "party": "mdi:party-popper",
+                            "away": "mdi:beach",
+                            "boost": "mdi:rocket-launch"
                         }
                     },
                     "fan_mode": {
