@@ -3,6 +3,7 @@
 import logging
 from datetime import datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from homeassistant.components.climate import (
     FAN_HIGH,
@@ -589,6 +590,7 @@ class ComfoClimeClimate(
             start_delay: Optional delay as datetime string (e.g. "2025-11-21 12:00:00").
                         Will be converted to seconds from now.
         """
+
         try:
             # Scenario modes: Special operating modes
             if scenario_mode in SCENARIO_REVERSE_MAPPING:
@@ -603,8 +605,20 @@ class ComfoClimeClimate(
                 start_delay_seconds = None
                 if start_delay is not None:
                     try:
+                        # Get Home Assistant's timezone
+                        tz = ZoneInfo(self.hass.config.time_zone)
+
+                        # Parse target time and localize to HA timezone
                         target_time = datetime.fromisoformat(start_delay)
-                        delta = target_time - datetime.now()
+                        if target_time.tzinfo is None:
+                            # If no timezone info, assume HA's timezone
+                            target_time = target_time.replace(tzinfo=tz)
+
+                        # Get current time in HA timezone
+                        now = datetime.now(tz)
+
+                        # Calculate delta
+                        delta = target_time - now
                         start_delay_seconds = int(delta.total_seconds())
 
                         if start_delay_seconds < 0:
@@ -618,6 +632,8 @@ class ComfoClimeClimate(
                             "Expected ISO format like '2025-11-21 12:00:00'"
                         )
                         start_delay_seconds = None
+                elif start_delay is None and scenario_mode == 7:
+                    _LOGGER.warning("No start_delay provided for holiday scenario!")
 
                 _LOGGER.debug(
                     f"Activating scenario mode {scenario_mode} (scenario={scenario_value}, "

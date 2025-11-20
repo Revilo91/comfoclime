@@ -5,6 +5,8 @@ import logging
 
 import requests
 
+from zoneinfo import ZoneInfo
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -413,7 +415,8 @@ class ComfoClimeAPI:
             return {}
 
         # Add timestamp to payload
-        payload["timestamp"] = datetime.datetime.now().isoformat()
+        tz = ZoneInfo(self.hass.config.time_zone)
+        payload["timestamp"] = datetime.datetime.now(tz).isoformat()
 
         headers = {"content-type": "application/json; charset=utf-8"}
         url = f"{self.base_url}/system/{self.uuid}/dashboard"
