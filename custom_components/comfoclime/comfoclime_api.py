@@ -2,10 +2,9 @@
 import asyncio
 import datetime
 import logging
+from zoneinfo import ZoneInfo
 
 import requests
-
-from zoneinfo import ZoneInfo
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -202,8 +201,8 @@ class ComfoClimeAPI:
             response = requests.get(url, timeout=5)
             response.raise_for_status()
             payload = response.json()
-        except Exception as e:
-            _LOGGER.error(f"Fehler beim Abrufen der Property {property_path}: {e}")
+        except Exception:
+            _LOGGER.exception(f"Fehler beim Abrufen der Property {property_path}")
             return None
 
         data = payload.get("data")
@@ -428,10 +427,11 @@ class ComfoClimeAPI:
             except Exception:
                 resp_json = {"text": response.text}
             _LOGGER.debug(f"Dashboard update OK payload={payload} response={resp_json}")
-            return resp_json
-        except Exception as e:
-            _LOGGER.error(f"Error updating dashboard (payload={payload}): {e}")
+        except Exception:
+            _LOGGER.exception(f"Error updating dashboard (payload={payload})")
             raise
+        else:
+            return resp_json
 
     async def async_update_dashboard(self, hass, **kwargs):
         """Async wrapper for update_dashboard method."""
@@ -525,9 +525,9 @@ class ComfoClimeAPI:
         try:
             response = requests.put(url, json=payload, timeout=5)
             response.raise_for_status()
-        except Exception as e:
-            _LOGGER.error(
-                f"Fehler beim Schreiben von Property {property_path} mit Payload {payload}: {e}"
+        except Exception:
+            _LOGGER.exception(
+                f"Fehler beim Schreiben von Property {property_path} mit Payload {payload}"
             )
             raise
 

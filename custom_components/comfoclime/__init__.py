@@ -76,16 +76,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             )
             _LOGGER.info(f"Property {path} auf {value} gesetzt für {device_uuid}")
         except Exception as e:
-            _LOGGER.error(f"Fehler beim Setzen von Property {path}: {e}")
-            raise HomeAssistantError(f"Fehler beim Setzen von Property {path}: {e}")
+            _LOGGER.exception(f"Fehler beim Setzen von Property {path}")
+            raise HomeAssistantError(f"Fehler beim Setzen von Property {path}: {e}") from e
 
     async def handle_reset_system_service(call: ServiceCall):
         try:
             await api.async_reset_system(hass)
             _LOGGER.info("ComfoClime Neustart ausgelöst")
         except Exception as e:
-            _LOGGER.error(f"Fehler beim Neustart des Geräts: {e}")
-            raise HomeAssistantError(f"Fehler beim Neustart des Geräts: {e}")
+            _LOGGER.exception("Fehler beim Neustart des Geräts")
+            raise HomeAssistantError(f"Fehler beim Neustart des Geräts: {e}") from e
 
     async def handle_set_scenario_mode_service(call: ServiceCall):
         """Handle set_scenario_mode service call.
@@ -144,9 +144,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
                         start_delay=start_delay,
                     )
                 except Exception as e:
-                    _LOGGER.error(
-                        f"Error setting scenario mode '{scenario}' on {entity_id}: {e}",
-                        exc_info=True,
+                    _LOGGER.exception(
+                        f"Error setting scenario mode '{scenario}' on {entity_id}"
                     )
                     raise HomeAssistantError(
                         f"Failed to set scenario mode '{scenario}': {e}"

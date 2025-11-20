@@ -51,8 +51,8 @@ async def async_setup_entry(
     # UUID abrufen
     try:
         await api.async_get_uuid(hass)
-    except Exception as e:
-        _LOGGER.error(f"Fehler beim Abrufen der UUID: {e}")
+    except Exception:
+        _LOGGER.exception("Fehler beim Abrufen der UUID")
         return
 
     # Dashboard-Daten abrufen (optional beim Start)
@@ -351,8 +351,8 @@ class ComfoClimeTelemetrySensor(SensorEntity):
                 self._signed,
                 self._byte_count,
             )
-        except Exception as e:
-            _LOGGER.error(f"Fehler beim Aktualisieren von Telemetrie {self._id}: {e}")
+        except Exception:
+            _LOGGER.exception(f"Fehler beim Aktualisieren von Telemetrie {self._id}")
             self._state = None
 
 
@@ -430,6 +430,6 @@ class ComfoClimePropertySensor(SensorEntity):
                 self._state = VALUE_MAPPINGS[self._mapping_key].get(value, value)
             else:
                 self._state = value
-        except Exception as e:
-            _LOGGER.error(f"Fehler beim Abrufen von Property {self._path}: {e}")
+        except Exception:
+            _LOGGER.exception(f"Fehler beim Abrufen von Property {self._path}")
             self._state = None

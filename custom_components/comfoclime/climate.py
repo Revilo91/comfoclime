@@ -626,9 +626,9 @@ class ComfoClimeClimate(
                                 f"Start delay time {start_delay} is in the past, ignoring"
                             )
                             start_delay_seconds = None
-                    except ValueError as e:
-                        _LOGGER.error(
-                            f"Invalid start_delay format '{start_delay}': {e}. "
+                    except ValueError:
+                        _LOGGER.exception(
+                            f"Invalid start_delay format '{start_delay}'. "
                             "Expected ISO format like '2025-11-21 12:00:00'"
                         )
                         start_delay_seconds = None
