@@ -573,7 +573,7 @@ class ComfoClimeClimate(
             _LOGGER.exception(f"Failed to set preset mode {preset_mode}")
 
     async def async_set_scenario_mode(
-        self, scenario_mode: str, duration: int, start_delay: int = None
+        self, scenario_mode: str, duration: int, start_delay = None
     ) -> None:
         """Set preset mode via dashboard API.
 
@@ -596,7 +596,7 @@ class ComfoClimeClimate(
 
                 _LOGGER.debug(
                     f"Activating scenario mode {scenario_mode} (scenario={scenario_value}, "
-                    f"scenarioTimeLeft={duration}min) via dashboard API"
+                    f"scenarioTimeLeft={duration}min, scenarioStartDelay={start_delay}) via dashboard API"
                 )
 
                 # Activate scenario mode with duration
