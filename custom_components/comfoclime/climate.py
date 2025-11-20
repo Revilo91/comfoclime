@@ -532,7 +532,9 @@ class ComfoClimeClimate(
         except Exception:
             _LOGGER.exception(f"Failed to set preset mode {preset_mode}")
 
-    async def async_set_scenario_mode(self, scenario_mode: str, duration: int) -> None:
+    async def async_set_scenario_mode(
+        self, scenario_mode: str, duration: int, start_delay: int = None
+    ) -> None:
         """Set preset mode via dashboard API.
 
         Setting scenario modes (cooking/party/holiday/boost_mode) activates special operating modes.
@@ -563,6 +565,9 @@ class ComfoClimeClimate(
                 await self.async_update_dashboard(
                     scenario=scenario_value,
                     scenario_time_left=duration * 60,
+                    scenario_start_delay=(
+                        start_delay * 60 if start_delay is not None else None
+                    ),
                 )
 
                 # Schedule non-blocking refresh of coordinators
