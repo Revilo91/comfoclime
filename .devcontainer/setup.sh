@@ -8,7 +8,12 @@ echo "Setting up ComfoClime development environment..."
 # Install system dependencies
 echo "Installing system dependencies..."
 sudo apt-get update -qq
-sudo apt-get install -y libpcap-dev
+sudo apt-get install -y build-essential python3.13 python3.13-dev python3.13-venv libpcap-dev
+
+# Bootstrap pip for Python 3.13
+echo "Bootstrapping pip for Python 3.13..."
+python3.13 -m ensurepip --upgrade
+python3.13 -m pip install --upgrade pip wheel setuptools
 
 # Determine config directory
 if [ -d "/config" ]; then
@@ -23,8 +28,11 @@ fi
 # Create custom_components directory in Home Assistant config
 mkdir -p "$CONFIG_DIR/custom_components"
 
+# Remove existing symlink if present to avoid recursion
+rm -f "$CONFIG_DIR/custom_components/comfoclime"
+
 # Create symbolic link to our custom component
-ln -sf /workspaces/comfoclime/custom_components/comfoclime "$CONFIG_DIR/custom_components/comfoclime"
+ln -s /workspaces/comfoclime/custom_components/comfoclime "$CONFIG_DIR/custom_components/comfoclime"
 
 # Copy configuration files to Home Assistant config directory
 cp /workspaces/comfoclime/.devcontainer/configuration.yaml "$CONFIG_DIR/configuration.yaml"
