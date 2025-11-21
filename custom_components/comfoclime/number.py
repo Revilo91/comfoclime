@@ -212,10 +212,10 @@ class ComfoClimePropertyNumber(CoordinatorEntity, NumberEntity):
         self._entry = entry
         self._value = None
 
-        self._property_path = config["property"]
+        self._path = config["property"]
         self._attr_translation_key = config.get("translation_key")
         self._attr_unique_id = (
-            f"{entry.entry_id}_property_number_{self._property_path.replace('/', '_')}"
+            f"{entry.entry_id}_property_number_{self._path.replace('/', '_')}"
         )
         self._attr_config_entry_id = entry.entry_id
         self._attr_has_entity_name = True
@@ -233,18 +233,18 @@ class ComfoClimePropertyNumber(CoordinatorEntity, NumberEntity):
         self._byte_count = config.get("byte_count", 2)
 
         _LOGGER.debug(
-            f"ComfoClimePropertyNumber initialized: path={self._property_path}, "
+            f"ComfoClimePropertyNumber initialized: path={self._path}, "
             f"device={device.get('uuid')}, unique_id={self._attr_unique_id}"
         )
 
         # Register property with coordinator
         try:
-            parts = self._property_path.split("/")
+            parts = self._path.split("/")
             if len(parts) == 3:
                 unit, subunit, prop = map(int, parts)
                 self.coordinator.register_property(unit, subunit, prop, self._faktor, self._signed)
         except ValueError:
-            _LOGGER.error(f"Invalid property path: {self._property_path}")
+            _LOGGER.error(f"Invalid property path: {self._path}")
 
     @property
     def name(self):
@@ -274,19 +274,19 @@ class ComfoClimePropertyNumber(CoordinatorEntity, NumberEntity):
             await self._api.async_set_property_for_device(
                 self._hass,
                 self._device["uuid"],
-                self._property_path,
+                self._path,
                 value,
                 byte_count=self._byte_count,
                 faktor=self._faktor,
                 signed=self._signed,
             )
             # Optimistic update
-            key = f"property_{self._property_path.replace('/', '_')}"
+            key = f"property_{self._path.replace('/', '_')}"
             if self.coordinator.data is None:
                 self.coordinator.data = {}
             self.coordinator.data[key] = value
             self.async_write_ha_state()
         except Exception:
             _LOGGER.exception(
-                f"Fehler beim Schreiben von Property {self._property_path}"
+                f"Fehler beim Schreiben von Property {self._path}"
             )
