@@ -25,6 +25,10 @@ async def async_setup_entry(
     api = ComfoClimeAPI(f"http://{host}")
     await api.async_get_uuid(hass)
     devices = hass.data[DOMAIN][entry.entry_id]["devices"]
+    try:
+        device_coordinators = hass.data[DOMAIN][entry.entry_id]["device_coordinators"]
+    except KeyError:
+        device_coordinators = {}
     main_device = hass.data[DOMAIN][entry.entry_id]["main_device"]
 
     data = hass.data[DOMAIN][entry.entry_id]
@@ -54,12 +58,17 @@ async def async_setup_entry(
             f"Found {len(number_properties)} number properties for model_id {model_id}"
         )
 
+        coordinator = device_coordinators.get(dev_uuid)
+        if not coordinator:
+            continue
+
         for number_def in number_properties:
             _LOGGER.debug(f"Creating number entity for property: {number_def}")
             entities.extend(
                 [
                     ComfoClimePropertyNumber(
                         hass=hass,
+                        coordinator=coordinator,
                         api=api,
                         config=number_def,
                         device=device,
@@ -191,10 +200,11 @@ class ComfoClimeTemperatureNumber(
             _LOGGER.error(f"Fehler beim Setzen von {self._name}: {e}")
 
 
-class ComfoClimePropertyNumber(NumberEntity):
-    _attr_should_poll = True
+class ComfoClimePropertyNumber(CoordinatorEntity, NumberEntity):
+    _attr_should_poll = False
 
-    def __init__(self, hass, api, config, device, entry):
+    def __init__(self, hass, coordinator, api, config, device, entry):
+        super().__init__(coordinator)
         self._hass = hass
         self._api = api
         self._config = config
@@ -227,13 +237,23 @@ class ComfoClimePropertyNumber(NumberEntity):
             f"device={device.get('uuid')}, unique_id={self._attr_unique_id}"
         )
 
+        # Register property with coordinator
+        try:
+            parts = self._property_path.split("/")
+            if len(parts) == 3:
+                unit, subunit, prop = map(int, parts)
+                self.coordinator.register_property(unit, subunit, prop, self._faktor, self._signed)
+        except ValueError:
+            _LOGGER.error(f"Invalid property path: {self._property_path}")
+
     @property
     def name(self):
         return self._config.get("name", "Property Number")
 
     @property
     def native_value(self):
-        return self._value
+        key = f"property_{self._property_path.replace('/', '_')}"
+        return self.coordinator.data.get(key)
 
     @property
     def device_info(self):
@@ -247,29 +267,6 @@ class ComfoClimePropertyNumber(NumberEntity):
             sw_version=self._device.get("version"),
         )
 
-    async def async_update(self):
-        _LOGGER.debug(
-            f"async_update called for {self._property_path} (device {self._device['uuid']})"
-        )
-        try:
-            value = await self._api.async_read_property_for_device(
-                self._hass,
-                self._device["uuid"],
-                self._property_path,
-                faktor=self._faktor,
-                signed=self._signed,
-                byte_count=self._byte_count,
-            )
-            _LOGGER.debug(
-                f"Property {self._property_path} updated: {value}"
-            )
-            self._value = value
-        except Exception:
-            _LOGGER.exception(
-                f"Fehler beim Abrufen von Property {self._property_path}"
-            )
-            self._value = None
-
     async def async_set_native_value(self, value):
         try:
             await self._api.async_set_property_for_device(
@@ -281,7 +278,12 @@ class ComfoClimePropertyNumber(NumberEntity):
                 faktor=self._faktor,
                 signed=self._signed,
             )
-            self._value = value
+            # Optimistic update
+            key = f"property_{self._property_path.replace('/', '_')}"
+            if self.coordinator.data is None:
+                self.coordinator.data = {}
+            self.coordinator.data[key] = value
+            self.async_write_ha_state()
         except Exception:
             _LOGGER.exception(
                 f"Fehler beim Schreiben von Property {self._property_path}"

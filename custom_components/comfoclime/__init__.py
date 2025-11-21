@@ -12,6 +12,7 @@ from .comfoclime_api import ComfoClimeAPI
 from .coordinator import (
     ComfoClimeDashboardCoordinator,
     ComfoClimeThermalprofileCoordinator,
+    ComfoClimeDeviceCoordinator,
 )
 
 DOMAIN = "comfoclime"
@@ -39,12 +40,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     thermalprofile_coordinator = ComfoClimeThermalprofileCoordinator(hass, api)
     await thermalprofile_coordinator.async_config_entry_first_refresh()
     devices = await api.async_get_connected_devices(hass)
+
+    device_coordinators = {}
+    for device in devices:
+        uuid = device.get("uuid")
+        if uuid:
+            coord = ComfoClimeDeviceCoordinator(hass, api, uuid)
+            # We don't await first refresh here because sensors will register themselves first
+            # and then we can trigger a refresh or let the first interval hit.
+            # Actually, better to let them register and then refresh?
+            # Or just let the first update interval handle it.
+            # Let's trigger a refresh after entities are added?
+            # For now, just create it.
+            # await coord.async_config_entry_first_refresh()
+            # Calling first refresh with no registered entities is useless.
+            device_coordinators[uuid] = coord
+
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
     hass.data[DOMAIN][entry.entry_id] = {
         "api": api,
         "coordinator": dashboard_coordinator,
         "tpcoordinator": thermalprofile_coordinator,
+        "device_coordinators": device_coordinators,
         "devices": devices,
         "main_device": next((d for d in devices if d.get("modelTypeId") == 20), None),
     }

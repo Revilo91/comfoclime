@@ -129,9 +129,11 @@ async def async_setup_entry(
     # Verbundene Geräte abrufen
     try:
         devices = hass.data[DOMAIN][entry.entry_id]["devices"]
+        device_coordinators = hass.data[DOMAIN][entry.entry_id]["device_coordinators"]
     except Exception as e:
         _LOGGER.warning(f"Verbundene Geräte konnten nicht geladen werden: {e}")
         devices = []
+        device_coordinators = {}
 
     for device in devices:
         model_id = device.get("modelTypeId")
@@ -143,6 +145,11 @@ async def async_setup_entry(
         if not sensor_defs:
             continue
 
+        coordinator = device_coordinators.get(dev_uuid)
+        if not coordinator:
+            _LOGGER.warning(f"Kein Coordinator für Gerät {dev_uuid} gefunden")
+            continue
+
         for sensor_def in sensor_defs:
             if not sensor_def.get("diagnose", False) or entry.options.get(
                 "enable_diagnostics", False
@@ -151,6 +158,7 @@ async def async_setup_entry(
                     [
                         ComfoClimeTelemetrySensor(
                             hass=hass,
+                            coordinator=coordinator,
                             api=api,
                             telemetry_id=sensor_def["telemetry_id"],
                             name=sensor_def["name"],
@@ -175,6 +183,7 @@ async def async_setup_entry(
         sensors.extend(
             ComfoClimePropertySensor(
                 hass=hass,
+                coordinator=coordinator,
                 api=api,
                 path=prop_def["path"],
                 name=prop_def["name"],
@@ -282,10 +291,11 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
         self.async_write_ha_state()
 
 
-class ComfoClimeTelemetrySensor(SensorEntity):
+class ComfoClimeTelemetrySensor(CoordinatorEntity, SensorEntity):
     def __init__(
         self,
         hass,
+        coordinator,
         api,
         telemetry_id,
         name,
@@ -301,6 +311,7 @@ class ComfoClimeTelemetrySensor(SensorEntity):
         override_device_uuid=None,
         entry=None,
     ):
+        super().__init__(coordinator)
         self._hass = hass
         self._api = api
         self._id = telemetry_id
@@ -324,9 +335,12 @@ class ComfoClimeTelemetrySensor(SensorEntity):
             self._attr_translation_key = translation_key
         self._attr_has_entity_name = True
 
+        # Register with coordinator
+        self.coordinator.register_telemetry(telemetry_id)
+
     @property
-    def state(self):
-        return self._state
+    def native_value(self):
+        return self.coordinator.data.get(f"telemetry_{self._id}")
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -341,25 +355,12 @@ class ComfoClimeTelemetrySensor(SensorEntity):
             sw_version=self._device.get("version", None),
         )
 
-    async def async_update(self):
-        try:
-            self._state = await self._api.async_read_telemetry_for_device(
-                self._hass,
-                self._override_uuid or self._api.uuid,
-                self._id,
-                self._faktor,
-                self._signed,
-                self._byte_count,
-            )
-        except Exception:
-            _LOGGER.exception(f"Fehler beim Aktualisieren von Telemetrie {self._id}")
-            self._state = None
 
-
-class ComfoClimePropertySensor(SensorEntity):
+class ComfoClimePropertySensor(CoordinatorEntity, SensorEntity):
     def __init__(
         self,
         hass,
+        coordinator,
         api,
         path: str,
         name: str,
@@ -377,6 +378,7 @@ class ComfoClimePropertySensor(SensorEntity):
         override_device_uuid: str | None = None,
         entry: ConfigEntry,
     ):
+        super().__init__(coordinator)
         self._hass = hass
         self._api = api
         self._path = path
@@ -400,9 +402,24 @@ class ComfoClimePropertySensor(SensorEntity):
             self._attr_translation_key = translation_key
         self._attr_has_entity_name = True
 
+        # Register property with coordinator
+        # Parse path "unit/subunit/prop"
+        try:
+            parts = path.split("/")
+            if len(parts) == 3:
+                unit, subunit, prop = map(int, parts)
+                self.coordinator.register_property(unit, subunit, prop, faktor, signed)
+        except ValueError:
+            _LOGGER.error(f"Invalid property path: {path}")
+
     @property
     def native_value(self):
-        return self._state
+        key = f"property_{self._path.replace('/', '_')}"
+        value = self.coordinator.data.get(key)
+
+        if self._mapping_key and self._mapping_key in VALUE_MAPPINGS:
+            return VALUE_MAPPINGS[self._mapping_key].get(value, value)
+        return value
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -415,21 +432,3 @@ class ComfoClimePropertySensor(SensorEntity):
             model=self._device.get("@modelType"),
             sw_version=self._device.get("version"),
         )
-
-    async def async_update(self):
-        try:
-            value = await self._api.async_read_property_for_device(
-                self._hass,
-                self._override_uuid or self._api.uuid,
-                self._path,
-                self._faktor,
-                self._signed,
-                self._byte_count,
-            )
-            if self._mapping_key and self._mapping_key in VALUE_MAPPINGS:
-                self._state = VALUE_MAPPINGS[self._mapping_key].get(value, value)
-            else:
-                self._state = value
-        except Exception:
-            _LOGGER.exception(f"Fehler beim Abrufen von Property {self._path}")
-            self._state = None

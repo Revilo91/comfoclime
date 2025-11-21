@@ -143,7 +143,7 @@ class ComfoClimeModeSwitch(
         try:
             self._api.update_thermal_profile(updates)
             self._state = value == 1
-            self.hass.create_task(self.coordinator.async_request_refresh())
+            self.async_write_ha_state()
 
         except Exception as e:
             _LOGGER.error(f"Fehler beim Setzen von {self._name}: {e}")
@@ -219,7 +219,7 @@ class ComfoClimeStandbySwitch(
             if value == 1:
                 self._api.update_dashboard(hp_standby=False)
             self._state = value == 1
-            self.hass.create_task(self.coordinator.async_request_refresh())
+            self.async_write_ha_state()
 
         except Exception as e:
             _LOGGER.error(f"Fehler beim Setzen von {self._name}: {e}")

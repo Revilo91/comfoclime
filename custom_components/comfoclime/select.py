@@ -43,9 +43,11 @@ async def async_setup_entry(
     # Verbundene Geräte abrufen
     try:
         devices = hass.data[DOMAIN][entry.entry_id]["devices"]
+        device_coordinators = hass.data[DOMAIN][entry.entry_id]["device_coordinators"]
     except Exception as e:
         _LOGGER.warning(f"Verbundene Geräte konnten nicht geladen werden: {e}")
         devices = []
+        device_coordinators = {}
 
     for device in devices:
         model_id = device.get("modelTypeId")
@@ -57,9 +59,13 @@ async def async_setup_entry(
         if not select_defs:
             continue
 
+        coordinator = device_coordinators.get(dev_uuid)
+        if not coordinator:
+            continue
+
         entities.extend(
             ComfoClimePropertySelect(
-                hass=hass, api=api, conf=select_def, device=device, entry=entry
+                hass=hass, coordinator=coordinator, api=api, conf=select_def, device=device, entry=entry
             )
             for select_def in select_defs
         )
@@ -140,8 +146,9 @@ class ComfoClimeSelect(
             _LOGGER.exception(f"Fehler beim Setzen von {self._name}")
 
 
-class ComfoClimePropertySelect(SelectEntity):
-    def __init__(self, hass, api, conf, device=None, entry=None):
+class ComfoClimePropertySelect(CoordinatorEntity, SelectEntity):
+    def __init__(self, hass, coordinator, api, conf, device=None, entry=None):
+        super().__init__(coordinator)
         self._hass = hass
         self._api = api
         self._name = conf["name"]
@@ -158,13 +165,24 @@ class ComfoClimePropertySelect(SelectEntity):
         self._attr_translation_key = conf["translation_key"]
         self._attr_has_entity_name = True
 
+        # Register property with coordinator
+        try:
+            parts = self._path.split("/")
+            if len(parts) == 3:
+                unit, subunit, prop = map(int, parts)
+                self.coordinator.register_property(unit, subunit, prop, 1.0, True)
+        except ValueError:
+            _LOGGER.error(f"Invalid property path: {self._path}")
+
     @property
     def options(self):
         return list(self._options_map.values())
 
     @property
     def current_option(self):
-        return self._current
+        key = f"property_{self._path.replace('/', '_')}"
+        val = self.coordinator.data.get(key)
+        return self._options_map.get(val)
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -179,25 +197,25 @@ class ComfoClimePropertySelect(SelectEntity):
             sw_version=self._device.get("version", None),
         )
 
-    async def async_update(self):
-        try:
-            val = await self._api.async_read_property_for_device(
-                self._hass, self._device["uuid"], self._path, byte_count=1
-            )
-            self._current = self._options_map.get(val)
-        except Exception:
-            _LOGGER.exception(f"Fehler beim Laden von {self._name}")
-
-    def select_option(self, option: str):
+    async def async_select_option(self, option: str):
         value = self._options_reverse.get(option)
         if value is None:
             return
 
         try:
-            self._api.set_property_for_device(
-                self._device["uuid"], self._path, value, byte_count=1
+            await self._api.async_set_property_for_device(
+                self._hass,
+                self._device["uuid"],
+                self._path,
+                value,
+                byte_count=1
             )
-            self._current = option
+            # Optimistic update
+            key = f"property_{self._path.replace('/', '_')}"
+            if self.coordinator.data is None:
+                self.coordinator.data = {}
+            self.coordinator.data[key] = value
+            self.async_write_ha_state()
 
         except Exception:
             _LOGGER.exception(f"Fehler beim Setzen von {self._name}")
