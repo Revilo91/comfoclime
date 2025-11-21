@@ -52,12 +52,13 @@ class ComfoClimeDeviceCoordinator(DataUpdateCoordinator):
         )
         self.api = api
         self.device_uuid = device_uuid
-        self._telemetry_ids = set()
+        self.device_uuid = device_uuid
+        self._telemetry_configs = {}  # Map of id -> (factor, signed, byte_count)
         self._properties = set()  # Set of (unit, subunit, property, factor, signed) tuples
 
-    def register_telemetry(self, telemetry_id):
+    def register_telemetry(self, telemetry_id, factor=1.0, signed=True, byte_count=None):
         """Register a telemetry ID to be polled."""
-        self._telemetry_ids.add(telemetry_id)
+        self._telemetry_configs[telemetry_id] = (factor, signed, byte_count)
 
     def register_property(self, unit, subunit, prop, factor, signed):
         """Register a property to be polled."""
@@ -68,15 +69,22 @@ class ComfoClimeDeviceCoordinator(DataUpdateCoordinator):
         data = {}
         try:
             # 1. Telemetry
-            if self._telemetry_ids:
-                _LOGGER.debug(f"Polling {len(self._telemetry_ids)} telemetry IDs for device {self.device_uuid}")
-                telemetry_values = await self.api.async_get_telemetry(
-                    self.hass, self.device_uuid, self._telemetry_ids
-                )
-                # Map ID -> telemetry_ID
-                for tid, val in telemetry_values.items():
-                    data[f"telemetry_{tid}"] = val
-                _LOGGER.debug(f"Received {len(telemetry_values)} telemetry values")
+            if self._telemetry_configs:
+                _LOGGER.debug(f"Polling {len(self._telemetry_configs)} telemetry IDs for device {self.device_uuid}")
+                for tid, (factor, signed, byte_count) in self._telemetry_configs.items():
+                    try:
+                        val = await self.api.async_read_telemetry_for_device(
+                            self.hass,
+                            self.device_uuid,
+                            tid,
+                            faktor=factor,
+                            signed=signed,
+                            byte_count=byte_count
+                        )
+                        data[f"telemetry_{tid}"] = val
+                    except Exception as e:
+                        _LOGGER.warning(f"Error fetching telemetry {tid} for {self.device_uuid}: {e}")
+                _LOGGER.debug(f"Finished polling telemetry for device {self.device_uuid}")
 
             # 2. Properties
             if self._properties:

@@ -365,7 +365,7 @@ class ComfoClimeTelemetrySensor(CoordinatorEntity, SensorEntity):
 
         # Register with coordinator
         # Register with coordinator
-        self.coordinator.register_telemetry(telemetry_id)
+        self.coordinator.register_telemetry(telemetry_id, faktor, signed, byte_count)
         _LOGGER.debug(f"Initialized Telemetry Sensor: {name} (ID: {telemetry_id})")
 
     @property
