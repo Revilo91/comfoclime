@@ -430,7 +430,9 @@ class ComfoClimePropertySensor(CoordinatorEntity, SensorEntity):
         self._override_uuid = override_device_uuid
         self._state = None
         self._attr_config_entry_id = entry.entry_id
-        self._attr_unique_id = f"{entry.entry_id}_property_{path.replace('/', '_')}"
+        # Include device UUID to make unique ID truly unique across devices
+        device_uuid = device.get("uuid") if device else "unknown"
+        self._attr_unique_id = f"{entry.entry_id}_{device_uuid}_property_{path.replace('/', '_')}"
         if not translation_key:
             self._attr_name = name
         else:
