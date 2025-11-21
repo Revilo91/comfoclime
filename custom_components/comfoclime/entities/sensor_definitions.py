@@ -220,6 +220,17 @@ CONNECTED_DEVICE_SENSORS = {
             "state_class": "measurement",
         },
         {
+            "telemetry_id": 4148,
+            "name": "Target Temperature",
+            "translation_key": "target_temperature",
+            "unit": "°C",
+            "faktor": 0.1,
+            "signed": True,
+            "byte_count": 2,
+            "device_class": "temperature",
+            "state_class": "measurement",
+        },
+        {
             "telemetry_id": 4149,
             "name": "Device Mode",
             "translation_key": "device_mode_status",
@@ -237,16 +248,18 @@ CONNECTED_DEVICE_SENSORS = {
             "state_class": "measurement",
         },
         {
-            "telemetry_id": 4194,
-            "name": "Unknown temp 4194",
+            "telemetry_id": 4154,
+            "name": "Indoor Temperature",
+            "translation_key": "indoor_temperature",
             "unit": "°C",
             "faktor": 0.1,
             "signed": True,
             "byte_count": 2,
             "device_class": "temperature",
             "state_class": "measurement",
-            "diagnose": True,
         },
+        {
+            "telemetry_id": 4193,
         {
             "telemetry_id": 4195,
             "name": "Supply Coil Temperature",
@@ -273,7 +286,8 @@ CONNECTED_DEVICE_SENSORS = {
         },
         {
             "telemetry_id": 4197,
-            "name": "Unknown temp 4197",
+            "name": "Compressor Temperature",
+            "translation_key": "compressor_temperature",
             "unit": "°C",
             "faktor": 0.1,
             "signed": True,
@@ -284,7 +298,10 @@ CONNECTED_DEVICE_SENSORS = {
         },
         {
             "telemetry_id": 4198,
-            "name": "Unknown value 4198",
+            "name": "Heat Pump Power Percentage",
+            "translation_key": "heat_pump_power_percentage",
+            "unit": "%",
+            "faktor": 1,
             "byte_count": 1,
             "diagnose": True,
         },
@@ -355,6 +372,20 @@ CONNECTED_DEVICE_SENSORS = {
             "state_class": "measurement",
         },
         {
+            "telemetry_id": 119,
+            "name": "Exhaust Air Flow",
+            "translation_key": "exhaust_air_flow",
+            "unit": "m³/h",
+            "state_class": "measurement",
+        },
+        {
+            "telemetry_id": 120,
+            "name": "Supply Air Flow",
+            "translation_key": "supply_air_flow",
+            "unit": "m³/h",
+            "state_class": "measurement",
+        },
+        {
             "telemetry_id": 121,
             "name": "Exhaust Fan Speed",
             "translation_key": "exhaust_fan_speed",
@@ -400,6 +431,17 @@ CONNECTED_DEVICE_SENSORS = {
             "faktor": 0.1,
             "signed": True,
             "byte_count": 2,
+            "device_class": "temperature",
+            "state_class": "measurement",
+        },
+        {
+            "telemetry_id": 212,
+            "name": "Temperature Profile Target",
+            "translation_key": "temperature_profile_target",
+            "unit": "°C",
+            "faktor": 0.1,
+            "signed": False,
+            "byte_count": 1,
             "device_class": "temperature",
             "state_class": "measurement",
         },
@@ -470,6 +512,48 @@ CONNECTED_DEVICE_SENSORS = {
 CONNECTED_DEVICE_PROPERTIES = {
     1: [
         {
+            "path": "1/1/1",
+            "name": "Zone",
+            "translation_key": "zone",
+            "byte_count": 1,
+        },
+        {
+            "path": "1/1/2",
+            "name": "Product ID",
+            "translation_key": "product_id",
+            "byte_count": 1,
+        },
+        {
+            "path": "1/1/3",
+            "name": "Product Variant",
+            "translation_key": "product_variant",
+            "byte_count": 1,
+        },
+        {
+            "path": "1/1/4",
+            "name": "Serial Number",
+            "translation_key": "serial_number",
+            "byte_count": 16,  # String
+        },
+        {
+            "path": "1/1/5",
+            "name": "Hardware Version",
+            "translation_key": "hardware_version",
+            "byte_count": 1,
+        },
+        {
+            "path": "1/1/6",
+            "name": "Firmware Version",
+            "translation_key": "firmware_version",
+            "byte_count": 1,
+        },
+        {
+            "path": "1/1/20",
+            "name": "Device Name",
+            "translation_key": "device_name",
+            "byte_count": 16,  # String
+        },
+        {
             "path": "30/1/18",  # X/Y/Z
             "name": "Ventilation Disbalance",
             "translation_key": "ventilation_disbalance",
@@ -477,6 +561,50 @@ CONNECTED_DEVICE_PROPERTIES = {
             "faktor": 0.1,
             "signed": True,
             "byte_count": 2,
+        },
+    ],
+    20: [
+        {
+            "path": "1/1/1",
+            "name": "Zone",
+            "translation_key": "zone",
+            "byte_count": 1,
+        },
+        {
+            "path": "1/1/2",
+            "name": "Product ID",
+            "translation_key": "product_id",
+            "byte_count": 1,
+        },
+        {
+            "path": "1/1/3",
+            "name": "Product Variant",
+            "translation_key": "product_variant",
+            "byte_count": 1,
+        },
+        {
+            "path": "1/1/4",
+            "name": "Serial Number",
+            "translation_key": "serial_number",
+            "byte_count": 16,  # String
+        },
+        {
+            "path": "1/1/5",
+            "name": "Hardware Version",
+            "translation_key": "hardware_version",
+            "byte_count": 1,
+        },
+        {
+            "path": "1/1/6",
+            "name": "Firmware Version",
+            "translation_key": "firmware_version",
+            "byte_count": 1,
+        },
+        {
+            "path": "1/1/20",
+            "name": "Device Name",
+            "translation_key": "device_name",
+            "byte_count": 16,  # String
         },
     ],
 }

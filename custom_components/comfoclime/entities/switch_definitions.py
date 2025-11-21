@@ -10,3 +10,13 @@ SWITCHES = [
         "translation_key": "automatic_comfort_temperature",
     },
 ]
+
+CONNECTED_DEVICE_SWITCHES = {
+    20: [
+        {
+            "path": "22/1/2",
+            "name": "Automatic Season",
+            "translation_key": "automatic_season",
+        },
+    ]
+}

@@ -9,9 +9,12 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
 from .comfoclime_api import ComfoClimeAPI
-from .coordinator import ComfoClimeThermalprofileCoordinator
-from .coordinator import ComfoClimeDashboardCoordinator
-from .entities.switch_definitions import SWITCHES
+from .coordinator import (
+    ComfoClimeDashboardCoordinator,
+    ComfoClimeDeviceCoordinator,
+    ComfoClimeThermalprofileCoordinator,
+)
+from .entities.switch_definitions import CONNECTED_DEVICE_SWITCHES, SWITCHES
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,6 +38,7 @@ async def async_setup_entry(
     api = data["api"]
     tpcoordinator = data["tpcoordinator"]
     dbcoordinator = data["coordinator"]
+    device_coordinators = data.get("device_coordinators", {})
     try:
         await tpcoordinator.async_config_entry_first_refresh()
     except Exception as e:
@@ -63,6 +67,25 @@ async def async_setup_entry(
             entry=entry,
         )
     )
+
+    for device in devices:
+        model_id = device.get("modelTypeId")
+        uuid = device.get("uuid")
+        if model_id in CONNECTED_DEVICE_SWITCHES and uuid in device_coordinators:
+            coordinator = device_coordinators[uuid]
+            for s in CONNECTED_DEVICE_SWITCHES[model_id]:
+                switches.append(
+                    ComfoClimePropertySwitch(
+                        hass,
+                        coordinator,
+                        api,
+                        s["path"],
+                        s["name"],
+                        s["translation_key"],
+                        device,
+                        entry,
+                    )
+                )
 
     async_add_entities(switches, True)
 
@@ -221,5 +244,80 @@ class ComfoClimeStandbySwitch(
             self._state = value == 1
             self.async_write_ha_state()
 
+        except Exception as e:
+            _LOGGER.error(f"Fehler beim Setzen von {self._name}: {e}")
+
+
+class ComfoClimePropertySwitch(
+    CoordinatorEntity[ComfoClimeDeviceCoordinator], SwitchEntity
+):
+    def __init__(
+        self,
+        hass,
+        coordinator,
+        api,
+        path,
+        name,
+        translation_key,
+        device,
+        entry,
+    ):
+        super().__init__(coordinator)
+        self._hass = hass
+        self._api = api
+        self._path = path
+        self._name = name
+        self._device = device
+        self._entry = entry
+        self._attr_config_entry_id = entry.entry_id
+        self._attr_unique_id = f"{entry.entry_id}_switch_{path}_{device['uuid']}"
+        self._attr_translation_key = translation_key
+        self._attr_has_entity_name = True
+
+        # Register property with coordinator
+        # Switches are usually boolean (0/1), assuming byte_count=1, unsigned
+        # Unit 22/1/2 is UINT8, 0=Off, 1=On
+        unit, subunit, prop = map(int, path.split("/"))
+        self.coordinator.register_property(
+            unit, subunit, prop, factor=1.0, signed=False
+        )
+
+    @property
+    def is_on(self):
+        if not self.coordinator.data:
+            return None
+        val = self.coordinator.data.get(self._path)
+        return val == 1
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._device["uuid"])},
+            name=self._device.get("displayName", "ComfoClime"),
+            manufacturer="Zehnder",
+            model=self._device.get("@modelType"),
+            sw_version=self._device.get("version"),
+        )
+
+    async def async_turn_on(self, **kwargs):
+        await self._set_state(1)
+
+    async def async_turn_off(self, **kwargs):
+        await self._set_state(0)
+
+    async def _set_state(self, value):
+        try:
+            await self._api.async_set_property_for_device(
+                self._hass,
+                self._device["uuid"],
+                self._path,
+                value,
+                byte_count=1,  # Assuming 1 byte for switches
+                signed=False,
+                faktor=1.0,
+            )
+            # Optimistic update
+            self.coordinator.data[self._path] = value
+            self.async_write_ha_state()
         except Exception as e:
             _LOGGER.error(f"Fehler beim Setzen von {self._name}: {e}")

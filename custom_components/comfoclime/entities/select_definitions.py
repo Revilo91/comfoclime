@@ -27,5 +27,19 @@ PROPERTY_SELECT_ENTITIES = {
             "translation_key": "humidity_protection",
             "options": {0: "off", 1: "autoonly", 2: "on"},
         },
-    ]
+    ],
+    20: [
+        {
+            "path": "22/1/3",
+            "name": "Season Select",
+            "translation_key": "season_select",
+            "options": {0: "transition", 1: "heating", 2: "cooling"},
+        },
+        {
+            "path": "22/1/29",
+            "name": "Temperature Profile",
+            "translation_key": "temperature_profile",
+            "options": {0: "comfort", 1: "power", 2: "eco"},
+        },
+    ],
 }
