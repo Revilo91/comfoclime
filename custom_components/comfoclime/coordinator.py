@@ -67,10 +67,11 @@ class ComfoClimeDeviceCoordinator(DataUpdateCoordinator):
         """Fetch data from API."""
         data = {}
         try:
-            # 1. Telemetry
-            if self._telemetry_configs:
-                _LOGGER.debug(f"Polling {len(self._telemetry_configs)} telemetry IDs for device {self.device_uuid}")
-                for tid, (factor, signed, byte_count) in self._telemetry_configs.items():
+            # 1. Telemetry - create snapshot to avoid concurrent modification
+            telemetry_snapshot = dict(self._telemetry_configs)
+            if telemetry_snapshot:
+                _LOGGER.debug(f"Polling {len(telemetry_snapshot)} telemetry IDs for device {self.device_uuid}")
+                for tid, (factor, signed, byte_count) in telemetry_snapshot.items():
                     try:
                         val = await self.api.async_read_telemetry_for_device(
                             self.hass,
@@ -85,10 +86,11 @@ class ComfoClimeDeviceCoordinator(DataUpdateCoordinator):
                         _LOGGER.warning(f"Error fetching telemetry {tid} for {self.device_uuid}: {e}")
                 _LOGGER.debug(f"Finished polling telemetry for device {self.device_uuid}")
 
-            # 2. Properties
-            if self._properties:
-                _LOGGER.debug(f"Polling {len(self._properties)} properties for device {self.device_uuid}")
-                for unit, subunit, prop, factor, signed, byte_count in self._properties:
+            # 2. Properties - create snapshot to avoid concurrent modification
+            properties_snapshot = list(self._properties)
+            if properties_snapshot:
+                _LOGGER.debug(f"Polling {len(properties_snapshot)} properties for device {self.device_uuid}")
+                for unit, subunit, prop, factor, signed, byte_count in properties_snapshot:
                     property_path = f"{unit}/{subunit}/{prop}"
                     key = f"property_{unit}_{subunit}_{prop}"
                     try:
@@ -103,7 +105,7 @@ class ComfoClimeDeviceCoordinator(DataUpdateCoordinator):
                         data[key] = val
                     except Exception as e:
                         _LOGGER.warning(f"Error fetching property {key} for {self.device_uuid}: {e}")
-                _LOGGER.debug(f"Finished polling {len(self._properties)} properties for device {self.device_uuid}")
+                _LOGGER.debug(f"Finished polling {len(properties_snapshot)} properties for device {self.device_uuid}")
 
         except Exception as e:
              _LOGGER.error(f"Error updating device coordinator for {self.device_uuid}: {e}", exc_info=True)
