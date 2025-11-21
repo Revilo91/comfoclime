@@ -5,6 +5,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 
 from .comfoclime_api import ComfoClimeAPI
@@ -28,7 +29,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = entry.data
     host = entry.data["host"]
-    api = ComfoClimeAPI(f"http://{host}")
+
+    session = async_get_clientsession(hass)
+    api = ComfoClimeAPI(f"http://{host}", session=session)
+
     # Dashboard-Coordinator erstellen
     dashboard_coordinator = ComfoClimeDashboardCoordinator(hass, api)
     await dashboard_coordinator.async_config_entry_first_refresh()

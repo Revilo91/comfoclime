@@ -19,10 +19,9 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
             url = f"http://{host}/monitoring/ping"
 
             try:
-                async with (
-                    aiohttp.ClientSession() as session,
-                    session.get(url, timeout=5) as resp,
-                ):
+                from homeassistant.helpers.aiohttp_client import async_get_clientsession
+                session = async_get_clientsession(self.hass)
+                async with session.get(url, timeout=5) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         if "uuid" in data:

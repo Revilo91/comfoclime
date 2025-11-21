@@ -4,7 +4,8 @@ import logging
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-import requests
+import aiohttp
+from aiohttp import ClientSession, ClientTimeout
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -72,107 +73,137 @@ class ComfoClimeAuthenticationError(ComfoClimeError):
 
 
 class ComfoClimeAPI:
-    def __init__(self, base_url):
+    def __init__(self, base_url: str, session: ClientSession | None = None):
+        """Initialize the API client.
+
+        Args:
+            base_url: The base URL of the ComfoClime device (e.g. http://192.168.1.10)
+            session: Optional aiohttp ClientSession. If not provided, one will be created.
+        """
         self.base_url = base_url.rstrip("/")
         self.uuid = None
+        self._session = session
+        self._close_session = False
         self._request_lock = asyncio.Lock()
 
-    async def async_get_uuid(self, hass):
+    async def _get_session(self) -> ClientSession:
+        """Get or create the client session."""
+        if self._session is None or self._session.closed:
+            self._session = aiohttp.ClientSession(
+                timeout=ClientTimeout(total=10)
+            )
+            self._close_session = True
+        return self._session
+
+    async def close(self):
+        """Close the session if we created it."""
+        if self._close_session and self._session and not self._session.closed:
+            await self._session.close()
+
+    async def async_get_uuid(self, hass=None):
+        """Get the UUID of the device."""
+        # hass argument is kept for compatibility but not used
         async with self._request_lock:
-            return await hass.async_add_executor_job(self.get_uuid)
+            return await self._get_uuid()
 
-    def get_uuid(self):
-        response = requests.get(f"{self.base_url}/monitoring/ping", timeout=5)
-        response.raise_for_status()
-        data = response.json()
-        self.uuid = data.get("uuid")
-        return self.uuid
+    async def _get_uuid(self):
+        """Internal method to get UUID."""
+        session = await self._get_session()
+        try:
+            async with session.get(f"{self.base_url}/monitoring/ping") as response:
+                response.raise_for_status()
+                data = await response.json()
+                self.uuid = data.get("uuid")
+                return self.uuid
+        except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+            raise ComfoClimeConnectionError(f"Error getting UUID: {err}") from err
 
-    async def async_get_dashboard_data(self, hass):
+    async def async_get_dashboard_data(self, hass=None):
+        """Get dashboard data."""
         async with self._request_lock:
-            return await hass.async_add_executor_job(self.get_dashboard_data)
+            if not self.uuid:
+                await self._get_uuid()
 
-    def get_dashboard_data(self):
-        if not self.uuid:
-            self.get_uuid()
-        response = requests.get(
-            f"{self.base_url}/system/{self.uuid}/dashboard", timeout=5
-        )
-        response.raise_for_status()
-        data = response.json()
+            session = await self._get_session()
+            try:
+                async with session.get(
+                    f"{self.base_url}/system/{self.uuid}/dashboard"
+                ) as response:
+                    response.raise_for_status()
+                    data = await response.json()
 
-        # Decode temperature fields that may be returned as unsigned INT16
-        # when they should be signed (e.g., negative temperatures)
-        temp_fields = [
-            # "indoorTemperature",
-            "outdoorTemperature",
-            # "exhaustTemperature",
-            # "supplyTemperature",
-            # "runningMeanOutdoorTemperature",
-            # "setPointTemperature",  # Manual mode target temperature
-        ]
+                    # Decode temperature fields that may be returned as unsigned INT16
+                    # when they should be signed (e.g., negative temperatures)
+                    temp_fields = [
+                        # "indoorTemperature",
+                        "outdoorTemperature",
+                        # "exhaustTemperature",
+                        # "supplyTemperature",
+                        # "runningMeanOutdoorTemperature",
+                        # "setPointTemperature",  # Manual mode target temperature
+                    ]
 
-        for field in temp_fields:
-            if field in data:
-                data[field] = _decode_raw_value(
-                    data[field], factor=0.1, signed=True, byte_count=2
-                )
+                    for field in temp_fields:
+                        if field in data:
+                            data[field] = _decode_raw_value(
+                                data[field], factor=0.1, signed=True, byte_count=2
+                            )
 
-        return data
+                    return data
+            except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+                raise ComfoClimeConnectionError(f"Error getting dashboard data: {err}") from err
 
-    async def async_get_connected_devices(self, hass):
+    async def async_get_connected_devices(self, hass=None):
+        """Get list of connected devices."""
         async with self._request_lock:
-            return await hass.async_add_executor_job(self.get_connected_devices)
+            if not self.uuid:
+                await self._get_uuid()
 
-    def get_connected_devices(self):
-        if not self.uuid:
-            self.get_uuid()
-        url = f"{self.base_url}/system/{self.uuid}/devices"
-        response = requests.get(url, timeout=5)
-        response.raise_for_status()
-        return response.json().get("devices", [])
+            session = await self._get_session()
+            url = f"{self.base_url}/system/{self.uuid}/devices"
+            try:
+                async with session.get(url) as response:
+                    response.raise_for_status()
+                    data = await response.json()
+                    return data.get("devices", [])
+            except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+                raise ComfoClimeConnectionError(f"Error getting connected devices: {err}") from err
 
     async def async_read_telemetry_for_device(
         self, hass, device_uuid, telemetry_id, faktor=1.0, signed=True, byte_count=None
     ):
+        """Read telemetry data for a specific device."""
         async with self._request_lock:
-            return await hass.async_add_executor_job(
-                self.read_telemetry_for_device,
-                device_uuid,
-                telemetry_id,
-                faktor,
-                signed,
-                byte_count,
-            )
+            session = await self._get_session()
+            url = f"{self.base_url}/device/{device_uuid}/telemetry/{telemetry_id}"
 
-    def read_telemetry_for_device(
-        self, device_uuid, telemetry_id, faktor=1.0, signed=True, byte_count=None
-    ):
-        url = f"{self.base_url}/device/{device_uuid}/telemetry/{telemetry_id}"
-        response = requests.get(url, timeout=5)
-        response.raise_for_status()
-        payload = response.json()
+            try:
+                async with session.get(url) as response:
+                    response.raise_for_status()
+                    payload = await response.json()
 
-        data = payload.get("data")
-        if not isinstance(data, list) or len(data) == 0:
-            raise ValueError("Unerwartetes Telemetrie-Format")
+                    data = payload.get("data")
+                    if not isinstance(data, list) or len(data) == 0:
+                        raise ValueError("Unerwartetes Telemetrie-Format")
 
-        if byte_count is None:
-            byte_count = len(data)
+                    if byte_count is None:
+                        byte_count = len(data)
 
-        if byte_count == 1:
-            value = data[0]
-            if signed and value >= 0x80:
-                value -= 0x100
-        elif byte_count == 2:
-            lsb, msb = data[:2]
-            value = lsb + (msb << 8)
-            if signed and value >= 0x8000:
-                value -= 0x10000
-        else:
-            raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
+                    if byte_count == 1:
+                        value = data[0]
+                        if signed and value >= 0x80:
+                            value -= 0x100
+                    elif byte_count == 2:
+                        lsb, msb = data[:2]
+                        value = lsb + (msb << 8)
+                        if signed and value >= 0x8000:
+                            value -= 0x10000
+                    else:
+                        raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
 
-        return value * faktor
+                    return value * faktor
+            except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+                raise ComfoClimeConnectionError(f"Error reading telemetry: {err}") from err
 
     async def async_read_property_for_device(
         self,
@@ -183,34 +214,30 @@ class ComfoClimeAPI:
         signed: bool = True,
         byte_count: int | None = None,
     ):
+        """Read property for a specific device."""
         async with self._request_lock:
-            return await hass.async_add_executor_job(
-                self.read_property_for_device,
-                device_uuid,
-                property_path,
-                faktor,
-                signed,
-                byte_count,
+            return await self._read_property_for_device(
+                device_uuid, property_path, faktor, signed, byte_count
             )
 
-    def read_property_for_device_raw(
+    async def _read_property_for_device_raw(
         self, device_uuid: str, property_path: str
     ) -> None | list:
+        session = await self._get_session()
         url = f"{self.base_url}/device/{device_uuid}/property/{property_path}"
         try:
-            response = requests.get(url, timeout=5)
-            response.raise_for_status()
-            payload = response.json()
+            async with session.get(url) as response:
+                response.raise_for_status()
+                payload = await response.json()
+                data = payload.get("data")
+                if not isinstance(data, list) or not data:
+                    raise ValueError("Unerwartetes Property-Format")
+                return data
         except Exception:
             _LOGGER.exception(f"Fehler beim Abrufen der Property {property_path}")
             return None
 
-        data = payload.get("data")
-        if not isinstance(data, list) or not data:
-            raise ValueError("Unerwartetes Property-Format")
-        return data
-
-    def read_property_for_device(
+    async def _read_property_for_device(
         self,
         device_uuid: str,
         property_path: str,
@@ -218,7 +245,7 @@ class ComfoClimeAPI:
         signed: bool = True,
         byte_count: int | None = None,
     ) -> None | str | float:
-        data = self.read_property_for_device_raw(device_uuid, property_path)
+        data = await self._read_property_for_device_raw(device_uuid, property_path)
 
         # Wenn data leer/None ist, können wir nicht fortfahren
         if not data:
@@ -249,28 +276,24 @@ class ComfoClimeAPI:
 
         return value * faktor
 
-    async def async_get_thermal_profile(self, hass):
+    async def async_get_thermal_profile(self, hass=None):
+        """Get thermal profile."""
         async with self._request_lock:
-            return await hass.async_add_executor_job(self.get_thermal_profile)
+            if not self.uuid:
+                await self._get_uuid()
 
-    def get_thermal_profile(self):
-        if not self.uuid:
-            self.get_uuid()
-        url = f"{self.base_url}/system/{self.uuid}/thermalprofile"
-        try:
-            response = requests.get(url, timeout=5)
-            response.raise_for_status()
-            return response.json()
-        except requests.RequestException as e:
-            _LOGGER.warning(f"Fehler beim Abrufen von thermal_profile: {e}")
-            return {}  # leer zurückgeben statt crashen
+            session = await self._get_session()
+            url = f"{self.base_url}/system/{self.uuid}/thermalprofile"
+            try:
+                async with session.get(url) as response:
+                    response.raise_for_status()
+                    return await response.json()
+            except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                _LOGGER.warning(f"Fehler beim Abrufen von thermal_profile: {e}")
+                return {}  # leer zurückgeben statt crashen
 
-    def update_thermal_profile(self, updates: dict):
-        """
-        updates: dict mit Teilwerten, z. B. {"heatingThermalProfileSeasonData": {"comfortTemperature": 20.0}}
-
-        Diese Methode füllt alle anderen Felder mit None (null), wie von der API gefordert.
-        """
+    async def _update_thermal_profile(self, updates: dict):
+        """Internal method to update thermal profile."""
         full_payload = {
             "season": {
                 "status": None,
@@ -303,14 +326,18 @@ class ComfoClimeAPI:
                 full_payload[section] = values  # z. B. "temperatureProfile": 1
 
         if not self.uuid:
-            self.get_uuid()
+            await self._get_uuid()
 
+        session = await self._get_session()
         url = f"{self.base_url}/system/{self.uuid}/thermalprofile"
-        response = requests.put(url, json=full_payload, timeout=5)
-        response.raise_for_status()
-        return response.status_code == 200
+        try:
+            async with session.put(url, json=full_payload) as response:
+                response.raise_for_status()
+                return response.status == 200
+        except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+            raise ComfoClimeConnectionError(f"Error updating thermal profile: {err}") from err
 
-    def update_dashboard(
+    async def _update_dashboard(
         self,
         set_point_temperature: float | None = None,
         fan_speed: int | None = None,
@@ -324,63 +351,9 @@ class ComfoClimeAPI:
         scenario_time_left: int | None = None,
         scenario_start_delay: int | None = None,
     ) -> dict:
-        """Update dashboard settings via API.
-
-        Modern method for dashboard updates. Only fields that are provided
-        (not None) will be included in the update payload.
-
-        # Android app export from @msfuture
-        payload = {
-            "@type": None,
-            "name": None,
-            "displayName": None,
-            "description": None,
-            "timestamp": datetime.datetime.now().isoformat(),
-            "status": status,
-            "setPointTemperature": set_point_temperature,
-            "temperatureProfile": temperature_profile,
-            "seasonProfile": season_profile,
-            "fanSpeed": fan_speed,
-            "scenario": None,
-            "scenarioTimeLeft": None,
-            "season": season,
-            "schedule": None,
-            "scenario": None,
-            "scenarioTimeLeft": None,
-            "scenarioStartDelay": None
-        }
-
-        The API distinguishes between two modes:
-        - Automatic mode (status=1): Uses preset profiles (seasonProfile, temperatureProfile)
-        - Manual mode (status=0): Uses manual temperature (setPointTemperature)
-
-        Scenario modes:
-        - 4: Kochen (Cooking) - 30 minutes high ventilation
-        - 5: Party - 30 minutes high ventilation
-        - 7: Urlaub (Holiday) - 24 hours reduced mode
-        - 8: Boost - 30 minutes maximum power
-
-        Args:
-            set_point_temperature: Target temperature (°C) - activates manual mode
-            fan_speed: Fan speed (0-3)
-            season: Season value (0=transition, 1=heating, 2=cooling)
-            hp_standby: Heat pump standby state (True=standby/off, False=active)
-            schedule: Schedule mode
-            temperature_profile: Temperature profile/preset (0=comfort, 1=boost, 2=eco)
-            season_profile: Season profile/preset (0=comfort, 1=boost, 2=eco)
-            status: Temperature control mode (0=manual, 1=automatic)
-            scenario: Scenario mode (4=Kochen, 5=Party, 7=Urlaub, 8=Boost)
-            scenario_time_left: Duration for scenario in seconds (e.g., 1800 for 30min)
-            scenario_start_delay: Start delay for scenario in seconds (optional)
-
-        Returns:
-            Response JSON from the API
-
-        Raises:
-            requests.RequestException: If the API request fails
-        """
+        """Internal method to update dashboard."""
         if not self.uuid:
-            self.get_uuid()
+            await self._get_uuid()
 
         # Dynamically build payload; only include keys explicitly provided.
         payload: dict = {}
@@ -414,38 +387,37 @@ class ComfoClimeAPI:
             return {}
 
         # Add timestamp to payload
-        tz = ZoneInfo(self.hass.config.time_zone)
-        payload["timestamp"] = datetime.now(tz).isoformat()
+        # We don't have access to hass config here easily without passing it down
+        # But we can use datetime.now() with local timezone if available or UTC
+        payload["timestamp"] = datetime.now().astimezone().isoformat()
 
         headers = {"content-type": "application/json; charset=utf-8"}
         url = f"{self.base_url}/system/{self.uuid}/dashboard"
+
+        session = await self._get_session()
         try:
-            response = requests.put(url, json=payload, timeout=5, headers=headers)
-            response.raise_for_status()
-            try:
-                resp_json = response.json()
-            except Exception:
-                resp_json = {"text": response.text}
-            _LOGGER.debug(f"Dashboard update OK payload={payload} response={resp_json}")
+            async with session.put(url, json=payload, headers=headers) as response:
+                response.raise_for_status()
+                try:
+                    resp_json = await response.json()
+                except Exception:
+                    text = await response.text()
+                    resp_json = {"text": text}
+                _LOGGER.debug(f"Dashboard update OK payload={payload} response={resp_json}")
+                return resp_json
         except Exception:
             _LOGGER.exception(f"Error updating dashboard (payload={payload})")
             raise
-        else:
-            return resp_json
 
     async def async_update_dashboard(self, hass, **kwargs):
         """Async wrapper for update_dashboard method."""
         async with self._request_lock:
-            return await hass.async_add_executor_job(
-                lambda: self.update_dashboard(**kwargs)
-            )
+            return await self._update_dashboard(**kwargs)
 
     async def async_update_thermal_profile(self, hass, updates: dict):
         """Async wrapper for update_thermal_profile method."""
         async with self._request_lock:
-            return await hass.async_add_executor_job(
-                lambda: self.update_thermal_profile(updates)
-            )
+            return await self._update_thermal_profile(updates)
 
     async def async_set_hvac_season(self, hass, season: int, hp_standby: bool = False):
         """Set HVAC season and standby state in a single atomic operation.
@@ -459,15 +431,11 @@ class ComfoClimeAPI:
             hp_standby: Heat pump standby state (False=active, True=standby/off)
         """
         async with self._request_lock:
-
-            def _update():
-                # First update dashboard to set hpStandby
-                self.update_dashboard(hp_standby=hp_standby)
-                # Then update thermal profile to set season
-                if not hp_standby:  # Only set season if device is active
-                    self.update_thermal_profile({"season": {"season": season}})
-
-            return await hass.async_add_executor_job(_update)
+            # First update dashboard to set hpStandby
+            await self._update_dashboard(hp_standby=hp_standby)
+            # Then update thermal profile to set season
+            if not hp_standby:  # Only set season if device is active
+                await self._update_thermal_profile({"season": {"season": season}})
 
     async def async_set_property_for_device(
         self,
@@ -480,19 +448,18 @@ class ComfoClimeAPI:
         signed: bool = True,
         faktor: float = 1.0,
     ):
+        """Set property for a specific device."""
         async with self._request_lock:
-            return await hass.async_add_executor_job(
-                lambda: self.set_property_for_device(
-                    device_uuid,
-                    property_path,
-                    value,
-                    byte_count=byte_count,
-                    signed=signed,
-                    faktor=faktor,
-                )
+            return await self._set_property_for_device(
+                device_uuid,
+                property_path,
+                value,
+                byte_count=byte_count,
+                signed=signed,
+                faktor=faktor,
             )
 
-    def set_property_for_device(
+    async def _set_property_for_device(
         self,
         device_uuid: str,
         property_path: str,
@@ -522,9 +489,10 @@ class ComfoClimeAPI:
         url = f"{self.base_url}/device/{device_uuid}/method/{x}/{y}/3"
         payload = {"data": [z] + data}
 
+        session = await self._get_session()
         try:
-            response = requests.put(url, json=payload, timeout=5)
-            response.raise_for_status()
+            async with session.put(url, json=payload) as response:
+                response.raise_for_status()
         except Exception:
             _LOGGER.exception(
                 f"Fehler beim Schreiben von Property {property_path} mit Payload {payload}"
@@ -532,12 +500,16 @@ class ComfoClimeAPI:
             raise
 
     async def async_reset_system(self, hass):
-        async with self._request_lock:
-            return await hass.async_add_executor_job(self.reset_system)
-
-    def reset_system(self):
         """Trigger a restart of the ComfoClime device."""
-        url = f"{self.base_url}/system/reset"
-        response = requests.put(url, timeout=5)
-        response.raise_for_status()
-        return response.status_code == 200
+        async with self._request_lock:
+            if not self.uuid:
+                await self._get_uuid()
+
+            session = await self._get_session()
+            url = f"{self.base_url}/system/reset"
+            try:
+                async with session.put(url) as response:
+                    response.raise_for_status()
+                    return response.status == 200
+            except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+                raise ComfoClimeConnectionError(f"Error resetting system: {err}") from err
