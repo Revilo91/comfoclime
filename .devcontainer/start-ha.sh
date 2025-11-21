@@ -3,6 +3,13 @@
 
 CONFIG_DIR="/workspaces/comfoclime/.devcontainer/ha-config"
 
+# Clean up Python bytecode cache to ensure fresh code loads
+echo "Cleaning Python bytecode cache..."
+find /workspaces/comfoclime -type f -name "*.pyc" -delete
+find /workspaces/comfoclime -type d -name "__pycache__" -delete
+echo "Cache cleaned."
+echo ""
+
 echo "Starting Home Assistant..."
 echo "Configuration: $CONFIG_DIR"
 echo "Web UI: http://localhost:8123"
