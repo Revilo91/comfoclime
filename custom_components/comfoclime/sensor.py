@@ -351,14 +351,18 @@ class ComfoClimeTelemetrySensor(CoordinatorEntity, SensorEntity):
         self._override_uuid = override_device_uuid
         self._entry = entry
         self._attr_config_entry_id = entry.entry_id
-        self._attr_unique_id = f"{entry.entry_id}_telemetry_{telemetry_id}"
+
+        # Include device UUID to make unique ID truly unique across config entries
+        device_uuid = device.get("uuid") if device else "unknown"
+        self._attr_unique_id = f"{entry.entry_id}_{device_uuid}_telemetry_{telemetry_id}"
 
         _LOGGER.info(
             f"Creating ComfoClimeTelemetrySensor: "
             f"telemetry_id={telemetry_id}, "
             f"name='{name}', "
             f"translation_key='{translation_key}', "
-            f"device_class={device_class}"
+            f"device_class={device_class}, "
+            f"device_uuid={device_uuid}"
         )
 
         if not translation_key:
