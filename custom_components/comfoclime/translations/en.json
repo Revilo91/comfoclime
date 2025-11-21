@@ -4,6 +4,9 @@
             "indoor_temperature": {
                 "name": "Indoor Temperature"
             },
+            "indoor_temperature_device": {
+                "name": "Indoor Temperature (Device)"
+            },
             "outdoor_temperature": {
                 "name": "Outdoor Temperature"
             },
@@ -70,8 +73,14 @@
             "exhaust_air_flow": {
                 "name": "Exhaust Air Flow"
             },
+            "exhaust_air_flow_device": {
+                "name": "Exhaust Air Flow (Device)"
+            },
             "supply_air_flow": {
                 "name": "Supply Air Flow"
+            },
+            "supply_air_flow_device": {
+                "name": "Supply Air Flow (Device)"
             },
             "energy_ytd": {
                 "name": "Ventilation Energy Year"

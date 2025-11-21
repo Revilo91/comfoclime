@@ -4,6 +4,9 @@
             "indoor_temperature": {
                 "name": "Innentemperatur"
             },
+            "indoor_temperature_device": {
+                "name": "Innentemperatur (Gerät)"
+            },
             "outdoor_temperature": {
                 "name": "Außentemperatur"
             },
@@ -70,8 +73,14 @@
             "exhaust_air_flow": {
                 "name": "Abluft Volumenstrom"
             },
+            "exhaust_air_flow_device": {
+                "name": "Abluft Volumenstrom (Gerät)"
+            },
             "supply_air_flow": {
                 "name": "Zuluft Volumenstrom"
+            },
+            "supply_air_flow_device": {
+                "name": "Zuluft Volumenstrom (Gerät)"
             },
             "energy_ytd": {
                 "name": "Lüftung Energie Jahr"
