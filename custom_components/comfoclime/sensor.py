@@ -443,7 +443,7 @@ class ComfoClimePropertySensor(CoordinatorEntity, SensorEntity):
             parts = path.split("/")
             if len(parts) == 3:
                 unit, subunit, prop = map(int, parts)
-                self.coordinator.register_property(unit, subunit, prop, faktor, signed)
+                self.coordinator.register_property(unit, subunit, prop, faktor, signed, byte_count)
                 _LOGGER.debug(f"Initialized Property Sensor: {name} (Path: {path})")
         except ValueError:
             _LOGGER.error(f"Invalid property path: {path}", exc_info=True)

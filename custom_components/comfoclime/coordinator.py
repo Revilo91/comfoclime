@@ -52,7 +52,6 @@ class ComfoClimeDeviceCoordinator(DataUpdateCoordinator):
         )
         self.api = api
         self.device_uuid = device_uuid
-        self.device_uuid = device_uuid
         self._telemetry_configs = {}  # Map of id -> (factor, signed, byte_count)
         self._properties = set()  # Set of (unit, subunit, property, factor, signed) tuples
 
@@ -60,9 +59,9 @@ class ComfoClimeDeviceCoordinator(DataUpdateCoordinator):
         """Register a telemetry ID to be polled."""
         self._telemetry_configs[telemetry_id] = (factor, signed, byte_count)
 
-    def register_property(self, unit, subunit, prop, factor, signed):
+    def register_property(self, unit, subunit, prop, factor, signed, byte_count=None):
         """Register a property to be polled."""
-        self._properties.add((unit, subunit, prop, factor, signed))
+        self._properties.add((unit, subunit, prop, factor, signed, byte_count))
 
     async def _async_update_data(self):
         """Fetch data from API."""
@@ -89,11 +88,17 @@ class ComfoClimeDeviceCoordinator(DataUpdateCoordinator):
             # 2. Properties
             if self._properties:
                 _LOGGER.debug(f"Polling {len(self._properties)} properties for device {self.device_uuid}")
-                for unit, subunit, prop, factor, signed in self._properties:
+                for unit, subunit, prop, factor, signed, byte_count in self._properties:
+                    property_path = f"{unit}/{subunit}/{prop}"
                     key = f"property_{unit}_{subunit}_{prop}"
                     try:
-                        val = await self.api.async_read_property(
-                            self.device_uuid, unit, subunit, prop, factor, signed
+                        val = await self.api.async_read_property_for_device(
+                            self.hass,
+                            self.device_uuid,
+                            property_path,
+                            faktor=factor,
+                            signed=signed,
+                            byte_count=byte_count
                         )
                         data[key] = val
                     except Exception as e:
