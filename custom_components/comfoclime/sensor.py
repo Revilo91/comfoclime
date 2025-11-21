@@ -114,28 +114,7 @@ async def async_setup_entry(
     else:
         _LOGGER.info("No dashboard/thermal profile sensors to add")
 
-    # --- Telemetry Sensors ---
-    telemetry_sensors = []
-    # Feste Telemetrie-Sensoren für das ComfoClime-Gerät
-    telemetry_sensors.extend(
-        ComfoClimeTelemetrySensor(
-            hass=hass,
-            api=api,
-            telemetry_id=sensor_def["id"],
-            name=sensor_def["name"],
-            translation_key=sensor_def.get("translation_key", False),
-            unit=sensor_def.get("unit"),
-            faktor=sensor_def.get("faktor", 1.0),
-            signed=sensor_def.get("signed", True),
-            byte_count=sensor_def.get("byte_count"),
-            device_class=sensor_def.get("device_class"),
-            state_class=sensor_def.get("state_class"),
-            entity_category=sensor_def.get("entity_category"),
-            entry=entry,
-        )
-        for sensor_def in TELEMETRY_SENSORS
-    )
-
+    # --- Telemetry and Property Sensors for Connected Devices ---
     # Verbundene Geräte abrufen
     try:
         devices = hass.data[DOMAIN][entry.entry_id]["devices"]
@@ -144,6 +123,8 @@ async def async_setup_entry(
         _LOGGER.warning(f"Verbundene Geräte konnten nicht geladen werden: {e}")
         devices = []
         device_coordinators = {}
+
+    telemetry_sensors = []
 
     if main_device:
         model_id = main_device.get("modelTypeId")
