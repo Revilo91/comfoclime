@@ -43,6 +43,7 @@ VALUE_MAPPINGS = {
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ):
+    _LOGGER.info(f"Setting up sensors for entry {entry.entry_id}")
     host = entry.data["host"]
     api = ComfoClimeAPI(f"http://{host}")
 
@@ -50,9 +51,10 @@ async def async_setup_entry(
 
     # UUID abrufen
     try:
-        await api.async_get_uuid(hass)
-    except Exception:
-        _LOGGER.exception("Fehler beim Abrufen der UUID")
+        uuid = await api.async_get_uuid(hass)
+        _LOGGER.debug(f"Got UUID for sensor setup: {uuid}")
+    except Exception as e:
+        _LOGGER.error(f"UUID konnte nicht geladen werden: {e}", exc_info=True)
         return
 
     # Dashboard-Daten abrufen (optional beim Start)
@@ -106,8 +108,16 @@ async def async_setup_entry(
     ]
     sensors.extend(sensor_list)
 
+    if sensors:
+        _LOGGER.info(f"Adding {len(sensors)} dashboard/thermal profile sensors")
+        async_add_entities(sensors, True)
+    else:
+        _LOGGER.info("No dashboard/thermal profile sensors to add")
+
+    # --- Telemetry Sensors ---
+    telemetry_sensors = []
     # Feste Telemetrie-Sensoren für das ComfoClime-Gerät
-    sensors.extend(
+    telemetry_sensors.extend(
         ComfoClimeTelemetrySensor(
             hass=hass,
             api=api,
@@ -135,14 +145,54 @@ async def async_setup_entry(
         devices = []
         device_coordinators = {}
 
+    if main_device:
+        model_id = main_device.get("modelTypeId")
+        uuid = main_device.get("uuid")
+        _LOGGER.debug(f"Processing telemetry for device {uuid} (Model: {model_id})")
+
+        if model_id in CONNECTED_DEVICE_SENSORS and uuid in device_coordinators:
+            coordinator = device_coordinators[uuid]
+            for s in CONNECTED_DEVICE_SENSORS[model_id]:
+                try:
+                    telemetry_sensors.append(
+                        ComfoClimeTelemetrySensor(
+                            hass,
+                            coordinator,
+                            api,
+                            s["telemetry_id"],
+                            s["name"],
+                            s.get("translation_key"),
+                            s.get("unit"),
+                            s.get("faktor", 1.0),
+                            s.get("signed", True),
+                            s.get("byte_count"),
+                            s.get("device_class"),
+                            s.get("state_class"),
+                            s.get("entity_category"),
+                            device=main_device,
+                            entry=entry,
+                        )
+                    )
+                except Exception as e:
+                    _LOGGER.error(f"Failed to create telemetry sensor {s.get('name')}: {e}", exc_info=True)
+
+    if telemetry_sensors:
+        _LOGGER.info(f"Adding {len(telemetry_sensors)} telemetry sensors")
+        async_add_entities(telemetry_sensors, True)
+    else:
+        _LOGGER.info("No telemetry sensors to add")
+
+    # --- Connected Device Properties Sensors ---
+    property_sensors = []
     for device in devices:
         model_id = device.get("modelTypeId")
         dev_uuid = device.get("uuid")
         if dev_uuid == "NULL":
             continue
 
-        sensor_defs = CONNECTED_DEVICE_SENSORS.get(model_id)
-        if not sensor_defs:
+        _LOGGER.debug(f"Processing properties for device {dev_uuid} (Model: {model_id})")
+
+        if not CONNECTED_DEVICE_PROPERTIES.get(model_id):
             continue
 
         coordinator = device_coordinators.get(dev_uuid)
@@ -150,59 +200,37 @@ async def async_setup_entry(
             _LOGGER.warning(f"Kein Coordinator für Gerät {dev_uuid} gefunden")
             continue
 
-        for sensor_def in sensor_defs:
-            if not sensor_def.get("diagnose", False) or entry.options.get(
-                "enable_diagnostics", False
-            ):
-                sensors.extend(
-                    [
-                        ComfoClimeTelemetrySensor(
-                            hass=hass,
-                            coordinator=coordinator,
-                            api=api,
-                            telemetry_id=sensor_def["telemetry_id"],
-                            name=sensor_def["name"],
-                            translation_key=sensor_def.get("translation_key", False),
-                            unit=sensor_def.get("unit"),
-                            faktor=sensor_def.get("faktor", 1.0),
-                            signed=sensor_def.get("signed", True),
-                            byte_count=sensor_def.get("byte_count"),
-                            device_class=sensor_def.get("device_class"),
-                            device=device,
-                            state_class=sensor_def.get("state_class"),
-                            override_device_uuid=dev_uuid,
-                            entry=entry,
-                        )
-                    ]
+        for prop_def in CONNECTED_DEVICE_PROPERTIES.get(model_id):
+            try:
+                property_sensors.append(
+                    ComfoClimePropertySensor(
+                        hass=hass,
+                        coordinator=coordinator,
+                        api=api,
+                        path=prop_def["path"],
+                        name=prop_def["name"],
+                        translation_key=prop_def.get("translation_key", False),
+                        unit=prop_def.get("unit"),
+                        faktor=prop_def.get("faktor", 1.0),
+                        signed=prop_def.get("signed", True),
+                        byte_count=prop_def.get("byte_count"),
+                        mapping_key=prop_def.get("mapping_key", ""),
+                        device_class=prop_def.get("device_class"),
+                        state_class=prop_def.get("state_class"),
+                        entity_category=prop_def.get("entity_category"),
+                        device=device,
+                        override_device_uuid=dev_uuid,
+                        entry=entry,
+                    )
                 )
+            except Exception as e:
+                _LOGGER.error(f"Failed to create property sensor {prop_def.get('name')}: {e}", exc_info=True)
 
-        property_defs = CONNECTED_DEVICE_PROPERTIES.get(model_id)
-        if not property_defs:
-            continue
-
-        sensors.extend(
-            ComfoClimePropertySensor(
-                hass=hass,
-                coordinator=coordinator,
-                api=api,
-                path=prop_def["path"],
-                name=prop_def["name"],
-                translation_key=prop_def.get("translation_key", False),
-                unit=prop_def.get("unit"),
-                faktor=prop_def.get("faktor", 1.0),
-                signed=prop_def.get("signed", True),
-                byte_count=prop_def.get("byte_count"),
-                mapping_key=prop_def.get("mapping_key", ""),
-                device_class=prop_def.get("device_class"),
-                state_class=prop_def.get("state_class"),
-                entity_category=prop_def.get("entity_category"),
-                device=device,
-                override_device_uuid=dev_uuid,
-                entry=entry,
-            )
-            for prop_def in property_defs
-        )
-    async_add_entities(sensors, True)
+    if property_sensors:
+        _LOGGER.info(f"Adding {len(property_sensors)} property sensors")
+        async_add_entities(property_sensors, True)
+    else:
+        _LOGGER.info("No property sensors to add")
 
 
 class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], SensorEntity):
@@ -336,11 +364,16 @@ class ComfoClimeTelemetrySensor(CoordinatorEntity, SensorEntity):
         self._attr_has_entity_name = True
 
         # Register with coordinator
+        # Register with coordinator
         self.coordinator.register_telemetry(telemetry_id)
+        _LOGGER.debug(f"Initialized Telemetry Sensor: {name} (ID: {telemetry_id})")
 
     @property
     def native_value(self):
-        return self.coordinator.data.get(f"telemetry_{self._id}")
+        val = self.coordinator.data.get(f"telemetry_{self._id}")
+        if val is None:
+            _LOGGER.debug(f"Telemetry {self._name} (ID: {self._id}) is None in coordinator data")
+        return val
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -409,13 +442,17 @@ class ComfoClimePropertySensor(CoordinatorEntity, SensorEntity):
             if len(parts) == 3:
                 unit, subunit, prop = map(int, parts)
                 self.coordinator.register_property(unit, subunit, prop, faktor, signed)
+                _LOGGER.debug(f"Initialized Property Sensor: {name} (Path: {path})")
         except ValueError:
-            _LOGGER.error(f"Invalid property path: {path}")
+            _LOGGER.error(f"Invalid property path: {path}", exc_info=True)
 
     @property
     def native_value(self):
         key = f"property_{self._path.replace('/', '_')}"
         value = self.coordinator.data.get(key)
+
+        if value is None:
+            _LOGGER.debug(f"Property {self._name} (Path: {self._path}) is None in coordinator data (Key: {key})")
 
         if self._mapping_key and self._mapping_key in VALUE_MAPPINGS:
             return VALUE_MAPPINGS[self._mapping_key].get(value, value)
