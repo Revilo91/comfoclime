@@ -184,7 +184,8 @@ class ComfoClimeAPI:
 
                     data = payload.get("data")
                     if not isinstance(data, list) or len(data) == 0:
-                        raise ValueError("Unerwartetes Telemetrie-Format")
+                        _LOGGER.debug(f"Telemetry {telemetry_id} returned empty or invalid data: {data=}")
+                        return None
 
                     if byte_count is None:
                         byte_count = len(data)
