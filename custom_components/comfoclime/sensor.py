@@ -370,6 +370,8 @@ class ComfoClimeTelemetrySensor(CoordinatorEntity, SensorEntity):
 
     @property
     def native_value(self):
+        if self.coordinator.data is None:
+            return None
         val = self.coordinator.data.get(f"telemetry_{self._id}")
         if val is None:
             _LOGGER.debug(f"Telemetry {self._name} (ID: {self._id}) is None in coordinator data")
@@ -448,6 +450,8 @@ class ComfoClimePropertySensor(CoordinatorEntity, SensorEntity):
 
     @property
     def native_value(self):
+        if self.coordinator.data is None:
+            return None
         key = f"property_{self._path.replace('/', '_')}"
         value = self.coordinator.data.get(key)
 
