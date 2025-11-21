@@ -134,6 +134,33 @@
             },
             "scenario": {
                 "name": "Active Scenario"
+            },
+            "compressor_temperature": {
+                "name": "Compressor Temperature"
+            },
+            "heat_pump_power_percentage": {
+                "name": "Heat Pump Power %"
+            },
+            "zone": {
+                "name": "Zone"
+            },
+            "product_id": {
+                "name": "Product ID"
+            },
+            "product_variant": {
+                "name": "Product Variant"
+            },
+            "serial_number": {
+                "name": "Serial Number"
+            },
+            "hardware_version": {
+                "name": "Hardware Version"
+            },
+            "firmware_version": {
+                "name": "Firmware Version"
+            },
+            "device_name": {
+                "name": "Device Name"
             }
         },
         "select": {
@@ -147,6 +174,14 @@
             },
             "season_mode": {
                 "name": "Season Mode",
+                "state": {
+                    "heating": "Heating period",
+                    "cooling": "Cooling period",
+                    "transition": "Transitional period"
+                }
+            },
+            "season_select": {
+                "name": "Season Select",
                 "state": {
                     "heating": "Heating period",
                     "cooling": "Cooling period",
@@ -209,6 +244,21 @@
             },
             "heatpump_max_temp": {
                 "name": "Heatpumpt maximum heating temperature"
+            },
+            "heating_curve_knee_point": {
+                "name": "Heating Curve Knee Point"
+            },
+            "cooling_curve_knee_point": {
+                "name": "Cooling Curve Knee Point"
+            },
+            "max_temp_cooling": {
+                "name": "Max Temperature Cooling"
+            },
+            "heating_delta": {
+                "name": "Heating Delta"
+            },
+            "manual_target_temperature": {
+                "name": "Manual Target Temperature"
             }
         },
         "switch": {
@@ -220,6 +270,9 @@
             },
             "heatpump_onoff": {
                 "name": "Heatpump on/off"
+            },
+            "automatic_season": {
+                "name": "Automatic Season"
             }
         },
         "fan": {

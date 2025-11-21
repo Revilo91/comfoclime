@@ -134,6 +134,33 @@
             },
             "scenario": {
                 "name": "Aktives Szenario"
+            },
+            "compressor_temperature": {
+                "name": "Kompressor Temperatur"
+            },
+            "heat_pump_power_percentage": {
+                "name": "Wärmepumpe Leistung %"
+            },
+            "zone": {
+                "name": "Zone"
+            },
+            "product_id": {
+                "name": "Produkt ID"
+            },
+            "product_variant": {
+                "name": "Produktvariante"
+            },
+            "serial_number": {
+                "name": "Seriennummer"
+            },
+            "hardware_version": {
+                "name": "Hardware Version"
+            },
+            "firmware_version": {
+                "name": "Firmware Version"
+            },
+            "device_name": {
+                "name": "Gerätename"
             }
         },
         "select": {
@@ -146,6 +173,14 @@
                 }
             },
             "season_mode": {
+                "name": "Jahreszeitwahl",
+                "state": {
+                    "heating": "Heizperiode",
+                    "cooling": "Kühlperiode",
+                    "transition": "Übergangszeit"
+                }
+            },
+            "season_select": {
                 "name": "Jahreszeitwahl",
                 "state": {
                     "heating": "Heizperiode",
@@ -209,6 +244,21 @@
             },
             "heatpump_max_temp": {
                 "name": "Wärmepumpe maximale Heiztemperatur"
+            },
+            "heating_curve_knee_point": {
+                "name": "Knickpunkt Heizkurve Heizen"
+            },
+            "cooling_curve_knee_point": {
+                "name": "Knickpunkt Heizkurve Kühlen"
+            },
+            "max_temp_cooling": {
+                "name": "Maximaltemperatur Kühlen"
+            },
+            "heating_delta": {
+                "name": "Heiz-Delta"
+            },
+            "manual_target_temperature": {
+                "name": "Manuelle Zieltemperatur"
             }
         },
         "switch": {
@@ -220,6 +270,9 @@
             },
             "heatpump_onoff": {
                 "name": "Wärmepumpe an/aus"
+            },
+            "automatic_season": {
+                "name": "Automatische Jahreszeit"
             }
         },
         "fan": {
