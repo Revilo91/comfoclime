@@ -164,6 +164,33 @@
             },
             "device_name": {
                 "name": "Gerätename"
+            },
+            "target_temperature": {
+                "name": "Zieltemperatur"
+            },
+            "temperature_profile_target": {
+                "name": "Temperaturprofil Ziel"
+            },
+            "unknown_value_4202": {
+                "name": "Unbekannter Wert 4202"
+            },
+            "unknown_value_4203": {
+                "name": "Unbekannter Wert 4203"
+            },
+            "unknown_value_4204": {
+                "name": "Unbekannter Wert 4204"
+            },
+            "unknown_value_4205": {
+                "name": "Unbekannter Wert 4205"
+            },
+            "unknown_value_4206": {
+                "name": "Unbekannter Wert 4206"
+            },
+            "unknown_value_4207": {
+                "name": "Unbekannter Wert 4207"
+            },
+            "unknown_value_4208": {
+                "name": "Unbekannter Wert 4208"
             }
         },
         "select": {
