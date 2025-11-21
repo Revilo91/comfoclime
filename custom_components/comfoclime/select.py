@@ -168,9 +168,17 @@ class ComfoClimePropertySelect(CoordinatorEntity, SelectEntity):
         # Register property with coordinator
         try:
             parts = self._path.split("/")
-            if len(parts) == 3:
-                unit, subunit, prop = map(int, parts)
-                self.coordinator.register_property(unit, subunit, prop, 1.0, True)
+            # Register with coordinator
+            unit, subunit, prop = map(int, parts)
+            self.coordinator.register_property(unit, subunit, prop, 1.0, False)
+
+            _LOGGER.info(
+                f"Creating ComfoClimePropertySelect: "
+                f"path='{self._path}', "
+                f"translation_key='{self._attr_translation_key}', "
+                f"options={list(self._options_map.values())}, "
+                f"device_uuid={device.get('uuid')}"
+            )
         except ValueError:
             _LOGGER.error(f"Invalid property path: {self._path}")
 

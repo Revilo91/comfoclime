@@ -25,14 +25,20 @@ class ComfoClimeFan(CoordinatorEntity[ComfoClimeDashboardCoordinator], FanEntity
 
         self._attr_has_entity_name = True
         self._attr_translation_key = "fan_speed"
-        self._attr_unique_id = f"{entry.entry_id}_fan_speed"
+        self._attr_unique_id = f"{entry.entry_id}_fan"
         self._attr_config_entry_id = entry.entry_id
 
         # Setze percentage-Modus mit diskreten Stufen
         self._attr_available = True
         self._attr_supported_features = FanEntityFeature.SET_SPEED
-        self._attr_speed_count = 3
+        self._attr_speed_count = 3  # Low, Medium, High
         self._attr_percentage_step = 100 // (self._attr_speed_count)
+
+        _LOGGER.info(
+            f"Creating ComfoClimeFan: "
+            f"name='{self._attr_translation_key}', "
+            f"unique_id={self._attr_unique_id}"
+        )
 
     @property
     def device_info(self) -> DeviceInfo:

@@ -266,11 +266,25 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
         is_thermal_profile = isinstance(coordinator, ComfoClimeThermalprofileCoordinator)
         prefix = "thermalprofile" if is_thermal_profile else "dashboard"
         self._attr_unique_id = f"{entry.entry_id}_{prefix}_{sensor_type.replace('.', '_')}"
+
+        _LOGGER.info(
+            f"Creating ComfoClimeSensor: "
+            f"type='{sensor_type}', "
+            f"name='{name}', "
+            f"translation_key='{translation_key}', "
+            f"coordinator_type='{coordinator.__class__.__name__}', "
+            f"device_class={device_class}"
+        )
+
         if not translation_key:
             self._attr_name = name
+            _LOGGER.info(f"  -> Using _attr_name = '{name}' (no translation_key)")
         else:
             self._attr_translation_key = translation_key
+            _LOGGER.info(f"  -> Using _attr_translation_key = '{translation_key}'")
+
         self._attr_has_entity_name = True
+        _LOGGER.info(f"  -> Final unique_id = {self._attr_unique_id}")
 
     @property
     def state(self):
@@ -446,11 +460,25 @@ class ComfoClimePropertySensor(CoordinatorEntity, SensorEntity):
         # Include device UUID to make unique ID truly unique across devices
         device_uuid = device.get("uuid") if device else "unknown"
         self._attr_unique_id = f"{entry.entry_id}_{device_uuid}_property_{path.replace('/', '_')}"
+
+        _LOGGER.info(
+            f"Creating ComfoClimePropertySensor: "
+            f"path='{path}', "
+            f"name='{name}', "
+            f"translation_key='{translation_key}', "
+            f"device_class={device_class}, "
+            f"device_uuid={device_uuid}"
+        )
+
         if not translation_key:
             self._attr_name = name
+            _LOGGER.info(f"  -> Using _attr_name = '{name}' (no translation_key)")
         else:
             self._attr_translation_key = translation_key
+            _LOGGER.info(f"  -> Using _attr_translation_key = '{translation_key}'")
+
         self._attr_has_entity_name = True
+        _LOGGER.info(f"  -> Final unique_id = {self._attr_unique_id}")
 
         # Register property with coordinator
         # Parse path "unit/subunit/prop"

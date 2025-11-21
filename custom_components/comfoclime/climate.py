@@ -167,6 +167,12 @@ class ComfoClimeClimate(
         self._attr_precision = 0.1
         self._attr_target_temperature_step = 0.5
 
+        _LOGGER.info(
+            f"Creating ComfoClimeClimate: "
+            f"translation_key='{self._attr_translation_key}', "
+            f"unique_id={self._attr_unique_id}"
+        )
+
         # Supported features
         self._attr_supported_features = (
             ClimateEntityFeature.TARGET_TEMPERATURE

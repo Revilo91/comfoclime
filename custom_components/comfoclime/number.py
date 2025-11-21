@@ -232,9 +232,12 @@ class ComfoClimePropertyNumber(CoordinatorEntity, NumberEntity):
         self._signed = config.get("signed", True)
         self._byte_count = config.get("byte_count", 2)
 
-        _LOGGER.debug(
-            f"ComfoClimePropertyNumber initialized: path={self._path}, "
-            f"device={device.get('uuid')}, unique_id={self._attr_unique_id}"
+        _LOGGER.info(
+            f"Creating ComfoClimePropertyNumber: "
+            f"path='{self._path}', "
+            f"translation_key='{self._attr_translation_key}', "
+            f"device_uuid={device.get('uuid')}, "
+            f"unique_id={self._attr_unique_id}"
         )
 
         # Register property with coordinator

@@ -118,6 +118,13 @@ class ComfoClimeModeSwitch(
         self._attr_translation_key = translation_key
         self._attr_has_entity_name = True
 
+        _LOGGER.info(
+            f"Creating ComfoClimeModeSwitch: "
+            f"key={key}, "
+            f"translation_key='{translation_key}', "
+            f"unique_id={self._attr_unique_id}"
+        )
+
     @property
     def is_on(self):
         return self._state
@@ -196,6 +203,11 @@ class ComfoClimeStandbySwitch(
         # self._attr_name = name
         self._attr_translation_key = "heatpump_onoff"
         self._attr_has_entity_name = True
+
+        _LOGGER.info(
+            f"Creating ComfoClimeStandbySwitch: "
+            f"unique_id={self._attr_unique_id}"
+        )
 
     @property
     def is_on(self):
@@ -276,10 +288,15 @@ class ComfoClimePropertySwitch(
 
         # Register property with coordinator
         # Switches are usually boolean (0/1), assuming byte_count=1, unsigned
-        # Unit 22/1/2 is UINT8, 0=Off, 1=On
-        unit, subunit, prop = map(int, path.split("/"))
-        self.coordinator.register_property(
-            unit, subunit, prop, factor=1.0, signed=False
+        # Unit        # Register with coordinator
+        unit, subunit, prop = map(int, self._path.split("/"))
+        self.coordinator.register_property(unit, subunit, prop, 1.0, False, 1)
+
+        _LOGGER.info(
+            f"Creating ComfoClimePropertySwitch: "
+            f"path='{self._path}', "
+            f"translation_key='{self._attr_translation_key}', "
+            f"device_uuid={device.get('uuid')}"
         )
 
     @property
