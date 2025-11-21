@@ -28,6 +28,9 @@
             "supply_air_temperature": {
                 "name": "Supply Air Temperature"
             },
+            "ventilation_supply_temperature": {
+                "name": "Ventilation Supply Temperature"
+            },
             "supply_coil_temperature": {
                 "name": "Supply Coil Temperature"
             },

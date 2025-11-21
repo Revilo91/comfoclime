@@ -28,6 +28,9 @@
             "supply_air_temperature": {
                 "name": "Zulufttemperatur"
             },
+            "ventilation_supply_temperature": {
+                "name": "Lüftung Zulufttemperatur"
+            },
             "supply_coil_temperature": {
                 "name": "Zuluft Gastemperatur"
             },
