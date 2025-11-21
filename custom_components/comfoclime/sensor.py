@@ -357,11 +357,24 @@ class ComfoClimeTelemetrySensor(CoordinatorEntity, SensorEntity):
         self._entry = entry
         self._attr_config_entry_id = entry.entry_id
         self._attr_unique_id = f"{entry.entry_id}_telemetry_{telemetry_id}"
+
+        _LOGGER.info(
+            f"Creating ComfoClimeTelemetrySensor: "
+            f"telemetry_id={telemetry_id}, "
+            f"name='{name}', "
+            f"translation_key='{translation_key}', "
+            f"device_class={device_class}"
+        )
+
         if not translation_key:
             self._attr_name = name
+            _LOGGER.info(f"  -> Using _attr_name = '{name}' (no translation_key)")
         else:
             self._attr_translation_key = translation_key
+            _LOGGER.info(f"  -> Using _attr_translation_key = '{translation_key}'")
+
         self._attr_has_entity_name = True
+        _LOGGER.info(f"  -> Final unique_id = {self._attr_unique_id}")
 
         # Register with coordinator
         # Register with coordinator
