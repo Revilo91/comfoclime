@@ -260,7 +260,15 @@ CONNECTED_DEVICE_SENSORS = {
         },
         {
             "telemetry_id": 4193,
-        {
+            "name": "Supply Air Temperature",
+            "translation_key": "supply_air_temperature",
+            "unit": "°C",
+            "faktor": 0.1,
+            "signed": True,
+            "byte_count": 2,
+            "device_class": "temperature",
+            "state_class": "measurement",
+        },
             "telemetry_id": 4195,
             "name": "Supply Coil Temperature",
             "translation_key": "supply_coil_temperature",
