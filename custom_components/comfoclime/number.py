@@ -252,7 +252,9 @@ class ComfoClimePropertyNumber(CoordinatorEntity, NumberEntity):
 
     @property
     def native_value(self):
-        key = f"property_{self._property_path.replace('/', '_')}"
+        if self.coordinator.data is None:
+            return None
+        key = f"property_{self._path.replace('/', '_')}"
         return self.coordinator.data.get(key)
 
     @property

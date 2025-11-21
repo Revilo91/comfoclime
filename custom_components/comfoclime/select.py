@@ -180,6 +180,8 @@ class ComfoClimePropertySelect(CoordinatorEntity, SelectEntity):
 
     @property
     def current_option(self):
+        if self.coordinator.data is None:
+            return None
         key = f"property_{self._path.replace('/', '_')}"
         val = self.coordinator.data.get(key)
         return self._options_map.get(val)
