@@ -210,7 +210,6 @@ class ComfoClimePropertyNumber(NumberEntity):
         self._attr_native_step = config.get("step", 1)
         self._attr_native_unit_of_measurement = config.get("unit")
         self._faktor = config.get("faktor", 1.0)
-        self._signed = config.get("signed", True)
         self._byte_count = config.get("byte_count", 2)
 
     @property
@@ -240,7 +239,6 @@ class ComfoClimePropertyNumber(NumberEntity):
                 self._device["uuid"],
                 self._property_path,
                 faktor=self._faktor,
-                signed=self._signed,
                 byte_count=self._byte_count,
             )
             self._value = value
@@ -259,7 +257,6 @@ class ComfoClimePropertyNumber(NumberEntity):
                 value,
                 byte_count=self._byte_count,
                 faktor=self._faktor,
-                signed=self._signed,
             )
             self._value = value
         except Exception as e:

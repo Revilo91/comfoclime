@@ -8,18 +8,17 @@ import requests
 _LOGGER = logging.getLogger(__name__)
 
 
-def _decode_raw_value(raw, factor=1.0, signed=True, byte_count=2):
-    """Decode a raw dashboard value with optional signed two's complement conversion.
+def _decode_raw_value(raw, factor=1.0, byte_count=2):
+    """Decode a raw dashboard value with signed two's complement conversion.
 
     This helper centralizes decoding logic for dashboard numeric fields that may
-    represent signed INT16 values. The dashboard API sometimes returns values
+    represent signed INT16/INT8 values. The dashboard API sometimes returns values
     that are already scaled incorrectly or as unsigned integers when they should
-    be signed.
+    be signed. All values are now treated as signed by default.
 
     Args:
         raw: Raw value (int, float, or None) from dashboard API
         factor: Scaling factor to apply after decoding (default: 1.0)
-        signed: Whether to apply two's complement for negative values (default: True)
         byte_count: Number of bytes (1 or 2) for two's complement threshold (default: 2)
 
     Returns:
@@ -27,7 +26,7 @@ def _decode_raw_value(raw, factor=1.0, signed=True, byte_count=2):
 
     Example:
         # Negative temperature incorrectly returned as unsigned value
-        _decode_raw_value(65519, factor=0.1, signed=True, byte_count=2)  # Returns -1.7
+        _decode_raw_value(65519, factor=0.1, byte_count=2)  # Returns -1.7
     """
     if raw is None:
         return None
@@ -41,12 +40,11 @@ def _decode_raw_value(raw, factor=1.0, signed=True, byte_count=2):
         # Convert to integer
         raw_int = int(raw)
 
-        # Apply two's complement conversion for signed values
-        if signed:
-            if byte_count == 1 and raw_int >= 0x80:
-                raw_int -= 0x100
-            elif byte_count == 2 and raw_int >= 0x8000:
-                raw_int -= 0x10000
+        # Apply two's complement conversion (always signed)
+        if byte_count == 1 and raw_int >= 0x80:
+            raw_int -= 0x100
+        elif byte_count == 2 and raw_int >= 0x8000:
+            raw_int -= 0x10000
 
         return raw_int * factor
     except (ValueError, TypeError):
@@ -114,7 +112,7 @@ class ComfoClimeAPI:
         for field in temp_fields:
             if field in data:
                 data[field] = _decode_raw_value(
-                    data[field], factor=0.1, signed=True, byte_count=2
+                    data[field], factor=0.1, byte_count=2
                 )
 
         return data
@@ -132,7 +130,7 @@ class ComfoClimeAPI:
         return response.json().get("devices", [])
 
     async def async_read_telemetry_for_device(
-        self, hass, device_uuid, telemetry_id, faktor=1.0, signed=True, byte_count=None
+        self, hass, device_uuid, telemetry_id, faktor=1.0, byte_count=None
     ):
         async with self._request_lock:
             return await hass.async_add_executor_job(
@@ -140,12 +138,11 @@ class ComfoClimeAPI:
                 device_uuid,
                 telemetry_id,
                 faktor,
-                signed,
                 byte_count,
             )
 
     def read_telemetry_for_device(
-        self, device_uuid, telemetry_id, faktor=1.0, signed=True, byte_count=None
+        self, device_uuid, telemetry_id, faktor=1.0, byte_count=None
     ):
         url = f"{self.base_url}/device/{device_uuid}/telemetry/{telemetry_id}"
         response = requests.get(url, timeout=5)
@@ -161,12 +158,12 @@ class ComfoClimeAPI:
 
         if byte_count == 1:
             value = data[0]
-            if signed and value >= 0x80:
+            if value >= 0x80:
                 value -= 0x100
         elif byte_count == 2:
             lsb, msb = data[:2]
             value = lsb + (msb << 8)
-            if signed and value >= 0x8000:
+            if value >= 0x8000:
                 value -= 0x10000
         else:
             raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
@@ -179,7 +176,6 @@ class ComfoClimeAPI:
         device_uuid: str,
         property_path: str,
         faktor: float = 1.0,
-        signed: bool = True,
         byte_count: int | None = None,
     ):
         async with self._request_lock:
@@ -188,7 +184,6 @@ class ComfoClimeAPI:
                 device_uuid,
                 property_path,
                 faktor,
-                signed,
                 byte_count,
             )
 
@@ -214,7 +209,6 @@ class ComfoClimeAPI:
         device_uuid: str,
         property_path: str,
         faktor: float = 1.0,
-        signed: bool = True,
         byte_count: int | None = None,
     ) -> None | str | float:
         data = self.read_property_for_device_raw(device_uuid, property_path)
@@ -229,12 +223,12 @@ class ComfoClimeAPI:
 
         if byte_count == 1:
             value = data[0]
-            if signed and value >= 0x80:
+            if value >= 0x80:
                 value -= 0x100
         elif byte_count == 2:
             lsb, msb = data[:2]
             value = lsb + (msb << 8)
-            if signed and value >= 0x8000:
+            if value >= 0x8000:
                 value -= 0x10000
         elif byte_count > 2:
             if len(data) != byte_count:
@@ -468,7 +462,6 @@ class ComfoClimeAPI:
         value: float,
         *,
         byte_count: int,
-        signed: bool = True,
         faktor: float = 1.0,
     ):
         async with self._request_lock:
@@ -478,7 +471,6 @@ class ComfoClimeAPI:
                     property_path,
                     value,
                     byte_count=byte_count,
-                    signed=signed,
                     faktor=faktor,
                 )
             )
@@ -490,7 +482,6 @@ class ComfoClimeAPI:
         value: float,
         *,
         byte_count: int,
-        signed: bool = True,
         faktor: float = 1.0,
     ):
         if byte_count not in (1, 2):
@@ -499,13 +490,13 @@ class ComfoClimeAPI:
         # Wert zurückrechnen, falls ein Faktor verwendet wird
         raw_value = int(round(value / faktor))
 
-        # Bytes erzeugen
+        # Bytes erzeugen (immer signed)
         if byte_count == 1:
-            if signed and raw_value < 0:
+            if raw_value < 0:
                 raw_value += 0x100
             data = [raw_value & 0xFF]
         elif byte_count == 2:
-            if signed and raw_value < 0:
+            if raw_value < 0:
                 raw_value += 0x10000
             data = [raw_value & 0xFF, (raw_value >> 8) & 0xFF]
 

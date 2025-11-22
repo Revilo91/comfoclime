@@ -11,7 +11,6 @@ async def test_set_property():
         property_path="29/1/10",
         value=1,
         byte_count=1,
-        signed=False,
         faktor=1.0,
     )
 
