@@ -8,42 +8,30 @@ import requests
 _LOGGER = logging.getLogger(__name__)
 
 
-def _decode_raw_value(raw, factor=1.0, byte_count=2):
-    """Decode a raw dashboard value with signed two's complement conversion.
+def _decode_raw_value(raw, factor=0.1):
+    """Decode raw sensor values with auto-scaling and signed conversion.
 
-    This helper centralizes decoding logic for dashboard numeric fields that may
-    represent signed INT16/INT8 values. The dashboard API sometimes returns values
-    that are already scaled incorrectly or as unsigned integers when they should
-    be signed. All values are now treated as signed by default.
-
-    Args:
-        raw: Raw value (int, float, or None) from dashboard API
-        factor: Scaling factor to apply after decoding (default: 1.0)
-        byte_count: Number of bytes (1 or 2) for two's complement threshold (default: 2)
-
-    Returns:
-        Decoded and scaled value (float) or None if raw is None/unconvertible
-
-    Example:
-        # Negative temperature incorrectly returned as unsigned value
-        _decode_raw_value(65519, factor=0.1, byte_count=2)  # Returns -1.7
+    Small values (< 1000) → return as-is (already scaled)
+    Large values (≥ 1000) → decode as signed int and apply factor
     """
     if raw is None:
         return None
 
     try:
-        # If raw is a float with large absolute value, assume it was incorrectly scaled
-        # and reverse-scale it back to integer
-        if isinstance(raw, float) and abs(raw) > 1000:
+        # Already scaled values pass through
+        if abs(raw) < 1000:
+            return float(raw)
+
+        # Reverse-scale floats back to raw integer
+        if isinstance(raw, float):
             raw = round(raw / factor)
 
-        # Convert to integer
         raw_int = int(raw)
 
-        # Apply two's complement conversion (always signed)
-        if byte_count == 1 and raw_int >= 0x80:
+        # Apply two's complement for signed conversion
+        if raw_int <= 0xFF and raw_int >= 0x80:  # 1-byte signed
             raw_int -= 0x100
-        elif byte_count == 2 and raw_int >= 0x8000:
+        elif raw_int >= 0x8000:  # 2-byte signed
             raw_int -= 0x10000
 
         return raw_int * factor
@@ -98,24 +86,11 @@ class ComfoClimeAPI:
         response.raise_for_status()
         data = response.json()
 
-        # Decode temperature fields that may be returned as unsigned INT16
-        # when they should be signed (e.g., negative temperatures)
-        temp_fields = [
-            # "indoorTemperature",
-            "outdoorTemperature",
-            # "exhaustTemperature",
-            # "supplyTemperature",
-            # "runningMeanOutdoorTemperature",
-            # "setPointTemperature",  # Manual mode target temperature
-        ]
-
-        for field in temp_fields:
-            if field in data:
-                data[field] = _decode_raw_value(
-                    data[field], factor=0.1, byte_count=2
-                )
-
-        return data
+        # Auto-decode all numeric values (int/float) with scaling and signed conversion
+        return {
+            key: _decode_raw_value(val, factor=0.1) if isinstance(val, (int, float)) else val
+            for key, val in data.items()
+        }
 
     async def async_get_connected_devices(self, hass):
         async with self._request_lock:
