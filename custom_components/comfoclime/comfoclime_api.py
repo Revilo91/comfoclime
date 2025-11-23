@@ -29,7 +29,7 @@ def _decode_raw_value(raw, factor=0.1):
         raw_int = int(raw)
 
         # Apply two's complement for signed conversion
-        if raw_int <= 0xFF and raw_int >= 0x80:  # 1-byte signed
+        if 0x80 <= raw_int <= 0xFF:  # 1-byte signed
             raw_int -= 0x100
         elif raw_int >= 0x8000:  # 2-byte signed
             raw_int -= 0x10000
@@ -446,10 +446,9 @@ class ComfoClimeAPI:
         if byte_count not in (1, 2):
             raise ValueError("Nur 1 oder 2 Byte unterstützt")
 
-        # Wert zurückrechnen, falls ein Faktor verwendet wird
         raw_value = int(round(value / faktor))
 
-        # Bytes erzeugen (immer signed)
+        # Generate bytes for signed values (unsigned values are also handled)
         if byte_count == 1:
             if raw_value < 0:
                 raw_value += 0x100
