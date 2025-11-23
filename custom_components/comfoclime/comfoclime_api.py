@@ -86,9 +86,11 @@ class ComfoClimeAPI:
         response.raise_for_status()
         data = response.json()
 
-        # Auto-decode all numeric values (int/float) with scaling and signed conversion
+        # Auto-decode only temperature fields (ending with 'Temperature')
         return {
-            key: _decode_raw_value(val, factor=0.1) if isinstance(val, (int, float)) else val
+            key: _decode_raw_value(val, factor=0.1)
+            if isinstance(val, (int, float)) and key.endswith("Temperature")
+            else val
             for key, val in data.items()
         }
 
