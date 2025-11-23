@@ -38,24 +38,6 @@ def _decode_raw_value(raw, factor=0.1):
     except (ValueError, TypeError):
         return None
 
-
-# Exception classes as per ComfoClimeAPI.md documentation
-class ComfoClimeError(Exception):
-    """Base exception for ComfoClime API errors."""
-
-
-class ComfoClimeConnectionError(ComfoClimeError):
-    """Exception for connection errors."""
-
-
-class ComfoClimeTimeoutError(ComfoClimeError):
-    """Exception for timeout errors."""
-
-
-class ComfoClimeAuthenticationError(ComfoClimeError):
-    """Exception for authentication errors."""
-
-
 class ComfoClimeAPI:
     def __init__(self, base_url):
         self.base_url = base_url.rstrip("/")
