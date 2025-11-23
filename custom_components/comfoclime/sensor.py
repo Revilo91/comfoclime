@@ -116,7 +116,6 @@ async def async_setup_entry(
             translation_key=sensor_def.get("translation_key", False),
             unit=sensor_def.get("unit"),
             faktor=sensor_def.get("faktor", 1.0),
-            signed=sensor_def.get("signed", True),
             byte_count=sensor_def.get("byte_count"),
             device_class=sensor_def.get("device_class"),
             state_class=sensor_def.get("state_class"),
@@ -157,7 +156,6 @@ async def async_setup_entry(
                             translation_key=sensor_def.get("translation_key", False),
                             unit=sensor_def.get("unit"),
                             faktor=sensor_def.get("faktor", 1.0),
-                            signed=sensor_def.get("signed", True),
                             byte_count=sensor_def.get("byte_count"),
                             device_class=sensor_def.get("device_class"),
                             device=device,
@@ -181,7 +179,6 @@ async def async_setup_entry(
                 translation_key=prop_def.get("translation_key", False),
                 unit=prop_def.get("unit"),
                 faktor=prop_def.get("faktor", 1.0),
-                signed=prop_def.get("signed", True),
                 byte_count=prop_def.get("byte_count"),
                 mapping_key=prop_def.get("mapping_key", ""),
                 device_class=prop_def.get("device_class"),
@@ -292,7 +289,6 @@ class ComfoClimeTelemetrySensor(SensorEntity):
         translation_key,
         unit,
         faktor=1.0,
-        signed=True,
         byte_count=None,
         device_class=None,
         state_class=None,
@@ -306,7 +302,6 @@ class ComfoClimeTelemetrySensor(SensorEntity):
         self._id = telemetry_id
         self._name = name
         self._faktor = faktor
-        self._signed = signed
         self._byte_count = byte_count
         self._state = None
         self._attr_native_unit_of_measurement = unit
@@ -348,7 +343,6 @@ class ComfoClimeTelemetrySensor(SensorEntity):
                 self._override_uuid or self._api.uuid,
                 self._id,
                 self._faktor,
-                self._signed,
                 self._byte_count,
             )
         except Exception:
@@ -367,7 +361,6 @@ class ComfoClimePropertySensor(SensorEntity):
         *,
         unit: str | None = None,
         faktor: float = 1.0,
-        signed: bool = True,
         byte_count: int | None = None,
         device_class: str | None = None,
         state_class: str | None = None,
@@ -382,7 +375,6 @@ class ComfoClimePropertySensor(SensorEntity):
         self._path = path
         self._name = name
         self._faktor = faktor
-        self._signed = signed
         self._byte_count = byte_count
         self._attr_native_unit_of_measurement = unit
         self._attr_device_class = SensorDeviceClass(device_class) if device_class else None
@@ -423,7 +415,6 @@ class ComfoClimePropertySensor(SensorEntity):
                 self._override_uuid or self._api.uuid,
                 self._path,
                 self._faktor,
-                self._signed,
                 self._byte_count,
             )
             if self._mapping_key and self._mapping_key in VALUE_MAPPINGS:
