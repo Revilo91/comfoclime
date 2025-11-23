@@ -1,7 +1,8 @@
 # comfoclime_api.py
 import asyncio
-import datetime
 import logging
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import requests
 
@@ -173,8 +174,8 @@ class ComfoClimeAPI:
             response = requests.get(url, timeout=5)
             response.raise_for_status()
             payload = response.json()
-        except Exception as e:
-            _LOGGER.error(f"Fehler beim Abrufen der Property {property_path}: {e}")
+        except Exception:
+            _LOGGER.exception(f"Fehler beim Abrufen der Property {property_path}")
             return None
 
         data = payload.get("data")
@@ -325,6 +326,12 @@ class ComfoClimeAPI:
         - Automatic mode (status=1): Uses preset profiles (seasonProfile, temperatureProfile)
         - Manual mode (status=0): Uses manual temperature (setPointTemperature)
 
+        Scenario modes:
+        - 4: Kochen (Cooking) - 30 minutes high ventilation
+        - 5: Party - 30 minutes high ventilation
+        - 7: Urlaub (Holiday) - 24 hours reduced mode
+        - 8: Boost - 30 minutes maximum power
+
         Args:
             set_point_temperature: Target temperature (°C) - activates manual mode
             fan_speed: Fan speed (0-3)
@@ -379,7 +386,8 @@ class ComfoClimeAPI:
             return {}
 
         # Add timestamp to payload
-        payload["timestamp"] = datetime.datetime.now().isoformat()
+        tz = ZoneInfo(self.hass.config.time_zone)
+        payload["timestamp"] = datetime.now(tz).isoformat()
 
         headers = {"content-type": "application/json; charset=utf-8"}
         url = f"{self.base_url}/system/{self.uuid}/dashboard"
@@ -391,10 +399,11 @@ class ComfoClimeAPI:
             except Exception:
                 resp_json = {"text": response.text}
             _LOGGER.debug(f"Dashboard update OK payload={payload} response={resp_json}")
-            return resp_json
-        except Exception as e:
-            _LOGGER.error(f"Error updating dashboard (payload={payload}): {e}")
+        except Exception:
+            _LOGGER.exception(f"Error updating dashboard (payload={payload})")
             raise
+        else:
+            return resp_json
 
     async def async_update_dashboard(self, hass, **kwargs):
         """Async wrapper for update_dashboard method."""
@@ -484,9 +493,9 @@ class ComfoClimeAPI:
         try:
             response = requests.put(url, json=payload, timeout=5)
             response.raise_for_status()
-        except Exception as e:
-            _LOGGER.error(
-                f"Fehler beim Schreiben von Property {property_path} mit Payload {payload}: {e}"
+        except Exception:
+            _LOGGER.exception(
+                f"Fehler beim Schreiben von Property {property_path} mit Payload {payload}"
             )
             raise
 

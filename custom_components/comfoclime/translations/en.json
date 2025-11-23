@@ -217,6 +217,9 @@
             },
             "automatic_comfort_temperature": {
                 "name": "Automatic Comfort Temperature"
+            },
+            "heatpump_onoff": {
+                "name": "Heatpump on/off"
             }
         },
         "fan": {
@@ -230,97 +233,22 @@
                 }
             }
         },
-        "humidity_protection": {
-            "name": "Ventilation Humidity Protection",
-            "state": {
-                "off": "Off",
-                "autoonly": "Auto Only",
-                "on": "On"
-            }
-        }
-    },
-    "number": {
-        "heating_comfort_temperature": {
-            "name": "Heating Comfort Temperature"
-        },
-        "heating_knee_point": {
-            "name": "Heating Curve Knee Point"
-        },
-        "heating_reduction_delta": {
-            "name": "Heating Reduction Delta"
-        },
-        "cooling_comfort_temperature": {
-            "name": "Cooling Comfort Temperature"
-        },
-        "cooling_knee_point": {
-            "name": "Cooling Curve Knee Point"
-        },
-        "cooling_temperature_limit": {
-            "name": "Cooling Temperaturelimit"
-        },
-        "manual_comfort_temperature": {
-            "name": "Manual Comfort Temperature"
-        },
-        "heating_threshold": {
-            "name": "Heating Threshold"
-        },
-        "cooling_threshold": {
-            "name": "Cooling Threshold"
-        },
-        "rmot_heating_threshold": {
-            "name": "Ventilation heating threshold RMOT"
-        },
-        "rmot_cooling_threshold": {
-            "name": "Ventilation cooling threshold RMOT"
-        },
-        "heatpump_min_temp": {
-            "name": "Heatpump minimum cooling temperature"
-        },
-        "heatpump_max_temp": {
-            "name": "Heatpumpt maximum heating temperature"
-        }
-    },
-    "switch": {
-        "automatic_season_detection": {
-            "name": "Automatic Season Detection"
-        },
-        "automatic_comfort_temperature": {
-            "name": "Automatic Comfort Temperature"
-        },
-        "heatpump_onoff": {
-            "name": "Heatpump on/off"
-        }
-    },
-    "fan": {
-        "fan_speed": {
-            "name": "Fan Speed",
-            "state": {
-                "off": "Away",
-                "low": "Low",
-                "medium": "Medium",
-                "high": "High"
-            }
-        }
-    },
-    "climate": {
         "climate": {
-            "climate": {
-                "name": "Climate Control",
-                "state_attributes": {
-                    "preset_mode": {
-                        "state": {
-                            "comfort": "Comfort",
-                            "power": "Power",
-                            "eco": "Eco"
-                        }
-                    },
-                    "fan_mode": {
-                        "state": {
-                            "off": "Off",
-                            "low": "Low",
-                            "medium": "Medium",
-                            "high": "High"
-                        }
+            "name": "Climate Control",
+            "state_attributes": {
+                "preset_mode": {
+                    "state": {
+                        "comfort": "Comfort",
+                        "power": "Power",
+                        "eco": "Eco"
+                    }
+                },
+                "fan_mode": {
+                    "state": {
+                        "off": "Off",
+                        "low": "Low",
+                        "medium": "Medium",
+                        "high": "High"
                     }
                 }
             }

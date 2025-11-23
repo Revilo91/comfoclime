@@ -66,8 +66,8 @@ class ComfoClimeFan(CoordinatorEntity[ComfoClimeDashboardCoordinator], FanEntity
             self._current_speed = step
             self.async_write_ha_state()
             self._hass.add_job(self.coordinator.async_request_refresh)
-        except Exception as e:
-            _LOGGER.error(f"Fehler beim Setzen von fanSpeed: {e}")
+        except Exception:
+            _LOGGER.exception("Fehler beim Setzen von fanSpeed")
 
     def _handle_coordinator_update(self):
         try:
@@ -104,5 +104,5 @@ async def async_setup_entry(
         fan_entity = ComfoClimeFan(hass, coordinator, api, main_device, entry)
         async_add_entities([fan_entity], True)
 
-    except Exception as e:
-        _LOGGER.error(f"Fehler beim Setup der FanEntity: {e}")
+    except Exception:
+        _LOGGER.exception("Fehler beim Setup der FanEntity")

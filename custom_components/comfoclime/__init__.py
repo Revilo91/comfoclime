@@ -1,10 +1,11 @@
 import logging
 
+import homeassistant.helpers.device_registry as dr
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
-import homeassistant.helpers.device_registry as dr
+
 
 from .comfoclime_api import ComfoClimeAPI
 from .coordinator import (
@@ -74,16 +75,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             )
             _LOGGER.info(f"Property {path} auf {value} gesetzt für {device_uuid}")
         except Exception as e:
-            _LOGGER.error(f"Fehler beim Setzen von Property {path}: {e}")
-            raise HomeAssistantError(f"Fehler beim Setzen von Property {path}: {e}")
+            _LOGGER.exception(f"Fehler beim Setzen von Property {path}")
+            raise HomeAssistantError(f"Fehler beim Setzen von Property {path}: {e}") from e
 
     async def handle_reset_system_service(call: ServiceCall):
         try:
             await api.async_reset_system(hass)
             _LOGGER.info("ComfoClime Neustart ausgelöst")
         except Exception as e:
-            _LOGGER.error(f"Fehler beim Neustart des Geräts: {e}")
-            raise HomeAssistantError(f"Fehler beim Neustart des Geräts: {e}")
+            _LOGGER.exception("Fehler beim Neustart des Geräts")
+            raise HomeAssistantError(f"Fehler beim Neustart des Geräts: {e}") from e
 
     async def handle_set_scenario_mode_service(call: ServiceCall):
         """Handle set_scenario_mode service call.
@@ -100,9 +101,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         entity_id = call.data["entity_id"]
         scenario = call.data["scenario"]
         duration = call.data.get("duration")
+        start_delay = call.data.get("start_delay")
 
         # Validate scenario parameter
-        valid_scenarios = ["cooking", "party", "holiday", "boost_mode"]
+        from .climate import SCENARIO_REVERSE_MAPPING
+        valid_scenarios = list(SCENARIO_REVERSE_MAPPING.keys())
         if scenario not in valid_scenarios:
             raise HomeAssistantError(
                 f"Invalid scenario '{scenario}'. Must be one of: {', '.join(valid_scenarios)}"
@@ -115,9 +118,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
                     f"Duration must be a positive number, got: {duration}"
                 )
 
+        # Validate start_delay format if provided
+        if start_delay is not None:
+            if not isinstance(start_delay, str):
+                raise HomeAssistantError(
+                    f"start_delay must be a datetime string (e.g. '2025-11-21 12:00:00'), got: {type(start_delay).__name__}"
+                )
+
         _LOGGER.debug(
             f"Service call: set_scenario_mode for {entity_id}, "
-            f"scenario={scenario}, duration={duration}"
+            f"scenario={scenario}, duration={duration}, start_delay={start_delay}"
         )
 
         # Get climate entity from component
@@ -128,11 +138,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
             if climate_entity and hasattr(climate_entity, "async_set_scenario_mode"):
                 try:
-                    await climate_entity.async_set_scenario_mode(scenario, duration=duration)
+                    await climate_entity.async_set_scenario_mode(
+                        scenario_mode=scenario,
+                        duration=duration,
+                        start_delay=start_delay,
+                    )
                 except Exception as e:
-                    _LOGGER.error(
-                        f"Error setting scenario mode '{scenario}' on {entity_id}: {e}",
-                        exc_info=True
+                    _LOGGER.exception(
+                        f"Error setting scenario mode '{scenario}' on {entity_id}"
                     )
                     raise HomeAssistantError(
                         f"Failed to set scenario mode '{scenario}': {e}"
@@ -140,7 +153,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
                 else:
                     _LOGGER.info(
                         f"Scenario mode '{scenario}' activated for {entity_id} "
-                        f"with duration {duration} min"
+                        f"with duration {duration} min and start_delay {start_delay}"
                     )
                     return
 
@@ -152,7 +165,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     hass.services.async_register(DOMAIN, "set_property", handle_set_property_service)
     hass.services.async_register(DOMAIN, "reset_system", handle_reset_system_service)
-    hass.services.async_register(DOMAIN, "set_scenario_mode", handle_set_scenario_mode_service)
+    hass.services.async_register(
+        DOMAIN, "set_scenario_mode", handle_set_scenario_mode_service
+    )
     return True
 
 
