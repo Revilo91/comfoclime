@@ -7,6 +7,55 @@ import requests
 
 _LOGGER = logging.getLogger(__name__)
 
+SCALED_VALUE_THRESHOLD = 1000  # Threshold for already scaled values (e.g., temperature fields)
+
+
+def _decode_raw_value(raw, factor=0.1, signed=True, byte_count=None):
+    """Decode raw sensor values with auto-scaling and signed/unsigned conversion.
+
+    Note: The heuristic 'Small values (< 1000) → return as-is (already scaled)' is intended for temperature fields,
+    which are typically already scaled by the API. For other sensor types (e.g., fan speed, percentage values),
+    this may not be correct and could result in incorrect decoding (e.g., a raw value of 200 may need decoding).
+    Large values (≥ 1000) → decode as signed/unsigned int and apply factor.
+
+    Args:
+        raw: Raw value to decode
+        factor: Scaling factor
+        signed: Whether to interpret value as signed (default True)
+        byte_count: Number of bytes (1 or 2), if known
+    """
+    if raw is None:
+        return None
+
+    try:
+        # Already scaled values pass through
+        if abs(raw) < SCALED_VALUE_THRESHOLD:
+            return float(raw)
+
+        # Apply two's complement for signed conversion
+        if 0x80 <= raw_int <= 0xFF:  # 1-byte signed
+            raw_int -= 0x100
+        elif 0x8000 <= raw_int <= 0xFFFF:  # 2-byte signed
+            raw_int -= 0x10000
+
+        # Determine byte_count if not provided
+        if byte_count is None:
+            if raw_int <= 0xFF:
+                byte_count = 1
+            elif raw_int <= 0xFFFF:
+                byte_count = 2
+
+        if signed:
+            # Apply two's complement for signed conversion
+            if byte_count == 1 and raw_int >= 0x80:
+                raw_int -= 0x100
+            elif byte_count == 2 and raw_int >= 0x8000:
+                raw_int -= 0x10000
+        # If not signed, leave as is
+
+        return raw_int * factor
+    except (ValueError, TypeError):
+        return None
 
 class ComfoClimeAPI:
     def __init__(self, base_url):
@@ -36,7 +85,15 @@ class ComfoClimeAPI:
             f"{self.base_url}/system/{self.uuid}/dashboard", timeout=5
         )
         response.raise_for_status()
-        return response.json()
+        data = response.json()
+
+        # Auto-decode only temperature fields (ending with 'Temperature')
+        return {
+            key: _decode_raw_value(val, factor=0.1)
+            if isinstance(val, (int, float)) and key.endswith("Temperature")
+            else val
+            for key, val in data.items()
+        }
 
     async def async_get_connected_devices(self, hass):
         async with self._request_lock:
@@ -399,11 +456,10 @@ class ComfoClimeAPI:
     ):
         if byte_count not in (1, 2):
             raise ValueError("Nur 1 oder 2 Byte unterstützt")
-
-        # Wert zurückrechnen, falls ein Faktor verwendet wird
+        # Calculate back the value if a factor is used.
         raw_value = int(round(value / faktor))
 
-        # Bytes erzeugen
+        # Generate bytes for signed values (all values are treated as signed; unsigned values are not handled separately)
         if byte_count == 1:
             if signed and raw_value < 0:
                 raw_value += 0x100
