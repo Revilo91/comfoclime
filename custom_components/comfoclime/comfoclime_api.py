@@ -16,33 +16,40 @@ class ComfoClimeAPI:
         self._request_lock = asyncio.Lock()
 
     @staticmethod
-    def bytes_to_signed_int(data: list, byte_count: int) -> int:
+    def bytes_to_signed_int(data: list, byte_count: int = None) -> int:
         """Convert raw bytes to a signed integer value.
-        
+
         Args:
             data: List of bytes (integers 0-255)
-            byte_count: Number of bytes to read (1 or 2)
-            
+            byte_count: Number of bytes to read. If None calculate from data
+
         Returns:
             Signed integer value
-            
+
         Raises:
             ValueError: If byte_count is not 1 or 2
         """
+        if not isinstance(data, list):
+            raise ValueError("'data' is not a list")
+
+        if byte_count is None:
+            byte_count = len(data)
+
         if byte_count not in (1, 2):
             raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
+
         return int.from_bytes(data[:byte_count], byteorder='little', signed=True)
 
     @staticmethod
     def fix_signed_temperature(api_value: float) -> float:
         """Fix temperature value by converting through signed 16-bit integer.
-        
+
         This handles the case where temperature values need to be interpreted
         as signed 16-bit integers (scaled by 10).
-        
+
         Args:
             api_value: Temperature value from API
-            
+
         Returns:
             Corrected temperature value
         """
@@ -50,7 +57,7 @@ class ComfoClimeAPI:
         # Convert to signed 16-bit using Python's built-in byte conversion
         unsigned_value = raw_value & 0xFFFF
         bytes_data = unsigned_value.to_bytes(2, byteorder='little', signed=False)
-        signed_value = int.from_bytes(bytes_data, byteorder='little', signed=True)
+        signed_value = ComfoClimeAPI.bytes_to_signed_int(bytes_data)
         return signed_value / 10.0
 
     async def async_get_uuid(self, hass):
@@ -119,9 +126,6 @@ class ComfoClimeAPI:
         if not isinstance(data, list) or len(data) == 0:
             raise ValueError("Unerwartetes Telemetrie-Format")
 
-        if byte_count is None:
-            byte_count = len(data)
-
         value = self.bytes_to_signed_int(data, byte_count)
         return value * faktor
 
@@ -171,10 +175,6 @@ class ComfoClimeAPI:
         # Wenn data leer/None ist, können wir nicht fortfahren
         if not data:
             return None
-
-        # Wenn byte_count nicht angegeben wurde, verwende die Länge der Daten
-        if byte_count is None:
-            byte_count = len(data)
 
         if byte_count in (1, 2):
             value = self.bytes_to_signed_int(data, byte_count)
