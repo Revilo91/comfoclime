@@ -16,7 +16,7 @@ class ComfoClimeAPI:
         self._request_lock = asyncio.Lock()
 
     @staticmethod
-    def bytes_to_signed_int(data: list, byte_count: int = None) -> int:
+    def bytes_to_signed_int(data: list, byte_count: int = None, signed:bool = True) -> int:
         """Convert raw bytes to a signed integer value.
 
         Args:
@@ -36,12 +36,12 @@ class ComfoClimeAPI:
             byte_count = len(data)
 
         if byte_count not in (1, 2):
-            raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
+            raise ValueError(f"Unsupported byte count: {byte_count}")
 
-        return int.from_bytes(data[:byte_count], byteorder='little', signed=True)
+        return int.from_bytes(data[:byte_count], byteorder='little', signed=signed)
 
     @staticmethod
-    def signed_int_to_bytes(data: int, byte_count: int = 2) -> list:
+    def signed_int_to_bytes(data: int, byte_count: int = 2, signed:bool = True) -> list:
         """Convert a signed integer to a list of bytes.
 
         Args:
@@ -55,9 +55,9 @@ class ComfoClimeAPI:
             ValueError: If byte_count is not 1 or 2
         """
         if byte_count not in (1, 2):
-            raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
+            raise ValueError(f"Unsupported byte count: {byte_count}")
 
-        return list(data.to_bytes(byte_count, byteorder='little', signed=True))
+        return list(data.to_bytes(byte_count, byteorder='little', signed=signed))
 
     @staticmethod
     def fix_signed_temperature(api_value: float) -> float:
@@ -372,9 +372,8 @@ class ComfoClimeAPI:
             _LOGGER.debug(f"Dashboard update OK payload={payload} response={resp_json}")
         except Exception:
             _LOGGER.exception(f"Error updating dashboard (payload={payload})")
-            raise
-        else:
-            return resp_json
+            raise 
+        return resp_json
 
     async def async_update_dashboard(self, hass, **kwargs):
         """Async wrapper for update_dashboard method."""
