@@ -8,8 +8,6 @@ import requests
 
 _LOGGER = logging.getLogger(__name__)
 
-SCALED_VALUE_THRESHOLD = 1000  # Threshold for already scaled values (e.g., temperature fields)
-
 
 class ComfoClimeAPI:
     def __init__(self, base_url):
