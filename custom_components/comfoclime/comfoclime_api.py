@@ -29,18 +29,9 @@ class ComfoClimeAPI:
         Raises:
             ValueError: If byte_count is not 1 or 2
         """
-        if byte_count == 1:
-            value = data[0]
-            if value >= 0x80:
-                value -= 0x100
-        elif byte_count == 2:
-            lsb, msb = data[:2]
-            value = lsb + (msb << 8)
-            if value >= 0x8000:
-                value -= 0x10000
-        else:
+        if byte_count not in (1, 2):
             raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
-        return value
+        return int.from_bytes(data[:byte_count], byteorder='little', signed=True)
 
     @staticmethod
     def fix_signed_temperature(api_value: float) -> float:
