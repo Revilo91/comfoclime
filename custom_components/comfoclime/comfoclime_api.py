@@ -47,9 +47,11 @@ class ComfoClimeAPI:
             Corrected temperature value
         """
         raw_value = int(api_value * 10)
-        if raw_value >= 0x8000:
-            raw_value -= 0x10000
-        return raw_value / 10.0
+        # Convert to signed 16-bit using Python's built-in byte conversion
+        unsigned_value = raw_value & 0xFFFF
+        bytes_data = unsigned_value.to_bytes(2, byteorder='little', signed=False)
+        signed_value = int.from_bytes(bytes_data, byteorder='little', signed=True)
+        return signed_value / 10.0
 
     async def async_get_uuid(self, hass):
         async with self._request_lock:
