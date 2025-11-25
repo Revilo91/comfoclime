@@ -41,7 +41,7 @@ class ComfoClimeAPI:
         return int.from_bytes(data[:byte_count], byteorder='little', signed=signed)
 
     @staticmethod
-    def signed_int_to_bytes(data: int, byte_count: int = 2, signed:bool = True) -> list:
+    def signed_int_to_bytes(data: int, byte_count: int = 2, signed:bool = False) -> list:
         """Convert a signed integer to a list of bytes.
 
         Args:
