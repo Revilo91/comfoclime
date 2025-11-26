@@ -146,7 +146,7 @@ class ComfoClimeAPI:
         if not isinstance(data, list) or len(data) == 0:
             raise ValueError("Unerwartetes Telemetrie-Format")
 
-        value = self.bytes_to_signed_int(data, byte_count)
+        value = self.bytes_to_signed_int(data, byte_count,signed)
         return value * faktor
 
     async def async_read_property_for_device(
@@ -200,7 +200,7 @@ class ComfoClimeAPI:
             return None
 
         if byte_count in (1, 2):
-            value = self.bytes_to_signed_int(data, byte_count)
+            value = self.bytes_to_signed_int(data, byte_count,signed)
         elif byte_count > 2:
             if len(data) != byte_count:
                 raise ValueError(
@@ -372,7 +372,7 @@ class ComfoClimeAPI:
             _LOGGER.debug(f"Dashboard update OK payload={payload} response={resp_json}")
         except Exception:
             _LOGGER.exception(f"Error updating dashboard (payload={payload})")
-            raise 
+            raise
         return resp_json
 
     async def async_update_dashboard(self, hass, **kwargs):
@@ -448,7 +448,7 @@ class ComfoClimeAPI:
             raise ValueError("Nur 1 oder 2 Byte unterstützt")
 
         raw_value = int(round(value / faktor))
-        data = self.signed_int_to_bytes(raw_value, byte_count)
+        data = self.signed_int_to_bytes(raw_value, byte_count,signed)
 
         x, y, z = map(int, property_path.split("/"))
         url = f"{self.base_url}/device/{device_uuid}/method/{x}/{y}/3"
