@@ -195,22 +195,22 @@ class ComfoClimeStandbySwitch(
         data = self.coordinator.data
         try:
             val = data.get("hpStandby", 0)
-            self._state = val == 1
+            self._state = bool(val)
         except Exception as e:
             _LOGGER.error(f"Fehler beim Lesen des Switch-Zustands: {e}")
             self._state = None
         self.async_write_ha_state()
 
     def turn_on(self, **kwargs):
-        self._set_status(1)
+        self._set_status(False)
 
     def turn_off(self, **kwargs):
-        self._set_status(0)
+        self._set_status(True)
 
     def _set_status(self, hpstandby):
         try:
-            self._api.update_dashboard(hp_standby=hpstandby)
-            self._state = hpstandby == 1
+            self._api.update_dashboard(hp_standby= 1 if hpstandby else 0)
+            self._state = hpstandby
             self.hass.create_task(self.coordinator.async_request_refresh())
 
         except Exception as e:
