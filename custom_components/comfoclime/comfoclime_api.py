@@ -89,21 +89,7 @@ class ComfoClimeAPI:
         if not isinstance(data, list) or len(data) == 0:
             raise ValueError("Unerwartetes Telemetrie-Format")
 
-        if byte_count is None:
-            byte_count = len(data)
-
-        if byte_count == 1:
-            value = data[0]
-            if value >= 0x80:
-                value -= 0x100
-        elif byte_count == 2:
-            lsb, msb = data[:2]
-            value = lsb + (msb << 8)
-            if value >= 0x8000:
-                value -= 0x10000
-        else:
-            raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
-
+        value = self.bytes_to_signed_int(data, byte_count,signed)
         return value * faktor
 
     async def async_read_property_for_device(
@@ -153,19 +139,8 @@ class ComfoClimeAPI:
         if not data:
             return None
 
-        # Wenn byte_count nicht angegeben wurde, verwende die Länge der Daten
-        if byte_count is None:
-            byte_count = len(data)
-
-        if byte_count == 1:
-            value = data[0]
-            if value >= 0x80:
-                value -= 0x100
-        elif byte_count == 2:
-            lsb, msb = data[:2]
-            value = lsb + (msb << 8)
-            if value >= 0x8000:
-                value -= 0x10000
+        if byte_count in (1, 2):
+            value = self.bytes_to_signed_int(data, byte_count,signed)
         elif byte_count > 2:
             if len(data) != byte_count:
                 raise ValueError(
@@ -359,8 +334,7 @@ class ComfoClimeAPI:
         except Exception:
             _LOGGER.exception(f"Error updating dashboard (payload={payload})")
             raise
-        else:
-            return resp_json
+        return resp_json
 
     async def async_update_dashboard(self, hass, **kwargs):
         """Async wrapper for update_dashboard method."""
@@ -432,16 +406,7 @@ class ComfoClimeAPI:
             raise ValueError("Nur 1 oder 2 Byte unterstützt")
 
         raw_value = int(round(value / faktor))
-
-        # Generate bytes for signed values (all values are treated as signed; unsigned values are not handled separately)
-        if byte_count == 1:
-            if raw_value < 0:
-                raw_value += 0x100
-            data = [raw_value & 0xFF]
-        elif byte_count == 2:
-            if raw_value < 0:
-                raw_value += 0x10000
-            data = [raw_value & 0xFF, (raw_value >> 8) & 0xFF]
+        data = self.signed_int_to_bytes(raw_value, byte_count,signed)
 
         x, y, z = map(int, property_path.split("/"))
         url = f"{self.base_url}/device/{device_uuid}/method/{x}/{y}/3"
