@@ -17,6 +17,70 @@ class ComfoClimeAPI:
         self.uuid = None
         self._request_lock = asyncio.Lock()
 
+    @staticmethod
+    def bytes_to_signed_int(data: list, byte_count: int = None, signed:bool = True) -> int:
+        """Convert raw bytes to a signed integer value.
+
+        Args:
+            data: List of bytes (integers 0-255)
+            byte_count: Number of bytes to read. If None calculate from data
+
+        Returns:
+            Signed integer value
+
+        Raises:
+            ValueError: If byte_count is not 1 or 2
+        """
+        if not isinstance(data, list):
+            raise ValueError("'data' is not a list")
+
+        if byte_count is None:
+            byte_count = len(data)
+
+        if byte_count not in (1, 2):
+            raise ValueError(f"Unsupported byte count: {byte_count}")
+
+        return int.from_bytes(data[:byte_count], byteorder='little', signed=signed)
+
+    @staticmethod
+    def signed_int_to_bytes(data: int, byte_count: int = 2, signed:bool = False) -> list:
+        """Convert a signed integer to a list of bytes.
+
+        Args:
+            data: Signed integer value
+            byte_count: Number of bytes to convert to (1 or 2)
+
+        Returns:
+            List of bytes (integers 0-255)
+
+        Raises:
+            ValueError: If byte_count is not 1 or 2
+        """
+        if byte_count not in (1, 2):
+            raise ValueError(f"Unsupported byte count: {byte_count}")
+
+        return list(data.to_bytes(byte_count, byteorder='little', signed=signed))
+
+    @staticmethod
+    def fix_signed_temperature(api_value: float) -> float:
+        """Fix temperature value by converting through signed 16-bit integer.
+
+        This handles the case where temperature values need to be interpreted
+        as signed 16-bit integers (scaled by 10).
+
+        Args:
+            api_value: Temperature value from API
+
+        Returns:
+            Corrected temperature value
+        """
+        raw_value = int(api_value * 10)
+        # Convert to signed 16-bit using Python's built-in byte conversion
+        unsigned_value = raw_value & 0xFFFF
+        bytes_data = ComfoClimeAPI.signed_int_to_bytes(unsigned_value, 2)
+        signed_value = ComfoClimeAPI.bytes_to_signed_int(bytes_data)
+        return signed_value / 10.0
+
     async def async_get_uuid(self, hass):
         async with self._request_lock:
             return await hass.async_add_executor_job(self.get_uuid)
