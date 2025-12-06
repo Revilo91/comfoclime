@@ -23,7 +23,7 @@ async def async_setup_entry(
 ):
     host = entry.data["host"]
     api = ComfoClimeAPI(f"http://{host}")
-    await api.async_get_uuid(hass)
+    await api.async_get_uuid()
     devices = hass.data[DOMAIN][entry.entry_id]["devices"]
     main_device = hass.data[DOMAIN][entry.entry_id]["main_device"]
 
@@ -236,9 +236,8 @@ class ComfoClimePropertyNumber(NumberEntity):
     async def async_update(self):
         try:
             value = await self._api.async_read_property_for_device(
-                self._hass,
-                self._device["uuid"],
-                self._property_path,
+                device_uuid=self._device["uuid"],
+                property_path=self._property_path,
                 faktor=self._faktor,
                 signed=self._signed,
                 byte_count=self._byte_count,
@@ -253,10 +252,9 @@ class ComfoClimePropertyNumber(NumberEntity):
     async def async_set_native_value(self, value):
         try:
             await self._api.async_set_property_for_device(
-                self._hass,
-                self._device["uuid"],
-                self._property_path,
-                value,
+                device_uuid=self._device["uuid"],
+                property_path=self._property_path,
+                value=value,
                 byte_count=self._byte_count,
                 faktor=self._faktor,
                 signed=self._signed,

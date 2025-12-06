@@ -24,7 +24,7 @@ async def async_setup_entry(
 
     switches = []
     try:
-        await api.async_get_uuid(hass)
+        await api.async_get_uuid()
     except Exception as e:
         _LOGGER.error(f"UUID konnte nicht geladen werden: {e}")
         return

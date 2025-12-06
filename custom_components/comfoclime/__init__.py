@@ -33,7 +33,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     await dashboard_coordinator.async_config_entry_first_refresh()
     thermalprofile_coordinator = ComfoClimeThermalprofileCoordinator(hass, api)
     await thermalprofile_coordinator.async_config_entry_first_refresh()
-    devices = await api.async_get_connected_devices(hass)
+    devices = await api.async_get_connected_devices()
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
     hass.data[DOMAIN][entry.entry_id] = {
@@ -66,7 +66,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             return
         try:
             await api.async_set_property_for_device(
-                hass,
                 device_uuid=device_uuid,
                 property_path=path,
                 value=value,
@@ -81,7 +80,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     async def handle_reset_system_service(call: ServiceCall):
         try:
-            await api.async_reset_system(hass)
+            await api.async_reset_system()
             _LOGGER.info("ComfoClime Neustart ausgelöst")
         except Exception as e:
             _LOGGER.error(f"Fehler beim Neustart des Geräts: {e}")

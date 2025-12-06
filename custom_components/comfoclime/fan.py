@@ -60,7 +60,6 @@ class ComfoClimeFan(CoordinatorEntity[ComfoClimeDashboardCoordinator], FanEntity
         step = max(0, min(step, 3))  # Clamp to 0–3
         try:
             await self._api.async_update_dashboard(
-                self._hass,
                 fan_speed=step,
             )
             self._current_speed = step
@@ -87,7 +86,7 @@ async def async_setup_entry(
     api = ComfoClimeAPI(f"http://{host}")
 
     try:
-        await api.async_get_uuid(hass)
+        await api.async_get_uuid()
         # devices = hass.data[DOMAIN][entry.entry_id]["devices"]
         main_device = hass.data[DOMAIN][entry.entry_id]["main_device"]
         if not main_device:
