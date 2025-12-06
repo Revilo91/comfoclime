@@ -122,8 +122,11 @@ class ComfoClimeAPI:
                     raise ValueError(
                         f"Unerwartete Byte-Anzahl: erwartet {byte_count}, erhalten {len(data)}"
                     )
+                # Try to interpret as ASCII string
                 if all(0 <= byte < 256 for byte in data):
                     return "".join(chr(byte) for byte in data if byte != 0)
+                # If not interpretable as string, return raw data
+                return data
             else:
                 raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
 
