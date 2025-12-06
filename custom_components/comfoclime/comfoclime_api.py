@@ -118,6 +118,8 @@ class ComfoClimeAPI:
                 if signed and value >= 0x8000:
                     value -= 0x10000
             elif byte_count > 2:
+                # Multi-byte data is typically string data (e.g., device names, serial numbers)
+                # and should not be scaled by faktor. Return as string or raw data.
                 if len(data) != byte_count:
                     raise ValueError(
                         f"Unerwartete Byte-Anzahl: erwartet {byte_count}, erhalten {len(data)}"
