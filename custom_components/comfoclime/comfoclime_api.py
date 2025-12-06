@@ -27,7 +27,7 @@ class ComfoClimeAPI:
         if self._session and not self._session.closed:
             await self._session.close()
 
-    async def async_get_uuid(self, hass=None):
+    async def async_get_uuid(self):
         async with self._request_lock:
             session = await self._get_session()
             async with session.get(f"{self.base_url}/monitoring/ping") as response:
@@ -36,7 +36,7 @@ class ComfoClimeAPI:
                 self.uuid = data.get("uuid")
                 return self.uuid
 
-    async def async_get_dashboard_data(self, hass=None):
+    async def async_get_dashboard_data(self):
         async with self._request_lock:
             if not self.uuid:
                 await self.async_get_uuid()
@@ -47,7 +47,7 @@ class ComfoClimeAPI:
                 response.raise_for_status()
                 return await response.json()
 
-    async def async_get_connected_devices(self, hass=None):
+    async def async_get_connected_devices(self):
         async with self._request_lock:
             if not self.uuid:
                 await self.async_get_uuid()
@@ -59,7 +59,7 @@ class ComfoClimeAPI:
                 return data.get("devices", [])
 
     async def async_read_telemetry_for_device(
-        self, hass=None, device_uuid=None, telemetry_id=None, faktor=1.0, signed=True, byte_count=None
+        self, device_uuid: str, telemetry_id: str, faktor: float = 1.0, signed: bool = True, byte_count: int | None = None
     ):
         async with self._request_lock:
             session = await self._get_session()
@@ -91,9 +91,8 @@ class ComfoClimeAPI:
 
     async def async_read_property_for_device(
         self,
-        hass=None,
-        device_uuid: str = None,
-        property_path: str = None,
+        device_uuid: str,
+        property_path: str,
         faktor: float = 1.0,
         signed: bool = True,
         byte_count: int | None = None,
@@ -148,7 +147,7 @@ class ComfoClimeAPI:
             raise ValueError("Unerwartetes Property-Format")
         return data
 
-    async def async_get_thermal_profile(self, hass=None):
+    async def async_get_thermal_profile(self):
         async with self._request_lock:
             if not self.uuid:
                 await self.async_get_uuid()
@@ -309,24 +308,23 @@ class ComfoClimeAPI:
             _LOGGER.error(f"Error updating dashboard (payload={payload}): {e}")
             raise
 
-    async def async_update_dashboard(self, hass=None, **kwargs):
+    async def async_update_dashboard(self, **kwargs):
         """Async wrapper for update_dashboard method."""
         async with self._request_lock:
             return await self._update_dashboard(**kwargs)
 
-    async def async_update_thermal_profile(self, hass=None, updates: dict = None):
+    async def async_update_thermal_profile(self, updates: dict):
         """Async wrapper for update_thermal_profile method."""
         async with self._request_lock:
             return await self._update_thermal_profile(updates)
 
-    async def async_set_hvac_season(self, hass=None, season: int = None, hp_standby: bool = False):
+    async def async_set_hvac_season(self, season: int, hp_standby: bool = False):
         """Set HVAC season and standby state in a single atomic operation.
 
         This method updates both the season (via thermal profile) and hpStandby
         (via dashboard) in a single lock to prevent race conditions.
 
         Args:
-            hass: Home Assistant instance (deprecated, kept for compatibility)
             season: Season value (0=transition, 1=heating, 2=cooling)
             hp_standby: Heat pump standby state (False=active, True=standby/off)
         """
@@ -339,12 +337,11 @@ class ComfoClimeAPI:
 
     async def async_set_property_for_device(
         self,
-        hass=None,
-        device_uuid: str = None,
-        property_path: str = None,
-        value: float = None,
+        device_uuid: str,
+        property_path: str,
+        value: float,
         *,
-        byte_count: int = None,
+        byte_count: int,
         signed: bool = True,
         faktor: float = 1.0,
     ):
@@ -379,7 +376,7 @@ class ComfoClimeAPI:
                 )
                 raise
 
-    async def async_reset_system(self, hass=None):
+    async def async_reset_system(self):
         """Trigger a restart of the ComfoClime device."""
         async with self._request_lock:
             url = f"{self.base_url}/system/reset"
