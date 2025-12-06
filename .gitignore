@@ -1,3 +1,11 @@
 **/__pycache__
 .vscode
 /.history
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+.tox/
+*.log
