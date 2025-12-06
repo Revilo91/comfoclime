@@ -187,13 +187,13 @@ class TestComfoClimeFan:
 
 
 @pytest.mark.asyncio
-async def test_async_setup_entry(mock_hass, mock_config_entry, mock_api, mock_coordinator, mock_device):
+async def test_async_setup_entry(mock_hass, mock_config_entry, mock_coordinator, mock_device):
     """Test async_setup_entry for fan entity."""
     # Setup mock data
     mock_hass.data = {
         "comfoclime": {
             "test_entry_id": {
-                "api": mock_api,
+                "api": MagicMock(),
                 "coordinator": mock_coordinator,
                 "devices": [mock_device],
                 "main_device": mock_device,
@@ -201,15 +201,18 @@ async def test_async_setup_entry(mock_hass, mock_config_entry, mock_api, mock_co
         }
     }
 
-    # Make sure async_get_uuid is properly mocked
-    mock_api.async_get_uuid = AsyncMock(return_value="test-uuid-12345")
+    # Mock the API class to return our mock API
+    with patch("custom_components.comfoclime.fan.ComfoClimeAPI") as mock_api_class:
+        mock_api_instance = MagicMock()
+        mock_api_instance.async_get_uuid = AsyncMock(return_value="test-uuid")
+        mock_api_class.return_value = mock_api_instance
 
-    async_add_entities = MagicMock()
+        async_add_entities = MagicMock()
 
-    await async_setup_entry(mock_hass, mock_config_entry, async_add_entities)
+        await async_setup_entry(mock_hass, mock_config_entry, async_add_entities)
 
-    # Verify entity was added
-    assert async_add_entities.called
+        # Verify entity was added
+        assert async_add_entities.called
 
 
 @pytest.mark.asyncio
