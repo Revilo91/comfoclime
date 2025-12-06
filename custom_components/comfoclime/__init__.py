@@ -99,6 +99,13 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     await hass.config_entries.async_forward_entry_unload(entry, "select")
     await hass.config_entries.async_forward_entry_unload(entry, "fan")
     await hass.config_entries.async_forward_entry_unload(entry, "climate")
+    
+    # Close the API session
+    if DOMAIN in hass.data and entry.entry_id in hass.data[DOMAIN]:
+        api = hass.data[DOMAIN][entry.entry_id].get("api")
+        if api:
+            await api.close()
+    
     hass.data[DOMAIN].pop(entry.entry_id)
     return True
 

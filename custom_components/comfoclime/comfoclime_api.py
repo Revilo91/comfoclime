@@ -3,7 +3,7 @@ import asyncio
 import datetime
 import logging
 
-import requests
+import aiohttp
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -13,112 +13,132 @@ class ComfoClimeAPI:
         self.base_url = base_url.rstrip("/")
         self.uuid = None
         self._request_lock = asyncio.Lock()
+        self._session = None
 
-    async def async_get_uuid(self, hass):
+    async def _get_session(self):
+        """Get or create aiohttp session."""
+        if self._session is None or self._session.closed:
+            timeout = aiohttp.ClientTimeout(total=5)
+            self._session = aiohttp.ClientSession(timeout=timeout)
+        return self._session
+
+    async def close(self):
+        """Close the aiohttp session."""
+        if self._session and not self._session.closed:
+            await self._session.close()
+
+    async def async_get_uuid(self, hass=None):
         async with self._request_lock:
-            return await hass.async_add_executor_job(self.get_uuid)
+            session = await self._get_session()
+            async with session.get(f"{self.base_url}/monitoring/ping") as response:
+                response.raise_for_status()
+                data = await response.json()
+                self.uuid = data.get("uuid")
+                return self.uuid
 
-    def get_uuid(self):
-        response = requests.get(f"{self.base_url}/monitoring/ping", timeout=5)
-        response.raise_for_status()
-        data = response.json()
-        self.uuid = data.get("uuid")
-        return self.uuid
-
-    async def async_get_dashboard_data(self, hass):
+    async def async_get_dashboard_data(self, hass=None):
         async with self._request_lock:
-            return await hass.async_add_executor_job(self.get_dashboard_data)
+            if not self.uuid:
+                await self.async_get_uuid()
+            session = await self._get_session()
+            async with session.get(
+                f"{self.base_url}/system/{self.uuid}/dashboard"
+            ) as response:
+                response.raise_for_status()
+                return await response.json()
 
-    def get_dashboard_data(self):
-        if not self.uuid:
-            self.get_uuid()
-        response = requests.get(
-            f"{self.base_url}/system/{self.uuid}/dashboard", timeout=5
-        )
-        response.raise_for_status()
-        return response.json()
-
-    async def async_get_connected_devices(self, hass):
+    async def async_get_connected_devices(self, hass=None):
         async with self._request_lock:
-            return await hass.async_add_executor_job(self.get_connected_devices)
-
-    def get_connected_devices(self):
-        if not self.uuid:
-            self.get_uuid()
-        url = f"{self.base_url}/system/{self.uuid}/devices"
-        response = requests.get(url, timeout=5)
-        response.raise_for_status()
-        return response.json().get("devices", [])
+            if not self.uuid:
+                await self.async_get_uuid()
+            session = await self._get_session()
+            url = f"{self.base_url}/system/{self.uuid}/devices"
+            async with session.get(url) as response:
+                response.raise_for_status()
+                data = await response.json()
+                return data.get("devices", [])
 
     async def async_read_telemetry_for_device(
-        self, hass, device_uuid, telemetry_id, faktor=1.0, signed=True, byte_count=None
+        self, hass=None, device_uuid=None, telemetry_id=None, faktor=1.0, signed=True, byte_count=None
     ):
         async with self._request_lock:
-            return await hass.async_add_executor_job(
-                self.read_telemetry_for_device,
-                device_uuid,
-                telemetry_id,
-                faktor,
-                signed,
-                byte_count,
-            )
+            session = await self._get_session()
+            url = f"{self.base_url}/device/{device_uuid}/telemetry/{telemetry_id}"
+            async with session.get(url) as response:
+                response.raise_for_status()
+                payload = await response.json()
 
-    def read_telemetry_for_device(
-        self, device_uuid, telemetry_id, faktor=1.0, signed=True, byte_count=None
-    ):
-        url = f"{self.base_url}/device/{device_uuid}/telemetry/{telemetry_id}"
-        response = requests.get(url, timeout=5)
-        response.raise_for_status()
-        payload = response.json()
+            data = payload.get("data")
+            if not isinstance(data, list) or len(data) == 0:
+                raise ValueError("Unerwartetes Telemetrie-Format")
 
-        data = payload.get("data")
-        if not isinstance(data, list) or len(data) == 0:
-            raise ValueError("Unerwartetes Telemetrie-Format")
+            if byte_count is None:
+                byte_count = len(data)
 
-        if byte_count is None:
-            byte_count = len(data)
+            if byte_count == 1:
+                value = data[0]
+                if signed and value >= 0x80:
+                    value -= 0x100
+            elif byte_count == 2:
+                lsb, msb = data[:2]
+                value = lsb + (msb << 8)
+                if signed and value >= 0x8000:
+                    value -= 0x10000
+            else:
+                raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
 
-        if byte_count == 1:
-            value = data[0]
-            if signed and value >= 0x80:
-                value -= 0x100
-        elif byte_count == 2:
-            lsb, msb = data[:2]
-            value = lsb + (msb << 8)
-            if signed and value >= 0x8000:
-                value -= 0x10000
-        else:
-            raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
-
-        return value * faktor
+            return value * faktor
 
     async def async_read_property_for_device(
         self,
-        hass,
-        device_uuid: str,
-        property_path: str,
+        hass=None,
+        device_uuid: str = None,
+        property_path: str = None,
         faktor: float = 1.0,
         signed: bool = True,
         byte_count: int | None = None,
     ):
         async with self._request_lock:
-            return await hass.async_add_executor_job(
-                self.read_property_for_device,
-                device_uuid,
-                property_path,
-                faktor,
-                signed,
-                byte_count,
-            )
+            data = await self._read_property_for_device_raw(device_uuid, property_path)
 
-    def read_property_for_device_raw(
+            # Wenn data leer/None ist, können wir nicht fortfahren
+            if not data:
+                return None
+
+            # Wenn byte_count nicht angegeben wurde, verwende die Länge der Daten
+            if byte_count is None:
+                byte_count = len(data)
+
+            if byte_count == 1:
+                value = data[0]
+                if signed and value >= 0x80:
+                    value -= 0x100
+            elif byte_count == 2:
+                lsb, msb = data[:2]
+                value = lsb + (msb << 8)
+                if signed and value >= 0x8000:
+                    value -= 0x10000
+            elif byte_count > 2:
+                if len(data) != byte_count:
+                    raise ValueError(
+                        f"Unerwartete Byte-Anzahl: erwartet {byte_count}, erhalten {len(data)}"
+                    )
+                if all(0 <= byte < 256 for byte in data):
+                    return "".join(chr(byte) for byte in data if byte != 0)
+            else:
+                raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
+
+            return value * faktor
+
+    async def _read_property_for_device_raw(
         self, device_uuid: str, property_path: str
     ) -> None | list:
         url = f"{self.base_url}/device/{device_uuid}/property/{property_path}"
         try:
-            response = requests.get(url, timeout=5)
-            response.raise_for_status()
-            payload = response.json()
+            session = await self._get_session()
+            async with session.get(url) as response:
+                response.raise_for_status()
+                payload = await response.json()
         except Exception as e:
             _LOGGER.error(f"Fehler beim Abrufen der Property {property_path}: {e}")
             return None
@@ -128,62 +148,21 @@ class ComfoClimeAPI:
             raise ValueError("Unerwartetes Property-Format")
         return data
 
-    def read_property_for_device(
-        self,
-        device_uuid: str,
-        property_path: str,
-        faktor: float = 1.0,
-        signed: bool = True,
-        byte_count: int | None = None,
-    ) -> None | str | float:
-        data = self.read_property_for_device_raw(device_uuid, property_path)
-
-        # Wenn data leer/None ist, können wir nicht fortfahren
-        if not data:
-            return None
-
-        # Wenn byte_count nicht angegeben wurde, verwende die Länge der Daten
-        if byte_count is None:
-            byte_count = len(data)
-
-        if byte_count == 1:
-            value = data[0]
-            if signed and value >= 0x80:
-                value -= 0x100
-        elif byte_count == 2:
-            lsb, msb = data[:2]
-            value = lsb + (msb << 8)
-            if signed and value >= 0x8000:
-                value -= 0x10000
-        elif byte_count > 2:
-            if len(data) != byte_count:
-                raise ValueError(
-                    f"Unerwartete Byte-Anzahl: erwartet {byte_count}, erhalten {len(data)}"
-                )
-            if all(0 <= byte < 256 for byte in data):
-                return "".join(chr(byte) for byte in data if byte != 0)
-        else:
-            raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
-
-        return value * faktor
-
-    async def async_get_thermal_profile(self, hass):
+    async def async_get_thermal_profile(self, hass=None):
         async with self._request_lock:
-            return await hass.async_add_executor_job(self.get_thermal_profile)
+            if not self.uuid:
+                await self.async_get_uuid()
+            url = f"{self.base_url}/system/{self.uuid}/thermalprofile"
+            try:
+                session = await self._get_session()
+                async with session.get(url) as response:
+                    response.raise_for_status()
+                    return await response.json()
+            except aiohttp.ClientError as e:
+                _LOGGER.warning(f"Fehler beim Abrufen von thermal_profile: {e}")
+                return {}  # leer zurückgeben statt crashen
 
-    def get_thermal_profile(self):
-        if not self.uuid:
-            self.get_uuid()
-        url = f"{self.base_url}/system/{self.uuid}/thermalprofile"
-        try:
-            response = requests.get(url, timeout=5)
-            response.raise_for_status()
-            return response.json()
-        except requests.RequestException as e:
-            _LOGGER.warning(f"Fehler beim Abrufen von thermal_profile: {e}")
-            return {}  # leer zurückgeben statt crashen
-
-    def update_thermal_profile(self, updates: dict):
+    async def _update_thermal_profile(self, updates: dict):
         """
         updates: dict mit Teilwerten, z. B. {"heatingThermalProfileSeasonData": {"comfortTemperature": 20.0}}
 
@@ -221,14 +200,15 @@ class ComfoClimeAPI:
                 full_payload[section] = values  # z. B. "temperatureProfile": 1
 
         if not self.uuid:
-            self.get_uuid()
+            await self.async_get_uuid()
 
         url = f"{self.base_url}/system/{self.uuid}/thermalprofile"
-        response = requests.put(url, json=full_payload, timeout=5)
-        response.raise_for_status()
-        return response.status_code == 200
+        session = await self._get_session()
+        async with session.put(url, json=full_payload) as response:
+            response.raise_for_status()
+            return response.status == 200
 
-    def update_dashboard(
+    async def _update_dashboard(
         self,
         set_point_temperature: float | None = None,
         fan_speed: int | None = None,
@@ -280,10 +260,10 @@ class ComfoClimeAPI:
             Response JSON from the API
 
         Raises:
-            requests.RequestException: If the API request fails
+            aiohttp.ClientError: If the API request fails
         """
         if not self.uuid:
-            self.get_uuid()
+            await self.async_get_uuid()
 
         # Dynamically build payload; only include keys explicitly provided.
         payload: dict = {}
@@ -316,123 +296,94 @@ class ComfoClimeAPI:
         headers = {"content-type": "application/json; charset=utf-8"}
         url = f"{self.base_url}/system/{self.uuid}/dashboard"
         try:
-            response = requests.put(url, json=payload, timeout=5, headers=headers)
-            response.raise_for_status()
-            try:
-                resp_json = response.json()
-            except Exception:
-                resp_json = {"text": response.text}
-            _LOGGER.debug(f"Dashboard update OK payload={payload} response={resp_json}")
-            return resp_json
+            session = await self._get_session()
+            async with session.put(url, json=payload, headers=headers) as response:
+                response.raise_for_status()
+                try:
+                    resp_json = await response.json()
+                except Exception:
+                    resp_json = {"text": await response.text()}
+                _LOGGER.debug(f"Dashboard update OK payload={payload} response={resp_json}")
+                return resp_json
         except Exception as e:
             _LOGGER.error(f"Error updating dashboard (payload={payload}): {e}")
             raise
 
-    async def async_update_dashboard(self, hass, **kwargs):
+    async def async_update_dashboard(self, hass=None, **kwargs):
         """Async wrapper for update_dashboard method."""
         async with self._request_lock:
-            return await hass.async_add_executor_job(
-                lambda: self.update_dashboard(**kwargs)
-            )
+            return await self._update_dashboard(**kwargs)
 
-    async def async_update_thermal_profile(self, hass, updates: dict):
+    async def async_update_thermal_profile(self, hass=None, updates: dict = None):
         """Async wrapper for update_thermal_profile method."""
         async with self._request_lock:
-            return await hass.async_add_executor_job(
-                lambda: self.update_thermal_profile(updates)
-            )
+            return await self._update_thermal_profile(updates)
 
-    async def async_set_hvac_season(self, hass, season: int, hp_standby: bool = False):
+    async def async_set_hvac_season(self, hass=None, season: int = None, hp_standby: bool = False):
         """Set HVAC season and standby state in a single atomic operation.
 
         This method updates both the season (via thermal profile) and hpStandby
         (via dashboard) in a single lock to prevent race conditions.
 
         Args:
-            hass: Home Assistant instance
+            hass: Home Assistant instance (deprecated, kept for compatibility)
             season: Season value (0=transition, 1=heating, 2=cooling)
             hp_standby: Heat pump standby state (False=active, True=standby/off)
         """
         async with self._request_lock:
-
-            def _update():
-                # First update dashboard to set hpStandby
-                self.update_dashboard(hp_standby=hp_standby)
-                # Then update thermal profile to set season
-                if not hp_standby:  # Only set season if device is active
-                    self.update_thermal_profile({"season": {"season": season}})
-
-            return await hass.async_add_executor_job(_update)
+            # First update dashboard to set hpStandby
+            await self._update_dashboard(hp_standby=hp_standby)
+            # Then update thermal profile to set season
+            if not hp_standby:  # Only set season if device is active
+                await self._update_thermal_profile({"season": {"season": season}})
 
     async def async_set_property_for_device(
         self,
-        hass,
-        device_uuid: str,
-        property_path: str,
-        value: float,
+        hass=None,
+        device_uuid: str = None,
+        property_path: str = None,
+        value: float = None,
         *,
-        byte_count: int,
+        byte_count: int = None,
         signed: bool = True,
         faktor: float = 1.0,
     ):
         async with self._request_lock:
-            return await hass.async_add_executor_job(
-                lambda: self.set_property_for_device(
-                    device_uuid,
-                    property_path,
-                    value,
-                    byte_count=byte_count,
-                    signed=signed,
-                    faktor=faktor,
+            if byte_count not in (1, 2):
+                raise ValueError("Nur 1 oder 2 Byte unterstützt")
+
+            # Wert zurückrechnen, falls ein Faktor verwendet wird
+            raw_value = int(round(value / faktor))
+
+            # Bytes erzeugen
+            if byte_count == 1:
+                if signed and raw_value < 0:
+                    raw_value += 0x100
+                data = [raw_value & 0xFF]
+            elif byte_count == 2:
+                if signed and raw_value < 0:
+                    raw_value += 0x10000
+                data = [raw_value & 0xFF, (raw_value >> 8) & 0xFF]
+
+            x, y, z = map(int, property_path.split("/"))
+            url = f"{self.base_url}/device/{device_uuid}/method/{x}/{y}/3"
+            payload = {"data": [z] + data}
+
+            try:
+                session = await self._get_session()
+                async with session.put(url, json=payload) as response:
+                    response.raise_for_status()
+            except Exception as e:
+                _LOGGER.error(
+                    f"Fehler beim Schreiben von Property {property_path} mit Payload {payload}: {e}"
                 )
-            )
+                raise
 
-    def set_property_for_device(
-        self,
-        device_uuid: str,
-        property_path: str,
-        value: float,
-        *,
-        byte_count: int,
-        signed: bool = True,
-        faktor: float = 1.0,
-    ):
-        if byte_count not in (1, 2):
-            raise ValueError("Nur 1 oder 2 Byte unterstützt")
-
-        # Wert zurückrechnen, falls ein Faktor verwendet wird
-        raw_value = int(round(value / faktor))
-
-        # Bytes erzeugen
-        if byte_count == 1:
-            if signed and raw_value < 0:
-                raw_value += 0x100
-            data = [raw_value & 0xFF]
-        elif byte_count == 2:
-            if signed and raw_value < 0:
-                raw_value += 0x10000
-            data = [raw_value & 0xFF, (raw_value >> 8) & 0xFF]
-
-        x, y, z = map(int, property_path.split("/"))
-        url = f"{self.base_url}/device/{device_uuid}/method/{x}/{y}/3"
-        payload = {"data": [z] + data}
-
-        try:
-            response = requests.put(url, json=payload, timeout=5)
-            response.raise_for_status()
-        except Exception as e:
-            _LOGGER.error(
-                f"Fehler beim Schreiben von Property {property_path} mit Payload {payload}: {e}"
-            )
-            raise
-
-    async def async_reset_system(self, hass):
-        async with self._request_lock:
-            return await hass.async_add_executor_job(self.reset_system)
-
-    def reset_system(self):
+    async def async_reset_system(self, hass=None):
         """Trigger a restart of the ComfoClime device."""
-        url = f"{self.base_url}/system/reset"
-        response = requests.put(url, timeout=5)
-        response.raise_for_status()
-        return response.status_code == 200
+        async with self._request_lock:
+            url = f"{self.base_url}/system/reset"
+            session = await self._get_session()
+            async with session.put(url) as response:
+                response.raise_for_status()
+                return response.status == 200
