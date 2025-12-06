@@ -39,7 +39,7 @@ async def async_setup_entry(
 
     # UUID abrufen
     try:
-        await api.async_get_uuid(hass)
+        await api.async_get_uuid()
     except Exception as e:
         _LOGGER.error(f"Fehler beim Abrufen der UUID: {e}")
         return
@@ -290,12 +290,11 @@ class ComfoClimeTelemetrySensor(SensorEntity):
     async def async_update(self):
         try:
             self._state = await self._api.async_read_telemetry_for_device(
-                self._hass,
-                self._override_uuid or self._api.uuid,
-                self._id,
-                self._faktor,
-                self._signed,
-                self._byte_count,
+                device_uuid=self._override_uuid or self._api.uuid,
+                telemetry_id=self._id,
+                faktor=self._faktor,
+                signed=self._signed,
+                byte_count=self._byte_count,
             )
         except Exception as e:
             _LOGGER.error(f"Fehler beim Aktualisieren von Telemetrie {self._id}: {e}")
@@ -363,12 +362,11 @@ class ComfoClimePropertySensor(SensorEntity):
     async def async_update(self):
         try:
             value = await self._api.async_read_property_for_device(
-                self._hass,
-                self._override_uuid or self._api.uuid,
-                self._path,
-                self._faktor,
-                self._signed,
-                self._byte_count,
+                device_uuid=self._override_uuid or self._api.uuid,
+                property_path=self._path,
+                faktor=self._faktor,
+                signed=self._signed,
+                byte_count=self._byte_count,
             )
             if self._mapping_key and self._mapping_key in VALUE_MAPPINGS:
                 self._state = VALUE_MAPPINGS[self._mapping_key].get(value, value)

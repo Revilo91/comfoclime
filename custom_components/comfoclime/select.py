@@ -20,7 +20,7 @@ async def async_setup_entry(
 ):
     host = entry.data["host"]
     api = ComfoClimeAPI(f"http://{host}")
-    await api.async_get_uuid(hass)
+    await api.async_get_uuid()
 
     devices = hass.data[DOMAIN][entry.entry_id]["devices"]
     main_device = hass.data[DOMAIN][entry.entry_id]["main_device"]

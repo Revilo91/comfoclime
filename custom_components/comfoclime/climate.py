@@ -418,7 +418,7 @@ class ComfoClimeClimate(
                      season, hp_standby, schedule, temperature_profile,
                      season_profile, status)
         """
-        await self._api.async_update_dashboard(self.hass, **kwargs)
+        await self._api.async_update_dashboard(**kwargs)
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new HVAC mode by updating season via thermal profile API.
@@ -449,7 +449,7 @@ class ComfoClimeClimate(
                     f"atomically setting season={season_value} and hpStandby=False"
                 )
                 await self._api.async_set_hvac_season(
-                    self.hass, season=season_value, hp_standby=False
+                    season=season_value, hp_standby=False
                 )
 
             # Schedule non-blocking refresh of coordinators
