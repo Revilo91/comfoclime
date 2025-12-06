@@ -54,6 +54,10 @@ class TestComfoClimeSelect:
             entry=mock_config_entry,
         )
 
+        # Set hass attribute for async_write_ha_state to work
+        select.hass = mock_hass
+        select.async_write_ha_state = MagicMock()
+
         select._handle_coordinator_update()
 
         assert select.current_option == "power"
@@ -79,6 +83,10 @@ class TestComfoClimeSelect:
             device=mock_device,
             entry=mock_config_entry,
         )
+
+        # Set hass attribute for async_write_ha_state to work
+        select.hass = mock_hass
+        select.async_write_ha_state = MagicMock()
 
         select._handle_coordinator_update()
 
@@ -252,11 +260,12 @@ async def test_async_setup_entry(mock_hass, mock_config_entry, mock_api, mock_th
         }
     }
 
+    # Make sure async_get_uuid is properly mocked
+    mock_api.async_get_uuid = AsyncMock(return_value="test-uuid-12345")
+
     async_add_entities = MagicMock()
 
-    with patch("custom_components.comfoclime.select.ComfoClimeSelect"):
-        with patch("custom_components.comfoclime.select.ComfoClimePropertySelect"):
-            await async_setup_entry(mock_hass, mock_config_entry, async_add_entities)
+    await async_setup_entry(mock_hass, mock_config_entry, async_add_entities)
 
     # Verify entities were added
     assert async_add_entities.called

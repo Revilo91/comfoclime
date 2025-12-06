@@ -140,6 +140,10 @@ class TestComfoClimeFan:
             entry=mock_config_entry,
         )
 
+        # Set hass attribute for async_write_ha_state to work
+        fan.hass = mock_hass
+        fan.async_write_ha_state = MagicMock()
+
         fan._handle_coordinator_update()
 
         assert fan._current_speed == 3
@@ -155,6 +159,10 @@ class TestComfoClimeFan:
             device=mock_device,
             entry=mock_config_entry,
         )
+
+        # Set hass attribute for async_write_ha_state to work
+        fan.hass = mock_hass
+        fan.async_write_ha_state = MagicMock()
 
         fan._handle_coordinator_update()
 
@@ -193,10 +201,12 @@ async def test_async_setup_entry(mock_hass, mock_config_entry, mock_api, mock_co
         }
     }
 
+    # Make sure async_get_uuid is properly mocked
+    mock_api.async_get_uuid = AsyncMock(return_value="test-uuid-12345")
+
     async_add_entities = MagicMock()
 
-    with patch("custom_components.comfoclime.fan.ComfoClimeFan"):
-        await async_setup_entry(mock_hass, mock_config_entry, async_add_entities)
+    await async_setup_entry(mock_hass, mock_config_entry, async_add_entities)
 
     # Verify entity was added
     assert async_add_entities.called

@@ -13,6 +13,13 @@ def mock_hass():
     hass.loop = None
     hass.async_create_task = MagicMock()
     hass.add_job = MagicMock()
+    hass.async_write_ha_state = MagicMock()
+    
+    # Mock platform for entities
+    mock_platform = MagicMock()
+    mock_platform.platform_name = "comfoclime"
+    hass.platform = mock_platform
+    
     return hass
 
 
@@ -61,6 +68,7 @@ def mock_coordinator():
         "supplyAirFlow": 200,
     }
     coordinator.async_request_refresh = AsyncMock()
+    coordinator.async_config_entry_first_refresh = AsyncMock()
     coordinator.async_add_listener = MagicMock(return_value=lambda: None)
     coordinator.last_update_success = True
     return coordinator
@@ -83,6 +91,7 @@ def mock_thermalprofile_coordinator():
         "temperatureProfile": 0,
     }
     coordinator.async_request_refresh = AsyncMock()
+    coordinator.async_config_entry_first_refresh = AsyncMock()
     coordinator.async_add_listener = MagicMock(return_value=lambda: None)
     coordinator.last_update_success = True
     return coordinator

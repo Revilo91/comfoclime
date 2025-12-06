@@ -49,6 +49,10 @@ class TestComfoClimeSensor:
             device=mock_device,
             entry=mock_config_entry,
         )
+        
+        # Set hass attribute and patch async_write_ha_state for async_write_ha_state to work
+        sensor.hass = mock_hass
+        sensor.async_write_ha_state = MagicMock()
 
         # Trigger coordinator update
         sensor._handle_coordinator_update()
@@ -69,6 +73,10 @@ class TestComfoClimeSensor:
             device=mock_device,
             entry=mock_config_entry,
         )
+
+        # Set hass attribute and patch async_write_ha_state
+        sensor.hass = mock_hass
+        sensor.async_write_ha_state = MagicMock()
 
         sensor._handle_coordinator_update()
 
@@ -254,12 +262,12 @@ async def test_async_setup_entry(mock_hass, mock_config_entry, mock_api, mock_co
         }
     }
 
+    # Make sure async_get_uuid is properly mocked
+    mock_api.async_get_uuid = AsyncMock(return_value="test-uuid-12345")
+
     async_add_entities = MagicMock()
 
-    with patch("custom_components.comfoclime.sensor.ComfoClimeSensor"):
-        with patch("custom_components.comfoclime.sensor.ComfoClimeTelemetrySensor"):
-            with patch("custom_components.comfoclime.sensor.ComfoClimePropertySensor"):
-                await async_setup_entry(mock_hass, mock_config_entry, async_add_entities)
+    await async_setup_entry(mock_hass, mock_config_entry, async_add_entities)
 
     # Verify entities were added
     assert async_add_entities.called

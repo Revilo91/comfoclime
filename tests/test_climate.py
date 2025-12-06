@@ -276,6 +276,9 @@ class TestComfoClimeClimate:
             entry=mock_config_entry,
         )
 
+        # Set hass attribute
+        climate.hass = mock_hass
+
         await climate.async_set_hvac_mode(HVACMode.HEAT)
 
         # Should call async_set_hvac_season with season=1 and hp_standby=False
@@ -295,6 +298,9 @@ class TestComfoClimeClimate:
             device=mock_device,
             entry=mock_config_entry,
         )
+
+        # Set hass attribute
+        climate.hass = mock_hass
 
         await climate.async_set_hvac_mode(HVACMode.OFF)
 
