@@ -50,7 +50,7 @@ class TestComfoClimeSensor:
             entry=mock_config_entry,
         )
         
-        # Set hass attribute and patch async_write_ha_state for async_write_ha_state to work
+        # Set hass attribute and mock async_write_ha_state
         sensor.hass = mock_hass
         sensor.async_write_ha_state = MagicMock()
 
