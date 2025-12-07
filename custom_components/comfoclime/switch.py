@@ -194,12 +194,7 @@ class ComfoClimeStandbySwitch(
     def _handle_coordinator_update(self):
         data = self.coordinator.data
         try:
-            # Zugriff auf verschachtelte Keys wie ["season"]["status"]
-            val = data.get("hpStandby")
-            if val:
-                val = False
-            else:
-                val = True
+            val = data.get("hpStandby", 0)
             self._state = val == 1
         except Exception as e:
             _LOGGER.error(f"Fehler beim Lesen des Switch-Zustands: {e}")
@@ -212,13 +207,10 @@ class ComfoClimeStandbySwitch(
     def turn_off(self, **kwargs):
         self._set_status(0)
 
-    def _set_status(self, value):
+    def _set_status(self, hpstandby):
         try:
-            if value == 0:
-                self._api.update_dashboard(hp_standby=True)
-            if value == 1:
-                self._api.update_dashboard(hp_standby=False)
-            self._state = value == 1
+            self._api.update_dashboard(hp_standby=hpstandby)
+            self._state = hpstandby == 1
             self.hass.create_task(self.coordinator.async_request_refresh())
 
         except Exception as e:
