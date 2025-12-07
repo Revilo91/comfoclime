@@ -1,13 +1,16 @@
 """Climate platform for ComfoClime integration."""
 
 import logging
+from datetime import datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from homeassistant.components.climate import (
     FAN_HIGH,
     FAN_LOW,
     FAN_MEDIUM,
     FAN_OFF,
+    PRESET_AWAY,
     PRESET_BOOST,
     PRESET_COMFORT,
     PRESET_ECO,
@@ -46,6 +49,33 @@ PRESET_REVERSE_MAPPING = {v: k for k, v in PRESET_MAPPING.items()}
 
 # Add manual preset mode (status=0)
 PRESET_MANUAL = PRESET_NONE  # "none" preset means manual temperature control
+
+# Scenario Modes - special operating modes
+SCENARIO_COOKING = 4  # Kochen - 30 minutes high ventilation
+SCENARIO_PARTY = 5  # Party - 30 minutes high ventilation
+SCENARIO_HOLIDAY = 7  # Urlaub - 24 hours reduced mode
+SCENARIO_BOOST_MODE = 8  # Boost - 30 minutes maximum power
+
+PRESET_SCENARIO_COOKING = "cooking"
+PRESET_SCENARIO_PARTY = "party"
+
+# Scenario mapping
+SCENARIO_MAPPING = {
+    SCENARIO_COOKING: PRESET_SCENARIO_COOKING,
+    SCENARIO_PARTY: PRESET_SCENARIO_PARTY,
+    SCENARIO_HOLIDAY: PRESET_AWAY,
+    SCENARIO_BOOST_MODE: PRESET_BOOST,
+}
+
+SCENARIO_REVERSE_MAPPING = {v: k for k, v in SCENARIO_MAPPING.items()}
+
+# Default durations for scenarios in seconds (based on Mode_info.json)
+SCENARIO_DEFAULT_DURATIONS = {
+    SCENARIO_COOKING: 30,
+    SCENARIO_PARTY: 30,
+    SCENARIO_HOLIDAY: 1440,  # 24 hours
+    SCENARIO_BOOST_MODE: 30,
+}
 
 # Fan Mode Mapping (based on fan.py implementation)
 # fanSpeed from dashboard: 0, 1, 2, 3
@@ -251,54 +281,46 @@ class ComfoClimeClimate(
         return HVAC_MODE_MAPPING.get(season, HVACMode.OFF)
 
     @property
-    def hvac_action(self) -> HVACAction:
+    def hvac_action(self) -> list[HVACAction]:
         """Return current HVAC action based on dashboard heatPumpStatus.
 
-        Uses bitwise operations to determine the current action:
-        - Bit 0 (0x01): Device is active/running
-        - Bit 1 (0x02): Heating mode flag
-        - Bit 2 (0x04): Cooling mode flag
-
         Heat pump status codes (from API documentation):
-        Code | Binary      | Meaning
-        -----|-------------|--------
-        0    | 0000 0000  | Off
-        1    | 0000 0001  | Starting up (active, no mode)
-        3    | 0000 0011  | Heating (active + heating flag)
-        5    | 0000 0101  | Cooling (active + cooling flag)
-        17   | 0001 0001  | Transitional (active + other flags)
-        19   | 0001 0011  | Heating + transition state
-        21   | 0001 0101  | Cooling + transition state
-        67   | 0100 0011  | Heating + other state
-        75   | 0100 1011  | Heating + cooling + other
-        83   | 0101 0011  | Heating + other state
+
+        Bit-Mapping:
+        Bit         | 7    | 6          | 5    | 4          | 3              | 2       | 1       | 0
+        ------------|------|------------|------|------------|----------------|---------|---------|-----
+        Value (dec) | 128  | 64         | 32   | 16         | 8              | 4       | 2       | 1
+        Value (hex) | 0x80 | 0x40       | 0x20 | 0x10       | 0x08           | 0x04    | 0x02    | 0x01
+        Meaning     | IDLE | DEFROSTING | IDLE | DRYING (?) | PREHEATING (?) | COOLING | HEATING | IDLE
 
         Reference: https://github.com/msfuture/comfoclime_api/blob/main/ComfoClimeAPI.md#heat-pump-status-codes
         """
         if not self.coordinator.data:
-            return HVACAction.OFF
+            return [HVACAction.OFF]
 
         heat_pump_status = self.coordinator.data.get("heatPumpStatus")
 
-        if heat_pump_status is None or heat_pump_status == 0:
-            return HVACAction.OFF
+        if heat_pump_status in [None, 0]:
+            return [HVACAction.OFF]
 
-        # Bitwise operation to determine heating/cooling state
-        # Bit 1 (0x02) indicates heating
-        # Bit 2 (0x04) indicates cooling
-        # If both bits are set (e.g., status 75), heating takes priority
-        # This is intentional as heating typically has higher priority for safety
-        is_heating = bool(heat_pump_status & 0x02)  # Check bit 1
-        is_cooling = bool(heat_pump_status & 0x04)  # Check bit 2
+        status_mapping = {
+            0x02: HVACAction.HEATING,
+            0x04: HVACAction.COOLING,
+            0x08: HVACAction.PREHEATING,  # Not sure
+            0x10: HVACAction.DRYING,  # Not sure
+            0x20: HVACAction.IDLE,  # Unused
+            0x40: HVACAction.DEFROSTING,  # Not sure
+            0x80: HVACAction.IDLE,  # Unused
+        }
 
-        if is_heating:
-            return HVACAction.HEATING
+        active_flags = [
+            status for mask, status in status_mapping.items() if heat_pump_status & mask
+        ]
 
-        if is_cooling:
-            return HVACAction.COOLING
+        if not active_flags:
+            return [HVACAction.IDLE]
 
-        # Device is active but not heating or cooling (starting up or idle)
-        return HVACAction.IDLE
+        return active_flags
 
     @property
     def preset_mode(self) -> str | None:
@@ -464,6 +486,9 @@ class ComfoClimeClimate(
         Setting PRESET_MANUAL (none) switches to manual temperature control mode.
         Setting other presets (comfort/boost/eco) activates automatic mode with
         both seasonProfile and temperatureProfile set to the selected preset value.
+
+        Args:
+            preset_mode: The preset mode to activate
         """
         try:
             # Manual mode: User wants to use manual temperature control
@@ -508,6 +533,86 @@ class ComfoClimeClimate(
         except Exception:
             _LOGGER.exception(f"Failed to set preset mode {preset_mode}")
 
+    async def async_set_scenario_mode(
+        self, scenario_mode: str, duration: int, start_delay: str = None
+    ) -> None:
+        """Set preset mode via dashboard API.
+
+        Setting scenario modes (cooking/party/holiday/boost_mode) activates special operating modes.
+
+        Args:
+            scenario_mode: The scenario mode to activate
+            duration:   Optional duration in minutes for scenario modes. If not provided,
+                        default durations are used (30min for cooking/party/boost, 24h for holiday)
+            start_delay: Optional delay as datetime string (e.g. "2025-11-21 12:00:00").
+                        Will be converted to seconds from now.
+        """
+
+        try:
+            # Scenario modes: Special operating modes
+            if scenario_mode in SCENARIO_REVERSE_MAPPING:
+                scenario_value = SCENARIO_REVERSE_MAPPING[scenario_mode]
+
+                # Determine scenario duration
+                if duration is None:
+                    # Use default duration from mapping
+                    duration = SCENARIO_DEFAULT_DURATIONS.get(scenario_value, 30)
+
+                # Calculate start_delay in seconds from now
+                start_delay_seconds = None
+                if start_delay is not None:
+                    try:
+                        # Get Home Assistant's timezone
+                        tz = ZoneInfo(self.hass.config.time_zone)
+
+                        # Parse target time and localize to HA timezone
+                        target_time = datetime.fromisoformat(start_delay)
+                        if target_time.tzinfo is None:
+                            # If no timezone info, assume HA's timezone
+                            target_time = target_time.replace(tzinfo=tz)
+
+                        # Get current time in HA timezone
+                        now = datetime.now(tz)
+
+                        # Calculate delta
+                        delta = target_time - now
+                        start_delay_seconds = int(delta.total_seconds())
+
+                        if start_delay_seconds < 0:
+                            _LOGGER.warning(
+                                f"Start delay time {start_delay} is in the past, ignoring"
+                            )
+                            start_delay_seconds = None
+                    except ValueError:
+                        _LOGGER.exception(
+                            f"Invalid start_delay format '{start_delay}'. "
+                            "Expected ISO format like '2025-11-21 12:00:00'"
+                        )
+                        start_delay_seconds = None
+                elif start_delay is None and scenario_mode == SCENARIO_MAPPING[SCENARIO_HOLIDAY]:
+                    _LOGGER.warning("No start_delay provided for holiday scenario!")
+
+                _LOGGER.debug(
+                    f"Activating scenario mode {scenario_mode} (scenario={scenario_value}, "
+                    f"scenarioTimeLeft={duration}min, scenarioStartDelay={start_delay_seconds}s) via dashboard API"
+                )
+
+                # Activate scenario mode with duration
+                # scenario field activates the mode
+                # scenarioTimeLeft sets the duration in seconds
+                await self.async_update_dashboard(
+                    scenario=scenario_value,
+                    scenario_time_left=duration * 60,
+                    scenario_start_delay=start_delay_seconds,
+                )
+
+                # Schedule non-blocking refresh of coordinators
+                self._async_refresh_coordinators()
+                return
+
+        except Exception:
+            _LOGGER.exception(f"Failed to set preset mode {scenario_mode}")
+
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         """Set fan mode by updating fan speed via dashboard API.
 
@@ -540,12 +645,31 @@ class ComfoClimeClimate(
 
         Exposes all available data from the ComfoClime Dashboard API interface:
         - Dashboard data from /system/{UUID}/dashboard
+        - Scenario time left (remaining duration of active scenario in seconds)
         """
         attrs = {}
 
         # Add complete dashboard data from Dashboard API interface
         if self.coordinator.data:
             attrs["dashboard"] = self.coordinator.data
+
+            # Add scenario time left as a separate attribute for easier access
+            scenario_time_left = self.coordinator.data.get("scenarioTimeLeft")
+            if scenario_time_left is not None:
+                attrs["scenario_time_left"] = scenario_time_left
+                # Convert to human-readable format
+                hours, remainder = divmod(scenario_time_left, 3600)
+                minutes, seconds = divmod(remainder, 60)
+                if hours > 0:
+                    attrs["scenario_time_left_formatted"] = (
+                        f"{int(hours)}h {int(minutes)}m"
+                    )
+                elif minutes > 0:
+                    attrs["scenario_time_left_formatted"] = (
+                        f"{int(minutes)}m {int(seconds)}s"
+                    )
+                else:
+                    attrs["scenario_time_left_formatted"] = f"{int(seconds)}s"
 
         # For transparency: expose last_manual_temperature from thermal profile if available
         tp = getattr(self._thermalprofile_coordinator, "data", None) or {}
