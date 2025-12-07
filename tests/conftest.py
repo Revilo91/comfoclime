@@ -1,4 +1,5 @@
 """Common fixtures for ComfoClime tests."""
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from homeassistant.core import HomeAssistant
@@ -14,12 +15,12 @@ def mock_hass():
     hass.async_create_task = MagicMock()
     hass.add_job = MagicMock()
     hass.async_write_ha_state = MagicMock()
-    
+
     # Mock platform for entities
     mock_platform = MagicMock()
     mock_platform.platform_name = "comfoclime"
     hass.platform = mock_platform
-    
+
     return hass
 
 

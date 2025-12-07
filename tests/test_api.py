@@ -1,4 +1,5 @@
 """Tests for ComfoClime API."""
+
 import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 from custom_components.comfoclime.comfoclime_api import ComfoClimeAPI
@@ -45,9 +46,7 @@ class TestComfoClimeAPI:
         mock_get.return_value = mock_response
 
         mock_hass = MagicMock()
-        mock_hass.async_add_executor_job = AsyncMock(
-            side_effect=lambda f: f()
-        )
+        mock_hass.async_add_executor_job = AsyncMock(side_effect=lambda f: f())
 
         api = ComfoClimeAPI("http://192.168.1.100")
         uuid = await api.async_get_uuid(mock_hass)
@@ -213,7 +212,7 @@ class TestComfoClimeAPIWriteOperations:
 
         api = ComfoClimeAPI("http://192.168.1.100")
         api.uuid = "test-uuid"
-        
+
         await api.async_update_dashboard(mock_hass, fan_speed=3, hp_standby=False)
 
         assert mock_post.called
