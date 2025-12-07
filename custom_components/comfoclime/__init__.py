@@ -130,13 +130,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
             if climate_entity and hasattr(climate_entity, "async_set_scenario_mode"):
                 try:
-                    await climate_entity.async_set_scenario_mode(
-                        scenario, duration=duration
-                    )
+                    await climate_entity.async_set_scenario_mode(scenario, duration=duration)
                 except Exception as e:
                     _LOGGER.error(
                         f"Error setting scenario mode '{scenario}' on {entity_id}: {e}",
-                        exc_info=True,
+                        exc_info=True
                     )
                     raise HomeAssistantError(
                         f"Failed to set scenario mode '{scenario}': {e}"
@@ -156,9 +154,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     hass.services.async_register(DOMAIN, "set_property", handle_set_property_service)
     hass.services.async_register(DOMAIN, "reset_system", handle_reset_system_service)
-    hass.services.async_register(
-        DOMAIN, "set_scenario_mode", handle_set_scenario_mode_service
-    )
+    hass.services.async_register(DOMAIN, "set_scenario_mode", handle_set_scenario_mode_service)
     return True
 
 
