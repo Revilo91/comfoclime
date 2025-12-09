@@ -8,7 +8,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
-from .comfoclime_api import ComfoClimeAPI
 from .coordinator import ComfoClimeDashboardCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -60,14 +59,13 @@ class ComfoClimeFan(CoordinatorEntity[ComfoClimeDashboardCoordinator], FanEntity
         step = max(0, min(step, 3))  # Clamp to 0–3
         try:
             await self._api.async_update_dashboard(
-                self._hass,
                 fan_speed=step,
             )
             self._current_speed = step
             self.async_write_ha_state()
             self._hass.add_job(self.coordinator.async_request_refresh)
-        except Exception:
-            _LOGGER.exception("Fehler beim Setzen von fanSpeed")
+        except Exception as e:
+            _LOGGER.error(f"Fehler beim Setzen von fanSpeed: {e}")
 
     def _handle_coordinator_update(self):
         try:
@@ -83,19 +81,14 @@ class ComfoClimeFan(CoordinatorEntity[ComfoClimeDashboardCoordinator], FanEntity
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ):
-    host = entry.data["host"]
-    api = ComfoClimeAPI(f"http://{host}")
-
     try:
-        await api.async_get_uuid(hass)
-        # devices = hass.data[DOMAIN][entry.entry_id]["devices"]
-        main_device = hass.data[DOMAIN][entry.entry_id]["main_device"]
+        data = hass.data[DOMAIN][entry.entry_id]
+        api = data["api"]
+        main_device = data["main_device"]
+        coordinator = data["coordinator"]
         if not main_device:
             _LOGGER.warning("Kein Hauptgerät mit modelTypeId 20 gefunden.")
             return
-        data = hass.data[DOMAIN][entry.entry_id]
-        api = data["api"]
-        coordinator = data["coordinator"]
         try:
             await coordinator.async_config_entry_first_refresh()
         except Exception as e:

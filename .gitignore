@@ -2,5 +2,13 @@
 .vscode
 /.history
 
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+.tox/
+*.log
+
 # Home Assistant development files
 .devcontainer/ha-config/

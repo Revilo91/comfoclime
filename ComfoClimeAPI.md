@@ -3,6 +3,7 @@
 A practical guide to the Zehnder ComfoClime REST API with Python examples. The API provides local HTTP access (no authentication required) to control ComfoClime and connected ComfoNet devices.
 
 This documentation is part of the [ComfoClime Home Assistant Integration](https://github.com/Revilo91/comfoclime) and serves both as:
+
 - **API Reference**: Complete REST API documentation for developers
 - **Integration Guide**: Examples and patterns used in the Home Assistant integration
 
@@ -18,13 +19,13 @@ class ComfoClimeAPI:
     def __init__(self, ip_address):
         self.base_url = f"http://{ip_address}"
         self.uuid = None
-    
+
     def get_uuid(self):
         """Get device UUID (required for most endpoints)"""
         response = requests.get(f"{self.base_url}/monitoring/ping")
         self.uuid = response.json()["uuid"]
         return self.uuid
-    
+
     def get_dashboard(self):
         """Get current dashboard data"""
         if not self.uuid:
@@ -70,6 +71,7 @@ print(f"Fan speed: {dashboard['fanSpeed']}")
 ### UUID vs Device ID
 
 - **UUID**: Unique identifier = device serial number (e.g., `MBE123123123`)
+
   - Required for `/system/{UUID}/*` endpoints (ComfoClime only)
   - Obtained from `/monitoring/ping`
 
@@ -172,16 +174,16 @@ import datetime
 
 def update_dashboard(base_url, uuid, **kwargs):
     """Modern dashboard update method (flexible parameters).
-    
+
     The API distinguishes between two temperature control modes:
     - Automatic mode (status=1): Uses preset profiles (seasonProfile, temperatureProfile)
     - Manual mode (status=0): Uses manual temperature (setPointTemperature)
-    
+
     Args:
         set_point_temperature: Target temperature (°C) - activates manual mode
         fan_speed: Fan speed (0-3)
         season: Season value (0=transition, 1=heating, 2=cooling)
-        hp_standby: Heat pump standby state (True=standby/off, False=active)
+        hpStandby: Heat pump standby state (True=standby/off, False=active)
         schedule: Schedule mode
         temperature_profile: Temperature profile (0=comfort, 1=power, 2=eco)
         season_profile: Season profile (0=comfort, 1=power, 2=eco)
@@ -189,7 +191,7 @@ def update_dashboard(base_url, uuid, **kwargs):
     """
     # Build payload dynamically with only provided fields
     payload = {}
-    
+
     if kwargs.get("set_point_temperature") is not None:
         payload["setPointTemperature"] = kwargs["set_point_temperature"]
     if kwargs.get("fan_speed") is not None:
@@ -204,12 +206,12 @@ def update_dashboard(base_url, uuid, **kwargs):
         payload["seasonProfile"] = kwargs["season_profile"]
     if kwargs.get("status") is not None:
         payload["status"] = kwargs["status"]
-    if kwargs.get("hp_standby") is not None:
-        payload["hpStandby"] = kwargs["hp_standby"]
-    
+    if kwargs.get("hpStandby") is not None:
+        payload["hpStandby"] = kwargs["hpStandby"]
+
     # Add timestamp
     payload["timestamp"] = datetime.datetime.now().isoformat()
-    
+
     response = requests.put(
         f"{base_url}/system/{uuid}/dashboard",
         json=payload,
@@ -223,8 +225,8 @@ def update_dashboard(base_url, uuid, **kwargs):
 update_dashboard("http://192.168.1.100", uuid, fan_speed=2)
 
 # 2. Set manual temperature to 22°C (activates manual mode)
-update_dashboard("http://192.168.1.100", uuid, 
-                set_point_temperature=22.0, 
+update_dashboard("http://192.168.1.100", uuid,
+                set_point_temperature=22.0,
                 status=0)  # 0=manual mode
 
 # 3. Set comfort preset (automatic mode)
@@ -233,17 +235,17 @@ update_dashboard("http://192.168.1.100", uuid,
                 status=1)  # 1=automatic mode
 
 # 4. Turn off heat pump (standby mode)
-update_dashboard("http://192.168.1.100", uuid, hp_standby=True)
+update_dashboard("http://192.168.1.100", uuid, hpStandby=True)
 
 # 5. Set heating mode (activate heat pump and set season)
 update_dashboard("http://192.168.1.100", uuid,
                 season=1,  # 1=heating
-                hp_standby=False)
+                hpStandby=False)
 
 # 6. Set cooling mode
 update_dashboard("http://192.168.1.100", uuid,
                 season=2,  # 2=cooling
-                hp_standby=False)
+                hpStandby=False)
 ```
 
 **Legacy method (still works but less flexible):**
@@ -380,7 +382,7 @@ def read_telemetry(base_url, device_uuid, telemetry_id, factor=1.0, signed=True)
     """Read telemetry value"""
     response = requests.get(f"{base_url}/device/{device_uuid}/telemetry/{telemetry_id}")
     data = response.json()["data"]
-    
+
     # Decode based on byte count
     if len(data) == 1:
         value = data[0]
@@ -393,7 +395,7 @@ def read_telemetry(base_url, device_uuid, telemetry_id, factor=1.0, signed=True)
             value -= 0x10000
     else:
         raise ValueError(f"Unsupported byte count: {len(data)}")
-    
+
     return value * factor
 
 # Read TPMA temperature (ID 4145, factor 0.1)
@@ -416,14 +418,14 @@ def read_property(base_url, device_uuid, unit, subunit, prop, factor=1.0, signed
         f"{base_url}/device/{device_uuid}/property/{unit}/{subunit}/{prop}"
     )
     data = response.json()["data"]
-    
+
     # Handle string properties
     if all(0 <= byte < 256 for byte in data):
         try:
             return "".join(chr(byte) for byte in data if byte != 0)
         except:
             pass
-    
+
     # Handle numeric properties
     if len(data) == 1:
         value = data[0]
@@ -436,7 +438,7 @@ def read_property(base_url, device_uuid, unit, subunit, prop, factor=1.0, signed
             value -= 0x10000
     else:
         return data
-    
+
     return value * factor
 
 # Read serial number (Unit 1, Subunit 1, Property 4)
@@ -457,16 +459,16 @@ def write_property(base_url, device_uuid, unit, subunit, prop, value, factor=1.0
     """Write property value"""
     # Convert value to raw integer
     raw_value = int(round(value / factor))
-    
+
     # Encode to bytes (2 bytes)
     if signed and raw_value < 0:
         raw_value += 0x10000
     lsb = raw_value & 0xFF
     msb = (raw_value >> 8) & 0xFF
-    
+
     # Payload: [property_id, lsb, msb]
     payload = {"data": [prop, lsb, msb]}
-    
+
     response = requests.put(
         f"{base_url}/device/{device_uuid}/method/{unit}/{subunit}/3",
         json=payload
@@ -501,32 +503,32 @@ PDO (Process Data Object) sensors provide real-time sensor values. Based on the 
 
 #### Common Telemetry IDs
 
-| ID | Type | Description | Factor | Example |
-|----|------|-------------|--------|---------|
-| 117 | INT16 | Outdoor air temperature | 0.1 | `[75, 0]` = 7.5°C |
-| 118 | INT16 | Supply air temperature | 0.1 | `[210, 0]` = 21.0°C |
-| 119 | UINT16 | Exhaust air flow | 1.0 | `[110, 0]` = 110 m³/h |
-| 120 | UINT16 | Supply air flow | 1.0 | `[105, 0]` = 105 m³/h |
-| 209 | INT16 | Running Mean Outdoor Temperature | 0.1 | `[117, 0]` = 11.7°C |
-| 212 | UINT8 | Temperature profile target | 0.1 | `[238]` = 23.8°C |
-| 227 | UINT8 | Bypass state | 1.0 | `[100]` = 100% |
+| ID  | Type   | Description                      | Factor | Example               |
+| --- | ------ | -------------------------------- | ------ | --------------------- |
+| 117 | INT16  | Outdoor air temperature          | 0.1    | `[75, 0]` = 7.5°C     |
+| 118 | INT16  | Supply air temperature           | 0.1    | `[210, 0]` = 21.0°C   |
+| 119 | UINT16 | Exhaust air flow                 | 1.0    | `[110, 0]` = 110 m³/h |
+| 120 | UINT16 | Supply air flow                  | 1.0    | `[105, 0]` = 105 m³/h |
+| 209 | INT16  | Running Mean Outdoor Temperature | 0.1    | `[117, 0]` = 11.7°C   |
+| 212 | UINT8  | Temperature profile target       | 0.1    | `[238]` = 23.8°C      |
+| 227 | UINT8  | Bypass state                     | 1.0    | `[100]` = 100%        |
 
 #### ComfoClime Specific Telemetry
 
-| ID | Type | Description | Factor | Values |
-|----|------|-------------|--------|--------|
-| 4145 | INT16 | TPMA temperature | 0.1 | Temperature in °C |
-| 4148 | INT16 | Target temperature | 0.1 | Temperature in °C |
-| 4149 | UINT8 | Device mode | 1.0 | 0=Off, 1=Heating, 2=Cooling |
-| 4151 | INT16 | Current comfort temperature | 0.1 | Temperature in °C |
-| 4154 | INT16 | Indoor temperature | 0.1 | Temperature in °C |
-| 4193 | INT16 | Supply air temperature | 0.1 | Temperature in °C |
-| 4194 | INT16 | Exhaust temperature | 0.1 | Temperature in °C |
-| 4195 | INT16 | Supply coil temperature | 0.1 | Temperature in °C |
-| 4196 | INT16 | Exhaust coil temperature | 0.1 | Temperature in °C |
-| 4197 | INT16 | Compressor temperature | 0.1 | Temperature in °C |
-| 4198 | UINT8 | Heat pump power % | 1.0 | 0-100% |
-| 4201 | UINT16 | Current power | 1.0 | Watts |
+| ID   | Type   | Description                 | Factor | Values                      |
+| ---- | ------ | --------------------------- | ------ | --------------------------- |
+| 4145 | INT16  | TPMA temperature            | 0.1    | Temperature in °C           |
+| 4148 | INT16  | Target temperature          | 0.1    | Temperature in °C           |
+| 4149 | UINT8  | Device mode                 | 1.0    | 0=Off, 1=Heating, 2=Cooling |
+| 4151 | INT16  | Current comfort temperature | 0.1    | Temperature in °C           |
+| 4154 | INT16  | Indoor temperature          | 0.1    | Temperature in °C           |
+| 4193 | INT16  | Supply air temperature      | 0.1    | Temperature in °C           |
+| 4194 | INT16  | Exhaust temperature         | 0.1    | Temperature in °C           |
+| 4195 | INT16  | Supply coil temperature     | 0.1    | Temperature in °C           |
+| 4196 | INT16  | Exhaust coil temperature    | 0.1    | Temperature in °C           |
+| 4197 | INT16  | Compressor temperature      | 0.1    | Temperature in °C           |
+| 4198 | UINT8  | Heat pump power %           | 1.0    | 0-100%                      |
+| 4201 | UINT16 | Current power               | 1.0    | Watts                       |
 
 #### PDO Data Types
 
@@ -572,47 +574,47 @@ RMI (Remote Method Invocation) provides access to device properties. Based on th
 
 #### ComfoClime Units
 
-| Unit (Dec) | Unit (Hex) | Subunits | Name | Description |
-|------------|------------|----------|------|-------------|
-| 1 | 0x01 | 1 | NODE | General device info (serial, version) |
-| 2 | 0x02 | 1 | COMFOBUS | Bus communication |
-| 3 | 0x03 | 1 | ERROROBJECT | Error handling |
-| 22 | 0x16 | 1 | TEMPCONFIG | Temperature configuration |
-| 23 | 0x17 | 1 | HEATPUMP | Heat pump configuration |
+| Unit (Dec) | Unit (Hex) | Subunits | Name        | Description                           |
+| ---------- | ---------- | -------- | ----------- | ------------------------------------- |
+| 1          | 0x01       | 1        | NODE        | General device info (serial, version) |
+| 2          | 0x02       | 1        | COMFOBUS    | Bus communication                     |
+| 3          | 0x03       | 1        | ERROROBJECT | Error handling                        |
+| 22         | 0x16       | 1        | TEMPCONFIG  | Temperature configuration             |
+| 23         | 0x17       | 1        | HEATPUMP    | Heat pump configuration               |
 
 #### NODE Properties (Unit 1)
 
-| Subunit | Property | Access | Type | Description | Example |
-|---------|----------|--------|------|-------------|---------|
-| 1 | 1 | RW | UINT8 | Zone | 1 |
-| 1 | 2 | RO | UINT8 | Product ID | 20 (ComfoClime) |
-| 1 | 3 | RO | UINT8 | Product Variant | 1 |
-| 1 | 4 | RO | STRING | Serial Number | "MBE123123123" |
-| 1 | 5 | RO | UINT8 | Hardware Version | 1 |
-| 1 | 6 | RO | UINT8 | Firmware Version | Version number |
-| 1 | 20 | RW | STRING | Device Name | Custom name |
+| Subunit | Property | Access | Type   | Description      | Example         |
+| ------- | -------- | ------ | ------ | ---------------- | --------------- |
+| 1       | 1        | RW     | UINT8  | Zone             | 1               |
+| 1       | 2        | RO     | UINT8  | Product ID       | 20 (ComfoClime) |
+| 1       | 3        | RO     | UINT8  | Product Variant  | 1               |
+| 1       | 4        | RO     | STRING | Serial Number    | "MBE123123123"  |
+| 1       | 5        | RO     | UINT8  | Hardware Version | 1               |
+| 1       | 6        | RO     | UINT8  | Firmware Version | Version number  |
+| 1       | 20       | RW     | STRING | Device Name      | Custom name     |
 
 #### TEMPCONFIG Properties (Unit 22)
 
-| Subunit | Property | Access | Type | Factor | Description | Range |
-|---------|----------|--------|------|--------|-------------|-------|
-| 1 | 2 | RW | UINT8 | 1 | Automatic season | 0=Off, 1=On |
-| 1 | 3 | RW | UINT8 | 1 | Season select | 0=Transition, 1=Heating, 2=Cooling |
-| 1 | 4 | RW | UINT16 | 0.1 | Heating curve knee point | 5-15°C |
-| 1 | 5 | RW | UINT16 | 0.1 | Cooling curve knee point | 15-25°C |
-| 1 | 9 | RW | UINT16 | 0.1 | Heating comfort temp | 15-25°C |
-| 1 | 10 | RW | UINT16 | 0.1 | Cooling comfort temp | 20-28°C |
-| 1 | 11 | RW | UINT16 | 0.1 | Max temp while cooling | 20-28°C |
-| 1 | 12 | RW | UINT16 | 0.1 | Heating delta | 0-5°C |
-| 1 | 13 | RW | UINT16 | 0.1 | Manual target temp | 18-28°C |
-| 1 | 29 | RW | UINT8 | 1 | Temperature profile | 0=Comfort, 1=Power, 2=Eco |
+| Subunit | Property | Access | Type   | Factor | Description              | Range                              |
+| ------- | -------- | ------ | ------ | ------ | ------------------------ | ---------------------------------- |
+| 1       | 2        | RW     | UINT8  | 1      | Automatic season         | 0=Off, 1=On                        |
+| 1       | 3        | RW     | UINT8  | 1      | Season select            | 0=Transition, 1=Heating, 2=Cooling |
+| 1       | 4        | RW     | UINT16 | 0.1    | Heating curve knee point | 5-15°C                             |
+| 1       | 5        | RW     | UINT16 | 0.1    | Cooling curve knee point | 15-25°C                            |
+| 1       | 9        | RW     | UINT16 | 0.1    | Heating comfort temp     | 15-25°C                            |
+| 1       | 10       | RW     | UINT16 | 0.1    | Cooling comfort temp     | 20-28°C                            |
+| 1       | 11       | RW     | UINT16 | 0.1    | Max temp while cooling   | 20-28°C                            |
+| 1       | 12       | RW     | UINT16 | 0.1    | Heating delta            | 0-5°C                              |
+| 1       | 13       | RW     | UINT16 | 0.1    | Manual target temp       | 18-28°C                            |
+| 1       | 29       | RW     | UINT8  | 1      | Temperature profile      | 0=Comfort, 1=Power, 2=Eco          |
 
 #### HEATPUMP Properties (Unit 23)
 
-| Subunit | Property | Access | Type | Factor | Description | Range |
-|---------|----------|--------|------|--------|-------------|-------|
-| 1 | 3 | RW | UINT16 | 0.1 | Heat pump max temp | 40-60°C |
-| 1 | 4 | RW | UINT16 | 0.1 | Heat pump min temp | 10-17°C |
+| Subunit | Property | Access | Type   | Factor | Description        | Range   |
+| ------- | -------- | ------ | ------ | ------ | ------------------ | ------- |
+| 1       | 3        | RW     | UINT16 | 0.1    | Heat pump max temp | 40-60°C |
+| 1       | 4        | RW     | UINT16 | 0.1    | Heat pump min temp | 10-17°C |
 
 #### RMI Error Codes
 
@@ -640,11 +642,11 @@ from typing import Optional, Union
 
 class ComfoClimeAPI:
     """Complete ComfoClime API client"""
-    
+
     def __init__(self, ip_address: str):
         self.base_url = f"http://{ip_address}"
         self.uuid: Optional[str] = None
-    
+
     # Core methods
     def get_uuid(self) -> str:
         """Get and cache device UUID"""
@@ -653,30 +655,30 @@ class ComfoClimeAPI:
             response.raise_for_status()
             self.uuid = response.json()["uuid"]
         return self.uuid
-    
+
     def get_dashboard(self) -> dict:
         """Get dashboard data"""
         uuid = self.get_uuid()
         response = requests.get(f"{self.base_url}/system/{uuid}/dashboard")
         response.raise_for_status()
         return response.json()
-    
+
     def get_devices(self) -> list:
         """Get connected devices"""
         uuid = self.get_uuid()
         response = requests.get(f"{self.base_url}/system/{uuid}/devices")
         response.raise_for_status()
         return response.json()["devices"]
-    
+
     # Modern dashboard update method
     def update_dashboard(self, **kwargs) -> dict:
         """Update dashboard settings (modern flexible method).
-        
+
         Args:
             set_point_temperature: Target temperature (°C)
             fan_speed: Fan speed (0-3)
             season: Season value (0=transition, 1=heating, 2=cooling)
-            hp_standby: Heat pump standby state (True=off, False=active)
+            hpStandby: Heat pump standby state (True=off, False=active)
             schedule: Schedule mode
             temperature_profile: Temperature profile (0=comfort, 1=power, 2=eco)
             season_profile: Season profile (0=comfort, 1=power, 2=eco)
@@ -684,7 +686,7 @@ class ComfoClimeAPI:
         """
         import datetime
         uuid = self.get_uuid()
-        
+
         # Build payload with only provided fields
         payload = {}
         if kwargs.get("set_point_temperature") is not None:
@@ -701,11 +703,11 @@ class ComfoClimeAPI:
             payload["seasonProfile"] = kwargs["season_profile"]
         if kwargs.get("status") is not None:
             payload["status"] = kwargs["status"]
-        if kwargs.get("hp_standby") is not None:
-            payload["hpStandby"] = kwargs["hp_standby"]
-        
+        if kwargs.get("hpStandby") is not None:
+            payload["hpStandby"] = kwargs["hpStandby"]
+
         payload["timestamp"] = datetime.datetime.now().isoformat()
-        
+
         response = requests.put(
             f"{self.base_url}/system/{uuid}/dashboard",
             json=payload,
@@ -713,23 +715,23 @@ class ComfoClimeAPI:
         )
         response.raise_for_status()
         return response.json()
-    
+
     def get_thermal_profile(self) -> dict:
         """Get thermal profile settings"""
         uuid = self.get_uuid()
         response = requests.get(f"{self.base_url}/system/{uuid}/thermalprofile")
         response.raise_for_status()
         return response.json()
-    
+
     def update_thermal_profile(self, updates: dict) -> bool:
         """Update thermal profile settings.
-        
+
         Args:
-            updates: Dict with partial values, e.g. 
+            updates: Dict with partial values, e.g.
                     {"heatingThermalProfileSeasonData": {"comfortTemperature": 20.0}}
         """
         uuid = self.get_uuid()
-        
+
         # Full payload structure with nulls
         full_payload = {
             "season": {
@@ -754,23 +756,23 @@ class ComfoClimeAPI:
                 "temperatureLimit": None,
             },
         }
-        
+
         # Deep update: override specific fields
         for section, values in updates.items():
             if section in full_payload and isinstance(values, dict):
                 full_payload[section].update(values)
             else:
                 full_payload[section] = values
-        
+
         response = requests.put(
             f"{self.base_url}/system/{uuid}/thermalprofile",
             json=full_payload
         )
         response.raise_for_status()
         return response.status_code == 200
-    
+
     # Telemetry
-    def read_telemetry(self, device_uuid: str, telemetry_id: int, 
+    def read_telemetry(self, device_uuid: str, telemetry_id: int,
                        factor: float = 1.0, signed: bool = True) -> float:
         """Read telemetry value"""
         response = requests.get(
@@ -778,7 +780,7 @@ class ComfoClimeAPI:
         )
         response.raise_for_status()
         data = response.json()["data"]
-        
+
         if len(data) == 1:
             value = data[0]
             if signed and value >= 0x80:
@@ -789,11 +791,11 @@ class ComfoClimeAPI:
                 value -= 0x10000
         else:
             raise ValueError(f"Unsupported byte count: {len(data)}")
-        
+
         return value * factor
-    
+
     # Properties
-    def read_property(self, device_uuid: str, unit: int, subunit: int, 
+    def read_property(self, device_uuid: str, unit: int, subunit: int,
                       prop: int, factor: float = 1.0, signed: bool = True) -> Union[str, float]:
         """Read property value"""
         response = requests.get(
@@ -801,14 +803,14 @@ class ComfoClimeAPI:
         )
         response.raise_for_status()
         data = response.json()["data"]
-        
+
         # Try to decode as string
         if len(data) > 2:
             try:
                 return "".join(chr(b) for b in data if b != 0)
             except:
                 pass
-        
+
         # Decode as number
         if len(data) == 1:
             value = data[0]
@@ -820,68 +822,68 @@ class ComfoClimeAPI:
                 value -= 0x10000
         else:
             return data
-        
+
         return value * factor
-    
+
     def write_property(self, device_uuid: str, unit: int, subunit: int,
-                       prop: int, value: float, factor: float = 1.0, 
+                       prop: int, value: float, factor: float = 1.0,
                        signed: bool = True) -> bool:
         """Write property value"""
         raw_value = int(round(value / factor))
-        
+
         if signed and raw_value < 0:
             raw_value += 0x10000
-        
+
         payload = {
             "data": [prop, raw_value & 0xFF, (raw_value >> 8) & 0xFF]
         }
-        
+
         response = requests.put(
             f"{self.base_url}/device/{device_uuid}/method/{unit}/{subunit}/3",
             json=payload
         )
         return response.status_code == 200
-    
+
     # High-level HVAC control methods (Home Assistant integration style)
     def set_hvac_mode_heat(self) -> bool:
         """Set HVAC mode to heating"""
-        return self.update_dashboard(season=1, hp_standby=False)
-    
+        return self.update_dashboard(season=1, hpStandby=False)
+
     def set_hvac_mode_cool(self) -> bool:
         """Set HVAC mode to cooling"""
-        return self.update_dashboard(season=2, hp_standby=False)
-    
+        return self.update_dashboard(season=2, hpStandby=False)
+
     def set_hvac_mode_fan_only(self) -> bool:
         """Set HVAC mode to fan only (transition season)"""
-        return self.update_dashboard(season=0, hp_standby=False)
-    
+        return self.update_dashboard(season=0, hpStandby=False)
+
     def set_hvac_mode_off(self) -> bool:
         """Turn off heat pump (standby mode)"""
-        return self.update_dashboard(hp_standby=True)
-    
+        return self.update_dashboard(hpStandby=True)
+
     def set_manual_temperature(self, temperature: float) -> bool:
         """Set manual target temperature (switches to manual mode)"""
         return self.update_dashboard(
             set_point_temperature=temperature,
             status=0  # 0=manual mode
         )
-    
+
     def set_preset_comfort(self) -> bool:
         """Set comfort preset (switches to automatic mode)"""
         return self.update_dashboard(temperature_profile=0, status=1)
-    
+
     def set_preset_power(self) -> bool:
         """Set power preset (switches to automatic mode)"""
         return self.update_dashboard(temperature_profile=1, status=1)
-    
+
     def set_preset_eco(self) -> bool:
         """Set eco preset (switches to automatic mode)"""
         return self.update_dashboard(temperature_profile=2, status=1)
-    
+
     def set_fan_speed(self, speed: int) -> bool:
         """Set fan speed (0-3)"""
         return self.update_dashboard(fan_speed=speed)
-    
+
     def reset_system(self) -> bool:
         """Restart the ComfoClime device"""
         response = requests.put(f"{self.base_url}/system/reset")
@@ -927,20 +929,20 @@ import aiohttp
 
 class AsyncComfoClimeAPI:
     """Async ComfoClime API client for Home Assistant"""
-    
+
     def __init__(self, ip_address: str):
         self.base_url = f"http://{ip_address}"
         self.uuid: Optional[str] = None
         self.session: Optional[aiohttp.ClientSession] = None
-    
+
     async def _ensure_session(self):
         if self.session is None:
             self.session = aiohttp.ClientSession()
-    
+
     async def close(self):
         if self.session:
             await self.session.close()
-    
+
     async def get_uuid(self) -> str:
         """Get device UUID"""
         await self._ensure_session()
@@ -949,14 +951,14 @@ class AsyncComfoClimeAPI:
                 data = await resp.json()
                 self.uuid = data["uuid"]
         return self.uuid
-    
+
     async def get_dashboard(self) -> dict:
         """Get dashboard data"""
         await self._ensure_session()
         uuid = await self.get_uuid()
         async with self.session.get(f"{self.base_url}/system/{uuid}/dashboard") as resp:
             return await resp.json()
-    
+
     async def read_telemetry(self, device_uuid: str, telemetry_id: int,
                              factor: float = 1.0, signed: bool = True) -> float:
         """Read telemetry value"""
@@ -965,7 +967,7 @@ class AsyncComfoClimeAPI:
         async with self.session.get(url) as resp:
             data = await resp.json()
             raw_data = data["data"]
-        
+
         if len(raw_data) == 1:
             value = raw_data[0]
             if signed and value >= 0x80:
@@ -976,7 +978,7 @@ class AsyncComfoClimeAPI:
                 value -= 0x10000
         else:
             raise ValueError(f"Unsupported byte count: {len(raw_data)}")
-        
+
         return value * factor
 
 # Usage
@@ -985,7 +987,7 @@ async def main():
     try:
         dashboard = await api.get_dashboard()
         print(f"Temperature: {dashboard['indoorTemperature']}°C")
-        
+
         tpma = await api.read_telemetry(api.uuid, 4145, factor=0.1)
         print(f"TPMA: {tpma}°C")
     finally:
@@ -999,7 +1001,7 @@ asyncio.run(main())
 ```python
 def decode_heat_pump_status(status_code: int) -> dict:
     """Decode heat pump status bitfield with bitwise operations.
-    
+
     The status code is a bitfield where:
     - Bit 0 (0x01): Device is active/running
     - Bit 1 (0x02): Heating mode flag
@@ -1018,7 +1020,7 @@ def decode_heat_pump_status(status_code: int) -> dict:
         75: "Heating (Multi-mode)",
         83: "Heating"
     }
-    
+
     # Bit interpretation using bitwise operations
     bits = {
         "running": bool(status_code & 0x01),    # Bit 0
@@ -1030,7 +1032,7 @@ def decode_heat_pump_status(status_code: int) -> dict:
         "flag_64": bool(status_code & 0x40),    # Bit 6 (defrost/other)
         "flag_128": bool(status_code & 0x80),   # Bit 7
     }
-    
+
     # Determine current action (as used in Home Assistant integration)
     if status_code == 0:
         action = "off"
@@ -1042,7 +1044,7 @@ def decode_heat_pump_status(status_code: int) -> dict:
         action = "idle"
     else:
         action = "off"
-    
+
     return {
         "code": status_code,
         "description": status_names.get(status_code, f"Unknown ({status_code})"),
@@ -1067,12 +1069,12 @@ The Home Assistant integration uses **bitwise operations** to accurately interpr
 ```python
 def get_hvac_action(heat_pump_status: int) -> str:
     """Determine HVAC action from heat pump status using bitwise operations.
-    
+
     Heat pump status is a bitfield:
     - Bit 0 (0x01): Device is active/running
     - Bit 1 (0x02): Heating mode flag
     - Bit 2 (0x04): Cooling mode flag
-    
+
     Status codes interpretation:
     Code | Binary      | Action
     -----|-------------|--------
@@ -1089,18 +1091,18 @@ def get_hvac_action(heat_pump_status: int) -> str:
     """
     if heat_pump_status is None or heat_pump_status == 0:
         return "off"
-    
+
     # Bitwise check for heating/cooling flags
     is_heating = bool(heat_pump_status & 0x02)  # Check bit 1
     is_cooling = bool(heat_pump_status & 0x04)  # Check bit 2
-    
+
     # Heating has priority if both bits are set
     if is_heating:
         return "heating"
-    
+
     if is_cooling:
         return "cooling"
-    
+
     # Device is active but not heating or cooling
     return "idle"
 
@@ -1119,18 +1121,21 @@ This API documentation is part of the [ComfoClime Home Assistant Integration](ht
 A comprehensive climate control entity that unifies all temperature and ventilation control:
 
 **HVAC Modes:**
+
 - **Off**: System standby mode (via `hpStandby=True`)
 - **Heat**: Heating mode (sets `season=1` via thermal profile)
 - **Cool**: Cooling mode (sets `season=2` via thermal profile)
 - **Fan Only**: Ventilation only mode (sets `season=0` - transition)
 
 **Preset Modes:**
+
 - **Manual** (none): Manual temperature control (via `setPointTemperature`)
 - **Comfort**: Comfort temperature profile (`temperatureProfile=0`)
 - **Boost** (Power): Power saving profile (`temperatureProfile=1`)
 - **Eco**: Energy efficient profile (`temperatureProfile=2`)
 
 **Features:**
+
 - Target temperature control for heating (15-25°C) and cooling (20-28°C)
 - Current temperature display from indoor sensor
 - Fan speed control (0=off, 1=low, 2=medium, 3=high)
@@ -1175,28 +1180,32 @@ A comprehensive climate control entity that unifies all temperature and ventilat
 The Home Assistant integration uses these patterns:
 
 **Setting HVAC Mode to Heat:**
+
 ```python
 # Atomically set season and activate device
-await api.async_set_hvac_season(hass, season=1, hp_standby=False)
+await api.async_set_hvac_season(hass, season=1, hpStandby=False)
 ```
 
 **Setting HVAC Mode to Off:**
+
 ```python
 # Deactivate heat pump via dashboard
-await api.async_update_dashboard(hass, hp_standby=True)
+await api.async_update_dashboard(hass, hpStandby=True)
 ```
 
 **Setting Manual Temperature:**
+
 ```python
 # Switch to manual mode with specific temperature
 await api.async_update_dashboard(
-    hass, 
-    set_point_temperature=22.0, 
+    hass,
+    set_point_temperature=22.0,
     status=0  # 0=manual mode
 )
 ```
 
 **Setting Temperature Preset:**
+
 ```python
 # Switch to automatic mode with comfort preset
 await api.async_update_dashboard(
@@ -1207,6 +1216,7 @@ await api.async_update_dashboard(
 ```
 
 **Setting Fan Speed:**
+
 ```python
 # Set fan to medium speed
 await api.async_update_dashboard(hass, fan_speed=2)
@@ -1217,6 +1227,7 @@ await api.async_update_dashboard(hass, fan_speed=2)
 The integration creates multiple devices and entities:
 
 **ComfoClime Device:**
+
 - Climate entity (HVAC control)
 - Sensors (temperatures, status)
 - Numbers (thermal profile settings)
@@ -1224,11 +1235,13 @@ The integration creates multiple devices and entities:
 - Fan entity (ventilation control)
 
 **ComfoAir Q Device:**
+
 - Sensors (telemetry values)
 - Numbers (properties)
 - Selects (modes)
 
 **ComfoHub Device** (if connected):
+
 - Sensors (telemetry values)
 
 All devices are automatically discovered when the integration connects to the ComfoClime unit.

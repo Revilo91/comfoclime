@@ -269,11 +269,11 @@ class ComfoClimeClimate(
             return HVACMode.OFF
 
         # Get season and hpStandby values
-        hp_standby = self.coordinator.data.get("hpStandby")
+        hpStandby = self.coordinator.data.get("hpStandby")
         season = self.coordinator.data.get("season")
 
         # If device is in standby (powered off), always report OFF regardless of season
-        if hp_standby is True:
+        if hpStandby is True:
             return HVACMode.OFF
 
         # Map season from dashboard to HVAC mode using mapping
@@ -437,10 +437,10 @@ class ComfoClimeClimate(
 
         Args:
             **kwargs: Dashboard fields to update (set_point_temperature, fan_speed,
-                     season, hp_standby, schedule, temperature_profile,
+                     season, hpStandby, schedule, temperature_profile,
                      season_profile, status)
         """
-        await self._api.async_update_dashboard(self.hass, **kwargs)
+        await self._api.async_update_dashboard(**kwargs)
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new HVAC mode by updating season via thermal profile API.
@@ -462,7 +462,7 @@ class ComfoClimeClimate(
             # OFF mode: Set hpStandby=True via dashboard to turn off the device
             if hvac_mode == HVACMode.OFF:
                 _LOGGER.debug("Setting HVAC mode to OFF - setting hpStandby=True")
-                await self.async_update_dashboard(hp_standby=True)
+                await self.async_update_dashboard(hpStandby=True)
             else:
                 # Active modes: Use atomic operation to set both season and hpStandby
                 # This prevents race conditions between thermal profile and dashboard updates
@@ -471,7 +471,7 @@ class ComfoClimeClimate(
                     f"atomically setting season={season_value} and hpStandby=False"
                 )
                 await self._api.async_set_hvac_season(
-                    self.hass, season=season_value, hp_standby=False
+                    season=season_value, hpStandby=False
                 )
 
             # Schedule non-blocking refresh of coordinators
@@ -532,86 +532,6 @@ class ComfoClimeClimate(
 
         except Exception:
             _LOGGER.exception(f"Failed to set preset mode {preset_mode}")
-
-    async def async_set_scenario_mode(
-        self, scenario_mode: str, duration: int, start_delay: str = None
-    ) -> None:
-        """Set preset mode via dashboard API.
-
-        Setting scenario modes (cooking/party/holiday/boost_mode) activates special operating modes.
-
-        Args:
-            scenario_mode: The scenario mode to activate
-            duration:   Optional duration in minutes for scenario modes. If not provided,
-                        default durations are used (30min for cooking/party/boost, 24h for holiday)
-            start_delay: Optional delay as datetime string (e.g. "2025-11-21 12:00:00").
-                        Will be converted to seconds from now.
-        """
-
-        try:
-            # Scenario modes: Special operating modes
-            if scenario_mode in SCENARIO_REVERSE_MAPPING:
-                scenario_value = SCENARIO_REVERSE_MAPPING[scenario_mode]
-
-                # Determine scenario duration
-                if duration is None:
-                    # Use default duration from mapping
-                    duration = SCENARIO_DEFAULT_DURATIONS.get(scenario_value, 30)
-
-                # Calculate start_delay in seconds from now
-                start_delay_seconds = None
-                if start_delay is not None:
-                    try:
-                        # Get Home Assistant's timezone
-                        tz = ZoneInfo(self.hass.config.time_zone)
-
-                        # Parse target time and localize to HA timezone
-                        target_time = datetime.fromisoformat(start_delay)
-                        if target_time.tzinfo is None:
-                            # If no timezone info, assume HA's timezone
-                            target_time = target_time.replace(tzinfo=tz)
-
-                        # Get current time in HA timezone
-                        now = datetime.now(tz)
-
-                        # Calculate delta
-                        delta = target_time - now
-                        start_delay_seconds = int(delta.total_seconds())
-
-                        if start_delay_seconds < 0:
-                            _LOGGER.warning(
-                                f"Start delay time {start_delay} is in the past, ignoring"
-                            )
-                            start_delay_seconds = None
-                    except ValueError:
-                        _LOGGER.exception(
-                            f"Invalid start_delay format '{start_delay}'. "
-                            "Expected ISO format like '2025-11-21 12:00:00'"
-                        )
-                        start_delay_seconds = None
-                elif start_delay is None and scenario_mode == SCENARIO_MAPPING[SCENARIO_HOLIDAY]:
-                    _LOGGER.warning("No start_delay provided for holiday scenario!")
-
-                _LOGGER.debug(
-                    f"Activating scenario mode {scenario_mode} (scenario={scenario_value}, "
-                    f"scenarioTimeLeft={duration}min, scenarioStartDelay={start_delay_seconds}s) via dashboard API"
-                )
-
-                # Activate scenario mode with duration
-                # scenario field activates the mode
-                # scenarioTimeLeft sets the duration in seconds
-                await self.async_update_dashboard(
-                    scenario=scenario_value,
-                    scenario_time_left=duration * 60,
-                    scenario_start_delay=start_delay_seconds,
-                )
-
-                # Schedule non-blocking refresh of coordinators
-                self._async_refresh_coordinators()
-                return
-
-        except Exception:
-            _LOGGER.exception(f"Failed to set preset mode {scenario_mode}")
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         """Set fan mode by updating fan speed via dashboard API.

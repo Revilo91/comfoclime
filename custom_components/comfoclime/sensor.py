@@ -1,5 +1,11 @@
+import asyncio
 import logging
 
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -9,13 +15,15 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     EntityCategory,
 )
+from homeassistant.const import (
+    EntityCategory,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
-from .comfoclime_api import ComfoClimeAPI
 from .coordinator import (
     ComfoClimeDashboardCoordinator,
     ComfoClimeThermalprofileCoordinator,
@@ -25,6 +33,7 @@ from .entities.sensor_definitions import (
     CONNECTED_DEVICE_SENSORS,
     DASHBOARD_SENSORS,
     TELEMETRY_SENSORS,
+    THERMALPROFILE_SENSORS,
     THERMALPROFILE_SENSORS,
 )
 
@@ -43,21 +52,10 @@ VALUE_MAPPINGS = {
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ):
-    host = entry.data["host"]
-    api = ComfoClimeAPI(f"http://{host}")
-
-    sensors = []
-
-    # UUID abrufen
-    try:
-        await api.async_get_uuid(hass)
-    except Exception:
-        _LOGGER.exception("Fehler beim Abrufen der UUID")
-        return
-
-    # Dashboard-Daten abrufen (optional beim Start)
     data = hass.data[DOMAIN][entry.entry_id]
     api = data["api"]
+
+    sensors = []
     coordinator = data["coordinator"]
     try:
         await coordinator.async_config_entry_first_refresh()
@@ -79,10 +77,31 @@ async def async_setup_entry(
             device_class=sensor_def.get("device_class"),
             state_class=sensor_def.get("state_class"),
             entity_category=sensor_def.get("entity_category"),
+            entity_category=sensor_def.get("entity_category"),
             device=main_device,
             entry=entry,
         )
         for sensor_def in DASHBOARD_SENSORS
+    ]
+    sensors.extend(sensor_list)
+    # ThermalProfile-Sensoren
+    tp_coordinator = data["tpcoordinator"]
+    sensor_list = [
+        ComfoClimeSensor(
+            hass=hass,
+            coordinator=tp_coordinator,
+            api=api,
+            sensor_type=sensor_def["key"],
+            name=sensor_def["name"],
+            translation_key=sensor_def["translation_key"],
+            unit=sensor_def.get("unit"),
+            device_class=sensor_def.get("device_class"),
+            state_class=sensor_def.get("state_class"),
+            entity_category=sensor_def.get("entity_category"),
+            device=main_device,
+            entry=entry,
+        )
+        for sensor_def in THERMALPROFILE_SENSORS
     ]
     sensors.extend(sensor_list)
     # ThermalProfile-Sensoren
@@ -119,6 +138,7 @@ async def async_setup_entry(
             byte_count=sensor_def.get("byte_count"),
             device_class=sensor_def.get("device_class"),
             state_class=sensor_def.get("state_class"),
+            entity_category=sensor_def.get("entity_category"),
             entity_category=sensor_def.get("entity_category"),
             entry=entry,
         )
@@ -184,6 +204,9 @@ async def async_setup_entry(
                 device_class=prop_def.get("device_class"),
                 state_class=prop_def.get("state_class"),
                 entity_category=prop_def.get("entity_category"),
+                device_class=prop_def.get("device_class"),
+                state_class=prop_def.get("state_class"),
+                entity_category=prop_def.get("entity_category"),
                 device=device,
                 override_device_uuid=dev_uuid,
                 entry=entry,
@@ -206,6 +229,7 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
         device_class=None,
         state_class=None,
         entity_category=None,
+        entity_category=None,
         device=None,
         entry=None,
     ):
@@ -215,6 +239,8 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
         self._type = sensor_type
         self._name = name
         self._state = None
+        self._raw_state = None
+        self._raw_value = None
         self._attr_native_unit_of_measurement = unit
         self._attr_device_class = SensorDeviceClass(device_class) if device_class else None
         self._attr_state_class = SensorStateClass(state_class) if state_class else None
@@ -222,6 +248,10 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
         self._device = device
         self._entry = entry
         self._attr_config_entry_id = entry.entry_id
+        # Determine if this is a thermal profile sensor based on coordinator type
+        is_thermal_profile = isinstance(coordinator, ComfoClimeThermalprofileCoordinator)
+        prefix = "thermalprofile" if is_thermal_profile else "dashboard"
+        self._attr_unique_id = f"{entry.entry_id}_{prefix}_{sensor_type.replace('.', '_')}"
         # Determine if this is a thermal profile sensor based on coordinator type
         is_thermal_profile = isinstance(coordinator, ComfoClimeThermalprofileCoordinator)
         prefix = "thermalprofile" if is_thermal_profile else "dashboard"
@@ -235,6 +265,13 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
     @property
     def state(self):
         return self._state
+
+    @property
+    def extra_state_attributes(self):
+        """Gibt zusätzliche Attribute zurück."""
+        return {
+            "raw_value": self._raw_value
+        }
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -265,6 +302,21 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
                         break
             else:
                 raw_value = data.get(self._type)
+            # Handle nested keys (e.g., "season.status" or "heatingThermalProfileSeasonData.comfortTemperature")
+            if "." in self._type:
+                keys = self._type.split(".")
+                raw_value = data
+                for key in keys:
+                    if isinstance(raw_value, dict) and key in raw_value:
+                        raw_value = raw_value[key]
+                    else:
+                        raw_value = None
+                        break
+            else:
+                raw_value = data.get(self._type)
+
+            # raw_value wurde ermittelt
+            self._raw_value = raw_value
 
             # Wenn es eine definierte Übersetzung gibt, wende sie an
             if self._type in VALUE_MAPPINGS:
@@ -280,6 +332,7 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
 
 
 class ComfoClimeTelemetrySensor(SensorEntity):
+    """Sensor for telemetry data with API-level caching."""
     def __init__(
         self,
         hass,
@@ -294,6 +347,8 @@ class ComfoClimeTelemetrySensor(SensorEntity):
         state_class=None,
         entity_category=None,
         device=None,
+        entity_category=None,
+        device=None,
         override_device_uuid=None,
         entry=None,
     ):
@@ -305,6 +360,9 @@ class ComfoClimeTelemetrySensor(SensorEntity):
         self._byte_count = byte_count
         self._state = None
         self._attr_native_unit_of_measurement = unit
+        self._attr_device_class = SensorDeviceClass(device_class) if device_class else None
+        self._attr_state_class = SensorStateClass(state_class) if state_class else None
+        self._attr_entity_category = EntityCategory(entity_category) if entity_category else None
         self._attr_device_class = SensorDeviceClass(device_class) if device_class else None
         self._attr_state_class = SensorStateClass(state_class) if state_class else None
         self._attr_entity_category = EntityCategory(entity_category) if entity_category else None
@@ -337,17 +395,17 @@ class ComfoClimeTelemetrySensor(SensorEntity):
         )
 
     async def async_update(self):
+        """Update from API with automatic caching."""
         try:
             self._state = await self._api.async_read_telemetry_for_device(
-                self._hass,
-                self._override_uuid or self._api.uuid,
-                self._id,
-                self._faktor,
-                self._byte_count,
+                device_uuid=self._override_uuid or self._api.uuid,
+                telemetry_id=self._id,
+                faktor=self._faktor,
+                signed=self._signed,
+                byte_count=self._byte_count,
             )
         except Exception:
-            _LOGGER.exception(f"Fehler beim Aktualisieren von Telemetrie {self._id}")
-            self._state = None
+            _LOGGER.exception("Fehler beim Aktualisieren von Telemetrie %s", self._id)
 
 
 class ComfoClimePropertySensor(SensorEntity):
@@ -365,6 +423,7 @@ class ComfoClimePropertySensor(SensorEntity):
         device_class: str | None = None,
         state_class: str | None = None,
         entity_category: str | None = None,
+        entity_category: str | None = None,
         mapping_key: str | None = None,
         device: dict | None = None,
         override_device_uuid: str | None = None,
@@ -377,6 +436,9 @@ class ComfoClimePropertySensor(SensorEntity):
         self._faktor = faktor
         self._byte_count = byte_count
         self._attr_native_unit_of_measurement = unit
+        self._attr_device_class = SensorDeviceClass(device_class) if device_class else None
+        self._attr_state_class = SensorStateClass(state_class) if state_class else None
+        self._attr_entity_category = EntityCategory(entity_category) if entity_category else None
         self._attr_device_class = SensorDeviceClass(device_class) if device_class else None
         self._attr_state_class = SensorStateClass(state_class) if state_class else None
         self._attr_entity_category = EntityCategory(entity_category) if entity_category else None
@@ -409,18 +471,25 @@ class ComfoClimePropertySensor(SensorEntity):
         )
 
     async def async_update(self):
+        """Update from API with automatic caching."""
         try:
-            value = await self._api.async_read_property_for_device(
-                self._hass,
-                self._override_uuid or self._api.uuid,
-                self._path,
-                self._faktor,
-                self._byte_count,
+            value = await asyncio.wait_for(
+                self._api.async_read_property_for_device(
+                    device_uuid=self._override_uuid or self._api.uuid,
+                    property_path=self._path,
+                    faktor=self._faktor,
+                    signed=self._signed,
+                    byte_count=self._byte_count,
+                ),
+                timeout=5.0
             )
             if self._mapping_key and self._mapping_key in VALUE_MAPPINGS:
                 self._state = VALUE_MAPPINGS[self._mapping_key].get(value, value)
             else:
                 self._state = value
+        except asyncio.TimeoutError:
+            _LOGGER.debug("Timeout beim Abrufen von Property %s", self._path)
+            self._state = None
         except Exception:
-            _LOGGER.exception(f"Fehler beim Abrufen von Property {self._path}")
+            _LOGGER.debug("Fehler beim Abrufen von Property %s", self._path, exc_info=True)
             self._state = None

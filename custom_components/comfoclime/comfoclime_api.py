@@ -4,82 +4,57 @@ import logging
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-import requests
+import aiohttp
 
 _LOGGER = logging.getLogger(__name__)
 
-SCALED_VALUE_THRESHOLD = 1000  # Threshold for already scaled values (e.g., temperature fields)
-
 
 class ComfoClimeAPI:
-    def __init__(self, base_url):
+    # Mapping von kwargs zu payload-Struktur (class-level constant)
+    FIELD_MAPPING = {
+        # season fields
+        "season_status": ("season", "status"),
+        "season_value": ("season", "season"),
+        "heating_threshold_temperature": ("season", "heatingThresholdTemperature"),
+        "cooling_threshold_temperature": ("season", "coolingThresholdTemperature"),
+        # temperature fields
+        "temperature_status": ("temperature", "status"),
+        "manual_temperature": ("temperature", "manualTemperature"),
+        # top-level fields
+        "temperature_profile": ("temperatureProfile", None),
+        # heating profile fields
+        "heating_comfort_temperature": (
+            "heatingThermalProfileSeasonData",
+            "comfortTemperature",
+        ),
+        "heating_knee_point_temperature": (
+            "heatingThermalProfileSeasonData",
+            "kneePointTemperature",
+        ),
+        "heating_reduction_delta_temperature": (
+            "heatingThermalProfileSeasonData",
+            "reductionDeltaTemperature",
+        ),
+        # cooling profile fields
+        "cooling_comfort_temperature": (
+            "coolingThermalProfileSeasonData",
+            "comfortTemperature",
+        ),
+        "cooling_knee_point_temperature": (
+            "coolingThermalProfileSeasonData",
+            "kneePointTemperature",
+        ),
+        "cooling_temperature_limit": (
+            "coolingThermalProfileSeasonData",
+            "temperatureLimit",
+        ),
+    }
+
+    def __init__(self, base_url, hass=None):
         self.base_url = base_url.rstrip("/")
+        self.hass = hass
         self.uuid = None
         self._request_lock = asyncio.Lock()
-
-    @staticmethod
-    def bytes_to_signed_int(data: list, byte_count: int = None, signed:bool = True) -> int:
-        """Convert raw bytes to a signed integer value.
-
-        Args:
-            data: List of bytes (integers 0-255)
-            byte_count: Number of bytes to read. If None calculate from data
-
-        Returns:
-            Signed integer value
-
-        Raises:
-            ValueError: If byte_count is not 1 or 2
-        """
-        if not isinstance(data, list):
-            raise ValueError("'data' is not a list")
-
-        if byte_count is None:
-            byte_count = len(data)
-
-        if byte_count not in (1, 2):
-            raise ValueError(f"Unsupported byte count: {byte_count}")
-
-        return int.from_bytes(data[:byte_count], byteorder='little', signed=signed)
-
-    @staticmethod
-    def signed_int_to_bytes(data: int, byte_count: int = 2, signed:bool = False) -> list:
-        """Convert a signed integer to a list of bytes.
-
-        Args:
-            data: Signed integer value
-            byte_count: Number of bytes to convert to (1 or 2)
-
-        Returns:
-            List of bytes (integers 0-255)
-
-        Raises:
-            ValueError: If byte_count is not 1 or 2
-        """
-        if byte_count not in (1, 2):
-            raise ValueError(f"Unsupported byte count: {byte_count}")
-
-        return list(data.to_bytes(byte_count, byteorder='little', signed=signed))
-
-    @staticmethod
-    def fix_signed_temperature(api_value: float) -> float:
-        """Fix temperature value by converting through signed 16-bit integer.
-
-        This handles the case where temperature values need to be interpreted
-        as signed 16-bit integers (scaled by 10).
-
-        Args:
-            api_value: Temperature value from API
-
-        Returns:
-            Corrected temperature value
-        """
-        raw_value = int(api_value * 10)
-        # Convert to signed 16-bit using Python's built-in byte conversion
-        unsigned_value = raw_value & 0xFFFF
-        bytes_data = ComfoClimeAPI.signed_int_to_bytes(unsigned_value, 2)
-        signed_value = ComfoClimeAPI.bytes_to_signed_int(bytes_data)
-        return signed_value / 10.0
 
     async def async_get_uuid(self, hass):
         async with self._request_lock:
@@ -92,45 +67,34 @@ class ComfoClimeAPI:
         self.uuid = data.get("uuid")
         return self.uuid
 
-    async def async_get_dashboard_data(self, hass):
+    async def async_get_uuid(self):
+        """Get UUID with lock protection."""
         async with self._request_lock:
-            return await hass.async_add_executor_job(self.get_dashboard_data)
+            return await self._async_get_uuid_internal()
 
     def get_dashboard_data(self):
-        def fix_temperature(api_value):
-            raw_value = int(api_value * 10)
-            if raw_value >= 0x8000:
-                raw_value -= 0x10000
-            return raw_value / 10.0
-
         if not self.uuid:
             self.get_uuid()
         response = requests.get(
             f"{self.base_url}/system/{self.uuid}/dashboard", timeout=5
         )
         response.raise_for_status()
-        data = response.json()
+        return response.json()
 
-        for key, val in data.items():
-            if "Temperature" in key:
-                data[key] = fix_temperature(data[key])
-        return data
-
-
-    async def async_get_connected_devices(self, hass):
+    async def async_get_connected_devices(self):
         async with self._request_lock:
-            return await hass.async_add_executor_job(self.get_connected_devices)
-
-    def get_connected_devices(self):
-        if not self.uuid:
-            self.get_uuid()
-        url = f"{self.base_url}/system/{self.uuid}/devices"
-        response = requests.get(url, timeout=5)
-        response.raise_for_status()
-        return response.json().get("devices", [])
+            await self._wait_for_rate_limit(is_write=False)
+            if not self.uuid:
+                await self._async_get_uuid_internal()
+            session = await self._get_session()
+            url = f"{self.base_url}/system/{self.uuid}/devices"
+            async with session.get(url) as response:
+                response.raise_for_status()
+                data = await response.json()
+                return data.get("devices", [])
 
     async def async_read_telemetry_for_device(
-        self, hass, device_uuid, telemetry_id, faktor=1.0, byte_count=None
+        self, hass, device_uuid, telemetry_id, faktor=1.0, signed=True, byte_count=None
     ):
         async with self._request_lock:
             return await hass.async_add_executor_job(
@@ -138,11 +102,12 @@ class ComfoClimeAPI:
                 device_uuid,
                 telemetry_id,
                 faktor,
+                signed,
                 byte_count,
             )
 
     def read_telemetry_for_device(
-        self, device_uuid, telemetry_id, faktor=1.0, byte_count=None
+        self, device_uuid, telemetry_id, faktor=1.0, signed=True, byte_count=None
     ):
         url = f"{self.base_url}/device/{device_uuid}/telemetry/{telemetry_id}"
         response = requests.get(url, timeout=5)
@@ -153,23 +118,56 @@ class ComfoClimeAPI:
         if not isinstance(data, list) or len(data) == 0:
             raise ValueError("Unerwartetes Telemetrie-Format")
 
-        value = self.bytes_to_signed_int(data, byte_count,signed)
+        if byte_count is None:
+            byte_count = len(data)
+
+        if byte_count == 1:
+            value = data[0]
+            if signed and value >= 0x80:
+                value -= 0x100
+        elif byte_count == 2:
+            lsb, msb = data[:2]
+            value = lsb + (msb << 8)
+            if signed and value >= 0x8000:
+                value -= 0x10000
+        else:
+            raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
+
         return value * faktor
 
     async def async_read_property_for_device(
         self,
-        hass,
         device_uuid: str,
-        property_path: str,
+        telemetry_id: str,
         faktor: float = 1.0,
         byte_count: int | None = None,
     ):
+        """Read telemetry for a device with caching.
+
+        Args:
+            device_uuid: UUID of the device
+            telemetry_id: Telemetry ID to read
+            faktor: Factor to multiply the value by
+            signed: Whether the value is signed
+            byte_count: Number of bytes to read
+
+        Returns:
+            The telemetry value (or None if failed)
+        """
+        # Try to get from cache first
+        cache_key = self._get_cache_key(device_uuid, telemetry_id)
+        cached_value = self._get_from_cache(self._telemetry_cache, cache_key)
+        if cached_value is not None:
+            return cached_value
+
+        # Not in cache, fetch from API
         async with self._request_lock:
             return await hass.async_add_executor_job(
                 self.read_property_for_device,
                 device_uuid,
                 property_path,
                 faktor,
+                signed,
                 byte_count,
             )
 
@@ -181,109 +179,191 @@ class ComfoClimeAPI:
             response = requests.get(url, timeout=5)
             response.raise_for_status()
             payload = response.json()
-        except Exception:
-            _LOGGER.exception(f"Fehler beim Abrufen der Property {property_path}")
+        except Exception as e:
+            _LOGGER.error(f"Fehler beim Abrufen der Property {property_path}: {e}")
             return None
 
-        data = payload.get("data")
-        if not isinstance(data, list) or not data:
-            raise ValueError("Unerwartetes Property-Format")
-        return data
+        value = self.bytes_to_signed_int(data, byte_count, signed)
+        result = value * faktor
 
-    def read_property_for_device(
+        # Store in cache
+        self._set_cache(self._telemetry_cache, cache_key, result)
+
+        return result
+
+    async def async_read_property_for_device(
         self,
         device_uuid: str,
         property_path: str,
         faktor: float = 1.0,
         byte_count: int | None = None,
-    ) -> None | str | float:
-        data = self.read_property_for_device_raw(device_uuid, property_path)
+    ):
+        """Read property for a device with caching.
 
-        # Wenn data leer/None ist, können wir nicht fortfahren
-        if not data:
-            return None
+        Args:
+            device_uuid: UUID of the device
+            property_path: Property path to read
+            faktor: Factor to multiply numeric values by
+            signed: Whether the value is signed
+            byte_count: Number of bytes to read
 
-        if byte_count in (1, 2):
-            value = self.bytes_to_signed_int(data, byte_count,signed)
+        Returns:
+            The property value (or None if failed)
+        """
+        # Try to get from cache first
+        cache_key = self._get_cache_key(device_uuid, property_path)
+        cached_value = self._get_from_cache(self._property_cache, cache_key)
+        if cached_value is not None:
+            return cached_value
+
+        # Not in cache, fetch from API
+        async with self._request_lock:
+            await self._wait_for_rate_limit(is_write=False)
+            data = await self._read_property_for_device_raw(device_uuid, property_path)
+
+            # Wenn data leer/None ist, können wir nicht fortfahren
+            if not data:
+                return None
+
+        # Wenn byte_count nicht angegeben wurde, verwende die Länge der Daten
+        if byte_count is None:
+            byte_count = len(data)
+
+        if byte_count == 1:
+            value = data[0]
+            if signed and value >= 0x80:
+                value -= 0x100
+        elif byte_count == 2:
+            lsb, msb = data[:2]
+            value = lsb + (msb << 8)
+            if signed and value >= 0x8000:
+                value -= 0x10000
         elif byte_count > 2:
             if len(data) != byte_count:
                 raise ValueError(
                     f"Unerwartete Byte-Anzahl: erwartet {byte_count}, erhalten {len(data)}"
                 )
-            if all(0 <= byte < 256 for byte in data):
-                return "".join(chr(byte) for byte in data if byte != 0)
+            result = "".join(chr(byte) for byte in data if byte != 0)
         else:
             raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
 
-        return value * faktor
+        # Store in cache
+        self._set_cache(self._property_cache, cache_key, result)
 
-    async def async_get_thermal_profile(self, hass):
+        return result
+
+    async def _read_property_for_device_raw(
+        self, device_uuid: str, property_path: str
+    ) -> None | list:
+        url = f"{self.base_url}/device/{device_uuid}/property/{property_path}"
+        try:
+            session = await self._get_session()
+            async with session.get(url) as response:
+                try:
+                    response.raise_for_status()
+                except Exception as http_error:
+                    _LOGGER.debug(
+                        f"HTTP error beim Abrufen der Property {property_path} "
+                        f"(Status {response.status}): {http_error}"
+                    )
+                    return None
+                payload = await response.json()
+        except asyncio.TimeoutError:
+            _LOGGER.debug(f"Timeout beim Abrufen der Property {property_path}")
+            return None
+        except Exception as e:
+            _LOGGER.debug(f"Fehler beim Abrufen der Property {property_path}: {e}")
+            return None
+
+        data = payload.get("data")
+        if not isinstance(data, list) or not data:
+            _LOGGER.debug(f"Ungültiges Datenformat für Property {property_path}")
+            return None
+        return data
+
+    async def async_get_thermal_profile(self):
         async with self._request_lock:
-            return await hass.async_add_executor_job(self.get_thermal_profile)
+            await self._wait_for_rate_limit(is_write=False)
+            if not self.uuid:
+                await self._async_get_uuid_internal()
+            url = f"{self.base_url}/system/{self.uuid}/thermalprofile"
+            try:
+                session = await self._get_session()
+                async with session.get(url) as response:
+                    response.raise_for_status()
+                    return await response.json()
+            except aiohttp.ClientError as e:
+                _LOGGER.warning(f"Fehler beim Abrufen von thermal_profile: {e}")
+                return {}  # leer zurückgeben statt crashen
 
-    def get_thermal_profile(self):
+    async def _update_thermal_profile(self, **kwargs) -> bool:
+        """Update thermal profile settings via API.
+
+        Modern method for thermal profile updates. Only fields that are provided
+        will be included in the update payload.
+
+        Supported kwargs:
+            - season_status, season_value, heating_threshold_temperature, cooling_threshold_temperature
+            - temperature_status, manual_temperature
+            - temperature_profile
+            - heating_comfort_temperature, heating_knee_point_temperature, heating_reduction_delta_temperature
+            - cooling_comfort_temperature, cooling_knee_point_temperature, cooling_temperature_limit
+
+        Returns:
+            True if update was successful, False otherwise
+        """
         if not self.uuid:
-            self.get_uuid()
+            await self._async_get_uuid_internal()
+
+        # Use class-level FIELD_MAPPING
+        field_mapping = self.FIELD_MAPPING
+
+        # Dynamically build payload
+        payload: dict = {}
+
+        for param_name, value in kwargs.items():
+            if value is None or param_name not in field_mapping:
+                continue
+
+            section, key = field_mapping[param_name]
+
+            if key is None:
+                # Top-level field
+                payload[section] = value
+            else:
+                # Nested field
+                if section not in payload:
+                    payload[section] = {}
+                payload[section][key] = value
+
+        if not payload:
+            _LOGGER.debug(
+                "No thermal profile fields to update (empty payload) - skipping PUT"
+            )
+            return True
+
+        await self._wait_for_rate_limit(is_write=True)
+
         url = f"{self.base_url}/system/{self.uuid}/thermalprofile"
         try:
-            response = requests.get(url, timeout=5)
-            response.raise_for_status()
-            return response.json()
-        except requests.RequestException as e:
-            _LOGGER.warning(f"Fehler beim Abrufen von thermal_profile: {e}")
-            return {}  # leer zurückgeben statt crashen
+            session = await self._get_session()
+            _LOGGER.debug(f"Sende Thermal Profile Update: {payload}")
+            async with session.put(url, json=payload) as response:
+                response.raise_for_status()
+                _LOGGER.debug(
+                    f"Thermal Profile Update erfolgreich, Status: {response.status}"
+                )
+                return response.status == 200
+        except Exception:
+            _LOGGER.exception(f"Error updating thermal profile (payload={payload})")
+            raise
 
-    def update_thermal_profile(self, updates: dict):
-        """
-        updates: dict mit Teilwerten, z. B. {"heatingThermalProfileSeasonData": {"comfortTemperature": 20.0}}
-
-        Diese Methode füllt alle anderen Felder mit None (null), wie von der API gefordert.
-        """
-        full_payload = {
-            "season": {
-                "status": None,
-                "season": None,
-                "heatingThresholdTemperature": None,
-                "coolingThresholdTemperature": None,
-            },
-            "temperature": {
-                "status": None,
-                "manualTemperature": None,
-            },
-            "temperatureProfile": None,
-            "heatingThermalProfileSeasonData": {
-                "comfortTemperature": None,
-                "kneePointTemperature": None,
-                "reductionDeltaTemperature": None,
-            },
-            "coolingThermalProfileSeasonData": {
-                "comfortTemperature": None,
-                "kneePointTemperature": None,
-                "temperatureLimit": None,
-            },
-        }
-
-        # Deep-Update: überschreibe gezielt Felder im Payload
-        for section, values in updates.items():
-            if section in full_payload and isinstance(values, dict):
-                full_payload[section].update(values)
-            else:
-                full_payload[section] = values  # z. B. "temperatureProfile": 1
-
-        if not self.uuid:
-            self.get_uuid()
-
-        url = f"{self.base_url}/system/{self.uuid}/thermalprofile"
-        response = requests.put(url, json=full_payload, timeout=5)
-        response.raise_for_status()
-        return response.status_code == 200
-
-    def update_dashboard(
+    async def _update_dashboard(
         self,
         set_point_temperature: float | None = None,
         fan_speed: int | None = None,
         season: int | None = None,
-        hp_standby: bool | None = None,
+        hpStandby: bool | None = None,
         schedule: int | None = None,
         temperature_profile: int | None = None,
         season_profile: int | None = None,
@@ -332,7 +412,7 @@ class ComfoClimeAPI:
             set_point_temperature: Target temperature (°C) - activates manual mode
             fan_speed: Fan speed (0-3)
             season: Season value (0=transition, 1=heating, 2=cooling)
-            hp_standby: Heat pump standby state (True=standby/off, False=active)
+            hpStandby: Heat pump standby state (True=standby/off, False=active)
             schedule: Schedule mode
             temperature_profile: Temperature profile/preset (0=comfort, 1=boost, 2=eco)
             season_profile: Season profile/preset (0=comfort, 1=boost, 2=eco)
@@ -345,10 +425,10 @@ class ComfoClimeAPI:
             Response JSON from the API
 
         Raises:
-            requests.RequestException: If the API request fails
+            aiohttp.ClientError: If the API request fails
         """
         if not self.uuid:
-            self.get_uuid()
+            await self._async_get_uuid_internal()
 
         # Dynamically build payload; only include keys explicitly provided.
         payload: dict = {}
@@ -368,12 +448,6 @@ class ComfoClimeAPI:
             payload["status"] = status
         if hp_standby is not None:
             payload["hpStandby"] = hp_standby
-        if scenario is not None:
-            payload["scenario"] = scenario
-        if scenario_time_left is not None:
-            payload["scenarioTimeLeft"] = scenario_time_left
-        if scenario_start_delay is not None:
-            payload["scenarioStartDelay"] = scenario_start_delay
 
         if not payload:
             _LOGGER.debug(
@@ -381,9 +455,10 @@ class ComfoClimeAPI:
             )
             return {}
 
+        await self._wait_for_rate_limit(is_write=True)
+
         # Add timestamp to payload
-        tz = ZoneInfo(self.hass.config.time_zone)
-        payload["timestamp"] = datetime.now(tz).isoformat()
+        payload["timestamp"] = datetime.datetime.now().isoformat()
 
         headers = {"content-type": "application/json; charset=utf-8"}
         url = f"{self.base_url}/system/{self.uuid}/dashboard"
@@ -395,50 +470,76 @@ class ComfoClimeAPI:
             except Exception:
                 resp_json = {"text": response.text}
             _LOGGER.debug(f"Dashboard update OK payload={payload} response={resp_json}")
-        except Exception:
-            _LOGGER.exception(f"Error updating dashboard (payload={payload})")
+            return resp_json
+        except Exception as e:
+            _LOGGER.error(f"Error updating dashboard (payload={payload}): {e}")
             raise
         return resp_json
 
-    async def async_update_dashboard(self, hass, **kwargs):
+    async def async_update_dashboard(self, **kwargs):
         """Async wrapper for update_dashboard method."""
         async with self._request_lock:
-            return await hass.async_add_executor_job(
-                lambda: self.update_dashboard(**kwargs)
-            )
+            return await self._update_dashboard(**kwargs)
 
-    async def async_update_thermal_profile(self, hass, updates: dict):
-        """Async wrapper for update_thermal_profile method."""
+    async def async_update_thermal_profile(self, updates: dict | None = None, **kwargs):
+        """Async wrapper for update_thermal_profile method.
+
+        Supports two calling styles:
+        1. Legacy dict-based: async_update_thermal_profile({"season": {"season": 1}})
+        2. Modern kwargs-based: async_update_thermal_profile(season_value=1)
+        """
         async with self._request_lock:
-            return await hass.async_add_executor_job(
-                lambda: self.update_thermal_profile(updates)
-            )
+            # If updates dict is provided, convert it to kwargs
+            if updates is not None:
+                return await self._convert_dict_to_kwargs_and_update(updates)
+            return await self._update_thermal_profile(**kwargs)
 
-    async def async_set_hvac_season(self, hass, season: int, hp_standby: bool = False):
+    async def _convert_dict_to_kwargs_and_update(self, updates: dict) -> bool:
+        """Convert legacy dict-based updates to kwargs and call _update_thermal_profile."""
+        # Build conversion_map from class-level FIELD_MAPPING
+        conversion_map = {}
+        for k, v in self.FIELD_MAPPING.items():
+            if v[1] is None:
+                conversion_map[(v[0],)] = k
+            else:
+                conversion_map[(v[0], v[1])] = k
+
+        kwargs = {}
+
+        # Process nested dictionaries
+        for section, value in updates.items():
+            if isinstance(value, dict):
+                for key, field_value in value.items():
+                    mapping_key = (section, key)
+                    if mapping_key in conversion_map:
+                        kwargs[conversion_map[mapping_key]] = field_value
+            else:
+                # Top-level field
+                mapping_key = (section,)
+                if mapping_key in conversion_map:
+                    kwargs[conversion_map[mapping_key]] = value
+
+        return await self._update_thermal_profile(**kwargs)
+
+    async def async_set_hvac_season(self, season: int, hpStandby: bool = False):
         """Set HVAC season and standby state in a single atomic operation.
 
         This method updates both the season (via thermal profile) and hpStandby
         (via dashboard) in a single lock to prevent race conditions.
 
         Args:
-            hass: Home Assistant instance
             season: Season value (0=transition, 1=heating, 2=cooling)
-            hp_standby: Heat pump standby state (False=active, True=standby/off)
+            hpStandby: Heat pump standby state (False=active, True=standby/off)
         """
         async with self._request_lock:
-
-            def _update():
-                # First update dashboard to set hpStandby
-                self.update_dashboard(hp_standby=hp_standby)
-                # Then update thermal profile to set season
-                if not hp_standby:  # Only set season if device is active
-                    self.update_thermal_profile({"season": {"season": season}})
-
-            return await hass.async_add_executor_job(_update)
+            # First update dashboard to set hpStandby
+            await self._update_dashboard(hpStandby=hpStandby)
+            # Then update thermal profile to set season
+            if not hpStandby:  # Only set season if device is active
+                await self._update_thermal_profile(season_value=season)
 
     async def async_set_property_for_device(
         self,
-        hass,
         device_uuid: str,
         property_path: str,
         value: float,
@@ -453,6 +554,7 @@ class ComfoClimeAPI:
                     property_path,
                     value,
                     byte_count=byte_count,
+                    signed=signed,
                     faktor=faktor,
                 )
             )
@@ -464,34 +566,44 @@ class ComfoClimeAPI:
         value: float,
         *,
         byte_count: int,
+        signed: bool = True,
         faktor: float = 1.0,
     ):
         if byte_count not in (1, 2):
             raise ValueError("Nur 1 oder 2 Byte unterstützt")
 
+        # Wert zurückrechnen, falls ein Faktor verwendet wird
         raw_value = int(round(value / faktor))
-        data = self.signed_int_to_bytes(raw_value, byte_count,signed)
 
-        x, y, z = map(int, property_path.split("/"))
-        url = f"{self.base_url}/device/{device_uuid}/method/{x}/{y}/3"
-        payload = {"data": [z] + data}
+        # Bytes erzeugen
+        if byte_count == 1:
+            if signed and raw_value < 0:
+                raw_value += 0x100
+            data = [raw_value & 0xFF]
+        elif byte_count == 2:
+            if signed and raw_value < 0:
+                raw_value += 0x10000
+            data = [raw_value & 0xFF, (raw_value >> 8) & 0xFF]
+
+            x, y, z = map(int, property_path.split("/"))
+            url = f"{self.base_url}/device/{device_uuid}/method/{x}/{y}/3"
+            payload = {"data": [z] + data}
 
         try:
             response = requests.put(url, json=payload, timeout=5)
             response.raise_for_status()
-        except Exception:
-            _LOGGER.exception(
-                f"Fehler beim Schreiben von Property {property_path} mit Payload {payload}"
+        except Exception as e:
+            _LOGGER.error(
+                f"Fehler beim Schreiben von Property {property_path} mit Payload {payload}: {e}"
             )
             raise
 
-    async def async_reset_system(self, hass):
-        async with self._request_lock:
-            return await hass.async_add_executor_job(self.reset_system)
-
-    def reset_system(self):
+    async def async_reset_system(self):
         """Trigger a restart of the ComfoClime device."""
-        url = f"{self.base_url}/system/reset"
-        response = requests.put(url, timeout=5)
-        response.raise_for_status()
-        return response.status_code == 200
+        async with self._request_lock:
+            await self._wait_for_rate_limit(is_write=True)
+            url = f"{self.base_url}/system/reset"
+            session = await self._get_session()
+            async with session.put(url) as response:
+                response.raise_for_status()
+                return response.status == 200

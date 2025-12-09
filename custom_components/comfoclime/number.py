@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from homeassistant.components.number import NumberEntity, NumberMode
@@ -8,7 +9,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
-from .comfoclime_api import ComfoClimeAPI
 from .coordinator import ComfoClimeThermalprofileCoordinator
 from .entities.number_definitions import (
     CONNECTED_DEVICE_NUMBER_PROPERTIES,
@@ -21,14 +21,10 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ):
-    host = entry.data["host"]
-    api = ComfoClimeAPI(f"http://{host}")
-    await api.async_get_uuid(hass)
-    devices = hass.data[DOMAIN][entry.entry_id]["devices"]
-    main_device = hass.data[DOMAIN][entry.entry_id]["main_device"]
-
     data = hass.data[DOMAIN][entry.entry_id]
     api = data["api"]
+    main_device = data["main_device"]
+    devices = data["devices"]
     tpcoordinator = data["tpcoordinator"]
     try:
         await tpcoordinator.async_config_entry_first_refresh()
@@ -157,12 +153,12 @@ class ComfoClimeTemperatureNumber(
             for k in self._key_path:
                 val = val.get(k)
             self._value = val
-        except Exception as e:
-            _LOGGER.warning(f"[{self.name}] Fehler beim Update: {e}")
+        except Exception:
+            _LOGGER.exception("Fehler beim Update")
             self._value = None  # besser als Absturz
         self.async_write_ha_state()
 
-    def set_native_value(self, value: float):
+    async def async_set_native_value(self, value: float):
         # Check if this is a manual temperature setting
         if self._key_path[0] == "temperature" and self._key_path[1] == "manualTemperature":
             # Check if automatic comfort temperature is enabled
@@ -171,24 +167,46 @@ class ComfoClimeTemperatureNumber(
                 automatic_temperature_status = coordinator_data.get("temperature", {}).get("status")
 
                 if automatic_temperature_status == 1:
-                    _LOGGER.warning(f"Cannot set manual temperature: automatic comfort temperature is enabled")
+                    _LOGGER.warning("Cannot set manual temperature: automatic comfort temperature is enabled")
                     # Don't proceed with setting the temperature
                     return
             except Exception as e:
                 _LOGGER.warning(f"Could not check automatic temperature status: {e}")
                 # Proceed anyway if we can't determine the status
 
-        section = self._key_path[0]
-        key = self._key_path[1]
+        # Mapping aller NUMBER_ENTITIES Keys zu thermal_profile Parametern
+        # Basierend auf dem thermalprofile JSON Schema
+        param_mapping = {
+            # season nested fields
+            "season.season": "season_value",
+            "season.status": "season_status",
+            "season.heatingThresholdTemperature": "heating_threshold_temperature",
+            "season.coolingThresholdTemperature": "cooling_threshold_temperature",
+            # temperature nested fields
+            "temperature.status": "temperature_status",
+            "temperature.manualTemperature": "manual_temperature",
+            # heating profile fields
+            "heatingThermalProfileSeasonData.comfortTemperature": "heating_comfort_temperature",
+            "heatingThermalProfileSeasonData.kneePointTemperature": "heating_knee_point_temperature",
+            "heatingThermalProfileSeasonData.reductionDeltaTemperature": "heating_reduction_delta_temperature",
+            # cooling profile fields
+            "coolingThermalProfileSeasonData.comfortTemperature": "cooling_comfort_temperature",
+            "coolingThermalProfileSeasonData.kneePointTemperature": "cooling_knee_point_temperature",
+            "coolingThermalProfileSeasonData.temperatureLimit": "cooling_temperature_limit",
+        }
 
-        update = {section: {key: value}}
+        key_str = ".".join(self._key_path)
+        if key_str not in param_mapping:
+            _LOGGER.warning(f"Unbekannter number key: {key_str}")
+            return
 
+        param_name = param_mapping[key_str]
         try:
-            self._api.update_thermal_profile(update)
+            await self._api.async_update_thermal_profile(**{param_name: value})
             self._value = value
-            self._hass.add_job(self.coordinator.async_request_refresh)
-        except Exception as e:
-            _LOGGER.error(f"Fehler beim Setzen von {self._name}: {e}")
+            await self.coordinator.async_request_refresh()
+        except Exception:
+            _LOGGER.exception(f"Fehler beim Setzen von {self._name}")
 
 
 class ComfoClimePropertyNumber(NumberEntity):
@@ -256,25 +274,25 @@ class ComfoClimePropertyNumber(NumberEntity):
                 self._device["uuid"],
                 self._property_path,
                 faktor=self._faktor,
+                signed=self._signed,
                 byte_count=self._byte_count,
             )
             _LOGGER.debug(
                 f"Property {self._property_path} updated: {value}"
             )
             self._value = value
-        except Exception:
-            _LOGGER.exception(
-                f"Fehler beim Abrufen von Property {self._property_path}"
+        except Exception as e:
+            _LOGGER.error(
+                f"Fehler beim Abrufen von Property {self._property_path}: {e}"
             )
             self._value = None
 
     async def async_set_native_value(self, value):
         try:
             await self._api.async_set_property_for_device(
-                self._hass,
-                self._device["uuid"],
-                self._property_path,
-                value,
+                device_uuid=self._device["uuid"],
+                property_path=self._property_path,
+                value=value,
                 byte_count=self._byte_count,
                 faktor=self._faktor,
             )

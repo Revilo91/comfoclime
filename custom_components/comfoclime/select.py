@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from homeassistant.components.select import SelectEntity
@@ -8,7 +9,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
-from .comfoclime_api import ComfoClimeAPI
 from .coordinator import ComfoClimeThermalprofileCoordinator
 from .entities.select_definitions import PROPERTY_SELECT_ENTITIES, SELECT_ENTITIES
 
@@ -18,15 +18,10 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ):
-    host = entry.data["host"]
-    api = ComfoClimeAPI(f"http://{host}")
-    await api.async_get_uuid(hass)
-
-    devices = hass.data[DOMAIN][entry.entry_id]["devices"]
-    main_device = hass.data[DOMAIN][entry.entry_id]["main_device"]
-
     data = hass.data[DOMAIN][entry.entry_id]
     api = data["api"]
+    main_device = data["main_device"]
+    devices = data["devices"]
     tpcoordinator = data["tpcoordinator"]
     try:
         await tpcoordinator.async_config_entry_first_refresh()
@@ -119,25 +114,42 @@ class ComfoClimeSelect(
             _LOGGER.exception(f"Fehler beim Laden von {self._name}")
         self.async_write_ha_state()
 
-    def select_option(self, option: str):
+    async def async_select_option(self, option: str):
         value = self._options_reverse.get(option)
         if value is None:
             return
 
         try:
-            if self._key == "temperatureProfile":
-                # Use modern API method for temperature profile (preset mode)
-                self._api.update_dashboard(temperature_profile=value)
-            else:
-                section = self._key_path[0]
-                key = self._key_path[1]
-                updates = {section: {key: value}}
-                self._api.update_thermal_profile(updates)
+            _LOGGER.debug(
+                f"Setting {self._name}: {option} (value={value})"
+            )
+
+            # Mapping aller SELECT_ENTITIES Keys zu thermal_profile Parametern
+            # Basierend auf dem thermalprofile JSON Schema
+            param_mapping = {
+                # Top-level fields
+                "temperatureProfile": "temperature_profile",
+                # season nested fields
+                "season.season": "season_value",
+                "season.status": "season_status",
+                "season.heatingThresholdTemperature": "heating_threshold_temperature",
+                "season.coolingThresholdTemperature": "cooling_threshold_temperature",
+                # temperature nested fields
+                "temperature.status": "temperature_status",
+                "temperature.manualTemperature": "manual_temperature",
+            }
+
+            if self._key not in param_mapping:
+                _LOGGER.warning(f"Unbekannter select key: {self._key}")
+                return
+
+            param_name = param_mapping[self._key]
+            await self._api.async_update_thermal_profile(**{param_name: value})
 
             self._current = option
             self._hass.add_job(self.coordinator.async_request_refresh)
-        except Exception:
-            _LOGGER.exception(f"Fehler beim Setzen von {self._name}")
+        except Exception as e:
+            _LOGGER.error(f"Fehler beim Setzen von {self._name}: {e}")
 
 
 class ComfoClimePropertySelect(SelectEntity):
@@ -181,12 +193,17 @@ class ComfoClimePropertySelect(SelectEntity):
 
     async def async_update(self):
         try:
-            val = await self._api.async_read_property_for_device(
-                self._hass, self._device["uuid"], self._path, byte_count=1
+            val = await asyncio.wait_for(
+                self._api.async_read_property_for_device(
+                    device_uuid=self._device["uuid"],
+                    property_path=self._path,
+                    byte_count=1,
+                ),
+                timeout=5.0,
             )
             self._current = self._options_map.get(val)
-        except Exception:
-            _LOGGER.exception(f"Fehler beim Laden von {self._name}")
+        except Exception as e:
+            _LOGGER.error(f"Fehler beim Laden von {self._name}: {e}")
 
     def select_option(self, option: str):
         value = self._options_reverse.get(option)
