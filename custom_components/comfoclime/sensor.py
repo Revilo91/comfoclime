@@ -209,6 +209,7 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
         self._name = name
         self._state = None
         self._raw_state = None
+        self._raw_value = None
         self._attr_native_unit_of_measurement = unit
         self._attr_device_class = device_class
         self._attr_state_class = state_class
