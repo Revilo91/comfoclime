@@ -12,6 +12,7 @@ _LOGGER = logging.getLogger(__name__)
 MIN_REQUEST_INTERVAL = 0.1  # Minimum seconds between any requests (reduced for better throughput)
 WRITE_COOLDOWN = 2.0  # Seconds to wait after a write operation before allowing reads
 REQUEST_DEBOUNCE = 0.3  # Debounce time for rapid successive requests
+CACHE_TTL = 30.0  # Cache time-to-live in seconds
 
 
 class ComfoClimeAPI:
@@ -24,10 +25,57 @@ class ComfoClimeAPI:
         self._last_request_time = 0.0
         self._last_write_time = 0.0
         self._pending_requests: dict[str, asyncio.Task] = {}
+        # Cache for telemetry and property reads: {cache_key: (value, timestamp)}
+        self._telemetry_cache: dict[str, tuple] = {}
+        self._property_cache: dict[str, tuple] = {}
 
     def _get_current_time(self) -> float:
         """Get current monotonic time for rate limiting."""
         return asyncio.get_event_loop().time()
+
+    def _get_cache_key(self, device_uuid: str, data_id: str) -> str:
+        """Generate a cache key from device UUID and data ID."""
+        return f"{device_uuid}:{data_id}"
+
+    def _is_cache_valid(self, timestamp: float) -> bool:
+        """Check if a cached value is still valid."""
+        return (self._get_current_time() - timestamp) < CACHE_TTL
+
+    def _get_from_cache(self, cache_dict: dict, cache_key: str):
+        """Get a value from cache if it's still valid."""
+        if cache_key in cache_dict:
+            value, timestamp = cache_dict[cache_key]
+            if self._is_cache_valid(timestamp):
+                _LOGGER.debug(f"Cache hit for {cache_key}")
+                return value
+            # Cache expired, remove it
+            del cache_dict[cache_key]
+        return None
+
+    def _set_cache(self, cache_dict: dict, cache_key: str, value):
+        """Store a value in cache with current timestamp."""
+        cache_dict[cache_key] = (value, self._get_current_time())
+
+    def _invalidate_cache_for_device(self, device_uuid: str):
+        """Invalidate all cache entries for a specific device."""
+        # Remove telemetry cache entries for this device
+        keys_to_remove = [
+            k for k in self._telemetry_cache.keys()
+            if k.startswith(f"{device_uuid}:")
+        ]
+        for k in keys_to_remove:
+            del self._telemetry_cache[k]
+
+        # Remove property cache entries for this device
+        keys_to_remove = [
+            k for k in self._property_cache.keys()
+            if k.startswith(f"{device_uuid}:")
+        ]
+        for k in keys_to_remove:
+            del self._property_cache[k]
+
+        _LOGGER.debug(f"Invalidated all cache entries for device {device_uuid}")
+
 
     async def _wait_for_rate_limit(self, is_write: bool = False):
         """Wait if necessary to respect rate limits.
@@ -221,6 +269,25 @@ class ComfoClimeAPI:
         signed: bool = True,
         byte_count: int | None = None,
     ):
+        """Read telemetry for a device with caching.
+
+        Args:
+            device_uuid: UUID of the device
+            telemetry_id: Telemetry ID to read
+            faktor: Factor to multiply the value by
+            signed: Whether the value is signed
+            byte_count: Number of bytes to read
+
+        Returns:
+            The telemetry value (or None if failed)
+        """
+        # Try to get from cache first
+        cache_key = self._get_cache_key(device_uuid, telemetry_id)
+        cached_value = self._get_from_cache(self._telemetry_cache, cache_key)
+        if cached_value is not None:
+            return cached_value
+
+        # Not in cache, fetch from API
         async with self._request_lock:
             await self._wait_for_rate_limit(is_write=False)
             try:
@@ -243,7 +310,12 @@ class ComfoClimeAPI:
                 return None
 
         value = self.bytes_to_signed_int(data, byte_count, signed)
-        return value * faktor
+        result = value * faktor
+
+        # Store in cache
+        self._set_cache(self._telemetry_cache, cache_key, result)
+
+        return result
 
     async def async_read_property_for_device(
         self,
@@ -253,6 +325,25 @@ class ComfoClimeAPI:
         signed: bool = True,
         byte_count: int | None = None,
     ):
+        """Read property for a device with caching.
+
+        Args:
+            device_uuid: UUID of the device
+            property_path: Property path to read
+            faktor: Factor to multiply numeric values by
+            signed: Whether the value is signed
+            byte_count: Number of bytes to read
+
+        Returns:
+            The property value (or None if failed)
+        """
+        # Try to get from cache first
+        cache_key = self._get_cache_key(device_uuid, property_path)
+        cached_value = self._get_from_cache(self._property_cache, cache_key)
+        if cached_value is not None:
+            return cached_value
+
+        # Not in cache, fetch from API
         async with self._request_lock:
             await self._wait_for_rate_limit(is_write=False)
             data = await self._read_property_for_device_raw(device_uuid, property_path)
@@ -263,17 +354,20 @@ class ComfoClimeAPI:
 
         if byte_count in (1, 2):
             value = self.bytes_to_signed_int(data, byte_count, signed)
-        elif byte_count > 2:
+            result = value * faktor
+        elif byte_count and byte_count > 2:
             if len(data) != byte_count:
                 raise ValueError(
                     f"Unerwartete Byte-Anzahl: erwartet {byte_count}, erhalten {len(data)}"
                 )
-            if all(0 <= byte < 256 for byte in data):
-                return "".join(chr(byte) for byte in data if byte != 0)
+            result = "".join(chr(byte) for byte in data if byte != 0)
         else:
             raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
 
-        return value * faktor
+        # Store in cache
+        self._set_cache(self._property_cache, cache_key, result)
+
+        return result
 
     async def _read_property_for_device_raw(
         self, device_uuid: str, property_path: str
@@ -540,6 +634,8 @@ class ComfoClimeAPI:
                 session = await self._get_session()
                 async with session.put(url, json=payload) as response:
                     response.raise_for_status()
+                # Invalidate cache for this device after successful write
+                self._invalidate_cache_for_device(device_uuid)
             except Exception:
                 _LOGGER.exception(
                     f"Fehler beim Schreiben von Property {property_path} mit Payload {payload}"
