@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from homeassistant.components.number import NumberEntity, NumberMode
@@ -231,16 +232,24 @@ class ComfoClimePropertyNumber(NumberEntity):
 
     async def async_update(self):
         try:
-            value = await self._api.async_read_property_for_device(
-                device_uuid=self._device["uuid"],
-                property_path=self._property_path,
-                faktor=self._faktor,
-                signed=self._signed,
-                byte_count=self._byte_count,
+            value = await asyncio.wait_for(
+                self._api.async_read_property_for_device(
+                    device_uuid=self._device["uuid"],
+                    property_path=self._property_path,
+                    faktor=self._faktor,
+                    signed=self._signed,
+                    byte_count=self._byte_count,
+                ),
+                timeout=5.0
             )
             self._value = value
+        except asyncio.TimeoutError:
+            _LOGGER.debug(
+                f"Timeout beim Abrufen von Property {self._property_path}"
+            )
+            self._value = None
         except Exception as e:
-            _LOGGER.error(
+            _LOGGER.debug(
                 f"Fehler beim Abrufen von Property {self._property_path}: {e}"
             )
             self._value = None

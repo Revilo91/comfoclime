@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from homeassistant.components.sensor import (
@@ -416,17 +417,23 @@ class ComfoClimePropertySensor(SensorEntity):
 
     async def async_update(self):
         try:
-            value = await self._api.async_read_property_for_device(
-                device_uuid=self._override_uuid or self._api.uuid,
-                property_path=self._path,
-                faktor=self._faktor,
-                signed=self._signed,
-                byte_count=self._byte_count,
+            value = await asyncio.wait_for(
+                self._api.async_read_property_for_device(
+                    device_uuid=self._override_uuid or self._api.uuid,
+                    property_path=self._path,
+                    faktor=self._faktor,
+                    signed=self._signed,
+                    byte_count=self._byte_count,
+                ),
+                timeout=5.0
             )
             if self._mapping_key and self._mapping_key in VALUE_MAPPINGS:
                 self._state = VALUE_MAPPINGS[self._mapping_key].get(value, value)
             else:
                 self._state = value
+        except asyncio.TimeoutError:
+            _LOGGER.debug(f"Timeout beim Abrufen von Property {self._path}")
+            self._state = None
         except Exception as e:
-            _LOGGER.error(f"Fehler beim Abrufen von Property {self._path}: {e}")
+            _LOGGER.debug(f"Fehler beim Abrufen von Property {self._path}: {e}")
             self._state = None

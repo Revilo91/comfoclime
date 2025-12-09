@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from homeassistant.components.select import SelectEntity
@@ -176,12 +177,19 @@ class ComfoClimePropertySelect(SelectEntity):
 
     async def async_update(self):
         try:
-            val = await self._api.async_read_property_for_device(
-                self._hass, self._device["uuid"], self._path, byte_count=1
+            val = await asyncio.wait_for(
+                self._api.async_read_property_for_device(
+                    device_uuid=self._device["uuid"],
+                    property_path=self._path,
+                    byte_count=1
+                ),
+                timeout=5.0
             )
             self._current = self._options_map.get(val)
+        except asyncio.TimeoutError:
+            _LOGGER.debug(f"Timeout beim Laden von {self._name}")
         except Exception as e:
-            _LOGGER.error(f"Fehler beim Laden von {self._name}: {e}")
+            _LOGGER.debug(f"Fehler beim Laden von {self._name}: {e}")
 
     def select_option(self, option: str):
         value = self._options_reverse.get(option)
