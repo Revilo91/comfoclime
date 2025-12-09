@@ -253,9 +253,6 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
         try:
             data = self.coordinator.data
 
-            # raw_value wurde ermittelt
-            self._raw_value = data
-
             # Handle nested keys (e.g., "season.status" or "heatingThermalProfileSeasonData.comfortTemperature")
             if "." in self._type:
                 keys = self._type.split(".")
@@ -268,6 +265,9 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
                         break
             else:
                 raw_value = data.get(self._type)
+
+            # raw_value wurde ermittelt
+            self._raw_value = raw_value
 
             # Wenn es eine definierte Übersetzung gibt, wende sie an
             if self._type in VALUE_MAPPINGS:
