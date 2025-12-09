@@ -217,7 +217,7 @@ class TestComfoClimePropertySelect:
 
         assert select.current_option == "manual"
         mock_api.async_read_property_for_device.assert_called_once_with(
-            mock_hass, "test-device-uuid", "29/1/15", byte_count=1
+            device_uuid="test-device-uuid", property_path="29/1/15", byte_count=1
         )
 
     def test_property_select_option(self, mock_hass, mock_api, mock_device, mock_config_entry):

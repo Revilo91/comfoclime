@@ -264,7 +264,7 @@ async def test_async_setup_entry(mock_hass, mock_config_entry, mock_coordinator,
     }
 
     # Mock the API class to return our mock API
-    with patch("custom_components.comfoclime.sensor.ComfoClimeAPI") as mock_api_class:
+    with patch("custom_components.comfoclime.comfoclime_api.ComfoClimeAPI") as mock_api_class:
         mock_api_instance = MagicMock()
         mock_api_instance.async_get_uuid = AsyncMock(return_value="test-uuid")
         mock_api_class.return_value = mock_api_instance

@@ -247,7 +247,7 @@ class TestComfoClimeAPIRateLimiting:
             WRITE_COOLDOWN,
         )
 
-        assert MIN_REQUEST_INTERVAL == 0.5
+        assert MIN_REQUEST_INTERVAL == 0.1
         assert WRITE_COOLDOWN == 2.0
         assert REQUEST_DEBOUNCE == 0.3
 
