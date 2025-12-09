@@ -65,8 +65,8 @@ async def test_async_setup_entry(mock_hass, mock_config_entry, mock_api, mock_co
                 assert "fan" in platforms
                 assert "climate" in platforms
 
-                # Verify services were registered (set_property, reset_system)
-                assert mock_hass.services.async_register.call_count == 2
+                # Verify services were registered (set_property, reset_system, set_scenario_mode)
+                assert mock_hass.services.async_register.call_count == 3
 
 
 @pytest.mark.asyncio
