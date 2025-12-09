@@ -311,6 +311,7 @@ class ComfoClimeTelemetrySensor(SensorEntity):
         translation_key,
         unit,
         faktor=1.0,
+        signed=True,
         byte_count=None,
         device_class=None,
         state_class=None,
@@ -325,6 +326,7 @@ class ComfoClimeTelemetrySensor(SensorEntity):
         self._name = name
         self._faktor = faktor
         self._byte_count = byte_count
+        self._signed = signed
         self._state = None
         self._attr_native_unit_of_measurement = unit
         self._attr_device_class = SensorDeviceClass(device_class) if device_class else None
@@ -383,6 +385,7 @@ class ComfoClimePropertySensor(SensorEntity):
         *,
         unit: str | None = None,
         faktor: float = 1.0,
+        signed: bool = True,
         byte_count: int | None = None,
         device_class: str | None = None,
         state_class: str | None = None,
@@ -398,6 +401,7 @@ class ComfoClimePropertySensor(SensorEntity):
         self._name = name
         self._faktor = faktor
         self._byte_count = byte_count
+        self._signed = signed
         self._attr_native_unit_of_measurement = unit
         self._attr_device_class = SensorDeviceClass(device_class) if device_class else None
         self._attr_state_class = SensorStateClass(state_class) if state_class else None
