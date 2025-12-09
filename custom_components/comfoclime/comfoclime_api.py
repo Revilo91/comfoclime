@@ -15,8 +15,9 @@ REQUEST_DEBOUNCE = 0.3  # Debounce time for rapid successive requests
 
 
 class ComfoClimeAPI:
-    def __init__(self, base_url):
+    def __init__(self, base_url, hass=None):
         self.base_url = base_url.rstrip("/")
+        self.hass = hass
         self.uuid = None
         self._request_lock = asyncio.Lock()
         self._session = None

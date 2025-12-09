@@ -19,22 +19,14 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ):
-    host = entry.data["host"]
-    api = ComfoClimeAPI(f"http://{host}")
-
-    switches = []
-    try:
-        await api.async_get_uuid()
-    except Exception as e:
-        _LOGGER.error(f"UUID konnte nicht geladen werden: {e}")
-        return
-    devices = hass.data[DOMAIN][entry.entry_id]["devices"]
-    main_device = hass.data[DOMAIN][entry.entry_id]["main_device"]
-
     data = hass.data[DOMAIN][entry.entry_id]
     api = data["api"]
     tpcoordinator = data["tpcoordinator"]
     dbcoordinator = data["coordinator"]
+    devices = data["devices"]
+    main_device = data["main_device"]
+
+    switches = []
     try:
         await tpcoordinator.async_config_entry_first_refresh()
     except Exception as e:

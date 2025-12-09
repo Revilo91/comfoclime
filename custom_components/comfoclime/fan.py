@@ -82,19 +82,14 @@ class ComfoClimeFan(CoordinatorEntity[ComfoClimeDashboardCoordinator], FanEntity
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ):
-    host = entry.data["host"]
-    api = ComfoClimeAPI(f"http://{host}")
-
     try:
-        await api.async_get_uuid()
-        # devices = hass.data[DOMAIN][entry.entry_id]["devices"]
-        main_device = hass.data[DOMAIN][entry.entry_id]["main_device"]
+        data = hass.data[DOMAIN][entry.entry_id]
+        api = data["api"]
+        main_device = data["main_device"]
+        coordinator = data["coordinator"]
         if not main_device:
             _LOGGER.warning("Kein Hauptgerät mit modelTypeId 20 gefunden.")
             return
-        data = hass.data[DOMAIN][entry.entry_id]
-        api = data["api"]
-        coordinator = data["coordinator"]
         try:
             await coordinator.async_config_entry_first_refresh()
         except Exception as e:

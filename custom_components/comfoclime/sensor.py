@@ -43,21 +43,10 @@ VALUE_MAPPINGS = {
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ):
-    host = entry.data["host"]
-    api = ComfoClimeAPI(f"http://{host}")
-
-    sensors = []
-
-    # UUID abrufen
-    try:
-        await api.async_get_uuid()
-    except Exception as e:
-        _LOGGER.error(f"Fehler beim Abrufen der UUID: {e}")
-        return
-
-    # Dashboard-Daten abrufen (optional beim Start)
     data = hass.data[DOMAIN][entry.entry_id]
     api = data["api"]
+
+    sensors = []
     coordinator = data["coordinator"]
     try:
         await coordinator.async_config_entry_first_refresh()

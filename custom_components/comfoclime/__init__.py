@@ -27,7 +27,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = entry.data
     host = entry.data["host"]
-    api = ComfoClimeAPI(f"http://{host}")
+    api = ComfoClimeAPI(f"http://{host}", hass=hass)
     # Dashboard-Coordinator erstellen
     dashboard_coordinator = ComfoClimeDashboardCoordinator(hass, api)
     await dashboard_coordinator.async_config_entry_first_refresh()
@@ -164,13 +164,13 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     await hass.config_entries.async_forward_entry_unload(entry, "select")
     await hass.config_entries.async_forward_entry_unload(entry, "fan")
     await hass.config_entries.async_forward_entry_unload(entry, "climate")
-    
+
     # Close the API session
     if DOMAIN in hass.data and entry.entry_id in hass.data[DOMAIN]:
         api = hass.data[DOMAIN][entry.entry_id].get("api")
         if api:
             await api.close()
-    
+
     hass.data[DOMAIN].pop(entry.entry_id)
     return True
 
