@@ -8,6 +8,11 @@ import aiohttp
 
 _LOGGER = logging.getLogger(__name__)
 
+# Rate limiting configuration
+MIN_REQUEST_INTERVAL = 0.5  # Minimum seconds between any requests
+WRITE_COOLDOWN = 2.0  # Seconds to wait after a write operation before allowing reads
+REQUEST_DEBOUNCE = 0.3  # Debounce time for rapid successive requests
+
 
 class ComfoClimeAPI:
     def __init__(self, base_url):
@@ -15,6 +20,78 @@ class ComfoClimeAPI:
         self.uuid = None
         self._request_lock = asyncio.Lock()
         self._session = None
+        self._last_request_time = 0.0
+        self._last_write_time = 0.0
+        self._pending_requests: dict[str, asyncio.Task] = {}
+
+    def _get_current_time(self) -> float:
+        """Get current monotonic time for rate limiting."""
+        return asyncio.get_event_loop().time()
+
+    async def _wait_for_rate_limit(self, is_write: bool = False):
+        """Wait if necessary to respect rate limits.
+
+        Args:
+            is_write: True if this is a write operation (will set cooldown after)
+        """
+        current_time = self._get_current_time()
+
+        # Calculate minimum wait time
+        time_since_last_request = current_time - self._last_request_time
+        time_since_last_write = current_time - self._last_write_time
+
+        wait_time = 0.0
+
+        # Ensure minimum interval between requests
+        if time_since_last_request < MIN_REQUEST_INTERVAL:
+            wait_time = max(wait_time, MIN_REQUEST_INTERVAL - time_since_last_request)
+
+        # If this is a read and we recently wrote, wait for cooldown
+        if not is_write and time_since_last_write < WRITE_COOLDOWN:
+            wait_time = max(wait_time, WRITE_COOLDOWN - time_since_last_write)
+
+        if wait_time > 0:
+            _LOGGER.debug(f"Rate limiting: waiting {wait_time:.2f}s before request")
+            await asyncio.sleep(wait_time)
+
+        # Update last request time
+        self._last_request_time = self._get_current_time()
+
+        # If this is a write, update write time
+        if is_write:
+            self._last_write_time = self._get_current_time()
+
+    async def _debounced_request(
+        self, key: str, coro_factory, debounce_time: float = REQUEST_DEBOUNCE
+    ):
+        """Execute a request with debouncing to prevent rapid successive calls.
+
+        If the same request (identified by key) is called again within debounce_time,
+        the previous pending request is cancelled and a new one is scheduled.
+
+        Args:
+            key: Unique identifier for this request type
+            coro_factory: Callable that returns the coroutine to execute
+            debounce_time: Time to wait before executing (allows cancellation)
+
+        Returns:
+            Result of the request
+        """
+        # Cancel any pending request with the same key
+        if key in self._pending_requests:
+            pending_task = self._pending_requests[key]
+            if not pending_task.done():
+                pending_task.cancel()
+                try:
+                    await pending_task
+                except asyncio.CancelledError:
+                    pass
+
+        # Wait for debounce time
+        await asyncio.sleep(debounce_time)
+
+        # Execute the actual request
+        return await coro_factory()
 
     async def _get_session(self):
         """Get or create aiohttp session."""
@@ -98,6 +175,7 @@ class ComfoClimeAPI:
 
     async def async_get_uuid(self):
         async with self._request_lock:
+            await self._wait_for_rate_limit(is_write=False)
             session = await self._get_session()
             async with session.get(f"{self.base_url}/monitoring/ping") as response:
                 response.raise_for_status()
@@ -107,6 +185,7 @@ class ComfoClimeAPI:
 
     async def async_get_dashboard_data(self):
         async with self._request_lock:
+            await self._wait_for_rate_limit(is_write=False)
             if not self.uuid:
                 await self.async_get_uuid()
             session = await self._get_session()
@@ -118,6 +197,7 @@ class ComfoClimeAPI:
 
     async def async_get_connected_devices(self):
         async with self._request_lock:
+            await self._wait_for_rate_limit(is_write=False)
             if not self.uuid:
                 await self.async_get_uuid()
             session = await self._get_session()
@@ -128,9 +208,15 @@ class ComfoClimeAPI:
                 return data.get("devices", [])
 
     async def async_read_telemetry_for_device(
-        self, device_uuid: str, telemetry_id: str, faktor: float = 1.0, signed: bool = True, byte_count: int | None = None
+        self,
+        device_uuid: str,
+        telemetry_id: str,
+        faktor: float = 1.0,
+        signed: bool = True,
+        byte_count: int | None = None,
     ):
         async with self._request_lock:
+            await self._wait_for_rate_limit(is_write=False)
             session = await self._get_session()
             url = f"{self.base_url}/device/{device_uuid}/telemetry/{telemetry_id}"
             async with session.get(url) as response:
@@ -153,6 +239,7 @@ class ComfoClimeAPI:
         byte_count: int | None = None,
     ):
         async with self._request_lock:
+            await self._wait_for_rate_limit(is_write=False)
             data = await self._read_property_for_device_raw(device_uuid, property_path)
 
             # Wenn data leer/None ist, können wir nicht fortfahren
@@ -182,8 +269,8 @@ class ComfoClimeAPI:
             async with session.get(url) as response:
                 response.raise_for_status()
                 payload = await response.json()
-        except Exception as e:
-            _LOGGER.error(f"Fehler beim Abrufen der Property {property_path}: {e}")
+        except Exception:
+            _LOGGER.exception(f"Fehler beim Abrufen der Property {property_path}")
             return None
 
         data = payload.get("data")
@@ -193,6 +280,7 @@ class ComfoClimeAPI:
 
     async def async_get_thermal_profile(self):
         async with self._request_lock:
+            await self._wait_for_rate_limit(is_write=False)
             if not self.uuid:
                 await self.async_get_uuid()
             url = f"{self.base_url}/system/{self.uuid}/thermalprofile"
@@ -245,6 +333,7 @@ class ComfoClimeAPI:
         if not self.uuid:
             await self.async_get_uuid()
 
+        await self._wait_for_rate_limit(is_write=True)
         url = f"{self.base_url}/system/{self.uuid}/thermalprofile"
         session = await self._get_session()
         async with session.put(url, json=full_payload) as response:
@@ -348,6 +437,8 @@ class ComfoClimeAPI:
             )
             return {}
 
+        await self._wait_for_rate_limit(is_write=True)
+
         # Add timestamp to payload
         tz = ZoneInfo(self.hass.config.time_zone)
         payload["timestamp"] = datetime.now(tz).isoformat()
@@ -362,12 +453,13 @@ class ComfoClimeAPI:
                     resp_json = await response.json()
                 except Exception:
                     resp_json = {"text": await response.text()}
-                _LOGGER.debug(f"Dashboard update OK payload={payload} response={resp_json}")
+                _LOGGER.debug(
+                    f"Dashboard update OK payload={payload} response={resp_json}"
+                )
                 return resp_json
-        except Exception as e:
+        except Exception:
             _LOGGER.exception(f"Error updating dashboard (payload={payload})")
             raise
-        return resp_json
 
     async def async_update_dashboard(self, **kwargs):
         """Async wrapper for update_dashboard method."""
@@ -407,6 +499,7 @@ class ComfoClimeAPI:
         faktor: float = 1.0,
     ):
         async with self._request_lock:
+            await self._wait_for_rate_limit(is_write=True)
             if byte_count not in (1, 2):
                 raise ValueError("Nur 1 oder 2 Byte unterstützt")
 
@@ -421,7 +514,7 @@ class ComfoClimeAPI:
                 session = await self._get_session()
                 async with session.put(url, json=payload) as response:
                     response.raise_for_status()
-            except Exception as e:
+            except Exception:
                 _LOGGER.exception(
                     f"Fehler beim Schreiben von Property {property_path} mit Payload {payload}"
                 )
@@ -430,6 +523,7 @@ class ComfoClimeAPI:
     async def async_reset_system(self):
         """Trigger a restart of the ComfoClime device."""
         async with self._request_lock:
+            await self._wait_for_rate_limit(is_write=True)
             url = f"{self.base_url}/system/reset"
             session = await self._get_session()
             async with session.put(url) as response:
