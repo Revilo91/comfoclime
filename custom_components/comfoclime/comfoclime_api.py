@@ -223,15 +223,24 @@ class ComfoClimeAPI:
     ):
         async with self._request_lock:
             await self._wait_for_rate_limit(is_write=False)
-            session = await self._get_session()
-            url = f"{self.base_url}/device/{device_uuid}/telemetry/{telemetry_id}"
-            async with session.get(url) as response:
-                response.raise_for_status()
-                payload = await response.json()
+            try:
+                session = await self._get_session()
+                url = f"{self.base_url}/device/{device_uuid}/telemetry/{telemetry_id}"
+                async with session.get(url) as response:
+                    response.raise_for_status()
+                    payload = await response.json()
 
-            data = payload.get("data")
-            if not isinstance(data, list) or len(data) == 0:
-                raise ValueError("Unerwartetes Telemetrie-Format")
+                data = payload.get("data")
+                if not isinstance(data, list) or len(data) == 0:
+                    _LOGGER.debug(f"Ungültiges Telemetrie-Format für {telemetry_id}")
+                    return None
+
+            except asyncio.TimeoutError:
+                _LOGGER.debug(f"Timeout beim Abrufen der Telemetrie {telemetry_id}")
+                return None
+            except Exception as e:
+                _LOGGER.debug(f"Fehler beim Abrufen der Telemetrie {telemetry_id}: {e}")
+                return None
 
         value = self.bytes_to_signed_int(data, byte_count, signed)
         return value * faktor
@@ -273,15 +282,26 @@ class ComfoClimeAPI:
         try:
             session = await self._get_session()
             async with session.get(url) as response:
-                response.raise_for_status()
+                try:
+                    response.raise_for_status()
+                except Exception as http_error:
+                    _LOGGER.debug(
+                        f"HTTP error beim Abrufen der Property {property_path} "
+                        f"(Status {response.status}): {http_error}"
+                    )
+                    return None
                 payload = await response.json()
-        except Exception:
-            _LOGGER.exception(f"Fehler beim Abrufen der Property {property_path}")
+        except asyncio.TimeoutError:
+            _LOGGER.debug(f"Timeout beim Abrufen der Property {property_path}")
+            return None
+        except Exception as e:
+            _LOGGER.debug(f"Fehler beim Abrufen der Property {property_path}: {e}")
             return None
 
         data = payload.get("data")
         if not isinstance(data, list) or not data:
-            raise ValueError("Unerwartetes Property-Format")
+            _LOGGER.debug(f"Ungültiges Datenformat für Property {property_path}")
+            return None
         return data
 
     async def async_get_thermal_profile(self):
