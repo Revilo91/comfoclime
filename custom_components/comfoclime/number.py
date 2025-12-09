@@ -144,12 +144,12 @@ class ComfoClimeTemperatureNumber(
             for k in self._key_path:
                 val = val.get(k)
             self._value = val
-        except Exception as e:
-            _LOGGER.warning(f"[{self.name}] Fehler beim Update: {e}")
+        except Exception:
+            _LOGGER.exception("Fehler beim Update")
             self._value = None  # besser als Absturz
         self.async_write_ha_state()
 
-    def set_native_value(self, value: float):
+    async def async_set_native_value(self, value: float):
         # Check if this is a manual temperature setting
         if self._key_path[0] == "temperature" and self._key_path[1] == "manualTemperature":
             # Check if automatic comfort temperature is enabled
@@ -171,11 +171,11 @@ class ComfoClimeTemperatureNumber(
         update = {section: {key: value}}
 
         try:
-            self._api.update_thermal_profile(update)
+            await self._api.async_update_thermal_profile(update)
             self._value = value
-            self._hass.add_job(self.coordinator.async_request_refresh)
-        except Exception as e:
-            _LOGGER.error(f"Fehler beim Setzen von {self._name}: {e}")
+            await self.coordinator.async_request_refresh()
+        except Exception:
+            _LOGGER.exception(f"Fehler beim Setzen von {self._name}")
 
 
 class ComfoClimePropertyNumber(NumberEntity):
@@ -247,9 +247,9 @@ class ComfoClimePropertyNumber(NumberEntity):
                 f"Timeout beim Abrufen von Property {self._property_path}"
             )
             self._value = None
-        except Exception as e:
-            _LOGGER.debug(
-                f"Fehler beim Abrufen von Property {self._property_path}: {e}"
+        except Exception:
+            _LOGGER.exception(
+                f"Fehler beim Abrufen von Property {self._property_path}"
             )
             self._value = None
 
@@ -264,7 +264,7 @@ class ComfoClimePropertyNumber(NumberEntity):
                 signed=self._signed,
             )
             self._value = value
-        except Exception as e:
-            _LOGGER.error(
-                f"Fehler beim Schreiben von Property {self._property_path}: {e}"
+        except Exception:
+            _LOGGER.exception(
+                f"Fehler beim Schreiben von Property {self._property_path}"
             )

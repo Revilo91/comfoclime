@@ -112,8 +112,8 @@ class ComfoClimeModeSwitch(
             for key in self._key_path:
                 val = val.get(key)
             self._state = val == 1
-        except Exception as e:
-            _LOGGER.error(f"Fehler beim Lesen des Switch-Zustands: {e}")
+        except Exception:
+            _LOGGER.exception("Fehler beim Lesen des Switch-Zustands")
             self._state = None
         self.async_write_ha_state()
 
@@ -123,7 +123,14 @@ class ComfoClimeModeSwitch(
     def turn_off(self, **kwargs):
         self._set_status(0)
 
+    async def async_turn_on(self, **kwargs):
+        await self._async_set_status(1)
+
+    async def async_turn_off(self, **kwargs):
+        await self._async_set_status(0)
+
     def _set_status(self, value):
+        """Synchronous fallback for turn_on/turn_off."""
         # Leeres Grundobjekt mit null
         updates = {"season": {"status": None}, "temperature": {"status": None}}
 
@@ -133,12 +140,28 @@ class ComfoClimeModeSwitch(
         updates[section][key] = value
 
         try:
-            self._api.update_thermal_profile(updates)
-            self._state = value == 1
-            self.hass.create_task(self.coordinator.async_request_refresh())
+            # This is a sync method, so we use hass.create_task for async operations
+            self.hass.create_task(self._async_set_status(value))
+        except Exception:
+            _LOGGER.exception(f"Fehler beim Setzen von {self._name}")
 
-        except Exception as e:
-            _LOGGER.error(f"Fehler beim Setzen von {self._name}: {e}")
+    async def _async_set_status(self, value):
+        """Asynchronous status update."""
+        # Leeres Grundobjekt mit null
+        updates = {"season": {"status": None}, "temperature": {"status": None}}
+
+        section = self._key_path[0]
+        key = self._key_path[1]
+
+        updates[section][key] = value
+
+        try:
+            await self._api.async_update_thermal_profile(updates)
+            self._state = value == 1
+            await self.coordinator.async_request_refresh()
+
+        except Exception:
+            _LOGGER.exception(f"Fehler beim Setzen von {self._name}")
 
 
 class ComfoClimeStandbySwitch(
@@ -193,22 +216,28 @@ class ComfoClimeStandbySwitch(
                 self._state = not val  # Invert: True (standby) -> False (switch off)
             else:
                 self._state = val != 1  # Invert: 1 (standby) -> False (switch off)
-        except Exception as e:
-            _LOGGER.error(f"Fehler beim Lesen des Switch-Zustands: {e}")
+        except Exception:
+            _LOGGER.exception("Fehler beim Lesen des Switch-Zustands")
             self._state = None
         self.async_write_ha_state()
 
     def turn_on(self, **kwargs):
-        self._set_status(1)
+        self.hass.create_task(self._async_set_status(0))
 
     def turn_off(self, **kwargs):
-        self._set_status(0)
+        self.hass.create_task(self._async_set_status(1))
 
-    def _set_status(self, hpstandby):
+    async def async_turn_on(self, **kwargs):
+        await self._async_set_status(0)
+
+    async def async_turn_off(self, **kwargs):
+        await self._async_set_status(1)
+
+    async def _async_set_status(self, hpstandby):
         try:
-            self._api.update_dashboard(hp_standby=hpstandby)
-            self._state = hpstandby == 1
-            self.hass.create_task(self.coordinator.async_request_refresh())
+            await self._api.async_update_dashboard(hp_standby=hpstandby)
+            self._state = hpstandby != 1
+            await self.coordinator.async_request_refresh()
 
-        except Exception as e:
-            _LOGGER.error(f"Fehler beim Setzen von {self._name}: {e}")
+        except Exception:
+            _LOGGER.exception(f"Fehler beim Setzen von {self._name}")

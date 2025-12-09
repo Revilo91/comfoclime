@@ -63,9 +63,9 @@ class ComfoClimeFan(CoordinatorEntity[ComfoClimeDashboardCoordinator], FanEntity
             )
             self._current_speed = step
             self.async_write_ha_state()
-            self._hass.add_job(self.coordinator.async_request_refresh)
-        except Exception as e:
-            _LOGGER.error(f"Fehler beim Setzen von fanSpeed: {e}")
+            await self.coordinator.async_request_refresh()
+        except Exception:
+            _LOGGER.exception("Fehler beim Setzen von fanSpeed")
 
     def _handle_coordinator_update(self):
         try:
