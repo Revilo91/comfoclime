@@ -70,3 +70,31 @@ Feel free to participate! 🙋‍♂️
 
 @michaelarnauts and his integration of ComfoConnect, where I discovered a lot of telemetries and properties of the ventilation unit:
 https://github.com/michaelarnauts/aiocomfoconnect
+
+## Development
+
+### Running Tests
+
+The integration includes a comprehensive test suite covering all entity types. To run the tests:
+
+```bash
+# Install test dependencies
+pip install -r requirements_test.txt
+
+# Run all tests
+pytest tests/
+
+# Run tests with coverage
+pytest tests/ --cov=custom_components/comfoclime --cov-report=html
+
+# Run specific test file
+pytest tests/test_sensor.py -v
+```
+
+The test suite includes:
+- Unit tests for all entity types (sensor, switch, select, number, climate, fan)
+- API tests
+- Integration setup tests
+- Mock fixtures for testing without a real device
+
+Tests are automatically run via GitHub Actions on push and pull requests.

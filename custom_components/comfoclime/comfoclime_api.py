@@ -1,7 +1,8 @@
 # comfoclime_api.py
 import asyncio
-import datetime
 import logging
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import aiohttp
 
@@ -26,6 +27,74 @@ class ComfoClimeAPI:
         """Close the aiohttp session."""
         if self._session and not self._session.closed:
             await self._session.close()
+
+    @staticmethod
+    def bytes_to_signed_int(
+        data: list, byte_count: int = None, signed: bool = True
+    ) -> int:
+        """Convert raw bytes to a signed integer value.
+
+        Args:
+            data: List of bytes (integers 0-255)
+            byte_count: Number of bytes to read. If None calculate from data
+
+        Returns:
+            Signed integer value
+
+        Raises:
+            ValueError: If byte_count is not 1 or 2
+        """
+        if not isinstance(data, list):
+            raise ValueError("'data' is not a list")
+
+        if byte_count is None:
+            byte_count = len(data)
+
+        if byte_count not in (1, 2):
+            raise ValueError(f"Unsupported byte count: {byte_count}")
+
+        return int.from_bytes(data[:byte_count], byteorder="little", signed=signed)
+
+    @staticmethod
+    def signed_int_to_bytes(
+        data: int, byte_count: int = 2, signed: bool = False
+    ) -> list:
+        """Convert a signed integer to a list of bytes.
+
+        Args:
+            data: Signed integer value
+            byte_count: Number of bytes to convert to (1 or 2)
+
+        Returns:
+            List of bytes (integers 0-255)
+
+        Raises:
+            ValueError: If byte_count is not 1 or 2
+        """
+        if byte_count not in (1, 2):
+            raise ValueError(f"Unsupported byte count: {byte_count}")
+
+        return list(data.to_bytes(byte_count, byteorder="little", signed=signed))
+
+    @staticmethod
+    def fix_signed_temperature(api_value: float) -> float:
+        """Fix temperature value by converting through signed 16-bit integer.
+
+        This handles the case where temperature values need to be interpreted
+        as signed 16-bit integers (scaled by 10).
+
+        Args:
+            api_value: Temperature value from API
+
+        Returns:
+            Corrected temperature value
+        """
+        raw_value = int(api_value * 10)
+        # Convert to signed 16-bit using Python's built-in byte conversion
+        unsigned_value = raw_value & 0xFFFF
+        bytes_data = ComfoClimeAPI.signed_int_to_bytes(unsigned_value, 2)
+        signed_value = ComfoClimeAPI.bytes_to_signed_int(bytes_data)
+        return signed_value / 10.0
 
     async def async_get_uuid(self):
         async with self._request_lock:
@@ -72,22 +141,8 @@ class ComfoClimeAPI:
             if not isinstance(data, list) or len(data) == 0:
                 raise ValueError("Unerwartetes Telemetrie-Format")
 
-            if byte_count is None:
-                byte_count = len(data)
-
-            if byte_count == 1:
-                value = data[0]
-                if signed and value >= 0x80:
-                    value -= 0x100
-            elif byte_count == 2:
-                lsb, msb = data[:2]
-                value = lsb + (msb << 8)
-                if signed and value >= 0x8000:
-                    value -= 0x10000
-            else:
-                raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
-
-            return value * faktor
+        value = self.bytes_to_signed_int(data, byte_count, signed)
+        return value * faktor
 
     async def async_read_property_for_device(
         self,
@@ -104,35 +159,19 @@ class ComfoClimeAPI:
             if not data:
                 return None
 
-            # Wenn byte_count nicht angegeben wurde, verwende die Länge der Daten
-            if byte_count is None:
-                byte_count = len(data)
+        if byte_count in (1, 2):
+            value = self.bytes_to_signed_int(data, byte_count, signed)
+        elif byte_count > 2:
+            if len(data) != byte_count:
+                raise ValueError(
+                    f"Unerwartete Byte-Anzahl: erwartet {byte_count}, erhalten {len(data)}"
+                )
+            if all(0 <= byte < 256 for byte in data):
+                return "".join(chr(byte) for byte in data if byte != 0)
+        else:
+            raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
 
-            if byte_count == 1:
-                value = data[0]
-                if signed and value >= 0x80:
-                    value -= 0x100
-            elif byte_count == 2:
-                lsb, msb = data[:2]
-                value = lsb + (msb << 8)
-                if signed and value >= 0x8000:
-                    value -= 0x10000
-            elif byte_count > 2:
-                # Multi-byte data is typically string data (e.g., device names, serial numbers)
-                # and should not be scaled by faktor. Return as string or raw data.
-                if len(data) != byte_count:
-                    raise ValueError(
-                        f"Unerwartete Byte-Anzahl: erwartet {byte_count}, erhalten {len(data)}"
-                    )
-                # Try to interpret as ASCII string
-                if all(0 <= byte < 256 for byte in data):
-                    return "".join(chr(byte) for byte in data if byte != 0)
-                # If not interpretable as string, return raw data
-                return data
-            else:
-                raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
-
-            return value * faktor
+        return value * faktor
 
     async def _read_property_for_device_raw(
         self, device_uuid: str, property_path: str
@@ -222,6 +261,9 @@ class ComfoClimeAPI:
         temperature_profile: int | None = None,
         season_profile: int | None = None,
         status: int | None = None,
+        scenario: int | None = None,
+        scenario_time_left: int | None = None,
+        scenario_start_delay: int | None = None,
     ) -> dict:
         """Update dashboard settings via API.
 
@@ -244,6 +286,9 @@ class ComfoClimeAPI:
             "scenarioTimeLeft": None,
             "season": season,
             "schedule": None,
+            "scenario": None,
+            "scenarioTimeLeft": None,
+            "scenarioStartDelay": None
         }
 
         The API distinguishes between two modes:
@@ -259,6 +304,9 @@ class ComfoClimeAPI:
             temperature_profile: Temperature profile/preset (0=comfort, 1=boost, 2=eco)
             season_profile: Season profile/preset (0=comfort, 1=boost, 2=eco)
             status: Temperature control mode (0=manual, 1=automatic)
+            scenario: Scenario mode (4=Kochen, 5=Party, 7=Urlaub, 8=Boost)
+            scenario_time_left: Duration for scenario in seconds (e.g., 1800 for 30min)
+            scenario_start_delay: Start delay for scenario in seconds (optional)
 
         Returns:
             Response JSON from the API
@@ -287,6 +335,12 @@ class ComfoClimeAPI:
             payload["status"] = status
         if hp_standby is not None:
             payload["hpStandby"] = hp_standby
+        if scenario is not None:
+            payload["scenario"] = scenario
+        if scenario_time_left is not None:
+            payload["scenarioTimeLeft"] = scenario_time_left
+        if scenario_start_delay is not None:
+            payload["scenarioStartDelay"] = scenario_start_delay
 
         if not payload:
             _LOGGER.debug(
@@ -295,7 +349,8 @@ class ComfoClimeAPI:
             return {}
 
         # Add timestamp to payload
-        payload["timestamp"] = datetime.datetime.now().isoformat()
+        tz = ZoneInfo(self.hass.config.time_zone)
+        payload["timestamp"] = datetime.now(tz).isoformat()
 
         headers = {"content-type": "application/json; charset=utf-8"}
         url = f"{self.base_url}/system/{self.uuid}/dashboard"
@@ -310,8 +365,9 @@ class ComfoClimeAPI:
                 _LOGGER.debug(f"Dashboard update OK payload={payload} response={resp_json}")
                 return resp_json
         except Exception as e:
-            _LOGGER.error(f"Error updating dashboard (payload={payload}): {e}")
+            _LOGGER.exception(f"Error updating dashboard (payload={payload})")
             raise
+        return resp_json
 
     async def async_update_dashboard(self, **kwargs):
         """Async wrapper for update_dashboard method."""
@@ -354,18 +410,8 @@ class ComfoClimeAPI:
             if byte_count not in (1, 2):
                 raise ValueError("Nur 1 oder 2 Byte unterstützt")
 
-            # Wert zurückrechnen, falls ein Faktor verwendet wird
             raw_value = int(round(value / faktor))
-
-            # Bytes erzeugen
-            if byte_count == 1:
-                if signed and raw_value < 0:
-                    raw_value += 0x100
-                data = [raw_value & 0xFF]
-            elif byte_count == 2:
-                if signed and raw_value < 0:
-                    raw_value += 0x10000
-                data = [raw_value & 0xFF, (raw_value >> 8) & 0xFF]
+            data = self.signed_int_to_bytes(raw_value, byte_count, signed)
 
             x, y, z = map(int, property_path.split("/"))
             url = f"{self.base_url}/device/{device_uuid}/method/{x}/{y}/3"
@@ -376,8 +422,8 @@ class ComfoClimeAPI:
                 async with session.put(url, json=payload) as response:
                     response.raise_for_status()
             except Exception as e:
-                _LOGGER.error(
-                    f"Fehler beim Schreiben von Property {property_path} mit Payload {payload}: {e}"
+                _LOGGER.exception(
+                    f"Fehler beim Schreiben von Property {property_path} mit Payload {payload}"
                 )
                 raise
 

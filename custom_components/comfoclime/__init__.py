@@ -86,8 +86,74 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             _LOGGER.error(f"Fehler beim Neustart des Geräts: {e}")
             raise HomeAssistantError(f"Fehler beim Neustart des Geräts: {e}")
 
+    async def handle_set_scenario_mode_service(call: ServiceCall):
+        """Handle set_scenario_mode service call.
+
+        This service activates special operating modes (scenarios) on the ComfoClime
+        climate entity with optional custom duration.
+
+        Supported scenarios:
+        - cooking: High ventilation for cooking (default: 30 min)
+        - party: High ventilation for parties (default: 30 min)
+        - holiday: Reduced mode for vacation (default: 24 hours)
+        - boost_mode: Maximum power boost (default: 30 min)
+        """
+        entity_id = call.data["entity_id"]
+        scenario = call.data["scenario"]
+        duration = call.data.get("duration")
+
+        # Validate scenario parameter
+        valid_scenarios = ["cooking", "party", "holiday", "boost_mode"]
+        if scenario not in valid_scenarios:
+            raise HomeAssistantError(
+                f"Invalid scenario '{scenario}'. Must be one of: {', '.join(valid_scenarios)}"
+            )
+
+        # Validate duration if provided
+        if duration is not None:
+            if not isinstance(duration, (int, float)) or duration <= 0:
+                raise HomeAssistantError(
+                    f"Duration must be a positive number, got: {duration}"
+                )
+
+        _LOGGER.debug(
+            f"Service call: set_scenario_mode for {entity_id}, "
+            f"scenario={scenario}, duration={duration}"
+        )
+
+        # Get climate entity from component
+        # Access the entity via the state machine's entities
+        component = hass.data.get("entity_components", {}).get("climate")
+        if component:
+            climate_entity = component.get_entity(entity_id)
+
+            if climate_entity and hasattr(climate_entity, "async_set_scenario_mode"):
+                try:
+                    await climate_entity.async_set_scenario_mode(scenario, duration=duration)
+                except Exception as e:
+                    _LOGGER.error(
+                        f"Error setting scenario mode '{scenario}' on {entity_id}: {e}",
+                        exc_info=True
+                    )
+                    raise HomeAssistantError(
+                        f"Failed to set scenario mode '{scenario}': {e}"
+                    ) from e
+                else:
+                    _LOGGER.info(
+                        f"Scenario mode '{scenario}' activated for {entity_id} "
+                        f"with duration {duration} min"
+                    )
+                    return
+
+        # Entity not found or doesn't support scenarios
+        raise HomeAssistantError(
+            f"Climate entity '{entity_id}' not found or does not support scenario modes. "
+            f"Make sure the entity exists and belongs to the ComfoClime integration."
+        )
+
     hass.services.async_register(DOMAIN, "set_property", handle_set_property_service)
     hass.services.async_register(DOMAIN, "reset_system", handle_reset_system_service)
+    hass.services.async_register(DOMAIN, "set_scenario_mode", handle_set_scenario_mode_service)
     return True
 
 
