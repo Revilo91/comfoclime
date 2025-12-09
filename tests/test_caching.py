@@ -5,7 +5,8 @@ import sys
 from unittest.mock import AsyncMock, MagicMock
 
 # Add the project to path
-sys.path.insert(0, "/home/olivers/Dokumente/comfoclime")
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from custom_components.comfoclime.comfoclime_api import ComfoClimeAPI
 from custom_components.comfoclime.sensor import (
