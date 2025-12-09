@@ -195,7 +195,12 @@ class ComfoClimeStandbySwitch(
         data = self.coordinator.data
         try:
             val = data.get("hpStandby", 0)
-            self._state = val == 1
+            # Handle both boolean and integer values
+            # hpStandby = True or 1 means heatpump is in standby (OFF)
+            if isinstance(val, bool):
+                self._state = not val  # Invert: True (standby) -> False (switch off)
+            else:
+                self._state = val != 1  # Invert: 1 (standby) -> False (switch off)
         except Exception as e:
             _LOGGER.error(f"Fehler beim Lesen des Switch-Zustands: {e}")
             self._state = None
