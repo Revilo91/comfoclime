@@ -173,21 +173,26 @@ class ComfoClimeAPI:
         signed_value = ComfoClimeAPI.bytes_to_signed_int(bytes_data)
         return signed_value / 10.0
 
+    async def _async_get_uuid_internal(self):
+        """Internal method to get UUID without acquiring lock."""
+        await self._wait_for_rate_limit(is_write=False)
+        session = await self._get_session()
+        async with session.get(f"{self.base_url}/monitoring/ping") as response:
+            response.raise_for_status()
+            data = await response.json()
+            self.uuid = data.get("uuid")
+            return self.uuid
+
     async def async_get_uuid(self):
+        """Get UUID with lock protection."""
         async with self._request_lock:
-            await self._wait_for_rate_limit(is_write=False)
-            session = await self._get_session()
-            async with session.get(f"{self.base_url}/monitoring/ping") as response:
-                response.raise_for_status()
-                data = await response.json()
-                self.uuid = data.get("uuid")
-                return self.uuid
+            return await self._async_get_uuid_internal()
 
     async def async_get_dashboard_data(self):
         async with self._request_lock:
             await self._wait_for_rate_limit(is_write=False)
             if not self.uuid:
-                await self.async_get_uuid()
+                await self._async_get_uuid_internal()
             session = await self._get_session()
             async with session.get(
                 f"{self.base_url}/system/{self.uuid}/dashboard"
@@ -199,7 +204,7 @@ class ComfoClimeAPI:
         async with self._request_lock:
             await self._wait_for_rate_limit(is_write=False)
             if not self.uuid:
-                await self.async_get_uuid()
+                await self._async_get_uuid_internal()
             session = await self._get_session()
             url = f"{self.base_url}/system/{self.uuid}/devices"
             async with session.get(url) as response:
@@ -282,7 +287,7 @@ class ComfoClimeAPI:
         async with self._request_lock:
             await self._wait_for_rate_limit(is_write=False)
             if not self.uuid:
-                await self.async_get_uuid()
+                await self._async_get_uuid_internal()
             url = f"{self.base_url}/system/{self.uuid}/thermalprofile"
             try:
                 session = await self._get_session()
@@ -328,10 +333,10 @@ class ComfoClimeAPI:
             if section in full_payload and isinstance(values, dict):
                 full_payload[section].update(values)
             else:
-                full_payload[section] = values  # z. B. "temperatureProfile": 1
+                full_payload[section] = values  # z. B. "temperatureProfile": 1
 
         if not self.uuid:
-            await self.async_get_uuid()
+            await self._async_get_uuid_internal()
 
         await self._wait_for_rate_limit(is_write=True)
         url = f"{self.base_url}/system/{self.uuid}/thermalprofile"
@@ -404,7 +409,7 @@ class ComfoClimeAPI:
             aiohttp.ClientError: If the API request fails
         """
         if not self.uuid:
-            await self.async_get_uuid()
+            await self._async_get_uuid_internal()
 
         # Dynamically build payload; only include keys explicitly provided.
         payload: dict = {}
