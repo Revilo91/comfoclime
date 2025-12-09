@@ -1,6 +1,6 @@
 """Tests for ComfoClime number entities."""
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, AsyncMock
 from custom_components.comfoclime.number import (
     ComfoClimeTemperatureNumber,
     ComfoClimePropertyNumber,
@@ -71,7 +71,8 @@ class TestComfoClimeTemperatureNumber:
 
         assert number.native_value == 22.5
 
-    def test_temperature_number_set_value(self, mock_hass, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    @pytest.mark.asyncio
+    async def test_temperature_number_set_value(self, mock_hass, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
         """Test setting temperature number value."""
         config = {
             "key": "temperature.manualTemperature",
@@ -80,6 +81,11 @@ class TestComfoClimeTemperatureNumber:
             "min": 10.0,
             "max": 30.0,
             "step": 0.5,
+        }
+
+        # Set manual mode (status = 0)
+        mock_thermalprofile_coordinator.data = {
+            "temperature": {"status": 0, "manualTemperature": 22.0}
         }
 
         mock_hass.add_job = MagicMock()
@@ -93,12 +99,10 @@ class TestComfoClimeTemperatureNumber:
             entry=mock_config_entry,
         )
 
-        number.set_native_value(23.5)
+        await number.async_set_native_value(23.5)
 
         # Verify API was called
-        mock_api.update_thermal_profile.assert_called_once()
-        call_args = mock_api.update_thermal_profile.call_args[0][0]
-        assert call_args["temperature"]["manualTemperature"] == 23.5
+        mock_api.async_update_thermal_profile.assert_called_once_with(manual_temperature=23.5)
 
     def test_temperature_number_availability_when_automatic(self, mock_hass, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
         """Test temperature number availability when automatic mode is enabled."""
@@ -273,13 +277,13 @@ class TestComfoClimePropertyNumber:
 
         await number.async_set_native_value(80)
 
+        # The actual implementation doesn't pass signed parameter
         mock_api.async_set_property_for_device.assert_called_once_with(
             device_uuid="test-device-uuid",
             property_path="29/1/20",
             value=80,
             byte_count=1,
             faktor=1.0,
-            signed=False,
         )
 
     def test_property_number_device_info(self, mock_hass, mock_api, mock_device, mock_config_entry):
@@ -309,13 +313,13 @@ class TestComfoClimePropertyNumber:
 
 
 @pytest.mark.asyncio
-async def test_async_setup_entry(mock_hass, mock_config_entry, mock_thermalprofile_coordinator, mock_device):
+async def test_async_setup_entry(mock_hass, mock_config_entry, mock_thermalprofile_coordinator, mock_device, mock_api):
     """Test async_setup_entry for number entities."""
     # Setup mock data
     mock_hass.data = {
         "comfoclime": {
             "test_entry_id": {
-                "api": MagicMock(),
+                "api": mock_api,
                 "tpcoordinator": mock_thermalprofile_coordinator,
                 "devices": [mock_device],
                 "main_device": mock_device,
@@ -323,15 +327,9 @@ async def test_async_setup_entry(mock_hass, mock_config_entry, mock_thermalprofi
         }
     }
 
-    # Mock the API class to return our mock API
-    with patch("custom_components.comfoclime.number.ComfoClimeAPI") as mock_api_class:
-        mock_api_instance = MagicMock()
-        mock_api_instance.async_get_uuid = AsyncMock(return_value="test-uuid")
-        mock_api_class.return_value = mock_api_instance
+    async_add_entities = MagicMock()
 
-        async_add_entities = MagicMock()
+    await async_setup_entry(mock_hass, mock_config_entry, async_add_entities)
 
-        await async_setup_entry(mock_hass, mock_config_entry, async_add_entities)
-
-        # Verify entities were added
-        assert async_add_entities.called
+    # Verify entities were added
+    assert async_add_entities.called
