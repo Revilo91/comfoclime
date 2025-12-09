@@ -18,6 +18,46 @@ CACHE_TTL = 30.0  # Cache time-to-live in seconds
 
 
 class ComfoClimeAPI:
+    # Mapping von kwargs zu payload-Struktur (class-level constant)
+    FIELD_MAPPING = {
+        # season fields
+        "season_status": ("season", "status"),
+        "season_value": ("season", "season"),
+        "heating_threshold_temperature": ("season", "heatingThresholdTemperature"),
+        "cooling_threshold_temperature": ("season", "coolingThresholdTemperature"),
+        # temperature fields
+        "temperature_status": ("temperature", "status"),
+        "manual_temperature": ("temperature", "manualTemperature"),
+        # top-level fields
+        "temperature_profile": ("temperatureProfile", None),
+        # heating profile fields
+        "heating_comfort_temperature": (
+            "heatingThermalProfileSeasonData",
+            "comfortTemperature",
+        ),
+        "heating_knee_point_temperature": (
+            "heatingThermalProfileSeasonData",
+            "kneePointTemperature",
+        ),
+        "heating_reduction_delta_temperature": (
+            "heatingThermalProfileSeasonData",
+            "reductionDeltaTemperature",
+        ),
+        # cooling profile fields
+        "cooling_comfort_temperature": (
+            "coolingThermalProfileSeasonData",
+            "comfortTemperature",
+        ),
+        "cooling_knee_point_temperature": (
+            "coolingThermalProfileSeasonData",
+            "kneePointTemperature",
+        ),
+        "cooling_temperature_limit": (
+            "coolingThermalProfileSeasonData",
+            "temperatureLimit",
+        ),
+    }
+
     def __init__(self, base_url, hass=None):
         self.base_url = base_url.rstrip("/")
         self.hass = hass
@@ -431,45 +471,8 @@ class ComfoClimeAPI:
         if not self.uuid:
             await self._async_get_uuid_internal()
 
-        # Mapping von kwargs zu payload-Struktur
-        field_mapping = {
-            # season fields
-            "season_status": ("season", "status"),
-            "season_value": ("season", "season"),
-            "heating_threshold_temperature": ("season", "heatingThresholdTemperature"),
-            "cooling_threshold_temperature": ("season", "coolingThresholdTemperature"),
-            # temperature fields
-            "temperature_status": ("temperature", "status"),
-            "manual_temperature": ("temperature", "manualTemperature"),
-            # top-level fields
-            "temperature_profile": ("temperatureProfile", None),
-            # heating profile fields
-            "heating_comfort_temperature": (
-                "heatingThermalProfileSeasonData",
-                "comfortTemperature",
-            ),
-            "heating_knee_point_temperature": (
-                "heatingThermalProfileSeasonData",
-                "kneePointTemperature",
-            ),
-            "heating_reduction_delta_temperature": (
-                "heatingThermalProfileSeasonData",
-                "reductionDeltaTemperature",
-            ),
-            # cooling profile fields
-            "cooling_comfort_temperature": (
-                "coolingThermalProfileSeasonData",
-                "comfortTemperature",
-            ),
-            "cooling_knee_point_temperature": (
-                "coolingThermalProfileSeasonData",
-                "kneePointTemperature",
-            ),
-            "cooling_temperature_limit": (
-                "coolingThermalProfileSeasonData",
-                "temperatureLimit",
-            ),
-        }
+        # Use class-level FIELD_MAPPING
+        field_mapping = self.FIELD_MAPPING
 
         # Dynamically build payload
         payload: dict = {}
@@ -611,6 +614,8 @@ class ComfoClimeAPI:
         await self._wait_for_rate_limit(is_write=True)
 
         # Add timestamp to payload
+        if not self.hass:
+            raise ValueError("hass instance required for timestamp generation")
         tz = ZoneInfo(self.hass.config.time_zone)
         payload["timestamp"] = datetime.now(tz).isoformat()
 
@@ -652,40 +657,13 @@ class ComfoClimeAPI:
 
     async def _convert_dict_to_kwargs_and_update(self, updates: dict) -> bool:
         """Convert legacy dict-based updates to kwargs and call _update_thermal_profile."""
-        # Mapping von nested dict-Struktur zu kwargs
-        conversion_map = {
-            ("season", "status"): "season_status",
-            ("season", "season"): "season_value",
-            ("season", "heatingThresholdTemperature"): "heating_threshold_temperature",
-            ("season", "coolingThresholdTemperature"): "cooling_threshold_temperature",
-            ("temperature", "status"): "temperature_status",
-            ("temperature", "manualTemperature"): "manual_temperature",
-            ("temperatureProfile",): "temperature_profile",
-            (
-                "heatingThermalProfileSeasonData",
-                "comfortTemperature",
-            ): "heating_comfort_temperature",
-            (
-                "heatingThermalProfileSeasonData",
-                "kneePointTemperature",
-            ): "heating_knee_point_temperature",
-            (
-                "heatingThermalProfileSeasonData",
-                "reductionDeltaTemperature",
-            ): "heating_reduction_delta_temperature",
-            (
-                "coolingThermalProfileSeasonData",
-                "comfortTemperature",
-            ): "cooling_comfort_temperature",
-            (
-                "coolingThermalProfileSeasonData",
-                "kneePointTemperature",
-            ): "cooling_knee_point_temperature",
-            (
-                "coolingThermalProfileSeasonData",
-                "temperatureLimit",
-            ): "cooling_temperature_limit",
-        }
+        # Build conversion_map from class-level FIELD_MAPPING
+        conversion_map = {}
+        for k, v in self.FIELD_MAPPING.items():
+            if v[1] is None:
+                conversion_map[(v[0],)] = k
+            else:
+                conversion_map[(v[0], v[1])] = k
 
         kwargs = {}
 
