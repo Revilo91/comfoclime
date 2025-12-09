@@ -238,6 +238,7 @@ class ComfoClimePropertyNumber(NumberEntity):
         self._attr_native_unit_of_measurement = config.get("unit")
         self._faktor = config.get("faktor", 1.0)
         self._byte_count = config.get("byte_count", 2)
+        self._signed = config.get("signed", True)  # Default to signed values
 
         _LOGGER.debug(
             f"ComfoClimePropertyNumber initialized: path={self._property_path}, "
