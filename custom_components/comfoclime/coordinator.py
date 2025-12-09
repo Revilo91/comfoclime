@@ -17,7 +17,7 @@ class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self):
         try:
-            return await self.api.async_get_dashboard_data(self.hass)
+            return await self.api.async_get_dashboard_data()
         except Exception as e:
             _LOGGER.warning(f"Fehler beim Abrufen der Dashboard-Daten: {e}")
             raise UpdateFailed(f"Fehler beim Abrufen der Dashboard-Daten: {e}")
@@ -35,6 +35,6 @@ class ComfoClimeThermalprofileCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self):
         try:
-            return await self.api.async_get_thermal_profile(self.hass)
+            return await self.api.async_get_thermal_profile()
         except Exception as e:
             raise UpdateFailed(f"Fehler beim Abrufen der Thermalprofile-Daten: {e}")
