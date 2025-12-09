@@ -607,7 +607,7 @@ class ComfoClimeClimate(
                 )
 
                 # Schedule non-blocking refresh of coordinators
-                self._async_refresh_coordinators()
+                await self._async_refresh_coordinators()
                 return
 
         except Exception:
