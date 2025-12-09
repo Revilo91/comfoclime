@@ -9,7 +9,7 @@ import aiohttp
 _LOGGER = logging.getLogger(__name__)
 
 # Rate limiting configuration
-MIN_REQUEST_INTERVAL = 0.5  # Minimum seconds between any requests
+MIN_REQUEST_INTERVAL = 0.1  # Minimum seconds between any requests (reduced for better throughput)
 WRITE_COOLDOWN = 2.0  # Seconds to wait after a write operation before allowing reads
 REQUEST_DEBOUNCE = 0.3  # Debounce time for rapid successive requests
 

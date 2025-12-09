@@ -16,7 +16,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
-from .comfoclime_api import ComfoClimeAPI
 from .coordinator import (
     ComfoClimeDashboardCoordinator,
     ComfoClimeThermalprofileCoordinator,
@@ -284,6 +283,7 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
 
 
 class ComfoClimeTelemetrySensor(SensorEntity):
+    """Sensor for telemetry data with optimized update throttling."""
     def __init__(
         self,
         hass,
@@ -324,6 +324,8 @@ class ComfoClimeTelemetrySensor(SensorEntity):
         else:
             self._attr_translation_key = translation_key
         self._attr_has_entity_name = True
+        # Throttle to 60 seconds to avoid excessive API calls
+        self._last_update = None
 
     @property
     def state(self):
@@ -343,6 +345,13 @@ class ComfoClimeTelemetrySensor(SensorEntity):
         )
 
     async def async_update(self):
+        """Update with throttling to prevent excessive API calls."""
+        current_time = asyncio.get_event_loop().time()
+
+        # Only update once per 60 seconds per sensor
+        if self._last_update is not None and (current_time - self._last_update) < 60:
+            return
+
         try:
             self._state = await self._api.async_read_telemetry_for_device(
                 device_uuid=self._override_uuid or self._api.uuid,
@@ -351,9 +360,9 @@ class ComfoClimeTelemetrySensor(SensorEntity):
                 signed=self._signed,
                 byte_count=self._byte_count,
             )
-        except Exception as e:
-            _LOGGER.error(f"Fehler beim Aktualisieren von Telemetrie {self._id}: {e}")
-            self._state = None
+            self._last_update = current_time
+        except Exception:
+            _LOGGER.exception("Fehler beim Aktualisieren von Telemetrie %s", self._id)
 
 
 class ComfoClimePropertySensor(SensorEntity):
@@ -399,6 +408,8 @@ class ComfoClimePropertySensor(SensorEntity):
         else:
             self._attr_translation_key = translation_key
         self._attr_has_entity_name = True
+        # Throttle to 60 seconds to avoid excessive API calls
+        self._last_update = None
 
     @property
     def native_value(self):
@@ -417,6 +428,13 @@ class ComfoClimePropertySensor(SensorEntity):
         )
 
     async def async_update(self):
+        """Update with throttling to prevent excessive API calls."""
+        current_time = asyncio.get_event_loop().time()
+
+        # Only update once per 60 seconds per sensor
+        if self._last_update is not None and (current_time - self._last_update) < 60:
+            return
+
         try:
             value = await asyncio.wait_for(
                 self._api.async_read_property_for_device(
@@ -432,9 +450,10 @@ class ComfoClimePropertySensor(SensorEntity):
                 self._state = VALUE_MAPPINGS[self._mapping_key].get(value, value)
             else:
                 self._state = value
+            self._last_update = current_time
         except asyncio.TimeoutError:
-            _LOGGER.debug(f"Timeout beim Abrufen von Property {self._path}")
+            _LOGGER.debug("Timeout beim Abrufen von Property %s", self._path)
             self._state = None
-        except Exception as e:
-            _LOGGER.debug(f"Fehler beim Abrufen von Property {self._path}: {e}")
+        except Exception:
+            _LOGGER.debug("Fehler beim Abrufen von Property %s", self._path, exc_info=True)
             self._state = None
