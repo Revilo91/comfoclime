@@ -8,9 +8,10 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
-from .comfoclime_api import ComfoClimeAPI
-from .coordinator import ComfoClimeThermalprofileCoordinator
-from .coordinator import ComfoClimeDashboardCoordinator
+from .coordinator import (
+    ComfoClimeDashboardCoordinator,
+    ComfoClimeThermalprofileCoordinator,
+)
 from .entities.switch_definitions import SWITCHES
 
 _LOGGER = logging.getLogger(__name__)
@@ -23,7 +24,6 @@ async def async_setup_entry(
     api = data["api"]
     tpcoordinator = data["tpcoordinator"]
     dbcoordinator = data["coordinator"]
-    devices = data["devices"]
     main_device = data["main_device"]
 
     switches = []

@@ -8,7 +8,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
-from .comfoclime_api import ComfoClimeAPI
 from .coordinator import ComfoClimeDashboardCoordinator
 
 _LOGGER = logging.getLogger(__name__)

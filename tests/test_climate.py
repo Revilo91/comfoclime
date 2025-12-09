@@ -1,18 +1,16 @@
 """Tests for ComfoClime climate entity."""
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
 from homeassistant.components.climate import (
-    HVACMode,
-    HVACAction,
-    PRESET_COMFORT,
-    PRESET_ECO,
-    PRESET_BOOST,
-    PRESET_NONE,
-    FAN_LOW,
-    FAN_MEDIUM,
     FAN_HIGH,
-    FAN_OFF,
+    FAN_MEDIUM,
+    PRESET_COMFORT,
+    PRESET_NONE,
+    HVACAction,
+    HVACMode,
 )
+
 from custom_components.comfoclime.climate import (
     ComfoClimeClimate,
     async_setup_entry,

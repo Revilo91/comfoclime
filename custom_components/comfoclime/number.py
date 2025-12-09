@@ -9,7 +9,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
-from .comfoclime_api import ComfoClimeAPI
 from .coordinator import ComfoClimeThermalprofileCoordinator
 from .entities.number_definitions import (
     CONNECTED_DEVICE_NUMBER_PROPERTIES,
@@ -159,7 +158,7 @@ class ComfoClimeTemperatureNumber(
                 automatic_temperature_status = coordinator_data.get("temperature", {}).get("status")
 
                 if automatic_temperature_status == 1:
-                    _LOGGER.warning(f"Cannot set manual temperature: automatic comfort temperature is enabled")
+                    _LOGGER.warning("Cannot set manual temperature: automatic comfort temperature is enabled")
                     # Don't proceed with setting the temperature
                     return
             except Exception as e:

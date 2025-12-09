@@ -7,8 +7,10 @@ from unittest.mock import AsyncMock, MagicMock
 # Add the project to path
 sys.path.insert(0, "/home/olivers/Dokumente/comfoclime")
 
-from custom_components.comfoclime.comfoclime_api import ComfoClimeAPI, CACHE_TTL
-from custom_components.comfoclime.sensor import ComfoClimeTelemetrySensor, ComfoClimePropertySensor
+from custom_components.comfoclime.comfoclime_api import ComfoClimeAPI
+from custom_components.comfoclime.sensor import (
+    ComfoClimeTelemetrySensor,
+)
 
 
 def test_cache_initialization():

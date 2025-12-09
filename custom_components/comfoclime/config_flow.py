@@ -1,8 +1,5 @@
-import asyncio
-
 import aiohttp
 import voluptuous as vol
-
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 
 DOMAIN = "comfoclime"
@@ -30,8 +27,7 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
                                 title=f"ComfoClime @ {host}",
                                 data={"host": host},
                             )
-                        else:
-                            errors["host"] = "no_uuid"
+                        errors["host"] = "no_uuid"
                     else:
                         errors["host"] = "no_response"
             except (TimeoutError, aiohttp.ClientError):
