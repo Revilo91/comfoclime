@@ -271,9 +271,8 @@ class ComfoClimePropertyNumber(NumberEntity):
         )
         try:
             value = await self._api.async_read_property_for_device(
-                self._hass,
-                self._device["uuid"],
-                self._property_path,
+                device_uuid=self._device["uuid"],
+                property_path=self._property_path,
                 faktor=self._faktor,
                 signed=self._signed,
                 byte_count=self._byte_count,
