@@ -165,13 +165,35 @@ class ComfoClimeTemperatureNumber(
                 _LOGGER.warning(f"Could not check automatic temperature status: {e}")
                 # Proceed anyway if we can't determine the status
 
-        section = self._key_path[0]
-        key = self._key_path[1]
+        # Mapping aller NUMBER_ENTITIES Keys zu thermal_profile Parametern
+        # Basierend auf dem thermalprofile JSON Schema
+        param_mapping = {
+            # season nested fields
+            "season.season": "season_value",
+            "season.status": "season_status",
+            "season.heatingThresholdTemperature": "heating_threshold_temperature",
+            "season.coolingThresholdTemperature": "cooling_threshold_temperature",
+            # temperature nested fields
+            "temperature.status": "temperature_status",
+            "temperature.manualTemperature": "manual_temperature",
+            # heating profile fields
+            "heatingThermalProfileSeasonData.comfortTemperature": "heating_comfort_temperature",
+            "heatingThermalProfileSeasonData.kneePointTemperature": "heating_knee_point_temperature",
+            "heatingThermalProfileSeasonData.reductionDeltaTemperature": "heating_reduction_delta_temperature",
+            # cooling profile fields
+            "coolingThermalProfileSeasonData.comfortTemperature": "cooling_comfort_temperature",
+            "coolingThermalProfileSeasonData.kneePointTemperature": "cooling_knee_point_temperature",
+            "coolingThermalProfileSeasonData.temperatureLimit": "cooling_temperature_limit",
+        }
 
-        update = {section: {key: value}}
+        key_str = ".".join(self._key_path)
+        if key_str not in param_mapping:
+            _LOGGER.warning(f"Unbekannter number key: {key_str}")
+            return
 
+        param_name = param_mapping[key_str]
         try:
-            await self._api.async_update_thermal_profile(update)
+            await self._api.async_update_thermal_profile(**{param_name: value})
             self._value = value
             await self.coordinator.async_request_refresh()
         except Exception:

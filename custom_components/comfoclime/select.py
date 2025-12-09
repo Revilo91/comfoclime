@@ -120,14 +120,31 @@ class ComfoClimeSelect(
             return
 
         try:
-            if self._key == "temperatureProfile":
-                # Use modern API method for temperature profile (preset mode)
-                await self._api.async_update_dashboard(temperature_profile=value)
-            else:
-                section = self._key_path[0]
-                key = self._key_path[1]
-                updates = {section: {key: value}}
-                await self._api.async_update_thermal_profile(updates)
+            _LOGGER.debug(
+                f"Setting {self._name}: {option} (value={value})"
+            )
+
+            # Mapping aller SELECT_ENTITIES Keys zu thermal_profile Parametern
+            # Basierend auf dem thermalprofile JSON Schema
+            param_mapping = {
+                # Top-level fields
+                "temperatureProfile": "temperature_profile",
+                # season nested fields
+                "season.season": "season_value",
+                "season.status": "season_status",
+                "season.heatingThresholdTemperature": "heating_threshold_temperature",
+                "season.coolingThresholdTemperature": "cooling_threshold_temperature",
+                # temperature nested fields
+                "temperature.status": "temperature_status",
+                "temperature.manualTemperature": "manual_temperature",
+            }
+
+            if self._key not in param_mapping:
+                _LOGGER.warning(f"Unbekannter select key: {self._key}")
+                return
+
+            param_name = param_mapping[self._key]
+            await self._api.async_update_thermal_profile(**{param_name: value})
 
             self._current = option
             await self.coordinator.async_request_refresh()
@@ -180,9 +197,9 @@ class ComfoClimePropertySelect(SelectEntity):
                 self._api.async_read_property_for_device(
                     device_uuid=self._device["uuid"],
                     property_path=self._path,
-                    byte_count=1
+                    byte_count=1,
                 ),
-                timeout=5.0
+                timeout=5.0,
             )
             self._current = self._options_map.get(val)
         except asyncio.TimeoutError:

@@ -9,7 +9,9 @@ import aiohttp
 _LOGGER = logging.getLogger(__name__)
 
 # Rate limiting configuration
-MIN_REQUEST_INTERVAL = 0.1  # Minimum seconds between any requests (reduced for better throughput)
+MIN_REQUEST_INTERVAL = (
+    0.1  # Minimum seconds between any requests (reduced for better throughput)
+)
 WRITE_COOLDOWN = 2.0  # Seconds to wait after a write operation before allowing reads
 REQUEST_DEBOUNCE = 0.3  # Debounce time for rapid successive requests
 CACHE_TTL = 30.0  # Cache time-to-live in seconds
@@ -60,22 +62,19 @@ class ComfoClimeAPI:
         """Invalidate all cache entries for a specific device."""
         # Remove telemetry cache entries for this device
         keys_to_remove = [
-            k for k in self._telemetry_cache.keys()
-            if k.startswith(f"{device_uuid}:")
+            k for k in self._telemetry_cache.keys() if k.startswith(f"{device_uuid}:")
         ]
         for k in keys_to_remove:
             del self._telemetry_cache[k]
 
         # Remove property cache entries for this device
         keys_to_remove = [
-            k for k in self._property_cache.keys()
-            if k.startswith(f"{device_uuid}:")
+            k for k in self._property_cache.keys() if k.startswith(f"{device_uuid}:")
         ]
         for k in keys_to_remove:
             del self._property_cache[k]
 
         _LOGGER.debug(f"Invalidated all cache entries for device {device_uuid}")
-
 
     async def _wait_for_rate_limit(self, is_write: bool = False):
         """Wait if necessary to respect rate limits.
@@ -413,52 +412,104 @@ class ComfoClimeAPI:
                 _LOGGER.warning(f"Fehler beim Abrufen von thermal_profile: {e}")
                 return {}  # leer zurückgeben statt crashen
 
-    async def _update_thermal_profile(self, updates: dict):
+    async def _update_thermal_profile(self, **kwargs) -> bool:
+        """Update thermal profile settings via API.
+
+        Modern method for thermal profile updates. Only fields that are provided
+        will be included in the update payload.
+
+        Supported kwargs:
+            - season_status, season_value, heating_threshold_temperature, cooling_threshold_temperature
+            - temperature_status, manual_temperature
+            - temperature_profile
+            - heating_comfort_temperature, heating_knee_point_temperature, heating_reduction_delta_temperature
+            - cooling_comfort_temperature, cooling_knee_point_temperature, cooling_temperature_limit
+
+        Returns:
+            True if update was successful, False otherwise
         """
-        updates: dict mit Teilwerten, z. B. {"heatingThermalProfileSeasonData": {"comfortTemperature": 20.0}}
-
-        Diese Methode füllt alle anderen Felder mit None (null), wie von der API gefordert.
-        """
-        full_payload = {
-            "season": {
-                "status": None,
-                "season": None,
-                "heatingThresholdTemperature": None,
-                "coolingThresholdTemperature": None,
-            },
-            "temperature": {
-                "status": None,
-                "manualTemperature": None,
-            },
-            "temperatureProfile": None,
-            "heatingThermalProfileSeasonData": {
-                "comfortTemperature": None,
-                "kneePointTemperature": None,
-                "reductionDeltaTemperature": None,
-            },
-            "coolingThermalProfileSeasonData": {
-                "comfortTemperature": None,
-                "kneePointTemperature": None,
-                "temperatureLimit": None,
-            },
-        }
-
-        # Deep-Update: überschreibe gezielt Felder im Payload
-        for section, values in updates.items():
-            if section in full_payload and isinstance(values, dict):
-                full_payload[section].update(values)
-            else:
-                full_payload[section] = values  # z. B. "temperatureProfile": 1
-
         if not self.uuid:
             await self._async_get_uuid_internal()
 
+        # Mapping von kwargs zu payload-Struktur
+        field_mapping = {
+            # season fields
+            "season_status": ("season", "status"),
+            "season_value": ("season", "season"),
+            "heating_threshold_temperature": ("season", "heatingThresholdTemperature"),
+            "cooling_threshold_temperature": ("season", "coolingThresholdTemperature"),
+            # temperature fields
+            "temperature_status": ("temperature", "status"),
+            "manual_temperature": ("temperature", "manualTemperature"),
+            # top-level fields
+            "temperature_profile": ("temperatureProfile", None),
+            # heating profile fields
+            "heating_comfort_temperature": (
+                "heatingThermalProfileSeasonData",
+                "comfortTemperature",
+            ),
+            "heating_knee_point_temperature": (
+                "heatingThermalProfileSeasonData",
+                "kneePointTemperature",
+            ),
+            "heating_reduction_delta_temperature": (
+                "heatingThermalProfileSeasonData",
+                "reductionDeltaTemperature",
+            ),
+            # cooling profile fields
+            "cooling_comfort_temperature": (
+                "coolingThermalProfileSeasonData",
+                "comfortTemperature",
+            ),
+            "cooling_knee_point_temperature": (
+                "coolingThermalProfileSeasonData",
+                "kneePointTemperature",
+            ),
+            "cooling_temperature_limit": (
+                "coolingThermalProfileSeasonData",
+                "temperatureLimit",
+            ),
+        }
+
+        # Dynamically build payload
+        payload: dict = {}
+
+        for param_name, value in kwargs.items():
+            if value is None or param_name not in field_mapping:
+                continue
+
+            section, key = field_mapping[param_name]
+
+            if key is None:
+                # Top-level field
+                payload[section] = value
+            else:
+                # Nested field
+                if section not in payload:
+                    payload[section] = {}
+                payload[section][key] = value
+
+        if not payload:
+            _LOGGER.debug(
+                "No thermal profile fields to update (empty payload) - skipping PUT"
+            )
+            return True
+
         await self._wait_for_rate_limit(is_write=True)
+
         url = f"{self.base_url}/system/{self.uuid}/thermalprofile"
-        session = await self._get_session()
-        async with session.put(url, json=full_payload) as response:
-            response.raise_for_status()
-            return response.status == 200
+        try:
+            session = await self._get_session()
+            _LOGGER.debug(f"Sende Thermal Profile Update: {payload}")
+            async with session.put(url, json=payload) as response:
+                response.raise_for_status()
+                _LOGGER.debug(
+                    f"Thermal Profile Update erfolgreich, Status: {response.status}"
+                )
+                return response.status == 200
+        except Exception:
+            _LOGGER.exception(f"Error updating thermal profile (payload={payload})")
+            raise
 
     async def _update_dashboard(
         self,
@@ -586,10 +637,72 @@ class ComfoClimeAPI:
         async with self._request_lock:
             return await self._update_dashboard(**kwargs)
 
-    async def async_update_thermal_profile(self, updates: dict):
-        """Async wrapper for update_thermal_profile method."""
+    async def async_update_thermal_profile(self, updates: dict | None = None, **kwargs):
+        """Async wrapper for update_thermal_profile method.
+
+        Supports two calling styles:
+        1. Legacy dict-based: async_update_thermal_profile({"season": {"season": 1}})
+        2. Modern kwargs-based: async_update_thermal_profile(season_value=1)
+        """
         async with self._request_lock:
-            return await self._update_thermal_profile(updates)
+            # If updates dict is provided, convert it to kwargs
+            if updates is not None:
+                return await self._convert_dict_to_kwargs_and_update(updates)
+            return await self._update_thermal_profile(**kwargs)
+
+    async def _convert_dict_to_kwargs_and_update(self, updates: dict) -> bool:
+        """Convert legacy dict-based updates to kwargs and call _update_thermal_profile."""
+        # Mapping von nested dict-Struktur zu kwargs
+        conversion_map = {
+            ("season", "status"): "season_status",
+            ("season", "season"): "season_value",
+            ("season", "heatingThresholdTemperature"): "heating_threshold_temperature",
+            ("season", "coolingThresholdTemperature"): "cooling_threshold_temperature",
+            ("temperature", "status"): "temperature_status",
+            ("temperature", "manualTemperature"): "manual_temperature",
+            ("temperatureProfile",): "temperature_profile",
+            (
+                "heatingThermalProfileSeasonData",
+                "comfortTemperature",
+            ): "heating_comfort_temperature",
+            (
+                "heatingThermalProfileSeasonData",
+                "kneePointTemperature",
+            ): "heating_knee_point_temperature",
+            (
+                "heatingThermalProfileSeasonData",
+                "reductionDeltaTemperature",
+            ): "heating_reduction_delta_temperature",
+            (
+                "coolingThermalProfileSeasonData",
+                "comfortTemperature",
+            ): "cooling_comfort_temperature",
+            (
+                "coolingThermalProfileSeasonData",
+                "kneePointTemperature",
+            ): "cooling_knee_point_temperature",
+            (
+                "coolingThermalProfileSeasonData",
+                "temperatureLimit",
+            ): "cooling_temperature_limit",
+        }
+
+        kwargs = {}
+
+        # Process nested dictionaries
+        for section, value in updates.items():
+            if isinstance(value, dict):
+                for key, field_value in value.items():
+                    mapping_key = (section, key)
+                    if mapping_key in conversion_map:
+                        kwargs[conversion_map[mapping_key]] = field_value
+            else:
+                # Top-level field
+                mapping_key = (section,)
+                if mapping_key in conversion_map:
+                    kwargs[conversion_map[mapping_key]] = value
+
+        return await self._update_thermal_profile(**kwargs)
 
     async def async_set_hvac_season(self, season: int, hp_standby: bool = False):
         """Set HVAC season and standby state in a single atomic operation.
@@ -606,7 +719,7 @@ class ComfoClimeAPI:
             await self._update_dashboard(hp_standby=hp_standby)
             # Then update thermal profile to set season
             if not hp_standby:  # Only set season if device is active
-                await self._update_thermal_profile({"season": {"season": season}})
+                await self._update_thermal_profile(season_value=season)
 
     async def async_set_property_for_device(
         self,
