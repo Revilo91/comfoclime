@@ -49,7 +49,7 @@ class TestComfoClimeSensor:
             device=mock_device,
             entry=mock_config_entry,
         )
-        
+
         # Set hass attribute and mock async_write_ha_state
         sensor.hass = mock_hass
         sensor.async_write_ha_state = MagicMock()
@@ -62,7 +62,7 @@ class TestComfoClimeSensor:
     def test_sensor_value_mapping(self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry):
         """Test sensor value mapping for temperatureProfile."""
         mock_coordinator.data = {"temperatureProfile": 0}
-        
+
         sensor = ComfoClimeSensor(
             hass=mock_hass,
             coordinator=mock_coordinator,
@@ -157,7 +157,7 @@ class TestComfoClimeTelemetrySensor:
     async def test_telemetry_sensor_update_with_override_uuid(self, mock_hass, mock_api, mock_device, mock_config_entry):
         """Test telemetry sensor update with override UUID."""
         override_uuid = "override-uuid-123"
-        
+
         sensor = ComfoClimeTelemetrySensor(
             hass=mock_hass,
             api=mock_api,
@@ -174,7 +174,7 @@ class TestComfoClimeTelemetrySensor:
 
         # Should use override_uuid instead of api.uuid
         call_args = mock_api.async_read_telemetry_for_device.call_args
-        assert call_args[0][1] == override_uuid
+        assert call_args.kwargs['device_uuid'] == override_uuid
 
 
 class TestComfoClimePropertySensor:
@@ -248,7 +248,7 @@ class TestComfoClimePropertySensor:
 
 
 @pytest.mark.asyncio
-async def test_async_setup_entry(mock_hass, mock_config_entry, mock_coordinator, mock_device):
+async def test_async_setup_entry(mock_hass, mock_config_entry, mock_coordinator, mock_thermalprofile_coordinator, mock_device):
     """Test async_setup_entry for sensors."""
     # Setup mock data
     mock_hass.data = {
@@ -256,6 +256,7 @@ async def test_async_setup_entry(mock_hass, mock_config_entry, mock_coordinator,
             "test_entry_id": {
                 "api": MagicMock(),
                 "coordinator": mock_coordinator,
+                "tpcoordinator": mock_thermalprofile_coordinator,
                 "devices": [mock_device],
                 "main_device": mock_device,
             }

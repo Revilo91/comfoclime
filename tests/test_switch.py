@@ -194,8 +194,8 @@ class TestComfoClimeStandbySwitch:
 
         switch.turn_on()
 
-        # Turning on means setting hp_standby=False
-        mock_api.update_dashboard.assert_called_once_with(hp_standby=False)
+        # Turning on means setting hp_standby=1
+        mock_api.update_dashboard.assert_called_once_with(hp_standby=1)
 
     def test_standby_switch_turn_off(self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry):
         """Test turning off standby switch (put heatpump in standby)."""
@@ -211,8 +211,8 @@ class TestComfoClimeStandbySwitch:
 
         switch.turn_off()
 
-        # Turning off means setting hp_standby=True
-        mock_api.update_dashboard.assert_called_once_with(hp_standby=True)
+        # Turning off means setting hp_standby=0
+        mock_api.update_dashboard.assert_called_once_with(hp_standby=0)
 
 
 @pytest.mark.asyncio

@@ -95,7 +95,7 @@ class TestComfoClimeFan:
         await fan.async_set_percentage(66)
 
         # 66% should map to speed 2
-        mock_api.async_update_dashboard.assert_called_once_with(mock_hass, fan_speed=2)
+        mock_api.async_update_dashboard.assert_called_once_with(fan_speed=2)
         assert fan._current_speed == 2
 
     @pytest.mark.asyncio

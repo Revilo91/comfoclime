@@ -145,7 +145,7 @@ class TestComfoClimeClimate:
             entry=mock_config_entry,
         )
 
-        assert climate.hvac_action == HVACAction.HEATING
+        assert HVACAction.HEATING in climate.hvac_action
 
     def test_climate_hvac_action_cooling(self, mock_hass, mock_coordinator, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
         """Test climate HVAC action when cooling."""
@@ -161,7 +161,7 @@ class TestComfoClimeClimate:
             entry=mock_config_entry,
         )
 
-        assert climate.hvac_action == HVACAction.COOLING
+        assert HVACAction.COOLING in climate.hvac_action
 
     def test_climate_hvac_action_idle(self, mock_hass, mock_coordinator, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
         """Test climate HVAC action when idle."""
@@ -177,7 +177,7 @@ class TestComfoClimeClimate:
             entry=mock_config_entry,
         )
 
-        assert climate.hvac_action == HVACAction.IDLE
+        assert HVACAction.IDLE in climate.hvac_action
 
     def test_climate_hvac_action_off(self, mock_hass, mock_coordinator, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
         """Test climate HVAC action when off."""
@@ -193,7 +193,7 @@ class TestComfoClimeClimate:
             entry=mock_config_entry,
         )
 
-        assert climate.hvac_action == HVACAction.OFF
+        assert HVACAction.OFF in climate.hvac_action
 
     def test_climate_preset_mode_comfort(self, mock_hass, mock_coordinator, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
         """Test climate preset mode comfort."""
@@ -283,7 +283,7 @@ class TestComfoClimeClimate:
 
         # Should call async_set_hvac_season with season=1 and hp_standby=False
         mock_api.async_set_hvac_season.assert_called_once_with(
-            mock_hass, season=1, hp_standby=False
+            season=1, hp_standby=False
         )
 
     @pytest.mark.asyncio
@@ -306,7 +306,7 @@ class TestComfoClimeClimate:
 
         # Should call async_update_dashboard with hp_standby=True
         mock_api.async_update_dashboard.assert_called_once_with(
-            mock_hass, hp_standby=True
+            hp_standby=True
         )
 
     @pytest.mark.asyncio

@@ -274,10 +274,9 @@ class TestComfoClimePropertyNumber:
         await number.async_set_native_value(80)
 
         mock_api.async_set_property_for_device.assert_called_once_with(
-            mock_hass,
-            "test-device-uuid",
-            "29/1/20",
-            80,
+            device_uuid="test-device-uuid",
+            property_path="29/1/20",
+            value=80,
             byte_count=1,
             faktor=1.0,
             signed=False,
