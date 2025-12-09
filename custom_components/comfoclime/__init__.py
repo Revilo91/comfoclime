@@ -1,10 +1,10 @@
 import logging
 
+import homeassistant.helpers.device_registry as dr
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
-import homeassistant.helpers.device_registry as dr
 
 from .comfoclime_api import ComfoClimeAPI
 from .coordinator import (
