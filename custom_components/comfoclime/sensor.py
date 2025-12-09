@@ -6,7 +6,15 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import (
+    EntityCategory,
+)
 from homeassistant.const import (
     EntityCategory,
 )
@@ -25,6 +33,7 @@ from .entities.sensor_definitions import (
     CONNECTED_DEVICE_SENSORS,
     DASHBOARD_SENSORS,
     TELEMETRY_SENSORS,
+    THERMALPROFILE_SENSORS,
     THERMALPROFILE_SENSORS,
 )
 
@@ -68,10 +77,31 @@ async def async_setup_entry(
             device_class=sensor_def.get("device_class"),
             state_class=sensor_def.get("state_class"),
             entity_category=sensor_def.get("entity_category"),
+            entity_category=sensor_def.get("entity_category"),
             device=main_device,
             entry=entry,
         )
         for sensor_def in DASHBOARD_SENSORS
+    ]
+    sensors.extend(sensor_list)
+    # ThermalProfile-Sensoren
+    tp_coordinator = data["tpcoordinator"]
+    sensor_list = [
+        ComfoClimeSensor(
+            hass=hass,
+            coordinator=tp_coordinator,
+            api=api,
+            sensor_type=sensor_def["key"],
+            name=sensor_def["name"],
+            translation_key=sensor_def["translation_key"],
+            unit=sensor_def.get("unit"),
+            device_class=sensor_def.get("device_class"),
+            state_class=sensor_def.get("state_class"),
+            entity_category=sensor_def.get("entity_category"),
+            device=main_device,
+            entry=entry,
+        )
+        for sensor_def in THERMALPROFILE_SENSORS
     ]
     sensors.extend(sensor_list)
     # ThermalProfile-Sensoren
@@ -105,10 +135,10 @@ async def async_setup_entry(
             translation_key=sensor_def.get("translation_key", False),
             unit=sensor_def.get("unit"),
             faktor=sensor_def.get("faktor", 1.0),
-            signed=sensor_def.get("signed", True),
             byte_count=sensor_def.get("byte_count"),
             device_class=sensor_def.get("device_class"),
             state_class=sensor_def.get("state_class"),
+            entity_category=sensor_def.get("entity_category"),
             entity_category=sensor_def.get("entity_category"),
             entry=entry,
         )
@@ -146,7 +176,6 @@ async def async_setup_entry(
                             translation_key=sensor_def.get("translation_key", False),
                             unit=sensor_def.get("unit"),
                             faktor=sensor_def.get("faktor", 1.0),
-                            signed=sensor_def.get("signed", True),
                             byte_count=sensor_def.get("byte_count"),
                             device_class=sensor_def.get("device_class"),
                             device=device,
@@ -170,9 +199,11 @@ async def async_setup_entry(
                 translation_key=prop_def.get("translation_key", False),
                 unit=prop_def.get("unit"),
                 faktor=prop_def.get("faktor", 1.0),
-                signed=prop_def.get("signed", True),
                 byte_count=prop_def.get("byte_count"),
                 mapping_key=prop_def.get("mapping_key", ""),
+                device_class=prop_def.get("device_class"),
+                state_class=prop_def.get("state_class"),
+                entity_category=prop_def.get("entity_category"),
                 device_class=prop_def.get("device_class"),
                 state_class=prop_def.get("state_class"),
                 entity_category=prop_def.get("entity_category"),
@@ -198,6 +229,7 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
         device_class=None,
         state_class=None,
         entity_category=None,
+        entity_category=None,
         device=None,
         entry=None,
     ):
@@ -210,11 +242,16 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
         self._raw_state = None
         self._raw_value = None
         self._attr_native_unit_of_measurement = unit
-        self._attr_device_class = device_class
-        self._attr_state_class = state_class
+        self._attr_device_class = SensorDeviceClass(device_class) if device_class else None
+        self._attr_state_class = SensorStateClass(state_class) if state_class else None
+        self._attr_entity_category = EntityCategory(entity_category) if entity_category else None
         self._device = device
         self._entry = entry
         self._attr_config_entry_id = entry.entry_id
+        # Determine if this is a thermal profile sensor based on coordinator type
+        is_thermal_profile = isinstance(coordinator, ComfoClimeThermalprofileCoordinator)
+        prefix = "thermalprofile" if is_thermal_profile else "dashboard"
+        self._attr_unique_id = f"{entry.entry_id}_{prefix}_{sensor_type.replace('.', '_')}"
         # Determine if this is a thermal profile sensor based on coordinator type
         is_thermal_profile = isinstance(coordinator, ComfoClimeThermalprofileCoordinator)
         prefix = "thermalprofile" if is_thermal_profile else "dashboard"
@@ -265,6 +302,18 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
                         break
             else:
                 raw_value = data.get(self._type)
+            # Handle nested keys (e.g., "season.status" or "heatingThermalProfileSeasonData.comfortTemperature")
+            if "." in self._type:
+                keys = self._type.split(".")
+                raw_value = data
+                for key in keys:
+                    if isinstance(raw_value, dict) and key in raw_value:
+                        raw_value = raw_value[key]
+                    else:
+                        raw_value = None
+                        break
+            else:
+                raw_value = data.get(self._type)
 
             # raw_value wurde ermittelt
             self._raw_value = raw_value
@@ -293,10 +342,11 @@ class ComfoClimeTelemetrySensor(SensorEntity):
         translation_key,
         unit,
         faktor=1.0,
-        signed=True,
         byte_count=None,
         device_class=None,
         state_class=None,
+        entity_category=None,
+        device=None,
         entity_category=None,
         device=None,
         override_device_uuid=None,
@@ -307,10 +357,12 @@ class ComfoClimeTelemetrySensor(SensorEntity):
         self._id = telemetry_id
         self._name = name
         self._faktor = faktor
-        self._signed = signed
         self._byte_count = byte_count
         self._state = None
         self._attr_native_unit_of_measurement = unit
+        self._attr_device_class = SensorDeviceClass(device_class) if device_class else None
+        self._attr_state_class = SensorStateClass(state_class) if state_class else None
+        self._attr_entity_category = EntityCategory(entity_category) if entity_category else None
         self._attr_device_class = SensorDeviceClass(device_class) if device_class else None
         self._attr_state_class = SensorStateClass(state_class) if state_class else None
         self._attr_entity_category = EntityCategory(entity_category) if entity_category else None
@@ -367,10 +419,10 @@ class ComfoClimePropertySensor(SensorEntity):
         *,
         unit: str | None = None,
         faktor: float = 1.0,
-        signed: bool = True,
         byte_count: int | None = None,
         device_class: str | None = None,
         state_class: str | None = None,
+        entity_category: str | None = None,
         entity_category: str | None = None,
         mapping_key: str | None = None,
         device: dict | None = None,
@@ -382,9 +434,11 @@ class ComfoClimePropertySensor(SensorEntity):
         self._path = path
         self._name = name
         self._faktor = faktor
-        self._signed = signed
         self._byte_count = byte_count
         self._attr_native_unit_of_measurement = unit
+        self._attr_device_class = SensorDeviceClass(device_class) if device_class else None
+        self._attr_state_class = SensorStateClass(state_class) if state_class else None
+        self._attr_entity_category = EntityCategory(entity_category) if entity_category else None
         self._attr_device_class = SensorDeviceClass(device_class) if device_class else None
         self._attr_state_class = SensorStateClass(state_class) if state_class else None
         self._attr_entity_category = EntityCategory(entity_category) if entity_category else None

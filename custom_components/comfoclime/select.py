@@ -147,9 +147,9 @@ class ComfoClimeSelect(
             await self._api.async_update_thermal_profile(**{param_name: value})
 
             self._current = option
-            await self.coordinator.async_request_refresh()
-        except Exception:
-            _LOGGER.exception(f"Fehler beim Setzen von {self._name}")
+            self._hass.add_job(self.coordinator.async_request_refresh)
+        except Exception as e:
+            _LOGGER.error(f"Fehler beim Setzen von {self._name}: {e}")
 
 
 class ComfoClimePropertySelect(SelectEntity):
@@ -202,10 +202,8 @@ class ComfoClimePropertySelect(SelectEntity):
                 timeout=5.0,
             )
             self._current = self._options_map.get(val)
-        except asyncio.TimeoutError:
-            _LOGGER.debug(f"Timeout beim Laden von {self._name}")
         except Exception as e:
-            _LOGGER.debug(f"Fehler beim Laden von {self._name}: {e}")
+            _LOGGER.error(f"Fehler beim Laden von {self._name}: {e}")
 
     def select_option(self, option: str):
         value = self._options_reverse.get(option)

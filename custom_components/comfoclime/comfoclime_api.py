@@ -8,14 +8,6 @@ import aiohttp
 
 _LOGGER = logging.getLogger(__name__)
 
-# Rate limiting configuration
-MIN_REQUEST_INTERVAL = (
-    0.1  # Minimum seconds between any requests (reduced for better throughput)
-)
-WRITE_COOLDOWN = 2.0  # Seconds to wait after a write operation before allowing reads
-REQUEST_DEBOUNCE = 0.3  # Debounce time for rapid successive requests
-CACHE_TTL = 30.0  # Cache time-to-live in seconds
-
 
 class ComfoClimeAPI:
     # Mapping von kwargs zu payload-Struktur (class-level constant)
@@ -63,230 +55,31 @@ class ComfoClimeAPI:
         self.hass = hass
         self.uuid = None
         self._request_lock = asyncio.Lock()
-        self._session = None
-        self._last_request_time = 0.0
-        self._last_write_time = 0.0
-        self._pending_requests: dict[str, asyncio.Task] = {}
-        # Cache for telemetry and property reads: {cache_key: (value, timestamp)}
-        self._telemetry_cache: dict[str, tuple] = {}
-        self._property_cache: dict[str, tuple] = {}
 
-    def _get_current_time(self) -> float:
-        """Get current monotonic time for rate limiting."""
-        return asyncio.get_event_loop().time()
+    async def async_get_uuid(self, hass):
+        async with self._request_lock:
+            return await hass.async_add_executor_job(self.get_uuid)
 
-    def _get_cache_key(self, device_uuid: str, data_id: str) -> str:
-        """Generate a cache key from device UUID and data ID."""
-        return f"{device_uuid}:{data_id}"
-
-    def _is_cache_valid(self, timestamp: float) -> bool:
-        """Check if a cached value is still valid."""
-        return (self._get_current_time() - timestamp) < CACHE_TTL
-
-    def _get_from_cache(self, cache_dict: dict, cache_key: str):
-        """Get a value from cache if it's still valid."""
-        if cache_key in cache_dict:
-            value, timestamp = cache_dict[cache_key]
-            if self._is_cache_valid(timestamp):
-                _LOGGER.debug(f"Cache hit for {cache_key}")
-                return value
-            # Cache expired, remove it
-            del cache_dict[cache_key]
-        return None
-
-    def _set_cache(self, cache_dict: dict, cache_key: str, value):
-        """Store a value in cache with current timestamp."""
-        cache_dict[cache_key] = (value, self._get_current_time())
-
-    def _invalidate_cache_for_device(self, device_uuid: str):
-        """Invalidate all cache entries for a specific device."""
-        # Remove telemetry cache entries for this device
-        keys_to_remove = [
-            k for k in self._telemetry_cache.keys() if k.startswith(f"{device_uuid}:")
-        ]
-        for k in keys_to_remove:
-            del self._telemetry_cache[k]
-
-        # Remove property cache entries for this device
-        keys_to_remove = [
-            k for k in self._property_cache.keys() if k.startswith(f"{device_uuid}:")
-        ]
-        for k in keys_to_remove:
-            del self._property_cache[k]
-
-        _LOGGER.debug(f"Invalidated all cache entries for device {device_uuid}")
-
-    async def _wait_for_rate_limit(self, is_write: bool = False):
-        """Wait if necessary to respect rate limits.
-
-        Args:
-            is_write: True if this is a write operation (will set cooldown after)
-        """
-        current_time = self._get_current_time()
-
-        # Calculate minimum wait time
-        time_since_last_request = current_time - self._last_request_time
-        time_since_last_write = current_time - self._last_write_time
-
-        wait_time = 0.0
-
-        # Ensure minimum interval between requests
-        if time_since_last_request < MIN_REQUEST_INTERVAL:
-            wait_time = max(wait_time, MIN_REQUEST_INTERVAL - time_since_last_request)
-
-        # If this is a read and we recently wrote, wait for cooldown
-        if not is_write and time_since_last_write < WRITE_COOLDOWN:
-            wait_time = max(wait_time, WRITE_COOLDOWN - time_since_last_write)
-
-        if wait_time > 0:
-            _LOGGER.debug(f"Rate limiting: waiting {wait_time:.2f}s before request")
-            await asyncio.sleep(wait_time)
-
-        # Update last request time
-        self._last_request_time = self._get_current_time()
-
-        # If this is a write, update write time
-        if is_write:
-            self._last_write_time = self._get_current_time()
-
-    async def _debounced_request(
-        self, key: str, coro_factory, debounce_time: float = REQUEST_DEBOUNCE
-    ):
-        """Execute a request with debouncing to prevent rapid successive calls.
-
-        If the same request (identified by key) is called again within debounce_time,
-        the previous pending request is cancelled and a new one is scheduled.
-
-        Args:
-            key: Unique identifier for this request type
-            coro_factory: Callable that returns the coroutine to execute
-            debounce_time: Time to wait before executing (allows cancellation)
-
-        Returns:
-            Result of the request
-        """
-        # Cancel any pending request with the same key
-        if key in self._pending_requests:
-            pending_task = self._pending_requests[key]
-            if not pending_task.done():
-                pending_task.cancel()
-                try:
-                    await pending_task
-                except asyncio.CancelledError:
-                    pass
-
-        # Wait for debounce time
-        await asyncio.sleep(debounce_time)
-
-        # Execute the actual request
-        return await coro_factory()
-
-    async def _get_session(self):
-        """Get or create aiohttp session."""
-        if self._session is None or self._session.closed:
-            timeout = aiohttp.ClientTimeout(total=5)
-            self._session = aiohttp.ClientSession(timeout=timeout)
-        return self._session
-
-    async def close(self):
-        """Close the aiohttp session."""
-        if self._session and not self._session.closed:
-            await self._session.close()
-
-    @staticmethod
-    def bytes_to_signed_int(
-        data: list, byte_count: int = None, signed: bool = True
-    ) -> int:
-        """Convert raw bytes to a signed integer value.
-
-        Args:
-            data: List of bytes (integers 0-255)
-            byte_count: Number of bytes to read. If None calculate from data
-
-        Returns:
-            Signed integer value
-
-        Raises:
-            ValueError: If byte_count is not 1 or 2
-        """
-        if not isinstance(data, list):
-            raise ValueError("'data' is not a list")
-
-        if byte_count is None:
-            byte_count = len(data)
-
-        if byte_count not in (1, 2):
-            raise ValueError(f"Unsupported byte count: {byte_count}")
-
-        return int.from_bytes(data[:byte_count], byteorder="little", signed=signed)
-
-    @staticmethod
-    def signed_int_to_bytes(
-        data: int, byte_count: int = 2, signed: bool = False
-    ) -> list:
-        """Convert a signed integer to a list of bytes.
-
-        Args:
-            data: Signed integer value
-            byte_count: Number of bytes to convert to (1 or 2)
-
-        Returns:
-            List of bytes (integers 0-255)
-
-        Raises:
-            ValueError: If byte_count is not 1 or 2
-        """
-        if byte_count not in (1, 2):
-            raise ValueError(f"Unsupported byte count: {byte_count}")
-
-        return list(data.to_bytes(byte_count, byteorder="little", signed=signed))
-
-    @staticmethod
-    def fix_signed_temperature(api_value: float) -> float:
-        """Fix temperature value by converting through signed 16-bit integer.
-
-        This handles the case where temperature values need to be interpreted
-        as signed 16-bit integers (scaled by 10).
-
-        Args:
-            api_value: Temperature value from API
-
-        Returns:
-            Corrected temperature value
-        """
-        raw_value = int(api_value * 10)
-        # Convert to signed 16-bit using Python's built-in byte conversion
-        unsigned_value = raw_value & 0xFFFF
-        bytes_data = ComfoClimeAPI.signed_int_to_bytes(unsigned_value, 2)
-        signed_value = ComfoClimeAPI.bytes_to_signed_int(bytes_data)
-        return signed_value / 10.0
-
-    async def _async_get_uuid_internal(self):
-        """Internal method to get UUID without acquiring lock."""
-        await self._wait_for_rate_limit(is_write=False)
-        session = await self._get_session()
-        async with session.get(f"{self.base_url}/monitoring/ping") as response:
-            response.raise_for_status()
-            data = await response.json()
-            self.uuid = data.get("uuid")
-            return self.uuid
+    def get_uuid(self):
+        response = requests.get(f"{self.base_url}/monitoring/ping", timeout=5)
+        response.raise_for_status()
+        data = response.json()
+        self.uuid = data.get("uuid")
+        return self.uuid
 
     async def async_get_uuid(self):
         """Get UUID with lock protection."""
         async with self._request_lock:
             return await self._async_get_uuid_internal()
 
-    async def async_get_dashboard_data(self):
-        async with self._request_lock:
-            await self._wait_for_rate_limit(is_write=False)
-            if not self.uuid:
-                await self._async_get_uuid_internal()
-            session = await self._get_session()
-            async with session.get(
-                f"{self.base_url}/system/{self.uuid}/dashboard"
-            ) as response:
-                response.raise_for_status()
-                return await response.json()
+    def get_dashboard_data(self):
+        if not self.uuid:
+            self.get_uuid()
+        response = requests.get(
+            f"{self.base_url}/system/{self.uuid}/dashboard", timeout=5
+        )
+        response.raise_for_status()
+        return response.json()
 
     async def async_get_connected_devices(self):
         async with self._request_lock:
@@ -301,11 +94,52 @@ class ComfoClimeAPI:
                 return data.get("devices", [])
 
     async def async_read_telemetry_for_device(
+        self, hass, device_uuid, telemetry_id, faktor=1.0, signed=True, byte_count=None
+    ):
+        async with self._request_lock:
+            return await hass.async_add_executor_job(
+                self.read_telemetry_for_device,
+                device_uuid,
+                telemetry_id,
+                faktor,
+                signed,
+                byte_count,
+            )
+
+    def read_telemetry_for_device(
+        self, device_uuid, telemetry_id, faktor=1.0, signed=True, byte_count=None
+    ):
+        url = f"{self.base_url}/device/{device_uuid}/telemetry/{telemetry_id}"
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+        payload = response.json()
+
+        data = payload.get("data")
+        if not isinstance(data, list) or len(data) == 0:
+            raise ValueError("Unerwartetes Telemetrie-Format")
+
+        if byte_count is None:
+            byte_count = len(data)
+
+        if byte_count == 1:
+            value = data[0]
+            if signed and value >= 0x80:
+                value -= 0x100
+        elif byte_count == 2:
+            lsb, msb = data[:2]
+            value = lsb + (msb << 8)
+            if signed and value >= 0x8000:
+                value -= 0x10000
+        else:
+            raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
+
+        return value * faktor
+
+    async def async_read_property_for_device(
         self,
         device_uuid: str,
         telemetry_id: str,
         faktor: float = 1.0,
-        signed: bool = True,
         byte_count: int | None = None,
     ):
         """Read telemetry for a device with caching.
@@ -328,25 +162,26 @@ class ComfoClimeAPI:
 
         # Not in cache, fetch from API
         async with self._request_lock:
-            await self._wait_for_rate_limit(is_write=False)
-            try:
-                session = await self._get_session()
-                url = f"{self.base_url}/device/{device_uuid}/telemetry/{telemetry_id}"
-                async with session.get(url) as response:
-                    response.raise_for_status()
-                    payload = await response.json()
+            return await hass.async_add_executor_job(
+                self.read_property_for_device,
+                device_uuid,
+                property_path,
+                faktor,
+                signed,
+                byte_count,
+            )
 
-                data = payload.get("data")
-                if not isinstance(data, list) or len(data) == 0:
-                    _LOGGER.debug(f"Ungültiges Telemetrie-Format für {telemetry_id}")
-                    return None
-
-            except asyncio.TimeoutError:
-                _LOGGER.debug(f"Timeout beim Abrufen der Telemetrie {telemetry_id}")
-                return None
-            except Exception as e:
-                _LOGGER.debug(f"Fehler beim Abrufen der Telemetrie {telemetry_id}: {e}")
-                return None
+    def read_property_for_device_raw(
+        self, device_uuid: str, property_path: str
+    ) -> None | list:
+        url = f"{self.base_url}/device/{device_uuid}/property/{property_path}"
+        try:
+            response = requests.get(url, timeout=5)
+            response.raise_for_status()
+            payload = response.json()
+        except Exception as e:
+            _LOGGER.error(f"Fehler beim Abrufen der Property {property_path}: {e}")
+            return None
 
         value = self.bytes_to_signed_int(data, byte_count, signed)
         result = value * faktor
@@ -361,7 +196,6 @@ class ComfoClimeAPI:
         device_uuid: str,
         property_path: str,
         faktor: float = 1.0,
-        signed: bool = True,
         byte_count: int | None = None,
     ):
         """Read property for a device with caching.
@@ -391,10 +225,20 @@ class ComfoClimeAPI:
             if not data:
                 return None
 
-        if byte_count in (1, 2):
-            value = self.bytes_to_signed_int(data, byte_count, signed)
-            result = value * faktor
-        elif byte_count and byte_count > 2:
+        # Wenn byte_count nicht angegeben wurde, verwende die Länge der Daten
+        if byte_count is None:
+            byte_count = len(data)
+
+        if byte_count == 1:
+            value = data[0]
+            if signed and value >= 0x80:
+                value -= 0x100
+        elif byte_count == 2:
+            lsb, msb = data[:2]
+            value = lsb + (msb << 8)
+            if signed and value >= 0x8000:
+                value -= 0x10000
+        elif byte_count > 2:
             if len(data) != byte_count:
                 raise ValueError(
                     f"Unerwartete Byte-Anzahl: erwartet {byte_count}, erhalten {len(data)}"
@@ -558,6 +402,12 @@ class ComfoClimeAPI:
         - Automatic mode (status=1): Uses preset profiles (seasonProfile, temperatureProfile)
         - Manual mode (status=0): Uses manual temperature (setPointTemperature)
 
+        Scenario modes:
+        - 4: Kochen (Cooking) - 30 minutes high ventilation
+        - 5: Party - 30 minutes high ventilation
+        - 7: Urlaub (Holiday) - 24 hours reduced mode
+        - 8: Boost - 30 minutes maximum power
+
         Args:
             set_point_temperature: Target temperature (°C) - activates manual mode
             fan_speed: Fan speed (0-3)
@@ -596,14 +446,8 @@ class ComfoClimeAPI:
             payload["seasonProfile"] = season_profile
         if status is not None:
             payload["status"] = status
-        if hpStandby is not None:
-            payload["hpStandby"] = hpStandby
-        if scenario is not None:
-            payload["scenario"] = scenario
-        if scenario_time_left is not None:
-            payload["scenarioTimeLeft"] = scenario_time_left
-        if scenario_start_delay is not None:
-            payload["scenarioStartDelay"] = scenario_start_delay
+        if hp_standby is not None:
+            payload["hpStandby"] = hp_standby
 
         if not payload:
             _LOGGER.debug(
@@ -614,28 +458,23 @@ class ComfoClimeAPI:
         await self._wait_for_rate_limit(is_write=True)
 
         # Add timestamp to payload
-        if not self.hass:
-            raise ValueError("hass instance required for timestamp generation")
-        tz = ZoneInfo(self.hass.config.time_zone)
-        payload["timestamp"] = datetime.now(tz).isoformat()
+        payload["timestamp"] = datetime.datetime.now().isoformat()
 
         headers = {"content-type": "application/json; charset=utf-8"}
         url = f"{self.base_url}/system/{self.uuid}/dashboard"
         try:
-            session = await self._get_session()
-            async with session.put(url, json=payload, headers=headers) as response:
-                response.raise_for_status()
-                try:
-                    resp_json = await response.json()
-                except Exception:
-                    resp_json = {"text": await response.text()}
-                _LOGGER.debug(
-                    f"Dashboard update OK payload={payload} response={resp_json}"
-                )
-                return resp_json
-        except Exception:
-            _LOGGER.exception(f"Error updating dashboard (payload={payload})")
+            response = requests.put(url, json=payload, timeout=5, headers=headers)
+            response.raise_for_status()
+            try:
+                resp_json = response.json()
+            except Exception:
+                resp_json = {"text": response.text}
+            _LOGGER.debug(f"Dashboard update OK payload={payload} response={resp_json}")
+            return resp_json
+        except Exception as e:
+            _LOGGER.error(f"Error updating dashboard (payload={payload}): {e}")
             raise
+        return resp_json
 
     async def async_update_dashboard(self, **kwargs):
         """Async wrapper for update_dashboard method."""
@@ -706,32 +545,58 @@ class ComfoClimeAPI:
         value: float,
         *,
         byte_count: int,
-        signed: bool = True,
         faktor: float = 1.0,
     ):
         async with self._request_lock:
-            await self._wait_for_rate_limit(is_write=True)
-            if byte_count not in (1, 2):
-                raise ValueError("Nur 1 oder 2 Byte unterstützt")
+            return await hass.async_add_executor_job(
+                lambda: self.set_property_for_device(
+                    device_uuid,
+                    property_path,
+                    value,
+                    byte_count=byte_count,
+                    signed=signed,
+                    faktor=faktor,
+                )
+            )
 
-            raw_value = int(round(value / faktor))
-            data = self.signed_int_to_bytes(raw_value, byte_count, signed)
+    def set_property_for_device(
+        self,
+        device_uuid: str,
+        property_path: str,
+        value: float,
+        *,
+        byte_count: int,
+        signed: bool = True,
+        faktor: float = 1.0,
+    ):
+        if byte_count not in (1, 2):
+            raise ValueError("Nur 1 oder 2 Byte unterstützt")
+
+        # Wert zurückrechnen, falls ein Faktor verwendet wird
+        raw_value = int(round(value / faktor))
+
+        # Bytes erzeugen
+        if byte_count == 1:
+            if signed and raw_value < 0:
+                raw_value += 0x100
+            data = [raw_value & 0xFF]
+        elif byte_count == 2:
+            if signed and raw_value < 0:
+                raw_value += 0x10000
+            data = [raw_value & 0xFF, (raw_value >> 8) & 0xFF]
 
             x, y, z = map(int, property_path.split("/"))
             url = f"{self.base_url}/device/{device_uuid}/method/{x}/{y}/3"
             payload = {"data": [z] + data}
 
-            try:
-                session = await self._get_session()
-                async with session.put(url, json=payload) as response:
-                    response.raise_for_status()
-                # Invalidate cache for this device after successful write
-                self._invalidate_cache_for_device(device_uuid)
-            except Exception:
-                _LOGGER.exception(
-                    f"Fehler beim Schreiben von Property {property_path} mit Payload {payload}"
-                )
-                raise
+        try:
+            response = requests.put(url, json=payload, timeout=5)
+            response.raise_for_status()
+        except Exception as e:
+            _LOGGER.error(
+                f"Fehler beim Schreiben von Property {property_path} mit Payload {payload}: {e}"
+            )
+            raise
 
     async def async_reset_system(self):
         """Trigger a restart of the ComfoClime device."""

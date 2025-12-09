@@ -9,3 +9,6 @@ htmlcov/
 *.egg-info/
 .tox/
 *.log
+
+# Home Assistant development files
+.devcontainer/ha-config/
