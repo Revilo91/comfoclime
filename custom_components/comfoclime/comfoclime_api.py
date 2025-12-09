@@ -516,7 +516,7 @@ class ComfoClimeAPI:
         set_point_temperature: float | None = None,
         fan_speed: int | None = None,
         season: int | None = None,
-        hp_standby: bool | None = None,
+        hpStandby: bool | None = None,
         schedule: int | None = None,
         temperature_profile: int | None = None,
         season_profile: int | None = None,
@@ -559,7 +559,7 @@ class ComfoClimeAPI:
             set_point_temperature: Target temperature (°C) - activates manual mode
             fan_speed: Fan speed (0-3)
             season: Season value (0=transition, 1=heating, 2=cooling)
-            hp_standby: Heat pump standby state (True=standby/off, False=active)
+            hpStandby: Heat pump standby state (True=standby/off, False=active)
             schedule: Schedule mode
             temperature_profile: Temperature profile/preset (0=comfort, 1=boost, 2=eco)
             season_profile: Season profile/preset (0=comfort, 1=boost, 2=eco)
@@ -593,8 +593,8 @@ class ComfoClimeAPI:
             payload["seasonProfile"] = season_profile
         if status is not None:
             payload["status"] = status
-        if hp_standby is not None:
-            payload["hpStandby"] = hp_standby
+        if hpStandby is not None:
+            payload["hpStandby"] = hpStandby
         if scenario is not None:
             payload["scenario"] = scenario
         if scenario_time_left is not None:
@@ -704,7 +704,7 @@ class ComfoClimeAPI:
 
         return await self._update_thermal_profile(**kwargs)
 
-    async def async_set_hvac_season(self, season: int, hp_standby: bool = False):
+    async def async_set_hvac_season(self, season: int, hpStandby: bool = False):
         """Set HVAC season and standby state in a single atomic operation.
 
         This method updates both the season (via thermal profile) and hpStandby
@@ -712,13 +712,13 @@ class ComfoClimeAPI:
 
         Args:
             season: Season value (0=transition, 1=heating, 2=cooling)
-            hp_standby: Heat pump standby state (False=active, True=standby/off)
+            hpStandby: Heat pump standby state (False=active, True=standby/off)
         """
         async with self._request_lock:
             # First update dashboard to set hpStandby
-            await self._update_dashboard(hp_standby=hp_standby)
+            await self._update_dashboard(hpStandby=hpStandby)
             # Then update thermal profile to set season
-            if not hp_standby:  # Only set season if device is active
+            if not hpStandby:  # Only set season if device is active
                 await self._update_thermal_profile(season_value=season)
 
     async def async_set_property_for_device(

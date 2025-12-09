@@ -279,9 +279,9 @@ class TestComfoClimeClimate:
 
         await climate.async_set_hvac_mode(HVACMode.HEAT)
 
-        # Should call async_set_hvac_season with season=1 and hp_standby=False
+        # Should call async_set_hvac_season with season=1 and hpStandby=False
         mock_api.async_set_hvac_season.assert_called_once_with(
-            season=1, hp_standby=False
+            season=1, hpStandby=False
         )
 
     @pytest.mark.asyncio
@@ -302,9 +302,9 @@ class TestComfoClimeClimate:
 
         await climate.async_set_hvac_mode(HVACMode.OFF)
 
-        # Should call async_update_dashboard with hp_standby=True
+        # Should call async_update_dashboard with hpStandby=True
         mock_api.async_update_dashboard.assert_called_once_with(
-            hp_standby=True
+            hpStandby=True
         )
 
     @pytest.mark.asyncio

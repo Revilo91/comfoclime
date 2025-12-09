@@ -269,11 +269,11 @@ class ComfoClimeClimate(
             return HVACMode.OFF
 
         # Get season and hpStandby values
-        hp_standby = self.coordinator.data.get("hpStandby")
+        hpStandby = self.coordinator.data.get("hpStandby")
         season = self.coordinator.data.get("season")
 
         # If device is in standby (powered off), always report OFF regardless of season
-        if hp_standby is True:
+        if hpStandby is True:
             return HVACMode.OFF
 
         # Map season from dashboard to HVAC mode using mapping
@@ -437,7 +437,7 @@ class ComfoClimeClimate(
 
         Args:
             **kwargs: Dashboard fields to update (set_point_temperature, fan_speed,
-                     season, hp_standby, schedule, temperature_profile,
+                     season, hpStandby, schedule, temperature_profile,
                      season_profile, status)
         """
         await self._api.async_update_dashboard(**kwargs)
@@ -462,7 +462,7 @@ class ComfoClimeClimate(
             # OFF mode: Set hpStandby=True via dashboard to turn off the device
             if hvac_mode == HVACMode.OFF:
                 _LOGGER.debug("Setting HVAC mode to OFF - setting hpStandby=True")
-                await self.async_update_dashboard(hp_standby=True)
+                await self.async_update_dashboard(hpStandby=True)
             else:
                 # Active modes: Use atomic operation to set both season and hpStandby
                 # This prevents race conditions between thermal profile and dashboard updates
@@ -471,7 +471,7 @@ class ComfoClimeClimate(
                     f"atomically setting season={season_value} and hpStandby=False"
                 )
                 await self._api.async_set_hvac_season(
-                    season=season_value, hp_standby=False
+                    season=season_value, hpStandby=False
                 )
 
             # Schedule non-blocking refresh of coordinators
@@ -589,7 +589,7 @@ class ComfoClimeClimate(
                             "Expected ISO format like '2025-11-21 12:00:00'"
                         )
                         start_delay_seconds = None
-                elif start_delay is None and scenario_mode == SCENARIO_MAPPING[SCENARIO_HOLIDAY]:
+                elif start_delay is None and scenario_mode == PRESET_AWAY:
                     _LOGGER.warning("No start_delay provided for holiday scenario!")
 
                 _LOGGER.debug(
