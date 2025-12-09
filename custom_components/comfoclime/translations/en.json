@@ -234,21 +234,26 @@
             }
         },
         "climate": {
-            "name": "Climate Control",
-            "state_attributes": {
-                "preset_mode": {
-                    "state": {
-                        "comfort": "Comfort",
-                        "power": "Power",
-                        "eco": "Eco"
-                    }
-                },
-                "fan_mode": {
-                    "state": {
-                        "off": "Off",
-                        "low": "Low",
-                        "medium": "Medium",
-                        "high": "High"
+            "climate": {
+                "name": "Climate Control",
+                "state_attributes": {
+                    "preset_mode": {
+                        "name": "Preset mode",
+                        "state": {
+                            "comfort": "Comfort",
+                            "power": "Power",
+                            "eco": "Eco",
+                            "none": "Manual"
+                        }
+                    },
+                    "fan_mode": {
+                        "name": "Fan mode",
+                        "state": {
+                            "off": "Off",
+                            "low": "Low",
+                            "medium": "Medium",
+                            "high": "High"
+                        }
                     }
                 }
             }
