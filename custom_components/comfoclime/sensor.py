@@ -391,7 +391,7 @@ class ComfoClimeTelemetrySensor(
             self._state = value
         except Exception:
             _LOGGER.debug(
-                "Fehler beim Aktualisieren von Telemetrie %s", self._id
+                "Fehler beim Aktualisieren von Telemetrie %s", self._id, exc_info=True
             )
             self._state = None
         self.async_write_ha_state()
