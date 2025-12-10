@@ -5,6 +5,9 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 _LOGGER = logging.getLogger(__name__)
 
+# Longer polling interval to reduce API load on the Airduino board
+POLLING_INTERVAL_SECONDS = 60
+
 
 class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
     def __init__(self, hass, api):
@@ -12,7 +15,7 @@ class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
             hass,
             _LOGGER,
             name="ComfoClime Dashboard",
-            update_interval=timedelta(seconds=30),
+            update_interval=timedelta(seconds=POLLING_INTERVAL_SECONDS),
         )
         self.api = api
 
@@ -30,7 +33,7 @@ class ComfoClimeThermalprofileCoordinator(DataUpdateCoordinator):
             hass,
             _LOGGER,
             name="ComfoClime Thermalprofile",
-            update_interval=timedelta(seconds=30),
+            update_interval=timedelta(seconds=POLLING_INTERVAL_SECONDS),
         )
         self.api = api
 
@@ -42,42 +45,186 @@ class ComfoClimeThermalprofileCoordinator(DataUpdateCoordinator):
 
 
 class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
-    """Coordinator for batching telemetry requests from all devices."""
-    def __init__(self, hass, api):
+    """Coordinator for batching telemetry requests from all devices.
+
+    Instead of each sensor making individual API calls, this coordinator
+    fetches all registered telemetry values in a single update cycle,
+    significantly reducing API load on the Airduino board.
+    """
+
+    def __init__(self, hass, api, devices=None):
         super().__init__(
             hass,
             _LOGGER,
             name="ComfoClime Telemetry",
-            update_interval=timedelta(seconds=30),
+            update_interval=timedelta(seconds=POLLING_INTERVAL_SECONDS),
         )
         self.api = api
-        # Cache for telemetry data: {device_uuid: {telemetry_id: value}}
-        self._telemetry_cache = {}
+        self.devices = devices or []
+        # Registry of telemetry requests: {device_uuid: {telemetry_id: {faktor, signed, byte_count}}}
+        self._telemetry_registry: dict[str, dict[str, dict]] = {}
+
+    def register_telemetry(
+        self,
+        device_uuid: str,
+        telemetry_id: str,
+        faktor: float = 1.0,
+        signed: bool = True,
+        byte_count: int | None = None,
+    ):
+        """Register a telemetry value to be fetched during updates.
+
+        Args:
+            device_uuid: UUID of the device
+            telemetry_id: Telemetry ID to fetch
+            faktor: Factor to multiply the value by
+            signed: Whether the value is signed
+            byte_count: Number of bytes to read
+        """
+        if device_uuid not in self._telemetry_registry:
+            self._telemetry_registry[device_uuid] = {}
+
+        self._telemetry_registry[device_uuid][str(telemetry_id)] = {
+            "faktor": faktor,
+            "signed": signed,
+            "byte_count": byte_count,
+        }
+        _LOGGER.debug(
+            f"Registered telemetry {telemetry_id} for device {device_uuid}"
+        )
 
     async def _async_update_data(self):
-        """Fetch all telemetry data for all devices."""
-        # This will be populated by the API layer
-        # For now, just return empty dict - sensors will use async_read_telemetry_for_device
-        return {}
+        """Fetch all registered telemetry data for all devices in batched manner."""
+        result: dict[str, dict[str, any]] = {}
+
+        for device_uuid, telemetry_items in self._telemetry_registry.items():
+            result[device_uuid] = {}
+
+            for telemetry_id, params in telemetry_items.items():
+                try:
+                    value = await self.api.async_read_telemetry_for_device(
+                        device_uuid=device_uuid,
+                        telemetry_id=telemetry_id,
+                        faktor=params["faktor"],
+                        signed=params["signed"],
+                        byte_count=params["byte_count"],
+                    )
+                    result[device_uuid][telemetry_id] = value
+                except Exception as e:
+                    _LOGGER.debug(
+                        f"Fehler beim Abrufen von Telemetrie {telemetry_id} "
+                        f"für Gerät {device_uuid}: {e}"
+                    )
+                    result[device_uuid][telemetry_id] = None
+
+        return result
+
+    def get_telemetry_value(
+        self, device_uuid: str, telemetry_id: str | int
+    ) -> any:
+        """Get a cached telemetry value from the last update.
+
+        Args:
+            device_uuid: UUID of the device
+            telemetry_id: Telemetry ID
+
+        Returns:
+            The cached value or None if not found
+        """
+        if not self.data:
+            return None
+
+        device_data = self.data.get(device_uuid, {})
+        return device_data.get(str(telemetry_id))
 
 
 class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
-    """Coordinator for batching property requests from all devices."""
-    def __init__(self, hass, api):
+    """Coordinator for batching property requests from all devices.
+
+    Instead of each sensor/number/select making individual API calls,
+    this coordinator fetches all registered property values in a single
+    update cycle, significantly reducing API load on the Airduino board.
+    """
+
+    def __init__(self, hass, api, devices=None):
         super().__init__(
             hass,
             _LOGGER,
             name="ComfoClime Properties",
-            update_interval=timedelta(seconds=30),
+            update_interval=timedelta(seconds=POLLING_INTERVAL_SECONDS),
         )
         self.api = api
-        # Cache for property data: {device_uuid: {path: value}}
-        self._property_cache = {}
+        self.devices = devices or []
+        # Registry of property requests: {device_uuid: {path: {faktor, signed, byte_count}}}
+        self._property_registry: dict[str, dict[str, dict]] = {}
+
+    def register_property(
+        self,
+        device_uuid: str,
+        property_path: str,
+        faktor: float = 1.0,
+        signed: bool = True,
+        byte_count: int | None = None,
+    ):
+        """Register a property value to be fetched during updates.
+
+        Args:
+            device_uuid: UUID of the device
+            property_path: Property path (e.g., "29/1/10")
+            faktor: Factor to multiply the value by
+            signed: Whether the value is signed
+            byte_count: Number of bytes to read
+        """
+        if device_uuid not in self._property_registry:
+            self._property_registry[device_uuid] = {}
+
+        self._property_registry[device_uuid][property_path] = {
+            "faktor": faktor,
+            "signed": signed,
+            "byte_count": byte_count,
+        }
+        _LOGGER.debug(
+            f"Registered property {property_path} for device {device_uuid}"
+        )
 
     async def _async_update_data(self):
-        """Fetch all property data for all devices."""
-        # This will be populated by the API layer
-        # For now, just return empty dict - sensors will use async_read_property_for_device
-        return {}
+        """Fetch all registered property data for all devices in batched manner."""
+        result: dict[str, dict[str, any]] = {}
 
+        for device_uuid, property_items in self._property_registry.items():
+            result[device_uuid] = {}
 
+            for property_path, params in property_items.items():
+                try:
+                    value = await self.api.async_read_property_for_device(
+                        device_uuid=device_uuid,
+                        property_path=property_path,
+                        faktor=params["faktor"],
+                        signed=params["signed"],
+                        byte_count=params["byte_count"],
+                    )
+                    result[device_uuid][property_path] = value
+                except Exception as e:
+                    _LOGGER.debug(
+                        f"Fehler beim Abrufen von Property {property_path} "
+                        f"für Gerät {device_uuid}: {e}"
+                    )
+                    result[device_uuid][property_path] = None
+
+        return result
+
+    def get_property_value(self, device_uuid: str, property_path: str) -> any:
+        """Get a cached property value from the last update.
+
+        Args:
+            device_uuid: UUID of the device
+            property_path: Property path
+
+        Returns:
+            The cached value or None if not found
+        """
+        if not self.data:
+            return None
+
+        device_data = self.data.get(device_uuid, {})
+        return device_data.get(property_path)

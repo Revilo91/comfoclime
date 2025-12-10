@@ -46,6 +46,7 @@ def mock_api():
     api.async_read_property_for_device = AsyncMock(return_value=1)
     api.async_set_property_for_device = AsyncMock()
     api.async_update_dashboard = AsyncMock()
+    api.async_update_thermal_profile = AsyncMock()
     api.update_thermal_profile = MagicMock()
     api.update_dashboard = MagicMock()
     api.set_property_for_device = MagicMock()
@@ -96,6 +97,44 @@ def mock_thermalprofile_coordinator():
     coordinator.async_config_entry_first_refresh = AsyncMock()
     coordinator.async_add_listener = MagicMock(return_value=lambda: None)
     coordinator.last_update_success = True
+    return coordinator
+
+
+@pytest.fixture
+def mock_telemetry_coordinator():
+    """Create a mock telemetry coordinator."""
+    coordinator = MagicMock()
+    coordinator.data = {
+        "test-device-uuid": {
+            "123": 25.5,
+            "456": 30.0,
+        }
+    }
+    coordinator.async_request_refresh = AsyncMock()
+    coordinator.async_config_entry_first_refresh = AsyncMock()
+    coordinator.async_add_listener = MagicMock(return_value=lambda: None)
+    coordinator.last_update_success = True
+    coordinator.register_telemetry = MagicMock()
+    coordinator.get_telemetry_value = MagicMock(return_value=25.5)
+    return coordinator
+
+
+@pytest.fixture
+def mock_property_coordinator():
+    """Create a mock property coordinator."""
+    coordinator = MagicMock()
+    coordinator.data = {
+        "test-device-uuid": {
+            "29/1/10": 100,
+            "29/1/6": 1,
+        }
+    }
+    coordinator.async_request_refresh = AsyncMock()
+    coordinator.async_config_entry_first_refresh = AsyncMock()
+    coordinator.async_add_listener = MagicMock(return_value=lambda: None)
+    coordinator.last_update_success = True
+    coordinator.register_property = MagicMock()
+    coordinator.get_property_value = MagicMock(return_value=100)
     return coordinator
 
 
