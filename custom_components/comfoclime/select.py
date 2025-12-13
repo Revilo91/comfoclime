@@ -22,7 +22,7 @@ async def async_setup_entry(
     main_device = data["main_device"]
     devices = data["devices"]
     tpcoordinator = data["tpcoordinator"]
-    property_coordinator: ComfoClimePropertyCoordinator = data["property_coordinator"]
+    propcoordinator: ComfoClimePropertyCoordinator = data["propcoordinator"]
 
     try:
         await tpcoordinator.async_config_entry_first_refresh()
@@ -55,7 +55,7 @@ async def async_setup_entry(
 
         for select_def in select_defs:
             # Register property with coordinator for batched fetching
-            property_coordinator.register_property(
+            propcoordinator.register_property(
                 device_uuid=dev_uuid,
                 property_path=select_def["path"],
                 faktor=1.0,
@@ -65,7 +65,7 @@ async def async_setup_entry(
             entities.append(
                 ComfoClimePropertySelect(
                     hass=hass,
-                    coordinator=property_coordinator,
+                    coordinator=propcoordinator,
                     api=api,
                     conf=select_def,
                     device=device,

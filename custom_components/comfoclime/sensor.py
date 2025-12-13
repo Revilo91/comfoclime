@@ -48,9 +48,9 @@ async def async_setup_entry(
     api = data["api"]
 
     sensors = []
-    coordinator = data["coordinator"]
-    telemetry_coordinator: ComfoClimeTelemetryCoordinator = data["telemetry_coordinator"]
-    property_coordinator: ComfoClimePropertyCoordinator = data["property_coordinator"]
+    coordinator: ComfoClimeDashboardCoordinator = data["coordinator"]
+    tlcoordinator: ComfoClimeTelemetryCoordinator = data["tlcoordinator"]
+    propcoordinator: ComfoClimePropertyCoordinator = data["propcoordinator"]
 
     try:
         await coordinator.async_config_entry_first_refresh()
@@ -81,11 +81,11 @@ async def async_setup_entry(
     sensors.extend(sensor_list)
 
     # ThermalProfile-Sensoren
-    tp_coordinator = data["tpcoordinator"]
+    thermalprofile_coordinator: ComfoClimeThermalprofileCoordinator = data["tpcoordinator"]
     sensor_list = [
         ComfoClimeSensor(
             hass=hass,
-            coordinator=tp_coordinator,
+            coordinator=thermalprofile_coordinator,
             api=api,
             sensor_type=sensor_def["key"],
             name=sensor_def["name"],
@@ -105,7 +105,7 @@ async def async_setup_entry(
     for sensor_def in TELEMETRY_SENSORS:
         device_uuid = api.uuid or (main_device.get("uuid") if main_device else None)
         if device_uuid:
-            telemetry_coordinator.register_telemetry(
+            tlcoordinator.register_telemetry(
                 device_uuid=device_uuid,
                 telemetry_id=str(sensor_def["id"]),
                 faktor=sensor_def.get("faktor", 1.0),
@@ -115,7 +115,7 @@ async def async_setup_entry(
             sensors.append(
                 ComfoClimeTelemetrySensor(
                     hass=hass,
-                    coordinator=telemetry_coordinator,
+                    coordinator=tlcoordinator,
                     telemetry_id=sensor_def["id"],
                     name=sensor_def["name"],
                     translation_key=sensor_def.get("translation_key", False),
@@ -150,7 +150,7 @@ async def async_setup_entry(
                     "enable_diagnostics", False
                 ):
                     # Register telemetry with coordinator for batched fetching
-                    telemetry_coordinator.register_telemetry(
+                    tlcoordinator.register_telemetry(
                         device_uuid=dev_uuid,
                         telemetry_id=str(sensor_def["telemetry_id"]),
                         faktor=sensor_def.get("faktor", 1.0),
@@ -160,7 +160,7 @@ async def async_setup_entry(
                     sensors.append(
                         ComfoClimeTelemetrySensor(
                             hass=hass,
-                            coordinator=telemetry_coordinator,
+                            coordinator=tlcoordinator,
                             telemetry_id=sensor_def["telemetry_id"],
                             name=sensor_def["name"],
                             translation_key=sensor_def.get("translation_key", False),
@@ -179,7 +179,7 @@ async def async_setup_entry(
         if property_defs:
             for prop_def in property_defs:
                 # Register property with coordinator for batched fetching
-                property_coordinator.register_property(
+                propcoordinator.register_property(
                     device_uuid=dev_uuid,
                     property_path=prop_def["path"],
                     faktor=prop_def.get("faktor", 1.0),
@@ -189,7 +189,7 @@ async def async_setup_entry(
                 sensors.append(
                     ComfoClimePropertySensor(
                         hass=hass,
-                        coordinator=property_coordinator,
+                        coordinator=propcoordinator,
                         path=prop_def["path"],
                         name=prop_def["name"],
                         translation_key=prop_def.get("translation_key", False),
@@ -208,12 +208,12 @@ async def async_setup_entry(
 
     # First refresh of telemetry and property coordinators after all registrations
     try:
-        await telemetry_coordinator.async_config_entry_first_refresh()
+        await tlcoordinator.async_config_entry_first_refresh()
     except Exception as e:
         _LOGGER.warning(f"Telemetrie-Daten konnten nicht geladen werden: {e}")
 
     try:
-        await property_coordinator.async_config_entry_first_refresh()
+        await propcoordinator.async_config_entry_first_refresh()
     except Exception as e:
         _LOGGER.warning(f"Property-Daten konnten nicht geladen werden: {e}")
 

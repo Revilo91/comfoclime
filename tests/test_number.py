@@ -341,7 +341,7 @@ async def test_async_setup_entry(
             "test_entry_id": {
                 "api": mock_api,
                 "tpcoordinator": mock_thermalprofile_coordinator,
-                "property_coordinator": mock_property_coordinator,
+                "propcoordinator": mock_property_coordinator,
                 "devices": [mock_device],
                 "main_device": mock_device,
             }
