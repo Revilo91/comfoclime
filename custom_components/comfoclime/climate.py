@@ -1,9 +1,7 @@
 """Climate platform for ComfoClime integration."""
 
 import logging
-from datetime import datetime
 from typing import Any
-from zoneinfo import ZoneInfo
 
 from homeassistant.components.climate import (
     FAN_HIGH,
