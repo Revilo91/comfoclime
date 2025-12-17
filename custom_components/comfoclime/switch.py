@@ -7,8 +7,10 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
+from .coordinator import ComfoClimeDashboardCoordinator, ComfoClimeThermalprofileCoordinator
 from .entities.switch_definitions import SWITCHES
 
 _LOGGER = logging.getLogger(__name__)
@@ -52,7 +54,7 @@ async def async_setup_entry(
     async_add_entities(switches, True)
 
 
-class ComfoClimeSwitch(SwitchEntity):
+class ComfoClimeSwitch(CoordinatorEntity, SwitchEntity):
     """Unified switch entity for ComfoClime integration.
 
     Supports switches from both thermal profile and dashboard endpoints.
@@ -86,8 +88,8 @@ class ComfoClimeSwitch(SwitchEntity):
             device: Device information
             entry: Config entry
         """
+        super().__init__(coordinator)
         self._hass = hass
-        self._coordinator = coordinator
         self._api = api
         self._key = key
         self._invert = invert
@@ -104,11 +106,6 @@ class ComfoClimeSwitch(SwitchEntity):
 
         # Parse key path for nested access
         self._key_path = key.split(".")
-
-    @property
-    def coordinator(self):
-        """Return the coordinator."""
-        return self._coordinator
 
     @property
     def is_on(self):
