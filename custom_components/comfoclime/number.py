@@ -99,7 +99,15 @@ class ComfoClimeTemperatureNumber(
 
     @property
     def available(self):
-        """Return True if entity is available."""
+        """Return True if entity is available.
+        
+        First checks if coordinator update was successful, then applies
+        business logic for manual temperature entities.
+        """
+        # First check if coordinator update was successful
+        if not super().available:
+            return False
+            
         # For manual temperature setting, check if automatic mode is disabled
         if self._key_path[0] == "temperature" and self._key_path[1] == "manualTemperature":
             try:
