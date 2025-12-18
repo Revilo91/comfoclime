@@ -186,16 +186,15 @@ class ComfoClimeAPI:
         # Execute the actual request
         return await coro_factory()
 
-    async def _get_session(self, timeout_seconds=None):
-        """Get or create aiohttp session with configurable timeout.
+    async def _get_session(self):
+        """Get or create aiohttp session.
         
-        Args:
-            timeout_seconds: Custom timeout in seconds. If None, uses DEFAULT_READ_TIMEOUT.
+        Note: Timeouts are set per-request, not on the session level,
+        to allow different timeouts for read vs write operations.
         """
-        # Create new session if needed or timeout changed
         if self._session is None or self._session.closed:
-            timeout = aiohttp.ClientTimeout(total=timeout_seconds or DEFAULT_READ_TIMEOUT)
-            self._session = aiohttp.ClientSession(timeout=timeout)
+            # No timeout on session - timeouts set per-request
+            self._session = aiohttp.ClientSession()
         return self._session
 
     async def close(self):
@@ -274,8 +273,9 @@ class ComfoClimeAPI:
     async def _async_get_uuid_internal(self):
         """Internal method to get UUID without acquiring lock."""
         await self._wait_for_rate_limit(is_write=False)
+        timeout = aiohttp.ClientTimeout(total=DEFAULT_READ_TIMEOUT)
         session = await self._get_session()
-        async with session.get(f"{self.base_url}/monitoring/ping") as response:
+        async with session.get(f"{self.base_url}/monitoring/ping", timeout=timeout) as response:
             response.raise_for_status()
             data = await response.json()
             self.uuid = data.get("uuid")
@@ -291,9 +291,10 @@ class ComfoClimeAPI:
             await self._wait_for_rate_limit(is_write=False)
             if not self.uuid:
                 await self._async_get_uuid_internal()
+            timeout = aiohttp.ClientTimeout(total=DEFAULT_READ_TIMEOUT)
             session = await self._get_session()
             async with session.get(
-                f"{self.base_url}/system/{self.uuid}/dashboard"
+                f"{self.base_url}/system/{self.uuid}/dashboard", timeout=timeout
             ) as response:
                 response.raise_for_status()
                 return await response.json()
@@ -303,9 +304,10 @@ class ComfoClimeAPI:
             await self._wait_for_rate_limit(is_write=False)
             if not self.uuid:
                 await self._async_get_uuid_internal()
+            timeout = aiohttp.ClientTimeout(total=DEFAULT_READ_TIMEOUT)
             session = await self._get_session()
             url = f"{self.base_url}/system/{self.uuid}/devices"
-            async with session.get(url) as response:
+            async with session.get(url, timeout=timeout) as response:
                 response.raise_for_status()
                 data = await response.json()
                 return data.get("devices", [])
@@ -340,9 +342,10 @@ class ComfoClimeAPI:
         async with self._request_lock:
             await self._wait_for_rate_limit(is_write=False)
             try:
+                timeout = aiohttp.ClientTimeout(total=DEFAULT_READ_TIMEOUT)
                 session = await self._get_session()
                 url = f"{self.base_url}/device/{device_uuid}/telemetry/{telemetry_id}"
-                async with session.get(url) as response:
+                async with session.get(url, timeout=timeout) as response:
                     response.raise_for_status()
                     payload = await response.json()
 
@@ -423,8 +426,9 @@ class ComfoClimeAPI:
     ) -> None | list:
         url = f"{self.base_url}/device/{device_uuid}/property/{property_path}"
         try:
+            timeout = aiohttp.ClientTimeout(total=DEFAULT_READ_TIMEOUT)
             session = await self._get_session()
-            async with session.get(url) as response:
+            async with session.get(url, timeout=timeout) as response:
                 try:
                     response.raise_for_status()
                 except Exception as http_error:
@@ -454,8 +458,9 @@ class ComfoClimeAPI:
                 await self._async_get_uuid_internal()
             url = f"{self.base_url}/system/{self.uuid}/thermalprofile"
             try:
+                timeout = aiohttp.ClientTimeout(total=DEFAULT_READ_TIMEOUT)
                 session = await self._get_session()
-                async with session.get(url) as response:
+                async with session.get(url, timeout=timeout) as response:
                     response.raise_for_status()
                     return await response.json()
             except aiohttp.ClientError as e:
