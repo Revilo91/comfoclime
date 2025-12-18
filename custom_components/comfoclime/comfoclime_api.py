@@ -16,6 +16,11 @@ WRITE_COOLDOWN = 2.0  # Seconds to wait after a write operation before allowing 
 REQUEST_DEBOUNCE = 0.3  # Debounce time for rapid successive requests
 CACHE_TTL = 30.0  # Cache time-to-live in seconds
 
+# Timeout configuration
+DEFAULT_READ_TIMEOUT = 10  # Timeout for read operations (GET)
+DEFAULT_WRITE_TIMEOUT = 15  # Timeout for write operations (PUT) - longer for dashboard updates
+MAX_RETRIES = 2  # Number of retries for transient failures
+
 
 class ComfoClimeAPI:
     # Mapping von kwargs zu payload-Struktur (class-level constant)
@@ -182,10 +187,14 @@ class ComfoClimeAPI:
         return await coro_factory()
 
     async def _get_session(self):
-        """Get or create aiohttp session."""
+        """Get or create aiohttp session.
+        
+        Note: Timeouts are set per-request, not on the session level,
+        to allow different timeouts for read vs write operations.
+        """
         if self._session is None or self._session.closed:
-            timeout = aiohttp.ClientTimeout(total=5)
-            self._session = aiohttp.ClientSession(timeout=timeout)
+            # No timeout on session - timeouts set per-request
+            self._session = aiohttp.ClientSession()
         return self._session
 
     async def close(self):
@@ -264,8 +273,9 @@ class ComfoClimeAPI:
     async def _async_get_uuid_internal(self):
         """Internal method to get UUID without acquiring lock."""
         await self._wait_for_rate_limit(is_write=False)
+        timeout = aiohttp.ClientTimeout(total=DEFAULT_READ_TIMEOUT)
         session = await self._get_session()
-        async with session.get(f"{self.base_url}/monitoring/ping") as response:
+        async with session.get(f"{self.base_url}/monitoring/ping", timeout=timeout) as response:
             response.raise_for_status()
             data = await response.json()
             self.uuid = data.get("uuid")
@@ -281,9 +291,10 @@ class ComfoClimeAPI:
             await self._wait_for_rate_limit(is_write=False)
             if not self.uuid:
                 await self._async_get_uuid_internal()
+            timeout = aiohttp.ClientTimeout(total=DEFAULT_READ_TIMEOUT)
             session = await self._get_session()
             async with session.get(
-                f"{self.base_url}/system/{self.uuid}/dashboard"
+                f"{self.base_url}/system/{self.uuid}/dashboard", timeout=timeout
             ) as response:
                 response.raise_for_status()
                 return await response.json()
@@ -293,9 +304,10 @@ class ComfoClimeAPI:
             await self._wait_for_rate_limit(is_write=False)
             if not self.uuid:
                 await self._async_get_uuid_internal()
+            timeout = aiohttp.ClientTimeout(total=DEFAULT_READ_TIMEOUT)
             session = await self._get_session()
             url = f"{self.base_url}/system/{self.uuid}/devices"
-            async with session.get(url) as response:
+            async with session.get(url, timeout=timeout) as response:
                 response.raise_for_status()
                 data = await response.json()
                 return data.get("devices", [])
@@ -330,9 +342,10 @@ class ComfoClimeAPI:
         async with self._request_lock:
             await self._wait_for_rate_limit(is_write=False)
             try:
+                timeout = aiohttp.ClientTimeout(total=DEFAULT_READ_TIMEOUT)
                 session = await self._get_session()
                 url = f"{self.base_url}/device/{device_uuid}/telemetry/{telemetry_id}"
-                async with session.get(url) as response:
+                async with session.get(url, timeout=timeout) as response:
                     response.raise_for_status()
                     payload = await response.json()
 
@@ -413,8 +426,9 @@ class ComfoClimeAPI:
     ) -> None | list:
         url = f"{self.base_url}/device/{device_uuid}/property/{property_path}"
         try:
+            timeout = aiohttp.ClientTimeout(total=DEFAULT_READ_TIMEOUT)
             session = await self._get_session()
-            async with session.get(url) as response:
+            async with session.get(url, timeout=timeout) as response:
                 try:
                     response.raise_for_status()
                 except Exception as http_error:
@@ -444,8 +458,9 @@ class ComfoClimeAPI:
                 await self._async_get_uuid_internal()
             url = f"{self.base_url}/system/{self.uuid}/thermalprofile"
             try:
+                timeout = aiohttp.ClientTimeout(total=DEFAULT_READ_TIMEOUT)
                 session = await self._get_session()
-                async with session.get(url) as response:
+                async with session.get(url, timeout=timeout) as response:
                     response.raise_for_status()
                     return await response.json()
             except aiohttp.ClientError as e:
@@ -501,18 +516,38 @@ class ComfoClimeAPI:
         await self._wait_for_rate_limit(is_write=True)
 
         url = f"{self.base_url}/system/{self.uuid}/thermalprofile"
-        try:
-            session = await self._get_session()
-            _LOGGER.debug(f"Sende Thermal Profile Update: {payload}")
-            async with session.put(url, json=payload) as response:
-                response.raise_for_status()
-                _LOGGER.debug(
-                    f"Thermal Profile Update erfolgreich, Status: {response.status}"
-                )
-                return response.status == 200
-        except Exception:
-            _LOGGER.exception(f"Error updating thermal profile (payload={payload})")
-            raise
+        
+        # Retry logic for transient failures
+        last_exception = None
+        for attempt in range(MAX_RETRIES + 1):
+            try:
+                # Use longer timeout for write operations
+                timeout = aiohttp.ClientTimeout(total=DEFAULT_WRITE_TIMEOUT)
+                session = await self._get_session()
+                _LOGGER.debug(f"Sende Thermal Profile Update: {payload}")
+                async with session.put(url, json=payload, timeout=timeout) as response:
+                    response.raise_for_status()
+                    _LOGGER.debug(
+                        f"Thermal Profile Update erfolgreich, Status: {response.status}"
+                    )
+                    return response.status == 200
+            except (asyncio.TimeoutError, aiohttp.ClientError) as e:
+                last_exception = e
+                if attempt < MAX_RETRIES:
+                    wait_time = (attempt + 1) * 1.0  # Progressive backoff: 1s, 2s
+                    _LOGGER.warning(
+                        f"Thermal profile update failed (attempt {attempt + 1}/{MAX_RETRIES + 1}), "
+                        f"retrying in {wait_time}s: {e}"
+                    )
+                    await asyncio.sleep(wait_time)
+                else:
+                    _LOGGER.error(
+                        f"Thermal profile update failed after {MAX_RETRIES + 1} attempts: {e}"
+                    )
+        
+        # If we get here, all retries failed
+        _LOGGER.exception(f"Error updating thermal profile (payload={payload})")
+        raise last_exception
 
     async def _update_dashboard(
         self,
@@ -627,21 +662,41 @@ class ComfoClimeAPI:
 
         headers = {"content-type": "application/json; charset=utf-8"}
         url = f"{self.base_url}/system/{self.uuid}/dashboard"
-        try:
-            session = await self._get_session()
-            async with session.put(url, json=payload, headers=headers) as response:
-                response.raise_for_status()
-                try:
-                    resp_json = await response.json()
-                except Exception:
-                    resp_json = {"text": await response.text()}
-                _LOGGER.debug(
-                    f"Dashboard update OK payload={payload} response={resp_json}"
-                )
-                return resp_json
-        except Exception:
-            _LOGGER.exception(f"Error updating dashboard (payload={payload})")
-            raise
+        
+        # Retry logic for transient failures
+        last_exception = None
+        for attempt in range(MAX_RETRIES + 1):
+            try:
+                # Use longer timeout for write operations
+                timeout = aiohttp.ClientTimeout(total=DEFAULT_WRITE_TIMEOUT)
+                session = await self._get_session()
+                async with session.put(url, json=payload, headers=headers, timeout=timeout) as response:
+                    response.raise_for_status()
+                    try:
+                        resp_json = await response.json()
+                    except Exception:
+                        resp_json = {"text": await response.text()}
+                    _LOGGER.debug(
+                        f"Dashboard update OK payload={payload} response={resp_json}"
+                    )
+                    return resp_json
+            except (asyncio.TimeoutError, aiohttp.ClientError) as e:
+                last_exception = e
+                if attempt < MAX_RETRIES:
+                    wait_time = (attempt + 1) * 1.0  # Progressive backoff: 1s, 2s
+                    _LOGGER.warning(
+                        f"Dashboard update failed (attempt {attempt + 1}/{MAX_RETRIES + 1}), "
+                        f"retrying in {wait_time}s: {e}"
+                    )
+                    await asyncio.sleep(wait_time)
+                else:
+                    _LOGGER.error(
+                        f"Dashboard update failed after {MAX_RETRIES + 1} attempts: {e}"
+                    )
+        
+        # If we get here, all retries failed
+        _LOGGER.exception(f"Error updating dashboard (payload={payload})")
+        raise last_exception
 
     async def async_update_dashboard(self, **kwargs):
         """Async wrapper for update_dashboard method."""
@@ -754,24 +809,47 @@ class ComfoClimeAPI:
             url = f"{self.base_url}/device/{device_uuid}/method/{x}/{y}/3"
             payload = {"data": [z] + data}
 
-            try:
-                session = await self._get_session()
-                async with session.put(url, json=payload) as response:
-                    response.raise_for_status()
-                # Invalidate cache for this device after successful write
-                self._invalidate_cache_for_device(device_uuid)
-            except Exception:
-                _LOGGER.exception(
-                    f"Fehler beim Schreiben von Property {property_path} mit Payload {payload}"
-                )
-                raise
+            # Retry logic for transient failures
+            last_exception = None
+            for attempt in range(MAX_RETRIES + 1):
+                try:
+                    # Use longer timeout for write operations
+                    timeout = aiohttp.ClientTimeout(total=DEFAULT_WRITE_TIMEOUT)
+                    session = await self._get_session()
+                    async with session.put(url, json=payload, timeout=timeout) as response:
+                        response.raise_for_status()
+                    # Invalidate cache for this device after successful write
+                    self._invalidate_cache_for_device(device_uuid)
+                    return  # Success, exit retry loop
+                except (asyncio.TimeoutError, aiohttp.ClientError) as e:
+                    last_exception = e
+                    if attempt < MAX_RETRIES:
+                        wait_time = (attempt + 1) * 1.0  # Progressive backoff: 1s, 2s
+                        _LOGGER.warning(
+                            f"Property write failed (attempt {attempt + 1}/{MAX_RETRIES + 1}), "
+                            f"retrying in {wait_time}s: {e}"
+                        )
+                        await asyncio.sleep(wait_time)
+                    else:
+                        _LOGGER.error(
+                            f"Property write failed after {MAX_RETRIES + 1} attempts: {e}"
+                        )
+            
+            # If we get here, all retries failed
+            _LOGGER.exception(
+                f"Fehler beim Schreiben von Property {property_path} mit Payload {payload}"
+            )
+            raise last_exception
 
     async def async_reset_system(self):
         """Trigger a restart of the ComfoClime device."""
         async with self._request_lock:
             await self._wait_for_rate_limit(is_write=True)
             url = f"{self.base_url}/system/reset"
+            
+            # Use longer timeout for write operations
+            timeout = aiohttp.ClientTimeout(total=DEFAULT_WRITE_TIMEOUT)
             session = await self._get_session()
-            async with session.put(url) as response:
+            async with session.put(url, timeout=timeout) as response:
                 response.raise_for_status()
                 return response.status == 200
