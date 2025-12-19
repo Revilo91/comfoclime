@@ -1,6 +1,6 @@
 """Tests for ComfoClime fan entity."""
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, AsyncMock
 from custom_components.comfoclime.fan import (
     ComfoClimeFan,
     async_setup_entry,
@@ -187,13 +187,13 @@ class TestComfoClimeFan:
 
 
 @pytest.mark.asyncio
-async def test_async_setup_entry(mock_hass, mock_config_entry, mock_coordinator, mock_device):
+async def test_async_setup_entry(mock_hass, mock_config_entry, mock_coordinator, mock_device, mock_api):
     """Test async_setup_entry for fan entity."""
     # Setup mock data
     mock_hass.data = {
         "comfoclime": {
             "test_entry_id": {
-                "api": MagicMock(),
+                "api": mock_api,
                 "coordinator": mock_coordinator,
                 "devices": [mock_device],
                 "main_device": mock_device,

@@ -1,6 +1,6 @@
 """Tests for ComfoClime select entities."""
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, AsyncMock
 from custom_components.comfoclime.select import (
     ComfoClimeSelect,
     ComfoClimePropertySelect,
@@ -92,12 +92,13 @@ class TestComfoClimeSelect:
 
         assert select.current_option == "auto"
 
-    def test_select_option(self, mock_hass, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    @pytest.mark.asyncio
+    async def test_select_option(self, mock_hass, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
         """Test selecting an option."""
         config = {
-            "key": "season.mode",
-            "name": "Season Mode",
-            "translation_key": "season_mode",
+            "key": "season.status",
+            "name": "Season Status",
+            "translation_key": "season_status",
             "options": {0: "auto", 1: "manual"},
         }
 
@@ -112,15 +113,14 @@ class TestComfoClimeSelect:
             entry=mock_config_entry,
         )
 
-        select.select_option("manual")
+        await select.async_select_option("manual")
 
-        # Verify API was called
-        mock_api.update_thermal_profile.assert_called_once()
-        call_args = mock_api.update_thermal_profile.call_args[0][0]
-        assert call_args["season"]["mode"] == 1
+        # Verify API was called with correct parameter
+        mock_api.async_update_thermal_profile.assert_called_once_with(season_status=1)
 
-    def test_select_temperature_profile_option(self, mock_hass, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
-        """Test selecting temperature profile option uses dashboard API."""
+    @pytest.mark.asyncio
+    async def test_select_temperature_profile_option(self, mock_hass, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+        """Test selecting temperature profile option uses thermal profile API."""
         config = {
             "key": "temperatureProfile",
             "name": "Temperature Profile",
@@ -139,10 +139,10 @@ class TestComfoClimeSelect:
             entry=mock_config_entry,
         )
 
-        select.select_option("eco")
+        await select.async_select_option("eco")
 
-        # Should use dashboard API for temperature profile
-        mock_api.update_dashboard.assert_called_once_with(temperature_profile=2)
+        # Should use async_update_thermal_profile for temperature profile
+        mock_api.async_update_thermal_profile.assert_called_once_with(temperature_profile=2)
 
     def test_select_device_info(self, mock_hass, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
         """Test select entity device info."""
