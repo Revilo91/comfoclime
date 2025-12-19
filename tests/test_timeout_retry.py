@@ -20,8 +20,8 @@ class TestTimeoutConfiguration:
     def test_timeout_constants_defined(self):
         """Test that timeout constants are properly defined."""
         assert DEFAULT_READ_TIMEOUT == 10
-        assert DEFAULT_WRITE_TIMEOUT == 15
-        assert MAX_RETRIES == 2
+        assert DEFAULT_WRITE_TIMEOUT == 30
+        assert MAX_RETRIES == 3
 
     @pytest.mark.asyncio
     async def test_get_session_creates_session_with_default_timeout(self):
@@ -129,7 +129,7 @@ class TestDashboardUpdateRetry:
             with pytest.raises(asyncio.TimeoutError):
                 await api.async_update_dashboard(set_point_temperature=22.0)
 
-        # Should be called MAX_RETRIES + 1 times (3 total: initial + 2 retries)
+        # Should be called MAX_RETRIES + 1 times (4 total: initial + 3 retries)
         assert mock_session.put.call_count == MAX_RETRIES + 1
 
     @pytest.mark.asyncio
@@ -154,6 +154,37 @@ class TestDashboardUpdateRetry:
         mock_session.put = MagicMock(
             side_effect=[
                 error_response,
+                AsyncMock(__aenter__=AsyncMock(return_value=success_response)),
+            ]
+        )
+
+        with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
+            result = await api.async_update_dashboard(set_point_temperature=22.0)
+
+        assert result == {"status": "ok"}
+        # Should be called twice (1 failure + 1 success)
+        assert mock_session.put.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_dashboard_update_retries_on_cancelled_error(self):
+        """Test dashboard update retries on CancelledError (from timeout)."""
+        api = ComfoClimeAPI("http://192.168.1.100")
+        api.uuid = "test-uuid"
+        api.hass = MagicMock()
+        api.hass.config.time_zone = "Europe/Berlin"
+
+        # First call gets cancelled, second succeeds
+        cancelled_response = AsyncMock()
+        cancelled_response.__aenter__ = AsyncMock(side_effect=asyncio.CancelledError())
+
+        success_response = AsyncMock()
+        success_response.json = AsyncMock(return_value={"status": "ok"})
+        success_response.raise_for_status = MagicMock()
+
+        mock_session = AsyncMock()
+        mock_session.put = MagicMock(
+            side_effect=[
+                cancelled_response,
                 AsyncMock(__aenter__=AsyncMock(return_value=success_response)),
             ]
         )
@@ -256,5 +287,5 @@ class TestPropertySetRetry:
                     signed=False,
                 )
 
-        # Should be called MAX_RETRIES + 1 times (3 total: initial + 2 retries)
+        # Should be called MAX_RETRIES + 1 times (4 total: initial + 3 retries)
         assert mock_session.put.call_count == MAX_RETRIES + 1

@@ -18,8 +18,8 @@ CACHE_TTL = 30.0  # Cache time-to-live in seconds
 
 # Timeout configuration
 DEFAULT_READ_TIMEOUT = 10  # Timeout for read operations (GET)
-DEFAULT_WRITE_TIMEOUT = 15  # Timeout for write operations (PUT) - longer for dashboard updates
-MAX_RETRIES = 2  # Number of retries for transient failures
+DEFAULT_WRITE_TIMEOUT = 30  # Timeout for write operations (PUT) - increased for slower devices
+MAX_RETRIES = 3  # Number of retries for transient failures
 
 
 class ComfoClimeAPI:
@@ -524,25 +524,30 @@ class ComfoClimeAPI:
                 # Use longer timeout for write operations
                 timeout = aiohttp.ClientTimeout(total=DEFAULT_WRITE_TIMEOUT)
                 session = await self._get_session()
-                _LOGGER.debug(f"Sende Thermal Profile Update: {payload}")
+                _LOGGER.debug(
+                    f"Thermal profile update attempt {attempt + 1}/{MAX_RETRIES + 1}, "
+                    f"timeout={DEFAULT_WRITE_TIMEOUT}s, payload: {payload}"
+                )
                 async with session.put(url, json=payload, timeout=timeout) as response:
                     response.raise_for_status()
                     _LOGGER.debug(
                         f"Thermal Profile Update erfolgreich, Status: {response.status}"
                     )
                     return response.status == 200
-            except (asyncio.TimeoutError, aiohttp.ClientError) as e:
+            except (asyncio.TimeoutError, asyncio.CancelledError, aiohttp.ClientError) as e:
                 last_exception = e
                 if attempt < MAX_RETRIES:
-                    wait_time = (attempt + 1) * 1.0  # Progressive backoff: 1s, 2s
+                    # Exponential backoff: 2s, 4s, 8s
+                    wait_time = 2 ** (attempt + 1)
                     _LOGGER.warning(
                         f"Thermal profile update failed (attempt {attempt + 1}/{MAX_RETRIES + 1}), "
-                        f"retrying in {wait_time}s: {e}"
+                        f"retrying in {wait_time}s: {type(e).__name__}: {e}"
                     )
                     await asyncio.sleep(wait_time)
                 else:
                     _LOGGER.error(
-                        f"Thermal profile update failed after {MAX_RETRIES + 1} attempts: {e}"
+                        f"Thermal profile update failed after {MAX_RETRIES + 1} attempts: "
+                        f"{type(e).__name__}: {e}"
                     )
         
         # If we get here, all retries failed
@@ -670,6 +675,10 @@ class ComfoClimeAPI:
                 # Use longer timeout for write operations
                 timeout = aiohttp.ClientTimeout(total=DEFAULT_WRITE_TIMEOUT)
                 session = await self._get_session()
+                _LOGGER.debug(
+                    f"Dashboard update attempt {attempt + 1}/{MAX_RETRIES + 1}, "
+                    f"timeout={DEFAULT_WRITE_TIMEOUT}s, payload={payload}"
+                )
                 async with session.put(url, json=payload, headers=headers, timeout=timeout) as response:
                     response.raise_for_status()
                     try:
@@ -680,18 +689,20 @@ class ComfoClimeAPI:
                         f"Dashboard update OK payload={payload} response={resp_json}"
                     )
                     return resp_json
-            except (asyncio.TimeoutError, aiohttp.ClientError) as e:
+            except (asyncio.TimeoutError, asyncio.CancelledError, aiohttp.ClientError) as e:
                 last_exception = e
                 if attempt < MAX_RETRIES:
-                    wait_time = (attempt + 1) * 1.0  # Progressive backoff: 1s, 2s
+                    # Exponential backoff: 2s, 4s, 8s
+                    wait_time = 2 ** (attempt + 1)
                     _LOGGER.warning(
                         f"Dashboard update failed (attempt {attempt + 1}/{MAX_RETRIES + 1}), "
-                        f"retrying in {wait_time}s: {e}"
+                        f"retrying in {wait_time}s: {type(e).__name__}: {e}"
                     )
                     await asyncio.sleep(wait_time)
                 else:
                     _LOGGER.error(
-                        f"Dashboard update failed after {MAX_RETRIES + 1} attempts: {e}"
+                        f"Dashboard update failed after {MAX_RETRIES + 1} attempts: "
+                        f"{type(e).__name__}: {e}"
                     )
         
         # If we get here, all retries failed
@@ -816,23 +827,29 @@ class ComfoClimeAPI:
                     # Use longer timeout for write operations
                     timeout = aiohttp.ClientTimeout(total=DEFAULT_WRITE_TIMEOUT)
                     session = await self._get_session()
+                    _LOGGER.debug(
+                        f"Property write attempt {attempt + 1}/{MAX_RETRIES + 1}, "
+                        f"timeout={DEFAULT_WRITE_TIMEOUT}s, path={property_path}, payload={payload}"
+                    )
                     async with session.put(url, json=payload, timeout=timeout) as response:
                         response.raise_for_status()
                     # Invalidate cache for this device after successful write
                     self._invalidate_cache_for_device(device_uuid)
                     return  # Success, exit retry loop
-                except (asyncio.TimeoutError, aiohttp.ClientError) as e:
+                except (asyncio.TimeoutError, asyncio.CancelledError, aiohttp.ClientError) as e:
                     last_exception = e
                     if attempt < MAX_RETRIES:
-                        wait_time = (attempt + 1) * 1.0  # Progressive backoff: 1s, 2s
+                        # Exponential backoff: 2s, 4s, 8s
+                        wait_time = 2 ** (attempt + 1)
                         _LOGGER.warning(
                             f"Property write failed (attempt {attempt + 1}/{MAX_RETRIES + 1}), "
-                            f"retrying in {wait_time}s: {e}"
+                            f"retrying in {wait_time}s: {type(e).__name__}: {e}"
                         )
                         await asyncio.sleep(wait_time)
                     else:
                         _LOGGER.error(
-                            f"Property write failed after {MAX_RETRIES + 1} attempts: {e}"
+                            f"Property write failed after {MAX_RETRIES + 1} attempts: "
+                            f"{type(e).__name__}: {e}"
                         )
             
             # If we get here, all retries failed
