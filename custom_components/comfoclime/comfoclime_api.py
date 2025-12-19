@@ -18,7 +18,7 @@ CACHE_TTL = 30.0  # Cache time-to-live in seconds
 
 # Timeout configuration
 DEFAULT_READ_TIMEOUT = 10  # Timeout for read operations (GET)
-DEFAULT_WRITE_TIMEOUT = 30  # Timeout for write operations (PUT) - increased for slower devices
+DEFAULT_WRITE_TIMEOUT = 30  # Timeout for write operations (PUT) - longer for dashboard updates
 MAX_RETRIES = 3  # Number of retries for transient failures
 
 
@@ -551,8 +551,10 @@ class ComfoClimeAPI:
                     )
         
         # If we get here, all retries failed
-        _LOGGER.exception(f"Error updating thermal profile (payload={payload})")
-        raise last_exception
+        # last_exception should always be set by the loop, but we check defensively
+        if last_exception:
+            raise last_exception
+        raise RuntimeError("Thermal profile update failed with unknown error")
 
     async def _update_dashboard(
         self,
@@ -706,8 +708,10 @@ class ComfoClimeAPI:
                     )
         
         # If we get here, all retries failed
-        _LOGGER.exception(f"Error updating dashboard (payload={payload})")
-        raise last_exception
+        # last_exception should always be set by the loop, but we check defensively
+        if last_exception:
+            raise last_exception
+        raise RuntimeError("Dashboard update failed with unknown error")
 
     async def async_update_dashboard(self, **kwargs):
         """Async wrapper for update_dashboard method."""
@@ -853,10 +857,10 @@ class ComfoClimeAPI:
                         )
             
             # If we get here, all retries failed
-            _LOGGER.exception(
-                f"Fehler beim Schreiben von Property {property_path} mit Payload {payload}"
-            )
-            raise last_exception
+            # last_exception should always be set by the loop, but we check defensively
+            if last_exception:
+                raise last_exception
+            raise RuntimeError(f"Property write failed for {property_path} with unknown error")
 
     async def async_reset_system(self):
         """Trigger a restart of the ComfoClime device."""
