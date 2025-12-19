@@ -208,8 +208,15 @@ class ComfoClimeClimate(
 
     @property
     def available(self) -> bool:
-        """Return True if entity is available."""
-        return self.coordinator.last_update_success
+        """Return True if entity is available.
+        
+        Climate entity depends on both dashboard and thermal profile coordinators,
+        so we check both for successful updates.
+        """
+        return (
+            self.coordinator.last_update_success
+            and self._thermalprofile_coordinator.last_update_success
+        )
 
     @property
     def device_info(self) -> DeviceInfo:
