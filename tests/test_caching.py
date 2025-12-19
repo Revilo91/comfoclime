@@ -146,27 +146,28 @@ async def test_cache_invalidation():
 
 
 def test_sensor_with_caching():
-    """Test that sensor uses API with caching."""
-    mock_api = MagicMock()
+    """Test that sensor uses coordinator with caching."""
+    mock_coordinator = MagicMock()
+    mock_coordinator.get_telemetry_value = MagicMock(return_value=25.5)
     mock_device = {"uuid": "test-uuid", "displayName": "Test Device"}
     mock_entry = MagicMock()
     mock_entry.entry_id = "test_entry"
 
     sensor = ComfoClimeTelemetrySensor(
         hass=MagicMock(),
-        api=mock_api,
+        coordinator=mock_coordinator,
         telemetry_id=123,
         name="Test Sensor",
         translation_key="test_sensor",
         unit="°C",
         device=mock_device,
+        override_device_uuid="test-uuid",
         entry=mock_entry,
     )
 
     # Verify sensor was initialized
-    assert sensor._id == 123
-    assert sensor._api == mock_api
-    print("✅ Sensor initialization with API caching test passed")
+    assert sensor._id == "123"
+    print("✅ Sensor initialization with coordinator test passed")
 
 
 async def main():
