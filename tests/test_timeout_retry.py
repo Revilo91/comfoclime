@@ -165,6 +165,37 @@ class TestDashboardUpdateRetry:
         # Should be called twice (1 failure + 1 success)
         assert mock_session.put.call_count == 2
 
+    @pytest.mark.asyncio
+    async def test_dashboard_update_retries_on_cancelled_error(self):
+        """Test dashboard update retries on CancelledError (from timeout)."""
+        api = ComfoClimeAPI("http://192.168.1.100")
+        api.uuid = "test-uuid"
+        api.hass = MagicMock()
+        api.hass.config.time_zone = "Europe/Berlin"
+
+        # First call gets cancelled, second succeeds
+        cancelled_response = AsyncMock()
+        cancelled_response.__aenter__ = AsyncMock(side_effect=asyncio.CancelledError())
+
+        success_response = AsyncMock()
+        success_response.json = AsyncMock(return_value={"status": "ok"})
+        success_response.raise_for_status = MagicMock()
+
+        mock_session = AsyncMock()
+        mock_session.put = MagicMock(
+            side_effect=[
+                cancelled_response,
+                AsyncMock(__aenter__=AsyncMock(return_value=success_response)),
+            ]
+        )
+
+        with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
+            result = await api.async_update_dashboard(set_point_temperature=22.0)
+
+        assert result == {"status": "ok"}
+        # Should be called twice (1 failure + 1 success)
+        assert mock_session.put.call_count == 2
+
 
 class TestThermalProfileUpdateRetry:
     """Test retry logic for thermal profile updates."""
