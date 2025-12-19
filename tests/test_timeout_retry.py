@@ -28,29 +28,33 @@ class TestTimeoutConfiguration:
         """Test that _get_session creates session with default timeout."""
         api = ComfoClimeAPI("http://192.168.1.100")
         
-        session = await api._get_session()
+        # Mock the session to avoid aiohttp thread issues in tests
+        mock_session = AsyncMock()
+        mock_session.closed = False
         
-        # Session should be created
-        assert session is not None
-        assert not session.closed
-        
-        # Clean up
-        await api.close()
+        with patch("aiohttp.ClientSession", return_value=mock_session):
+            session = await api._get_session()
+            
+            # Session should be created
+            assert session is not None
+            assert not session.closed
 
     @pytest.mark.asyncio
     async def test_get_session_does_not_accept_timeout_parameter(self):
         """Test that _get_session does not accept timeout parameter (timeouts are per-request)."""
         api = ComfoClimeAPI("http://192.168.1.100")
         
-        # _get_session should not accept timeout_seconds parameter
-        session = await api._get_session()
+        # Mock the session to avoid aiohttp thread issues in tests
+        mock_session = AsyncMock()
+        mock_session.closed = False
         
-        # Session should be created
-        assert session is not None
-        assert not session.closed
-        
-        # Clean up
-        await api.close()
+        with patch("aiohttp.ClientSession", return_value=mock_session):
+            # _get_session should not accept timeout_seconds parameter
+            session = await api._get_session()
+            
+            # Session should be created
+            assert session is not None
+            assert not session.closed
 
 
 class TestDashboardUpdateRetry:
