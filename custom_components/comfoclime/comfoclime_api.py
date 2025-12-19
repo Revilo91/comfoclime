@@ -547,6 +547,7 @@ class ComfoClimeAPI:
                     )
         
         # If we get here, all retries failed
+        # last_exception should always be set by the loop, but we check defensively
         if last_exception:
             raise last_exception
         raise RuntimeError("Thermal profile update failed with unknown error")
@@ -698,6 +699,7 @@ class ComfoClimeAPI:
                     )
         
         # If we get here, all retries failed
+        # last_exception should always be set by the loop, but we check defensively
         if last_exception:
             raise last_exception
         raise RuntimeError("Dashboard update failed with unknown error")
@@ -841,6 +843,7 @@ class ComfoClimeAPI:
                         )
             
             # If we get here, all retries failed
+            # last_exception should always be set by the loop, but we check defensively
             if last_exception:
                 raise last_exception
             raise RuntimeError(f"Property write failed for {property_path} with unknown error")
