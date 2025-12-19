@@ -9,15 +9,16 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     EntityCategory,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
-from .comfoclime_api import ComfoClimeAPI
 from .coordinator import (
     ComfoClimeDashboardCoordinator,
+    ComfoClimePropertyCoordinator,
+    ComfoClimeTelemetryCoordinator,
     ComfoClimeThermalprofileCoordinator,
 )
 from .entities.sensor_definitions import (
@@ -43,22 +44,14 @@ VALUE_MAPPINGS = {
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ):
-    host = entry.data["host"]
-    api = ComfoClimeAPI(f"http://{host}")
-
-    sensors = []
-
-    # UUID abrufen
-    try:
-        await api.async_get_uuid(hass)
-    except Exception as e:
-        _LOGGER.error(f"Fehler beim Abrufen der UUID: {e}")
-        return
-
-    # Dashboard-Daten abrufen (optional beim Start)
     data = hass.data[DOMAIN][entry.entry_id]
     api = data["api"]
-    coordinator = data["coordinator"]
+
+    sensors = []
+    coordinator: ComfoClimeDashboardCoordinator = data["coordinator"]
+    tlcoordinator: ComfoClimeTelemetryCoordinator = data["tlcoordinator"]
+    propcoordinator: ComfoClimePropertyCoordinator = data["propcoordinator"]
+
     try:
         await coordinator.async_config_entry_first_refresh()
     except Exception as e:
@@ -66,6 +59,7 @@ async def async_setup_entry(
 
     devices = hass.data[DOMAIN][entry.entry_id]["devices"]
     main_device = hass.data[DOMAIN][entry.entry_id]["main_device"]
+
     # Dashboard-Sensoren
     sensor_list = [
         ComfoClimeSensor(
@@ -85,12 +79,13 @@ async def async_setup_entry(
         for sensor_def in DASHBOARD_SENSORS
     ]
     sensors.extend(sensor_list)
+
     # ThermalProfile-Sensoren
-    tp_coordinator = data["tpcoordinator"]
+    thermalprofile_coordinator: ComfoClimeThermalprofileCoordinator = data["tpcoordinator"]
     sensor_list = [
         ComfoClimeSensor(
             hass=hass,
-            coordinator=tp_coordinator,
+            coordinator=thermalprofile_coordinator,
             api=api,
             sensor_type=sensor_def["key"],
             name=sensor_def["name"],
@@ -106,25 +101,34 @@ async def async_setup_entry(
     ]
     sensors.extend(sensor_list)
 
-    # Feste Telemetrie-Sensoren für das ComfoClime-Gerät
-    sensors.extend(
-        ComfoClimeTelemetrySensor(
-            hass=hass,
-            api=api,
-            telemetry_id=sensor_def["id"],
-            name=sensor_def["name"],
-            translation_key=sensor_def.get("translation_key", False),
-            unit=sensor_def.get("unit"),
-            faktor=sensor_def.get("faktor", 1.0),
-            signed=sensor_def.get("signed", True),
-            byte_count=sensor_def.get("byte_count"),
-            device_class=sensor_def.get("device_class"),
-            state_class=sensor_def.get("state_class"),
-            entity_category=sensor_def.get("entity_category"),
-            entry=entry,
-        )
-        for sensor_def in TELEMETRY_SENSORS
-    )
+    # Feste Telemetrie-Sensoren für das ComfoClime-Gerät (from TELEMETRY_SENSORS)
+    for sensor_def in TELEMETRY_SENSORS:
+        device_uuid = api.uuid or (main_device.get("uuid") if main_device else None)
+        if device_uuid:
+            tlcoordinator.register_telemetry(
+                device_uuid=device_uuid,
+                telemetry_id=str(sensor_def["id"]),
+                faktor=sensor_def.get("faktor", 1.0),
+                signed=sensor_def.get("signed", True),
+                byte_count=sensor_def.get("byte_count"),
+            )
+            sensors.append(
+                ComfoClimeTelemetrySensor(
+                    hass=hass,
+                    coordinator=tlcoordinator,
+                    telemetry_id=sensor_def["id"],
+                    name=sensor_def["name"],
+                    translation_key=sensor_def.get("translation_key", False),
+                    unit=sensor_def.get("unit"),
+                    faktor=sensor_def.get("faktor", 1.0),
+                    byte_count=sensor_def.get("byte_count"),
+                    device_class=sensor_def.get("device_class"),
+                    state_class=sensor_def.get("state_class"),
+                    entity_category=sensor_def.get("entity_category"),
+                    override_device_uuid=device_uuid,
+                    entry=entry,
+                )
+            )
 
     # Verbundene Geräte abrufen
     try:
@@ -140,24 +144,28 @@ async def async_setup_entry(
             continue
 
         sensor_defs = CONNECTED_DEVICE_SENSORS.get(model_id)
-        if not sensor_defs:
-            continue
-
-        for sensor_def in sensor_defs:
-            if not sensor_def.get("diagnose", False) or entry.options.get(
-                "enable_diagnostics", False
-            ):
-                sensors.extend(
-                    [
+        if sensor_defs:
+            for sensor_def in sensor_defs:
+                if not sensor_def.get("diagnose", False) or entry.options.get(
+                    "enable_diagnostics", False
+                ):
+                    # Register telemetry with coordinator for batched fetching
+                    tlcoordinator.register_telemetry(
+                        device_uuid=dev_uuid,
+                        telemetry_id=str(sensor_def["telemetry_id"]),
+                        faktor=sensor_def.get("faktor", 1.0),
+                        signed=sensor_def.get("signed", True),
+                        byte_count=sensor_def.get("byte_count"),
+                    )
+                    sensors.append(
                         ComfoClimeTelemetrySensor(
                             hass=hass,
-                            api=api,
+                            coordinator=tlcoordinator,
                             telemetry_id=sensor_def["telemetry_id"],
                             name=sensor_def["name"],
                             translation_key=sensor_def.get("translation_key", False),
                             unit=sensor_def.get("unit"),
                             faktor=sensor_def.get("faktor", 1.0),
-                            signed=sensor_def.get("signed", True),
                             byte_count=sensor_def.get("byte_count"),
                             device_class=sensor_def.get("device_class"),
                             device=device,
@@ -165,34 +173,50 @@ async def async_setup_entry(
                             override_device_uuid=dev_uuid,
                             entry=entry,
                         )
-                    ]
-                )
+                    )
 
         property_defs = CONNECTED_DEVICE_PROPERTIES.get(model_id)
-        if not property_defs:
-            continue
+        if property_defs:
+            for prop_def in property_defs:
+                # Register property with coordinator for batched fetching
+                propcoordinator.register_property(
+                    device_uuid=dev_uuid,
+                    property_path=prop_def["path"],
+                    faktor=prop_def.get("faktor", 1.0),
+                    signed=prop_def.get("signed", True),
+                    byte_count=prop_def.get("byte_count"),
+                )
+                sensors.append(
+                    ComfoClimePropertySensor(
+                        hass=hass,
+                        coordinator=propcoordinator,
+                        path=prop_def["path"],
+                        name=prop_def["name"],
+                        translation_key=prop_def.get("translation_key", False),
+                        unit=prop_def.get("unit"),
+                        faktor=prop_def.get("faktor", 1.0),
+                        byte_count=prop_def.get("byte_count"),
+                        mapping_key=prop_def.get("mapping_key", ""),
+                        device_class=prop_def.get("device_class"),
+                        state_class=prop_def.get("state_class"),
+                        entity_category=prop_def.get("entity_category"),
+                        device=device,
+                        override_device_uuid=dev_uuid,
+                        entry=entry,
+                    )
+                )
 
-        sensors.extend(
-            ComfoClimePropertySensor(
-                hass=hass,
-                api=api,
-                path=prop_def["path"],
-                name=prop_def["name"],
-                translation_key=prop_def.get("translation_key", False),
-                unit=prop_def.get("unit"),
-                faktor=prop_def.get("faktor", 1.0),
-                signed=prop_def.get("signed", True),
-                byte_count=prop_def.get("byte_count"),
-                mapping_key=prop_def.get("mapping_key", ""),
-                device_class=prop_def.get("device_class"),
-                state_class=prop_def.get("state_class"),
-                entity_category=prop_def.get("entity_category"),
-                device=device,
-                override_device_uuid=dev_uuid,
-                entry=entry,
-            )
-            for prop_def in property_defs
-        )
+    # First refresh of telemetry and property coordinators after all registrations
+    try:
+        await tlcoordinator.async_config_entry_first_refresh()
+    except Exception as e:
+        _LOGGER.warning(f"Telemetrie-Daten konnten nicht geladen werden: {e}")
+
+    try:
+        await propcoordinator.async_config_entry_first_refresh()
+    except Exception as e:
+        _LOGGER.warning(f"Property-Daten konnten nicht geladen werden: {e}")
+
     async_add_entities(sensors, True)
 
 
@@ -219,9 +243,11 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
         self._name = name
         self._state = None
         self._raw_state = None
+        self._raw_value = None
         self._attr_native_unit_of_measurement = unit
-        self._attr_device_class = device_class
-        self._attr_state_class = state_class
+        self._attr_device_class = SensorDeviceClass(device_class) if device_class else None
+        self._attr_state_class = SensorStateClass(state_class) if state_class else None
+        self._attr_entity_category = EntityCategory(entity_category) if entity_category else None
         self._device = device
         self._entry = entry
         self._attr_config_entry_id = entry.entry_id
@@ -263,9 +289,6 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
         try:
             data = self.coordinator.data
 
-            # raw_value wurde ermittelt
-            self._raw_value = data
-
             # Handle nested keys (e.g., "season.status" or "heatingThermalProfileSeasonData.comfortTemperature")
             if "." in self._type:
                 keys = self._type.split(".")
@@ -278,6 +301,9 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
                         break
             else:
                 raw_value = data.get(self._type)
+
+            # raw_value wurde ermittelt
+            self._raw_value = raw_value
 
             # Wenn es eine definierte Übersetzung gibt, wende sie an
             if self._type in VALUE_MAPPINGS:
@@ -292,11 +318,15 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
         self.async_write_ha_state()
 
 
-class ComfoClimeTelemetrySensor(SensorEntity):
+class ComfoClimeTelemetrySensor(
+    CoordinatorEntity[ComfoClimeTelemetryCoordinator], SensorEntity
+):
+    """Sensor for telemetry data using coordinator for batched fetching."""
+
     def __init__(
         self,
         hass,
-        api,
+        coordinator: ComfoClimeTelemetryCoordinator,
         telemetry_id,
         name,
         translation_key,
@@ -311,13 +341,13 @@ class ComfoClimeTelemetrySensor(SensorEntity):
         override_device_uuid=None,
         entry=None,
     ):
+        super().__init__(coordinator)
         self._hass = hass
-        self._api = api
-        self._id = telemetry_id
+        self._id = str(telemetry_id)
         self._name = name
         self._faktor = faktor
-        self._signed = signed
         self._byte_count = byte_count
+        self._signed = signed
         self._state = None
         self._attr_native_unit_of_measurement = unit
         self._attr_device_class = SensorDeviceClass(device_class) if device_class else None
@@ -335,7 +365,7 @@ class ComfoClimeTelemetrySensor(SensorEntity):
         self._attr_has_entity_name = True
 
     @property
-    def state(self):
+    def native_value(self):
         return self._state
 
     @property
@@ -351,26 +381,31 @@ class ComfoClimeTelemetrySensor(SensorEntity):
             sw_version=self._device.get("version", None),
         )
 
-    async def async_update(self):
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
         try:
-            self._state = await self._api.async_read_telemetry_for_device(
-                self._hass,
-                self._override_uuid or self._api.uuid,
-                self._id,
-                self._faktor,
-                self._signed,
-                self._byte_count,
+            value = self.coordinator.get_telemetry_value(
+                self._override_uuid, self._id
             )
-        except Exception as e:
-            _LOGGER.error(f"Fehler beim Aktualisieren von Telemetrie {self._id}: {e}")
+            self._state = value
+        except Exception:
+            _LOGGER.debug(
+                "Fehler beim Aktualisieren von Telemetrie %s", self._id, exc_info=True
+            )
             self._state = None
+        self.async_write_ha_state()
 
 
-class ComfoClimePropertySensor(SensorEntity):
+class ComfoClimePropertySensor(
+    CoordinatorEntity[ComfoClimePropertyCoordinator], SensorEntity
+):
+    """Sensor for property data using coordinator for batched fetching."""
+
     def __init__(
         self,
         hass,
-        api,
+        coordinator: ComfoClimePropertyCoordinator,
         path: str,
         name: str,
         translation_key: str,
@@ -387,13 +422,13 @@ class ComfoClimePropertySensor(SensorEntity):
         override_device_uuid: str | None = None,
         entry: ConfigEntry,
     ):
+        super().__init__(coordinator)
         self._hass = hass
-        self._api = api
         self._path = path
         self._name = name
         self._faktor = faktor
-        self._signed = signed
         self._byte_count = byte_count
+        self._signed = signed
         self._attr_native_unit_of_measurement = unit
         self._attr_device_class = SensorDeviceClass(device_class) if device_class else None
         self._attr_state_class = SensorStateClass(state_class) if state_class else None
@@ -426,20 +461,20 @@ class ComfoClimePropertySensor(SensorEntity):
             sw_version=self._device.get("version"),
         )
 
-    async def async_update(self):
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
         try:
-            value = await self._api.async_read_property_for_device(
-                self._hass,
-                self._override_uuid or self._api.uuid,
-                self._path,
-                self._faktor,
-                self._signed,
-                self._byte_count,
+            value = self.coordinator.get_property_value(
+                self._override_uuid, self._path
             )
             if self._mapping_key and self._mapping_key in VALUE_MAPPINGS:
                 self._state = VALUE_MAPPINGS[self._mapping_key].get(value, value)
             else:
                 self._state = value
-        except Exception as e:
-            _LOGGER.error(f"Fehler beim Abrufen von Property {self._path}: {e}")
+        except Exception:
+            _LOGGER.debug(
+                "Fehler beim Abrufen von Property %s", self._path, exc_info=True
+            )
             self._state = None
+        self.async_write_ha_state()

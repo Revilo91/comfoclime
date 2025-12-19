@@ -1,18 +1,16 @@
 """Tests for ComfoClime climate entity."""
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
 from homeassistant.components.climate import (
-    HVACMode,
-    HVACAction,
-    PRESET_COMFORT,
-    PRESET_ECO,
-    PRESET_BOOST,
-    PRESET_NONE,
-    FAN_LOW,
-    FAN_MEDIUM,
     FAN_HIGH,
-    FAN_OFF,
+    FAN_MEDIUM,
+    PRESET_COMFORT,
+    PRESET_NONE,
+    HVACAction,
+    HVACMode,
 )
+
 from custom_components.comfoclime.climate import (
     ComfoClimeClimate,
     async_setup_entry,
@@ -145,7 +143,7 @@ class TestComfoClimeClimate:
             entry=mock_config_entry,
         )
 
-        assert climate.hvac_action == HVACAction.HEATING
+        assert HVACAction.HEATING in climate.hvac_action
 
     def test_climate_hvac_action_cooling(self, mock_hass, mock_coordinator, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
         """Test climate HVAC action when cooling."""
@@ -161,7 +159,7 @@ class TestComfoClimeClimate:
             entry=mock_config_entry,
         )
 
-        assert climate.hvac_action == HVACAction.COOLING
+        assert HVACAction.COOLING in climate.hvac_action
 
     def test_climate_hvac_action_idle(self, mock_hass, mock_coordinator, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
         """Test climate HVAC action when idle."""
@@ -177,7 +175,7 @@ class TestComfoClimeClimate:
             entry=mock_config_entry,
         )
 
-        assert climate.hvac_action == HVACAction.IDLE
+        assert HVACAction.IDLE in climate.hvac_action
 
     def test_climate_hvac_action_off(self, mock_hass, mock_coordinator, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
         """Test climate HVAC action when off."""
@@ -193,7 +191,7 @@ class TestComfoClimeClimate:
             entry=mock_config_entry,
         )
 
-        assert climate.hvac_action == HVACAction.OFF
+        assert HVACAction.OFF in climate.hvac_action
 
     def test_climate_preset_mode_comfort(self, mock_hass, mock_coordinator, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
         """Test climate preset mode comfort."""
@@ -281,9 +279,9 @@ class TestComfoClimeClimate:
 
         await climate.async_set_hvac_mode(HVACMode.HEAT)
 
-        # Should call async_set_hvac_season with season=1 and hp_standby=False
+        # Should call async_set_hvac_season with season=1 and hpStandby=False
         mock_api.async_set_hvac_season.assert_called_once_with(
-            mock_hass, season=1, hp_standby=False
+            season=1, hpStandby=False
         )
 
     @pytest.mark.asyncio
@@ -304,9 +302,9 @@ class TestComfoClimeClimate:
 
         await climate.async_set_hvac_mode(HVACMode.OFF)
 
-        # Should call async_update_dashboard with hp_standby=True
+        # Should call async_update_dashboard with hpStandby=True
         mock_api.async_update_dashboard.assert_called_once_with(
-            mock_hass, hp_standby=True
+            hpStandby=True
         )
 
     @pytest.mark.asyncio

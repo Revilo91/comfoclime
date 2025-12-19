@@ -49,7 +49,7 @@ class TestComfoClimeSensor:
             device=mock_device,
             entry=mock_config_entry,
         )
-        
+
         # Set hass attribute and mock async_write_ha_state
         sensor.hass = mock_hass
         sensor.async_write_ha_state = MagicMock()
@@ -62,7 +62,7 @@ class TestComfoClimeSensor:
     def test_sensor_value_mapping(self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry):
         """Test sensor value mapping for temperatureProfile."""
         mock_coordinator.data = {"temperatureProfile": 0}
-        
+
         sensor = ComfoClimeSensor(
             hass=mock_hass,
             coordinator=mock_coordinator,
@@ -107,11 +107,13 @@ class TestComfoClimeSensor:
 class TestComfoClimeTelemetrySensor:
     """Test ComfoClimeTelemetrySensor class."""
 
-    def test_telemetry_sensor_initialization(self, mock_hass, mock_api, mock_device, mock_config_entry):
+    def test_telemetry_sensor_initialization(
+        self, mock_hass, mock_telemetry_coordinator, mock_device, mock_config_entry
+    ):
         """Test telemetry sensor initialization."""
         sensor = ComfoClimeTelemetrySensor(
             hass=mock_hass,
-            api=mock_api,
+            coordinator=mock_telemetry_coordinator,
             telemetry_id=123,
             name="Test Telemetry",
             translation_key="test_telemetry",
@@ -122,45 +124,57 @@ class TestComfoClimeTelemetrySensor:
             device_class="temperature",
             state_class="measurement",
             device=mock_device,
+            override_device_uuid="test-device-uuid",
             entry=mock_config_entry,
         )
 
-        assert sensor._id == 123
+        assert sensor._id == "123"
         assert sensor._name == "Test Telemetry"
         assert sensor._faktor == 0.1
         assert sensor._signed is True
         assert sensor._byte_count == 2
         assert sensor._attr_unique_id == "test_entry_id_telemetry_123"
 
-    @pytest.mark.asyncio
-    async def test_telemetry_sensor_update(self, mock_hass, mock_api, mock_device, mock_config_entry):
-        """Test telemetry sensor async update."""
-        mock_api.async_read_telemetry_for_device.return_value = 25.5
+    def test_telemetry_sensor_update(
+        self, mock_hass, mock_telemetry_coordinator, mock_device, mock_config_entry
+    ):
+        """Test telemetry sensor update from coordinator."""
+        mock_telemetry_coordinator.get_telemetry_value.return_value = 25.5
 
         sensor = ComfoClimeTelemetrySensor(
             hass=mock_hass,
-            api=mock_api,
+            coordinator=mock_telemetry_coordinator,
             telemetry_id=123,
             name="Test Telemetry",
             translation_key="test_telemetry",
             unit="°C",
             device=mock_device,
+            override_device_uuid="test-device-uuid",
             entry=mock_config_entry,
         )
 
-        await sensor.async_update()
+        # Mock async_write_ha_state
+        sensor.hass = mock_hass
+        sensor.async_write_ha_state = MagicMock()
+
+        # Trigger coordinator update
+        sensor._handle_coordinator_update()
 
         assert sensor._state == 25.5
-        mock_api.async_read_telemetry_for_device.assert_called_once()
+        mock_telemetry_coordinator.get_telemetry_value.assert_called_once_with(
+            "test-device-uuid", "123"
+        )
 
-    @pytest.mark.asyncio
-    async def test_telemetry_sensor_update_with_override_uuid(self, mock_hass, mock_api, mock_device, mock_config_entry):
+    def test_telemetry_sensor_update_with_override_uuid(
+        self, mock_hass, mock_telemetry_coordinator, mock_device, mock_config_entry
+    ):
         """Test telemetry sensor update with override UUID."""
         override_uuid = "override-uuid-123"
-        
+        mock_telemetry_coordinator.get_telemetry_value.return_value = 30.0
+
         sensor = ComfoClimeTelemetrySensor(
             hass=mock_hass,
-            api=mock_api,
+            coordinator=mock_telemetry_coordinator,
             telemetry_id=456,
             name="Test Telemetry",
             translation_key="test_telemetry",
@@ -170,21 +184,29 @@ class TestComfoClimeTelemetrySensor:
             entry=mock_config_entry,
         )
 
-        await sensor.async_update()
+        # Mock async_write_ha_state
+        sensor.hass = mock_hass
+        sensor.async_write_ha_state = MagicMock()
 
-        # Should use override_uuid instead of api.uuid
-        call_args = mock_api.async_read_telemetry_for_device.call_args
-        assert call_args[0][1] == override_uuid
+        # Trigger coordinator update
+        sensor._handle_coordinator_update()
+
+        # Should use override_uuid
+        mock_telemetry_coordinator.get_telemetry_value.assert_called_once_with(
+            override_uuid, "456"
+        )
 
 
 class TestComfoClimePropertySensor:
     """Test ComfoClimePropertySensor class."""
 
-    def test_property_sensor_initialization(self, mock_hass, mock_api, mock_device, mock_config_entry):
+    def test_property_sensor_initialization(
+        self, mock_hass, mock_property_coordinator, mock_device, mock_config_entry
+    ):
         """Test property sensor initialization."""
         sensor = ComfoClimePropertySensor(
             hass=mock_hass,
-            api=mock_api,
+            coordinator=mock_property_coordinator,
             path="29/1/10",
             name="Test Property",
             translation_key="test_property",
@@ -194,6 +216,7 @@ class TestComfoClimePropertySensor:
             byte_count=2,
             device_class="voltage",
             device=mock_device,
+            override_device_uuid="test-device-uuid",
             entry=mock_config_entry,
         )
 
@@ -204,73 +227,96 @@ class TestComfoClimePropertySensor:
         assert sensor._byte_count == 2
         assert sensor._attr_unique_id == "test_entry_id_property_29_1_10"
 
-    @pytest.mark.asyncio
-    async def test_property_sensor_update(self, mock_hass, mock_api, mock_device, mock_config_entry):
-        """Test property sensor async update."""
-        mock_api.async_read_property_for_device.return_value = 230
+    def test_property_sensor_update(
+        self, mock_hass, mock_property_coordinator, mock_device, mock_config_entry
+    ):
+        """Test property sensor update from coordinator."""
+        mock_property_coordinator.get_property_value.return_value = 230
 
         sensor = ComfoClimePropertySensor(
             hass=mock_hass,
-            api=mock_api,
+            coordinator=mock_property_coordinator,
             path="29/1/10",
             name="Test Property",
             translation_key="test_property",
             unit="V",
             device=mock_device,
+            override_device_uuid="test-device-uuid",
             entry=mock_config_entry,
         )
 
-        await sensor.async_update()
+        # Mock async_write_ha_state
+        sensor.hass = mock_hass
+        sensor.async_write_ha_state = MagicMock()
+
+        # Trigger coordinator update
+        sensor._handle_coordinator_update()
 
         assert sensor._state == 230
-        mock_api.async_read_property_for_device.assert_called_once()
+        mock_property_coordinator.get_property_value.assert_called_once_with(
+            "test-device-uuid", "29/1/10"
+        )
 
-    @pytest.mark.asyncio
-    async def test_property_sensor_update_with_mapping(self, mock_hass, mock_api, mock_device, mock_config_entry):
+    def test_property_sensor_update_with_mapping(
+        self, mock_hass, mock_property_coordinator, mock_device, mock_config_entry
+    ):
         """Test property sensor update with value mapping."""
-        mock_api.async_read_property_for_device.return_value = 0
+        mock_property_coordinator.get_property_value.return_value = 0
 
         sensor = ComfoClimePropertySensor(
             hass=mock_hass,
-            api=mock_api,
+            coordinator=mock_property_coordinator,
             path="test/path",
             name="Temperature Profile",
             translation_key="temperature_profile",
             mapping_key="temperatureProfile",
             device=mock_device,
+            override_device_uuid="test-device-uuid",
             entry=mock_config_entry,
         )
 
-        await sensor.async_update()
+        # Mock async_write_ha_state
+        sensor.hass = mock_hass
+        sensor.async_write_ha_state = MagicMock()
+
+        # Trigger coordinator update
+        sensor._handle_coordinator_update()
 
         # Should map 0 to "comfort"
         assert sensor._state == "comfort"
 
 
 @pytest.mark.asyncio
-async def test_async_setup_entry(mock_hass, mock_config_entry, mock_coordinator, mock_device):
+async def test_async_setup_entry(
+    mock_hass,
+    mock_config_entry,
+    mock_coordinator,
+    mock_thermalprofile_coordinator,
+    mock_telemetry_coordinator,
+    mock_property_coordinator,
+    mock_device,
+    mock_api,
+):
     """Test async_setup_entry for sensors."""
     # Setup mock data
+    mock_api.uuid = "test-device-uuid"
     mock_hass.data = {
         "comfoclime": {
             "test_entry_id": {
-                "api": MagicMock(),
+                "api": mock_api,
                 "coordinator": mock_coordinator,
+                "tpcoordinator": mock_thermalprofile_coordinator,
+                "tlcoordinator": mock_telemetry_coordinator,
+                "propcoordinator": mock_property_coordinator,
                 "devices": [mock_device],
                 "main_device": mock_device,
             }
         }
     }
 
-    # Mock the API class to return our mock API
-    with patch("custom_components.comfoclime.sensor.ComfoClimeAPI") as mock_api_class:
-        mock_api_instance = MagicMock()
-        mock_api_instance.async_get_uuid = AsyncMock(return_value="test-uuid")
-        mock_api_class.return_value = mock_api_instance
+    async_add_entities = MagicMock()
 
-        async_add_entities = MagicMock()
+    await async_setup_entry(mock_hass, mock_config_entry, async_add_entities)
 
-        await async_setup_entry(mock_hass, mock_config_entry, async_add_entities)
-
-        # Verify entities were added
-        assert async_add_entities.called
+    # Verify entities were added
+    assert async_add_entities.called

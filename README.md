@@ -34,6 +34,25 @@ API documentation with practical Python examples:
 
 Feel free to extend!
 
+## Development & Testing
+
+Want to test or develop this integration? Use the included **GitHub Codespace** or **Dev Container** setup!
+
+🚀 **Quick Start:**
+- Click "Code" → "Codespaces" → "Create codespace" on GitHub
+- Or open in VS Code with Dev Containers extension
+- Home Assistant runs automatically on port 8123
+- See [.devcontainer/README.md](.devcontainer/README.md) for detailed instructions
+
+This provides a complete Home Assistant development environment with debugging support.
+
+## Installation
+
+* add this repository via HACS (user defined repositories, URL: `https://github.com/msfuture/comfoclime`)
+* install the "Zehnder ComfoClime" integration in HACS
+* restart Home Assistant
+* add the ComfoClime device (connected devices like the ComfoAir Q are detected and added automatically)
+
 ## Climate Control Features
 
 The integration provides a comprehensive climate control entity that unifies all temperature and ventilation control features:
@@ -60,6 +79,27 @@ The climate entity automatically:
 - Adjusts available temperature ranges accordingly
 - Shows appropriate HVAC actions (heating/cooling/fan/idle)
 - Manages system state based on fan activity
+
+### Heat Pump Status Interpretation
+The climate entity uses **bitwise operations** to accurately determine the current HVAC action from the heat pump status code:
+
+- **Bit 1 (0x02)**: Heating mode flag
+- **Bit 2 (0x04)**: Cooling mode flag
+
+This ensures correct interpretation of all status codes, including transitional states:
+
+| Status Code | Binary | HVAC Action | Description |
+|-------------|--------|-------------|-------------|
+| 0 | 0000 0000 | Off | Heat pump is off |
+| 1 | 0000 0001 | Idle | Starting up |
+| 3 | 0000 0011 | Heating | Actively heating |
+| 5 | 0000 0101 | Cooling | Actively cooling |
+| 17 | 0001 0001 | Idle | Transitional state |
+| 19 | 0001 0011 | Heating | Heating in transitional state |
+| 21 | 0001 0101 | Cooling | Cooling in transitional state |
+| 67 | 0100 0011 | Heating | Heating mode (defrosting?) |
+| 75 | 0100 1011 | Heating | Heating mode (defrosting + drying?) |
+| 83 | 0101 0011 | Heating | Heating mode |
 
 ## Current ToDo / development
 There are many more telemetry and property values, that make sense to be offered by the integration. The ComfoClime unit itself is fully integrated but there are some missing sensors, switches and numbers of the ComfoAirQ unit to be added in the future. You are missing one? The definitions are in seperate files in the entities folder, so you can try them yourself. If they are working you can open an issue or directly open a pull request.
