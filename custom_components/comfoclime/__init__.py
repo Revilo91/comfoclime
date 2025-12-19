@@ -10,6 +10,8 @@ import homeassistant.helpers.device_registry as dr
 from .comfoclime_api import ComfoClimeAPI
 from .coordinator import (
     ComfoClimeDashboardCoordinator,
+    ComfoClimePropertyCoordinator,
+    ComfoClimeTelemetryCoordinator,
     ComfoClimeThermalprofileCoordinator,
 )
 
@@ -37,10 +39,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     devices = await api.async_get_connected_devices()
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
+
+    # Create telemetry and property coordinators with device list
+    tlcoordinator = ComfoClimeTelemetryCoordinator(hass, api, devices)
+    propcoordinator = ComfoClimePropertyCoordinator(hass, api, devices)
+
     hass.data[DOMAIN][entry.entry_id] = {
         "api": api,
         "coordinator": dashboard_coordinator,
         "tpcoordinator": thermalprofile_coordinator,
+        "tlcoordinator": tlcoordinator,
+        "propcoordinator": propcoordinator,
         "devices": devices,
         "main_device": next((d for d in devices if d.get("modelTypeId") == 20), None),
     }

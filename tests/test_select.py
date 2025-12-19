@@ -171,7 +171,9 @@ class TestComfoClimeSelect:
 class TestComfoClimePropertySelect:
     """Test ComfoClimePropertySelect class."""
 
-    def test_property_select_initialization(self, mock_hass, mock_api, mock_device, mock_config_entry):
+    def test_property_select_initialization(
+        self, mock_hass, mock_property_coordinator, mock_api, mock_device, mock_config_entry
+    ):
         """Test property select entity initialization."""
         config = {
             "path": "29/1/15",
@@ -182,6 +184,7 @@ class TestComfoClimePropertySelect:
 
         select = ComfoClimePropertySelect(
             hass=mock_hass,
+            coordinator=mock_property_coordinator,
             api=mock_api,
             conf=config,
             device=mock_device,
@@ -193,9 +196,10 @@ class TestComfoClimePropertySelect:
         assert select.options == ["auto", "manual", "boost"]
         assert select._attr_unique_id == "test_entry_id_select_29_1_15"
 
-    @pytest.mark.asyncio
-    async def test_property_select_async_update(self, mock_hass, mock_api, mock_device, mock_config_entry):
-        """Test property select async update."""
+    def test_property_select_update(
+        self, mock_hass, mock_property_coordinator, mock_api, mock_device, mock_config_entry
+    ):
+        """Test property select update from coordinator."""
         config = {
             "path": "29/1/15",
             "name": "Ventilation Mode",
@@ -203,24 +207,33 @@ class TestComfoClimePropertySelect:
             "options": {0: "auto", 1: "manual", 2: "boost"},
         }
 
-        mock_api.async_read_property_for_device.return_value = 1
+        mock_property_coordinator.get_property_value.return_value = 1
 
         select = ComfoClimePropertySelect(
             hass=mock_hass,
+            coordinator=mock_property_coordinator,
             api=mock_api,
             conf=config,
             device=mock_device,
             entry=mock_config_entry,
         )
 
-        await select.async_update()
+        # Mock async_write_ha_state
+        select.hass = mock_hass
+        select.async_write_ha_state = MagicMock()
+
+        # Trigger coordinator update
+        select._handle_coordinator_update()
 
         assert select.current_option == "manual"
-        mock_api.async_read_property_for_device.assert_called_once_with(
-            device_uuid="test-device-uuid", property_path="29/1/15", byte_count=1
+        mock_property_coordinator.get_property_value.assert_called_once_with(
+            "test-device-uuid", "29/1/15"
         )
 
-    def test_property_select_option(self, mock_hass, mock_api, mock_device, mock_config_entry):
+    @pytest.mark.asyncio
+    async def test_property_select_option(
+        self, mock_hass, mock_property_coordinator, mock_api, mock_device, mock_config_entry
+    ):
         """Test selecting a property option."""
         config = {
             "path": "29/1/15",
@@ -231,44 +244,51 @@ class TestComfoClimePropertySelect:
 
         select = ComfoClimePropertySelect(
             hass=mock_hass,
+            coordinator=mock_property_coordinator,
             api=mock_api,
             conf=config,
             device=mock_device,
             entry=mock_config_entry,
         )
 
-        select.select_option("boost")
+        await select.async_select_option("boost")
 
         # Verify API was called
-        mock_api.set_property_for_device.assert_called_once_with(
-            "test-device-uuid", "29/1/15", 2, byte_count=1
+        mock_api.async_set_property_for_device.assert_called_once_with(
+            device_uuid="test-device-uuid",
+            property_path="29/1/15",
+            value=2,
+            byte_count=1,
+            faktor=1.0,
         )
 
 
 @pytest.mark.asyncio
-async def test_async_setup_entry(mock_hass, mock_config_entry, mock_thermalprofile_coordinator, mock_device):
+async def test_async_setup_entry(
+    mock_hass,
+    mock_config_entry,
+    mock_thermalprofile_coordinator,
+    mock_property_coordinator,
+    mock_device,
+    mock_api,
+):
     """Test async_setup_entry for select entities."""
     # Setup mock data
     mock_hass.data = {
         "comfoclime": {
             "test_entry_id": {
-                "api": MagicMock(),
+                "api": mock_api,
                 "tpcoordinator": mock_thermalprofile_coordinator,
+                "propcoordinator": mock_property_coordinator,
                 "devices": [mock_device],
                 "main_device": mock_device,
             }
         }
     }
 
-    # Mock the API class to return our mock API
-    with patch("custom_components.comfoclime.select.ComfoClimeAPI") as mock_api_class:
-        mock_api_instance = MagicMock()
-        mock_api_instance.async_get_uuid = AsyncMock(return_value="test-uuid")
-        mock_api_class.return_value = mock_api_instance
+    async_add_entities = MagicMock()
 
-        async_add_entities = MagicMock()
+    await async_setup_entry(mock_hass, mock_config_entry, async_add_entities)
 
-        await async_setup_entry(mock_hass, mock_config_entry, async_add_entities)
-
-        # Verify entities were added
-        assert async_add_entities.called
+    # Verify entities were added
+    assert async_add_entities.called
