@@ -310,13 +310,16 @@ class ComfoClimeClimate(
         if heat_pump_status in [None, 0]:
             return [HVACAction.OFF]
 
+        # DEFROSTING was added in HA 2024.12, fallback to IDLE for older versions
+        defrosting_action = getattr(HVACAction, 'DEFROSTING', HVACAction.IDLE)
+        
         status_mapping = {
             0x02: HVACAction.HEATING,
             0x04: HVACAction.COOLING,
             0x08: HVACAction.PREHEATING,  # Not sure
             0x10: HVACAction.DRYING,  # Not sure
             0x20: HVACAction.IDLE,  # Unused
-            0x40: HVACAction.DEFROSTING,  # Not sure
+            0x40: defrosting_action,  # Not sure
             0x80: HVACAction.IDLE,  # Unused
         }
 
