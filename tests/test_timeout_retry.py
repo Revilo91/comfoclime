@@ -20,8 +20,8 @@ class TestTimeoutConfiguration:
     def test_timeout_constants_defined(self):
         """Test that timeout constants are properly defined."""
         assert DEFAULT_READ_TIMEOUT == 10
-        assert DEFAULT_WRITE_TIMEOUT == 15
-        assert MAX_RETRIES == 2
+        assert DEFAULT_WRITE_TIMEOUT == 30
+        assert MAX_RETRIES == 3
 
     @pytest.mark.asyncio
     async def test_get_session_creates_session_with_default_timeout(self):
@@ -129,7 +129,7 @@ class TestDashboardUpdateRetry:
             with pytest.raises(asyncio.TimeoutError):
                 await api.async_update_dashboard(set_point_temperature=22.0)
 
-        # Should be called MAX_RETRIES + 1 times (3 total: initial + 2 retries)
+        # Should be called MAX_RETRIES + 1 times (4 total: initial + 3 retries)
         assert mock_session.put.call_count == MAX_RETRIES + 1
 
     @pytest.mark.asyncio
@@ -256,5 +256,5 @@ class TestPropertySetRetry:
                     signed=False,
                 )
 
-        # Should be called MAX_RETRIES + 1 times (3 total: initial + 2 retries)
+        # Should be called MAX_RETRIES + 1 times (4 total: initial + 3 retries)
         assert mock_session.put.call_count == MAX_RETRIES + 1

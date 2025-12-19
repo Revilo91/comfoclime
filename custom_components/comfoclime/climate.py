@@ -1,8 +1,10 @@
 """Climate platform for ComfoClime integration."""
 
+import asyncio
 import logging
 from typing import Any
 
+import aiohttp
 from homeassistant.components.climate import (
     FAN_HIGH,
     FAN_LOW,
@@ -431,8 +433,22 @@ class ComfoClimeClimate(
             # Schedule non-blocking refresh of coordinators
             await self._async_refresh_coordinators()
 
-        except Exception:
-            _LOGGER.exception(f"Failed to set temperature to {temperature}")
+        except (asyncio.TimeoutError, asyncio.CancelledError) as e:
+            _LOGGER.error(
+                f"Timeout setting temperature to {temperature}°C. "
+                f"This may indicate network connectivity issues with the device. "
+                f"The temperature may still be set successfully. Error: {type(e).__name__}"
+            )
+        except aiohttp.ClientError as e:
+            _LOGGER.error(
+                f"Network error setting temperature to {temperature}°C: "
+                f"{type(e).__name__}: {e}"
+            )
+        except Exception as e:
+            _LOGGER.error(
+                f"Unexpected error setting temperature to {temperature}°C: "
+                f"{type(e).__name__}: {e}"
+            )
 
     async def async_update_dashboard(self, **kwargs) -> None:
         """Update dashboard settings via API.
@@ -482,8 +498,21 @@ class ComfoClimeClimate(
             # Schedule non-blocking refresh of coordinators
             await self._async_refresh_coordinators()
 
-        except Exception:
-            _LOGGER.exception(f"Failed to set HVAC mode {hvac_mode}")
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            _LOGGER.error(
+                f"Timeout setting HVAC mode to {hvac_mode}. "
+                f"This may indicate network connectivity issues with the device."
+            )
+        except aiohttp.ClientError as e:
+            _LOGGER.error(
+                f"Network error setting HVAC mode to {hvac_mode}: "
+                f"{type(e).__name__}: {e}"
+            )
+        except Exception as e:
+            _LOGGER.error(
+                f"Unexpected error setting HVAC mode to {hvac_mode}: "
+                f"{type(e).__name__}: {e}"
+            )
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set preset mode via dashboard API.
@@ -535,8 +564,21 @@ class ComfoClimeClimate(
             # Schedule non-blocking refresh of coordinators
             await self._async_refresh_coordinators()
 
-        except Exception:
-            _LOGGER.exception(f"Failed to set preset mode {preset_mode}")
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            _LOGGER.error(
+                f"Timeout setting preset mode to {preset_mode}. "
+                f"This may indicate network connectivity issues with the device."
+            )
+        except aiohttp.ClientError as e:
+            _LOGGER.error(
+                f"Network error setting preset mode to {preset_mode}: "
+                f"{type(e).__name__}: {e}"
+            )
+        except Exception as e:
+            _LOGGER.error(
+                f"Unexpected error setting preset mode to {preset_mode}: "
+                f"{type(e).__name__}: {e}"
+            )
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         """Set fan mode by updating fan speed via dashboard API.
@@ -561,8 +603,21 @@ class ComfoClimeClimate(
             # Schedule non-blocking refresh of coordinators
             await self._async_refresh_coordinators()
 
-        except Exception:
-            _LOGGER.exception(f"Failed to set fan mode {fan_mode}")
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            _LOGGER.error(
+                f"Timeout setting fan mode to {fan_mode}. "
+                f"This may indicate network connectivity issues with the device."
+            )
+        except aiohttp.ClientError as e:
+            _LOGGER.error(
+                f"Network error setting fan mode to {fan_mode}: "
+                f"{type(e).__name__}: {e}"
+            )
+        except Exception as e:
+            _LOGGER.error(
+                f"Unexpected error setting fan mode to {fan_mode}: "
+                f"{type(e).__name__}: {e}"
+            )
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
