@@ -1,4 +1,5 @@
 """Tests for ComfoClime switch entities."""
+
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -10,7 +11,12 @@ class TestComfoClimeSwitch:
     """Test ComfoClimeSwitch class."""
 
     def test_switch_initialization_thermal_profile(
-        self, mock_hass, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry
+        self,
+        mock_hass,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
     ):
         """Test switch initialization for thermal profile endpoint."""
         switch = ComfoClimeSwitch(
@@ -56,7 +62,12 @@ class TestComfoClimeSwitch:
         assert switch._attr_unique_id == "test_entry_id_switch_hpstandby"
 
     def test_switch_state_update_thermal_profile(
-        self, mock_hass, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry
+        self,
+        mock_hass,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
     ):
         """Test switch state update from thermal profile coordinator."""
         mock_thermalprofile_coordinator.data = {
@@ -169,7 +180,12 @@ class TestComfoClimeSwitch:
 
     @pytest.mark.asyncio
     async def test_switch_turn_on_thermal_profile(
-        self, mock_hass, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry
+        self,
+        mock_hass,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
     ):
         """Test turning on thermal profile switch."""
         switch = ComfoClimeSwitch(
@@ -198,7 +214,12 @@ class TestComfoClimeSwitch:
 
     @pytest.mark.asyncio
     async def test_switch_turn_off_thermal_profile(
-        self, mock_hass, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry
+        self,
+        mock_hass,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
     ):
         """Test turning off thermal profile switch."""
         switch = ComfoClimeSwitch(
@@ -284,7 +305,12 @@ class TestComfoClimeSwitch:
         assert call_kwargs["hpstandby"] == 1
 
     def test_switch_device_info(
-        self, mock_hass, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry
+        self,
+        mock_hass,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
     ):
         """Test switch device info."""
         switch = ComfoClimeSwitch(
@@ -330,7 +356,11 @@ class TestComfoClimeSwitch:
 
 @pytest.mark.asyncio
 async def test_async_setup_entry(
-    mock_hass, mock_config_entry, mock_coordinator, mock_thermalprofile_coordinator, mock_device
+    mock_hass,
+    mock_config_entry,
+    mock_coordinator,
+    mock_thermalprofile_coordinator,
+    mock_device,
 ):
     """Test async_setup_entry for switches."""
     # Setup mock data

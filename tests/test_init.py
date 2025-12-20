@@ -1,4 +1,5 @@
 """Tests for ComfoClime integration setup."""
+
 import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 from custom_components.comfoclime import (
@@ -20,7 +21,14 @@ async def test_async_setup():
 
 
 @pytest.mark.asyncio
-async def test_async_setup_entry(mock_hass, mock_config_entry, mock_api, mock_coordinator, mock_thermalprofile_coordinator, mock_device):
+async def test_async_setup_entry(
+    mock_hass,
+    mock_config_entry,
+    mock_api,
+    mock_coordinator,
+    mock_thermalprofile_coordinator,
+    mock_device,
+):
     """Test async_setup_entry."""
     mock_hass.config_entries = MagicMock()
     mock_hass.config_entries.async_forward_entry_setups = AsyncMock()
@@ -28,8 +36,12 @@ async def test_async_setup_entry(mock_hass, mock_config_entry, mock_api, mock_co
     mock_hass.services.async_register = MagicMock()
 
     with patch("custom_components.comfoclime.ComfoClimeAPI") as mock_api_class:
-        with patch("custom_components.comfoclime.ComfoClimeDashboardCoordinator") as mock_db_coord:
-            with patch("custom_components.comfoclime.ComfoClimeThermalprofileCoordinator") as mock_tp_coord:
+        with patch(
+            "custom_components.comfoclime.ComfoClimeDashboardCoordinator"
+        ) as mock_db_coord:
+            with patch(
+                "custom_components.comfoclime.ComfoClimeThermalprofileCoordinator"
+            ) as mock_tp_coord:
                 # Setup mocks
                 mock_api_instance = MagicMock()
                 mock_api_instance.async_get_connected_devices = AsyncMock(
@@ -57,7 +69,9 @@ async def test_async_setup_entry(mock_hass, mock_config_entry, mock_api, mock_co
 
                 # Verify platforms were set up
                 mock_hass.config_entries.async_forward_entry_setups.assert_called_once()
-                platforms = mock_hass.config_entries.async_forward_entry_setups.call_args[0][1]
+                platforms = (
+                    mock_hass.config_entries.async_forward_entry_setups.call_args[0][1]
+                )
                 assert "sensor" in platforms
                 assert "switch" in platforms
                 assert "number" in platforms
@@ -74,11 +88,7 @@ async def test_async_unload_entry(mock_hass, mock_config_entry):
     """Test async_unload_entry."""
     mock_hass.config_entries = MagicMock()
     mock_hass.config_entries.async_forward_entry_unload = AsyncMock(return_value=True)
-    mock_hass.data = {
-        "comfoclime": {
-            "test_entry_id": {}
-        }
-    }
+    mock_hass.data = {"comfoclime": {"test_entry_id": {}}}
 
     result = await async_unload_entry(mock_hass, mock_config_entry)
 

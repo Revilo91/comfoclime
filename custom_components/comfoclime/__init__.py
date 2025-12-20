@@ -5,7 +5,6 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
-import homeassistant.helpers.device_registry as dr
 
 from .comfoclime_api import ComfoClimeAPI
 from .coordinator import (
@@ -84,7 +83,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             _LOGGER.info(f"Property {path} auf {value} gesetzt für {device_uuid}")
         except Exception as e:
             _LOGGER.exception(f"Fehler beim Setzen von Property {path}")
-            raise HomeAssistantError(f"Fehler beim Setzen von Property {path}: {e}") from e
+            raise HomeAssistantError(
+                f"Fehler beim Setzen von Property {path}"
+            ) from e
 
     async def handle_reset_system_service(call: ServiceCall):
         try:
@@ -92,7 +93,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             _LOGGER.info("ComfoClime Neustart ausgelöst")
         except Exception as e:
             _LOGGER.exception("Fehler beim Neustart des Geräts")
-            raise HomeAssistantError(f"Fehler beim Neustart des Geräts: {e}") from e
+            raise HomeAssistantError("Fehler beim Neustart des Geräts") from e
 
     async def handle_set_scenario_mode_service(call: ServiceCall):
         """Handle set_scenario_mode service call.
@@ -113,6 +114,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
         # Validate scenario parameter
         from .climate import SCENARIO_REVERSE_MAPPING
+
         valid_scenarios = list(SCENARIO_REVERSE_MAPPING.keys())
         if scenario not in valid_scenarios:
             raise HomeAssistantError(
@@ -156,7 +158,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
                         f"Error setting scenario mode '{scenario}' on {entity_id}"
                     )
                     raise HomeAssistantError(
-                        f"Failed to set scenario mode '{scenario}': {e}"
+                        f"Failed to set scenario mode '{scenario}'"
                     ) from e
                 else:
                     _LOGGER.info(
@@ -173,7 +175,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     hass.services.async_register(DOMAIN, "set_property", handle_set_property_service)
     hass.services.async_register(DOMAIN, "reset_system", handle_reset_system_service)
-    hass.services.async_register(DOMAIN, "set_scenario_mode", handle_set_scenario_mode_service)
+    hass.services.async_register(
+        DOMAIN, "set_scenario_mode", handle_set_scenario_mode_service
+    )
     return True
 
 

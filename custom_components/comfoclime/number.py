@@ -8,7 +8,10 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
-from .coordinator import ComfoClimePropertyCoordinator, ComfoClimeThermalprofileCoordinator
+from .coordinator import (
+    ComfoClimePropertyCoordinator,
+    ComfoClimeThermalprofileCoordinator,
+)
 from .entities.number_definitions import (
     CONNECTED_DEVICE_NUMBER_PROPERTIES,
     NUMBER_ENTITIES,
@@ -75,6 +78,7 @@ async def async_setup_entry(
     _LOGGER.debug(f"Adding {len(entities)} number entities to Home Assistant")
     async_add_entities(entities, True)
 
+
 class ComfoClimeTemperatureNumber(
     CoordinatorEntity[ComfoClimeThermalprofileCoordinator], NumberEntity
 ):
@@ -100,24 +104,31 @@ class ComfoClimeTemperatureNumber(
     @property
     def available(self):
         """Return True if entity is available.
-        
+
         First checks if coordinator update was successful, then applies
         business logic for manual temperature entities.
         """
         # First check if coordinator update was successful
         if not super().available:
             return False
-            
+
         # For manual temperature setting, check if automatic mode is disabled
-        if self._key_path[0] == "temperature" and self._key_path[1] == "manualTemperature":
+        if (
+            self._key_path[0] == "temperature"
+            and self._key_path[1] == "manualTemperature"
+        ):
             try:
                 coordinator_data = self.coordinator.data
-                automatic_temperature_status = coordinator_data.get("temperature", {}).get("status")
+                automatic_temperature_status = coordinator_data.get(
+                    "temperature", {}
+                ).get("status")
 
                 # Only available if automatic mode is disabled (status = 0)
                 return automatic_temperature_status == 0
             except Exception as e:
-                _LOGGER.debug(f"Could not check automatic temperature status for availability: {e}")
+                _LOGGER.debug(
+                    f"Could not check automatic temperature status for availability: {e}"
+                )
                 # Return True if we can't determine the status to avoid breaking functionality
                 return True
 
@@ -175,14 +186,21 @@ class ComfoClimeTemperatureNumber(
 
     async def async_set_native_value(self, value: float):
         # Check if this is a manual temperature setting
-        if self._key_path[0] == "temperature" and self._key_path[1] == "manualTemperature":
+        if (
+            self._key_path[0] == "temperature"
+            and self._key_path[1] == "manualTemperature"
+        ):
             # Check if automatic comfort temperature is enabled
             try:
                 coordinator_data = self.coordinator.data
-                automatic_temperature_status = coordinator_data.get("temperature", {}).get("status")
+                automatic_temperature_status = coordinator_data.get(
+                    "temperature", {}
+                ).get("status")
 
                 if automatic_temperature_status == 1:
-                    _LOGGER.warning("Cannot set manual temperature: automatic comfort temperature is enabled")
+                    _LOGGER.warning(
+                        "Cannot set manual temperature: automatic comfort temperature is enabled"
+                    )
                     # Don't proceed with setting the temperature
                     return
             except Exception as e:
@@ -298,7 +316,9 @@ class ComfoClimePropertyNumber(
             value = self.coordinator.get_property_value(
                 self._device["uuid"], self._property_path
             )
-            _LOGGER.debug(f"Property {self._property_path} updated from coordinator: {value}")
+            _LOGGER.debug(
+                f"Property {self._property_path} updated from coordinator: {value}"
+            )
             self._value = value
         except Exception as e:
             _LOGGER.debug(

@@ -1,4 +1,5 @@
 """Tests for ComfoClime number entities."""
+
 import pytest
 from unittest.mock import MagicMock, AsyncMock
 from custom_components.comfoclime.number import (
@@ -11,7 +12,14 @@ from custom_components.comfoclime.number import (
 class TestComfoClimeTemperatureNumber:
     """Test ComfoClimeTemperatureNumber class."""
 
-    def test_temperature_number_initialization(self, mock_hass, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    def test_temperature_number_initialization(
+        self,
+        mock_hass,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test temperature number entity initialization."""
         config = {
             "key": "temperature.manualTemperature",
@@ -39,7 +47,14 @@ class TestComfoClimeTemperatureNumber:
         assert number.native_step == 0.5
         assert number._attr_unique_id == "test_entry_id_temperature.manualTemperature"
 
-    def test_temperature_number_value_update(self, mock_hass, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    def test_temperature_number_value_update(
+        self,
+        mock_hass,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test temperature number value update from coordinator."""
         config = {
             "key": "temperature.manualTemperature",
@@ -72,7 +87,14 @@ class TestComfoClimeTemperatureNumber:
         assert number.native_value == 22.5
 
     @pytest.mark.asyncio
-    async def test_temperature_number_set_value(self, mock_hass, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    async def test_temperature_number_set_value(
+        self,
+        mock_hass,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test setting temperature number value."""
         config = {
             "key": "temperature.manualTemperature",
@@ -102,9 +124,18 @@ class TestComfoClimeTemperatureNumber:
         await number.async_set_native_value(23.5)
 
         # Verify API was called
-        mock_api.async_update_thermal_profile.assert_called_once_with(manual_temperature=23.5)
+        mock_api.async_update_thermal_profile.assert_called_once_with(
+            manual_temperature=23.5
+        )
 
-    def test_temperature_number_availability_when_automatic(self, mock_hass, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    def test_temperature_number_availability_when_automatic(
+        self,
+        mock_hass,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test temperature number availability when automatic mode is enabled."""
         config = {
             "key": "temperature.manualTemperature",
@@ -132,7 +163,14 @@ class TestComfoClimeTemperatureNumber:
         # Should not be available when automatic mode is enabled
         assert number.available is False
 
-    def test_temperature_number_availability_when_manual(self, mock_hass, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    def test_temperature_number_availability_when_manual(
+        self,
+        mock_hass,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test temperature number availability when manual mode is enabled."""
         config = {
             "key": "temperature.manualTemperature",
@@ -160,7 +198,14 @@ class TestComfoClimeTemperatureNumber:
         # Should be available when manual mode is enabled
         assert number.available is True
 
-    def test_temperature_number_device_info(self, mock_hass, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    def test_temperature_number_device_info(
+        self,
+        mock_hass,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test temperature number device info."""
         config = {
             "key": "temperature.manualTemperature",
@@ -190,7 +235,12 @@ class TestComfoClimePropertyNumber:
     """Test ComfoClimePropertyNumber class."""
 
     def test_property_number_initialization(
-        self, mock_hass, mock_property_coordinator, mock_api, mock_device, mock_config_entry
+        self,
+        mock_hass,
+        mock_property_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
     ):
         """Test property number entity initialization."""
         config = {
@@ -224,7 +274,12 @@ class TestComfoClimePropertyNumber:
         assert number._attr_unique_id == "test_entry_id_property_number_29_1_20"
 
     def test_property_number_update(
-        self, mock_hass, mock_property_coordinator, mock_api, mock_device, mock_config_entry
+        self,
+        mock_hass,
+        mock_property_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
     ):
         """Test property number update from coordinator."""
         config = {
@@ -265,7 +320,12 @@ class TestComfoClimePropertyNumber:
 
     @pytest.mark.asyncio
     async def test_property_number_async_set_value(
-        self, mock_hass, mock_property_coordinator, mock_api, mock_device, mock_config_entry
+        self,
+        mock_hass,
+        mock_property_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
     ):
         """Test property number async set value."""
         config = {
@@ -302,7 +362,12 @@ class TestComfoClimePropertyNumber:
         )
 
     def test_property_number_device_info(
-        self, mock_hass, mock_property_coordinator, mock_api, mock_device, mock_config_entry
+        self,
+        mock_hass,
+        mock_property_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
     ):
         """Test property number device info."""
         config = {

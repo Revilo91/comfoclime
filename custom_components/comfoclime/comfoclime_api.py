@@ -18,7 +18,9 @@ CACHE_TTL = 30.0  # Cache time-to-live in seconds
 
 # Timeout configuration
 DEFAULT_READ_TIMEOUT = 10  # Timeout for read operations (GET)
-DEFAULT_WRITE_TIMEOUT = 30  # Timeout for write operations (PUT) - longer for dashboard updates
+DEFAULT_WRITE_TIMEOUT = (
+    30  # Timeout for write operations (PUT) - longer for dashboard updates
+)
 MAX_RETRIES = 3  # Number of retries for transient failures
 
 
@@ -188,7 +190,7 @@ class ComfoClimeAPI:
 
     async def _get_session(self):
         """Get or create aiohttp session.
-        
+
         Note: Timeouts are set per-request, not on the session level,
         to allow different timeouts for read vs write operations.
         """
@@ -275,7 +277,9 @@ class ComfoClimeAPI:
         await self._wait_for_rate_limit(is_write=False)
         timeout = aiohttp.ClientTimeout(total=DEFAULT_READ_TIMEOUT)
         session = await self._get_session()
-        async with session.get(f"{self.base_url}/monitoring/ping", timeout=timeout) as response:
+        async with session.get(
+            f"{self.base_url}/monitoring/ping", timeout=timeout
+        ) as response:
             response.raise_for_status()
             data = await response.json()
             self.uuid = data.get("uuid")
@@ -516,7 +520,7 @@ class ComfoClimeAPI:
         await self._wait_for_rate_limit(is_write=True)
 
         url = f"{self.base_url}/system/{self.uuid}/thermalprofile"
-        
+
         # Retry logic for transient failures
         last_exception = None
         for attempt in range(MAX_RETRIES + 1):
@@ -534,7 +538,11 @@ class ComfoClimeAPI:
                         f"Thermal Profile Update erfolgreich, Status: {response.status}"
                     )
                     return response.status == 200
-            except (asyncio.TimeoutError, asyncio.CancelledError, aiohttp.ClientError) as e:
+            except (  # noqa: PERF203
+                asyncio.TimeoutError,
+                asyncio.CancelledError,
+                aiohttp.ClientError,
+            ) as e:
                 last_exception = e
                 if attempt < MAX_RETRIES:
                     # Exponential backoff: 2s, 4s, 8s
@@ -545,11 +553,11 @@ class ComfoClimeAPI:
                     )
                     await asyncio.sleep(wait_time)
                 else:
-                    _LOGGER.error(
+                    _LOGGER.exception(
                         f"Thermal profile update failed after {MAX_RETRIES + 1} attempts: "
-                        f"{type(e).__name__}: {e}"
+                        f"{type(e).__name__}"
                     )
-        
+
         # If we get here, all retries failed
         # last_exception should always be set by the loop, but we check defensively
         if last_exception:
@@ -669,7 +677,7 @@ class ComfoClimeAPI:
 
         headers = {"content-type": "application/json; charset=utf-8"}
         url = f"{self.base_url}/system/{self.uuid}/dashboard"
-        
+
         # Retry logic for transient failures
         last_exception = None
         for attempt in range(MAX_RETRIES + 1):
@@ -681,7 +689,9 @@ class ComfoClimeAPI:
                     f"Dashboard update attempt {attempt + 1}/{MAX_RETRIES + 1}, "
                     f"timeout={DEFAULT_WRITE_TIMEOUT}s, payload={payload}"
                 )
-                async with session.put(url, json=payload, headers=headers, timeout=timeout) as response:
+                async with session.put(
+                    url, json=payload, headers=headers, timeout=timeout
+                ) as response:
                     response.raise_for_status()
                     try:
                         resp_json = await response.json()
@@ -691,7 +701,11 @@ class ComfoClimeAPI:
                         f"Dashboard update OK payload={payload} response={resp_json}"
                     )
                     return resp_json
-            except (asyncio.TimeoutError, asyncio.CancelledError, aiohttp.ClientError) as e:
+            except (  # noqa: PERF203
+                asyncio.TimeoutError,
+                asyncio.CancelledError,
+                aiohttp.ClientError,
+            ) as e:
                 last_exception = e
                 if attempt < MAX_RETRIES:
                     # Exponential backoff: 2s, 4s, 8s
@@ -702,11 +716,11 @@ class ComfoClimeAPI:
                     )
                     await asyncio.sleep(wait_time)
                 else:
-                    _LOGGER.error(
+                    _LOGGER.exception(
                         f"Dashboard update failed after {MAX_RETRIES + 1} attempts: "
-                        f"{type(e).__name__}: {e}"
+                        f"{type(e).__name__}"
                     )
-        
+
         # If we get here, all retries failed
         # last_exception should always be set by the loop, but we check defensively
         if last_exception:
@@ -835,12 +849,18 @@ class ComfoClimeAPI:
                         f"Property write attempt {attempt + 1}/{MAX_RETRIES + 1}, "
                         f"timeout={DEFAULT_WRITE_TIMEOUT}s, path={property_path}, payload={payload}"
                     )
-                    async with session.put(url, json=payload, timeout=timeout) as response:
+                    async with session.put(
+                        url, json=payload, timeout=timeout
+                    ) as response:
                         response.raise_for_status()
                     # Invalidate cache for this device after successful write
                     self._invalidate_cache_for_device(device_uuid)
                     return  # Success, exit retry loop
-                except (asyncio.TimeoutError, asyncio.CancelledError, aiohttp.ClientError) as e:
+                except (  # noqa: PERF203
+                    asyncio.TimeoutError,
+                    asyncio.CancelledError,
+                    aiohttp.ClientError,
+                ) as e:
                     last_exception = e
                     if attempt < MAX_RETRIES:
                         # Exponential backoff: 2s, 4s, 8s
@@ -851,23 +871,25 @@ class ComfoClimeAPI:
                         )
                         await asyncio.sleep(wait_time)
                     else:
-                        _LOGGER.error(
+                        _LOGGER.exception(
                             f"Property write failed after {MAX_RETRIES + 1} attempts: "
-                            f"{type(e).__name__}: {e}"
+                            f"{type(e).__name__}"
                         )
-            
+
             # If we get here, all retries failed
             # last_exception should always be set by the loop, but we check defensively
             if last_exception:
                 raise last_exception
-            raise RuntimeError(f"Property write failed for {property_path} with unknown error")
+            raise RuntimeError(
+                f"Property write failed for {property_path} with unknown error"
+            )
 
     async def async_reset_system(self):
         """Trigger a restart of the ComfoClime device."""
         async with self._request_lock:
             await self._wait_for_rate_limit(is_write=True)
             url = f"{self.base_url}/system/reset"
-            
+
             # Use longer timeout for write operations
             timeout = aiohttp.ClientTimeout(total=DEFAULT_WRITE_TIMEOUT)
             session = await self._get_session()

@@ -1,4 +1,5 @@
 """Tests for ComfoClime select entities."""
+
 import pytest
 from unittest.mock import MagicMock, AsyncMock
 from custom_components.comfoclime.select import (
@@ -11,7 +12,14 @@ from custom_components.comfoclime.select import (
 class TestComfoClimeSelect:
     """Test ComfoClimeSelect class."""
 
-    def test_select_initialization(self, mock_hass, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    def test_select_initialization(
+        self,
+        mock_hass,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test select entity initialization."""
         config = {
             "key": "temperatureProfile",
@@ -34,7 +42,14 @@ class TestComfoClimeSelect:
         assert select.options == ["comfort", "power", "eco"]
         assert select._attr_unique_id == "test_entry_id_select_temperatureProfile"
 
-    def test_select_current_option(self, mock_hass, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    def test_select_current_option(
+        self,
+        mock_hass,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test select entity current option from coordinator."""
         config = {
             "key": "temperatureProfile",
@@ -62,7 +77,14 @@ class TestComfoClimeSelect:
 
         assert select.current_option == "power"
 
-    def test_select_nested_key(self, mock_hass, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    def test_select_nested_key(
+        self,
+        mock_hass,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test select entity with nested key."""
         config = {
             "key": "season.mode",
@@ -71,9 +93,7 @@ class TestComfoClimeSelect:
             "options": {0: "auto", 1: "manual"},
         }
 
-        mock_thermalprofile_coordinator.data = {
-            "season": {"mode": 0}
-        }
+        mock_thermalprofile_coordinator.data = {"season": {"mode": 0}}
 
         select = ComfoClimeSelect(
             hass=mock_hass,
@@ -93,7 +113,14 @@ class TestComfoClimeSelect:
         assert select.current_option == "auto"
 
     @pytest.mark.asyncio
-    async def test_select_option(self, mock_hass, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    async def test_select_option(
+        self,
+        mock_hass,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test selecting an option."""
         config = {
             "key": "season.status",
@@ -119,7 +146,14 @@ class TestComfoClimeSelect:
         mock_api.async_update_thermal_profile.assert_called_once_with(season_status=1)
 
     @pytest.mark.asyncio
-    async def test_select_temperature_profile_option(self, mock_hass, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    async def test_select_temperature_profile_option(
+        self,
+        mock_hass,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test selecting temperature profile option uses thermal profile API."""
         config = {
             "key": "temperatureProfile",
@@ -142,9 +176,18 @@ class TestComfoClimeSelect:
         await select.async_select_option("eco")
 
         # Should use async_update_thermal_profile for temperature profile
-        mock_api.async_update_thermal_profile.assert_called_once_with(temperature_profile=2)
+        mock_api.async_update_thermal_profile.assert_called_once_with(
+            temperature_profile=2
+        )
 
-    def test_select_device_info(self, mock_hass, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    def test_select_device_info(
+        self,
+        mock_hass,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test select entity device info."""
         config = {
             "key": "temperatureProfile",
@@ -172,7 +215,12 @@ class TestComfoClimePropertySelect:
     """Test ComfoClimePropertySelect class."""
 
     def test_property_select_initialization(
-        self, mock_hass, mock_property_coordinator, mock_api, mock_device, mock_config_entry
+        self,
+        mock_hass,
+        mock_property_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
     ):
         """Test property select entity initialization."""
         config = {
@@ -197,7 +245,12 @@ class TestComfoClimePropertySelect:
         assert select._attr_unique_id == "test_entry_id_select_29_1_15"
 
     def test_property_select_update(
-        self, mock_hass, mock_property_coordinator, mock_api, mock_device, mock_config_entry
+        self,
+        mock_hass,
+        mock_property_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
     ):
         """Test property select update from coordinator."""
         config = {
@@ -232,7 +285,12 @@ class TestComfoClimePropertySelect:
 
     @pytest.mark.asyncio
     async def test_property_select_option(
-        self, mock_hass, mock_property_coordinator, mock_api, mock_device, mock_config_entry
+        self,
+        mock_hass,
+        mock_property_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
     ):
         """Test selecting a property option."""
         config = {

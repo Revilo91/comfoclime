@@ -1,4 +1,5 @@
 """Tests for ComfoClime climate entity."""
+
 from unittest.mock import MagicMock
 
 import pytest
@@ -20,7 +21,15 @@ from custom_components.comfoclime.climate import (
 class TestComfoClimeClimate:
     """Test ComfoClimeClimate class."""
 
-    def test_climate_initialization(self, mock_hass, mock_coordinator, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    def test_climate_initialization(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test climate entity initialization."""
         climate = ComfoClimeClimate(
             dashboard_coordinator=mock_coordinator,
@@ -37,7 +46,15 @@ class TestComfoClimeClimate:
         assert HVACMode.FAN_ONLY in climate._attr_hvac_modes
         assert HVACMode.OFF in climate._attr_hvac_modes
 
-    def test_climate_current_temperature(self, mock_hass, mock_coordinator, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    def test_climate_current_temperature(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test climate current temperature from dashboard."""
         climate = ComfoClimeClimate(
             dashboard_coordinator=mock_coordinator,
@@ -49,7 +66,15 @@ class TestComfoClimeClimate:
 
         assert climate.current_temperature == 22.5
 
-    def test_climate_target_temperature(self, mock_hass, mock_coordinator, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    def test_climate_target_temperature(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test climate target temperature from thermal profile."""
         climate = ComfoClimeClimate(
             dashboard_coordinator=mock_coordinator,
@@ -61,7 +86,15 @@ class TestComfoClimeClimate:
 
         assert climate.target_temperature == 22.0
 
-    def test_climate_hvac_mode_heat(self, mock_hass, mock_coordinator, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    def test_climate_hvac_mode_heat(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test climate HVAC mode when in heating season."""
         mock_coordinator.data = {
             "season": 1,  # heating
@@ -78,7 +111,15 @@ class TestComfoClimeClimate:
 
         assert climate.hvac_mode == HVACMode.HEAT
 
-    def test_climate_hvac_mode_cool(self, mock_hass, mock_coordinator, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    def test_climate_hvac_mode_cool(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test climate HVAC mode when in cooling season."""
         mock_coordinator.data = {
             "season": 2,  # cooling
@@ -95,7 +136,15 @@ class TestComfoClimeClimate:
 
         assert climate.hvac_mode == HVACMode.COOL
 
-    def test_climate_hvac_mode_fan_only(self, mock_hass, mock_coordinator, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    def test_climate_hvac_mode_fan_only(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test climate HVAC mode when in transition season."""
         mock_coordinator.data = {
             "season": 0,  # transition
@@ -112,7 +161,15 @@ class TestComfoClimeClimate:
 
         assert climate.hvac_mode == HVACMode.FAN_ONLY
 
-    def test_climate_hvac_mode_off(self, mock_hass, mock_coordinator, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    def test_climate_hvac_mode_off(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test climate HVAC mode when in standby."""
         mock_coordinator.data = {
             "season": 1,
@@ -129,7 +186,15 @@ class TestComfoClimeClimate:
 
         assert climate.hvac_mode == HVACMode.OFF
 
-    def test_climate_hvac_action_heating(self, mock_hass, mock_coordinator, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    def test_climate_hvac_action_heating(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test climate HVAC action when heating."""
         mock_coordinator.data = {
             "heatPumpStatus": 3,  # 0000 0011 - active + heating
@@ -145,7 +210,15 @@ class TestComfoClimeClimate:
 
         assert HVACAction.HEATING in climate.hvac_action
 
-    def test_climate_hvac_action_cooling(self, mock_hass, mock_coordinator, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    def test_climate_hvac_action_cooling(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test climate HVAC action when cooling."""
         mock_coordinator.data = {
             "heatPumpStatus": 5,  # 0000 0101 - active + cooling
@@ -161,7 +234,15 @@ class TestComfoClimeClimate:
 
         assert HVACAction.COOLING in climate.hvac_action
 
-    def test_climate_hvac_action_idle(self, mock_hass, mock_coordinator, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    def test_climate_hvac_action_idle(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test climate HVAC action when idle."""
         mock_coordinator.data = {
             "heatPumpStatus": 1,  # 0000 0001 - active but not heating/cooling
@@ -177,7 +258,15 @@ class TestComfoClimeClimate:
 
         assert HVACAction.IDLE in climate.hvac_action
 
-    def test_climate_hvac_action_off(self, mock_hass, mock_coordinator, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    def test_climate_hvac_action_off(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test climate HVAC action when off."""
         mock_coordinator.data = {
             "heatPumpStatus": 0,  # off
@@ -193,7 +282,15 @@ class TestComfoClimeClimate:
 
         assert HVACAction.OFF in climate.hvac_action
 
-    def test_climate_preset_mode_comfort(self, mock_hass, mock_coordinator, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    def test_climate_preset_mode_comfort(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test climate preset mode comfort."""
         mock_coordinator.data = {
             "temperatureProfile": 0,  # comfort
@@ -210,7 +307,15 @@ class TestComfoClimeClimate:
 
         assert climate.preset_mode == PRESET_COMFORT
 
-    def test_climate_preset_mode_manual(self, mock_hass, mock_coordinator, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    def test_climate_preset_mode_manual(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test climate preset mode manual."""
         mock_coordinator.data = {
             "setPointTemperature": 22.5,  # manual mode
@@ -226,7 +331,15 @@ class TestComfoClimeClimate:
 
         assert climate.preset_mode == PRESET_NONE
 
-    def test_climate_fan_mode(self, mock_hass, mock_coordinator, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    def test_climate_fan_mode(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test climate fan mode."""
         mock_coordinator.data = {"fanSpeed": 2}
 
@@ -241,7 +354,15 @@ class TestComfoClimeClimate:
         assert climate.fan_mode == FAN_MEDIUM
 
     @pytest.mark.asyncio
-    async def test_climate_set_temperature(self, mock_hass, mock_coordinator, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    async def test_climate_set_temperature(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test setting climate temperature."""
         mock_hass.async_create_task = MagicMock()
 
@@ -262,7 +383,15 @@ class TestComfoClimeClimate:
         assert call_kwargs["status"] == 0  # Manual mode
 
     @pytest.mark.asyncio
-    async def test_climate_set_hvac_mode_heat(self, mock_hass, mock_coordinator, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    async def test_climate_set_hvac_mode_heat(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test setting climate HVAC mode to heat."""
         mock_hass.async_create_task = MagicMock()
 
@@ -285,7 +414,15 @@ class TestComfoClimeClimate:
         )
 
     @pytest.mark.asyncio
-    async def test_climate_set_hvac_mode_off(self, mock_hass, mock_coordinator, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    async def test_climate_set_hvac_mode_off(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test setting climate HVAC mode to off."""
         mock_hass.async_create_task = MagicMock()
 
@@ -303,12 +440,18 @@ class TestComfoClimeClimate:
         await climate.async_set_hvac_mode(HVACMode.OFF)
 
         # Should call async_update_dashboard with hpStandby=True
-        mock_api.async_update_dashboard.assert_called_once_with(
-            hpStandby=True
-        )
+        mock_api.async_update_dashboard.assert_called_once_with(hpStandby=True)
 
     @pytest.mark.asyncio
-    async def test_climate_set_preset_mode_comfort(self, mock_hass, mock_coordinator, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    async def test_climate_set_preset_mode_comfort(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test setting climate preset mode to comfort."""
         mock_hass.async_create_task = MagicMock()
 
@@ -330,7 +473,15 @@ class TestComfoClimeClimate:
         assert call_kwargs["status"] == 1  # Automatic mode
 
     @pytest.mark.asyncio
-    async def test_climate_set_preset_mode_manual(self, mock_hass, mock_coordinator, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    async def test_climate_set_preset_mode_manual(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test setting climate preset mode to manual."""
         mock_hass.async_create_task = MagicMock()
 
@@ -350,7 +501,15 @@ class TestComfoClimeClimate:
         assert call_kwargs["status"] == 0  # Manual mode
 
     @pytest.mark.asyncio
-    async def test_climate_set_fan_mode(self, mock_hass, mock_coordinator, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    async def test_climate_set_fan_mode(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test setting climate fan mode."""
         mock_hass.async_create_task = MagicMock()
 
@@ -369,7 +528,15 @@ class TestComfoClimeClimate:
         call_kwargs = mock_api.async_update_dashboard.call_args[1]
         assert call_kwargs["fan_speed"] == 3
 
-    def test_climate_device_info(self, mock_hass, mock_coordinator, mock_thermalprofile_coordinator, mock_api, mock_device, mock_config_entry):
+    def test_climate_device_info(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
         """Test climate device info."""
         climate = ComfoClimeClimate(
             dashboard_coordinator=mock_coordinator,
@@ -387,7 +554,14 @@ class TestComfoClimeClimate:
 
 
 @pytest.mark.asyncio
-async def test_async_setup_entry(mock_hass, mock_config_entry, mock_api, mock_coordinator, mock_thermalprofile_coordinator, mock_device):
+async def test_async_setup_entry(
+    mock_hass,
+    mock_config_entry,
+    mock_api,
+    mock_coordinator,
+    mock_thermalprofile_coordinator,
+    mock_device,
+):
     """Test async_setup_entry for climate entity."""
     # Setup mock data
     mock_hass.data = {
@@ -410,7 +584,13 @@ async def test_async_setup_entry(mock_hass, mock_config_entry, mock_api, mock_co
 
 
 @pytest.mark.asyncio
-async def test_async_setup_entry_no_main_device(mock_hass, mock_config_entry, mock_api, mock_coordinator, mock_thermalprofile_coordinator):
+async def test_async_setup_entry_no_main_device(
+    mock_hass,
+    mock_config_entry,
+    mock_api,
+    mock_coordinator,
+    mock_thermalprofile_coordinator,
+):
     """Test async_setup_entry when no main device exists."""
     # Setup mock data without main device
     mock_hass.data = {

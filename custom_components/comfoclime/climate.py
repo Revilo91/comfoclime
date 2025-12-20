@@ -211,7 +211,7 @@ class ComfoClimeClimate(
     @property
     def available(self) -> bool:
         """Return True if entity is available.
-        
+
         Climate entity depends on both dashboard and thermal profile coordinators,
         so we check both for successful updates.
         """
@@ -433,21 +433,17 @@ class ComfoClimeClimate(
             # Schedule non-blocking refresh of coordinators
             await self._async_refresh_coordinators()
 
-        except (asyncio.TimeoutError, asyncio.CancelledError) as e:
-            _LOGGER.error(
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            _LOGGER.exception(
                 f"Timeout setting temperature to {temperature}°C. "
-                f"This may indicate network connectivity issues with the device. "
-                f"The temperature may still be set successfully. Error: {type(e).__name__}"
+                f"This may indizcate network connectivity issues with the device. "
+                f"The temperature may still be set successfully."
             )
-        except aiohttp.ClientError as e:
-            _LOGGER.error(
-                f"Network error setting temperature to {temperature}°C: "
-                f"{type(e).__name__}: {e}"
-            )
-        except Exception as e:
-            _LOGGER.error(
-                f"Unexpected error setting temperature to {temperature}°C: "
-                f"{type(e).__name__}: {e}"
+        except aiohttp.ClientError:
+            _LOGGER.exception(f"Network error setting temperature to {temperature}°C")
+        except Exception:
+            _LOGGER.exception(
+                f"Unexpected error setting temperature to {temperature}°C"
             )
 
     async def async_update_dashboard(self, **kwargs) -> None:
@@ -499,20 +495,14 @@ class ComfoClimeClimate(
             await self._async_refresh_coordinators()
 
         except (asyncio.TimeoutError, asyncio.CancelledError):
-            _LOGGER.error(
+            _LOGGER.exception(
                 f"Timeout setting HVAC mode to {hvac_mode}. "
                 f"This may indicate network connectivity issues with the device."
             )
-        except aiohttp.ClientError as e:
-            _LOGGER.error(
-                f"Network error setting HVAC mode to {hvac_mode}: "
-                f"{type(e).__name__}: {e}"
-            )
-        except Exception as e:
-            _LOGGER.error(
-                f"Unexpected error setting HVAC mode to {hvac_mode}: "
-                f"{type(e).__name__}: {e}"
-            )
+        except aiohttp.ClientError:
+            _LOGGER.exception(f"Network error setting HVAC mode to {hvac_mode}")
+        except Exception:
+            _LOGGER.exception(f"Unexpected error setting HVAC mode to {hvac_mode}")
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set preset mode via dashboard API.
@@ -565,20 +555,14 @@ class ComfoClimeClimate(
             await self._async_refresh_coordinators()
 
         except (asyncio.TimeoutError, asyncio.CancelledError):
-            _LOGGER.error(
+            _LOGGER.exception(
                 f"Timeout setting preset mode to {preset_mode}. "
                 f"This may indicate network connectivity issues with the device."
             )
-        except aiohttp.ClientError as e:
-            _LOGGER.error(
-                f"Network error setting preset mode to {preset_mode}: "
-                f"{type(e).__name__}: {e}"
-            )
-        except Exception as e:
-            _LOGGER.error(
-                f"Unexpected error setting preset mode to {preset_mode}: "
-                f"{type(e).__name__}: {e}"
-            )
+        except aiohttp.ClientError:
+            _LOGGER.exception(f"Network error setting preset mode to {preset_mode}")
+        except Exception:
+            _LOGGER.exception(f"Unexpected error setting preset mode to {preset_mode}")
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         """Set fan mode by updating fan speed via dashboard API.
@@ -604,20 +588,14 @@ class ComfoClimeClimate(
             await self._async_refresh_coordinators()
 
         except (asyncio.TimeoutError, asyncio.CancelledError):
-            _LOGGER.error(
+            _LOGGER.exception(
                 f"Timeout setting fan mode to {fan_mode}. "
                 f"This may indicate network connectivity issues with the device."
             )
-        except aiohttp.ClientError as e:
-            _LOGGER.error(
-                f"Network error setting fan mode to {fan_mode}: "
-                f"{type(e).__name__}: {e}"
-            )
-        except Exception as e:
-            _LOGGER.error(
-                f"Unexpected error setting fan mode to {fan_mode}: "
-                f"{type(e).__name__}: {e}"
-            )
+        except aiohttp.ClientError:
+            _LOGGER.exception(f"Network error setting fan mode to {fan_mode}")
+        except Exception:
+            _LOGGER.exception(f"Unexpected error setting fan mode to {fan_mode}")
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:

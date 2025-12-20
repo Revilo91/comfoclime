@@ -10,7 +10,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
-from .coordinator import ComfoClimeDashboardCoordinator, ComfoClimeThermalprofileCoordinator
 from .entities.switch_definitions import SWITCHES
 
 _LOGGER = logging.getLogger(__name__)
@@ -34,7 +33,9 @@ async def async_setup_entry(
     # Create switches from definitions
     for s in SWITCHES:
         # Determine which coordinator to use based on endpoint
-        coordinator = tpcoordinator if s["endpoint"] == "thermal_profile" else dbcoordinator
+        coordinator = (
+            tpcoordinator if s["endpoint"] == "thermal_profile" else dbcoordinator
+        )
 
         switches.append(
             ComfoClimeSwitch(

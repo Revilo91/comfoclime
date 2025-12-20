@@ -41,7 +41,9 @@ class ComfoClimeThermalprofileCoordinator(DataUpdateCoordinator):
         try:
             return await self.api.async_get_thermal_profile()
         except Exception as e:
-            raise UpdateFailed(f"Fehler beim Abrufen der Thermalprofile-Daten: {e}") from e
+            raise UpdateFailed(
+                f"Fehler beim Abrufen der Thermalprofile-Daten: {e}"
+            ) from e
 
 
 class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
@@ -89,9 +91,7 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
             "signed": signed,
             "byte_count": byte_count,
         }
-        _LOGGER.debug(
-            f"Registered telemetry {telemetry_id} for device {device_uuid}"
-        )
+        _LOGGER.debug(f"Registered telemetry {telemetry_id} for device {device_uuid}")
 
     async def _async_update_data(self):
         """Fetch all registered telemetry data for all devices in batched manner."""
@@ -110,7 +110,7 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
                         byte_count=params["byte_count"],
                     )
                     result[device_uuid][telemetry_id] = value
-                except Exception as e:
+                except Exception as e:  # noqa: PERF203
                     _LOGGER.debug(
                         f"Fehler beim Abrufen von Telemetrie {telemetry_id} "
                         f"für Gerät {device_uuid}: {e}"
@@ -119,9 +119,7 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
 
         return result
 
-    def get_telemetry_value(
-        self, device_uuid: str, telemetry_id: str | int
-    ) -> any:
+    def get_telemetry_value(self, device_uuid: str, telemetry_id: str | int) -> any:
         """Get a cached telemetry value from the last update.
 
         Args:
@@ -183,9 +181,7 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
             "signed": signed,
             "byte_count": byte_count,
         }
-        _LOGGER.debug(
-            f"Registered property {property_path} for device {device_uuid}"
-        )
+        _LOGGER.debug(f"Registered property {property_path} for device {device_uuid}")
 
     async def _async_update_data(self):
         """Fetch all registered property data for all devices in batched manner."""
@@ -204,7 +200,7 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
                         byte_count=params["byte_count"],
                     )
                     result[device_uuid][property_path] = value
-                except Exception as e:
+                except Exception as e:  # noqa: PERF203
                     _LOGGER.debug(
                         f"Fehler beim Abrufen von Property {property_path} "
                         f"für Gerät {device_uuid}: {e}"

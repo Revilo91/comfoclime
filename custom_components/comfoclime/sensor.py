@@ -81,7 +81,9 @@ async def async_setup_entry(
     sensors.extend(sensor_list)
 
     # ThermalProfile-Sensoren
-    thermalprofile_coordinator: ComfoClimeThermalprofileCoordinator = data["tpcoordinator"]
+    thermalprofile_coordinator: ComfoClimeThermalprofileCoordinator = data[
+        "tpcoordinator"
+    ]
     sensor_list = [
         ComfoClimeSensor(
             hass=hass,
@@ -245,16 +247,24 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
         self._raw_state = None
         self._raw_value = None
         self._attr_native_unit_of_measurement = unit
-        self._attr_device_class = SensorDeviceClass(device_class) if device_class else None
+        self._attr_device_class = (
+            SensorDeviceClass(device_class) if device_class else None
+        )
         self._attr_state_class = SensorStateClass(state_class) if state_class else None
-        self._attr_entity_category = EntityCategory(entity_category) if entity_category else None
+        self._attr_entity_category = (
+            EntityCategory(entity_category) if entity_category else None
+        )
         self._device = device
         self._entry = entry
         self._attr_config_entry_id = entry.entry_id
         # Determine if this is a thermal profile sensor based on coordinator type
-        is_thermal_profile = isinstance(coordinator, ComfoClimeThermalprofileCoordinator)
+        is_thermal_profile = isinstance(
+            coordinator, ComfoClimeThermalprofileCoordinator
+        )
         prefix = "thermalprofile" if is_thermal_profile else "dashboard"
-        self._attr_unique_id = f"{entry.entry_id}_{prefix}_{sensor_type.replace('.', '_')}"
+        self._attr_unique_id = (
+            f"{entry.entry_id}_{prefix}_{sensor_type.replace('.', '_')}"
+        )
         if not translation_key:
             self._attr_name = name
         else:
@@ -268,9 +278,7 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
     @property
     def extra_state_attributes(self):
         """Gibt zusätzliche Attribute zurück."""
-        return {
-            "raw_value": self._raw_value
-        }
+        return {"raw_value": self._raw_value}
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -350,9 +358,13 @@ class ComfoClimeTelemetrySensor(
         self._signed = signed
         self._state = None
         self._attr_native_unit_of_measurement = unit
-        self._attr_device_class = SensorDeviceClass(device_class) if device_class else None
+        self._attr_device_class = (
+            SensorDeviceClass(device_class) if device_class else None
+        )
         self._attr_state_class = SensorStateClass(state_class) if state_class else None
-        self._attr_entity_category = EntityCategory(entity_category) if entity_category else None
+        self._attr_entity_category = (
+            EntityCategory(entity_category) if entity_category else None
+        )
         self._device = device
         self._override_uuid = override_device_uuid
         self._entry = entry
@@ -385,9 +397,7 @@ class ComfoClimeTelemetrySensor(
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         try:
-            value = self.coordinator.get_telemetry_value(
-                self._override_uuid, self._id
-            )
+            value = self.coordinator.get_telemetry_value(self._override_uuid, self._id)
             self._state = value
         except Exception:
             _LOGGER.debug(
@@ -430,9 +440,13 @@ class ComfoClimePropertySensor(
         self._byte_count = byte_count
         self._signed = signed
         self._attr_native_unit_of_measurement = unit
-        self._attr_device_class = SensorDeviceClass(device_class) if device_class else None
+        self._attr_device_class = (
+            SensorDeviceClass(device_class) if device_class else None
+        )
         self._attr_state_class = SensorStateClass(state_class) if state_class else None
-        self._attr_entity_category = EntityCategory(entity_category) if entity_category else None
+        self._attr_entity_category = (
+            EntityCategory(entity_category) if entity_category else None
+        )
         self._mapping_key = mapping_key
         self._device = device
         self._override_uuid = override_device_uuid
@@ -465,9 +479,7 @@ class ComfoClimePropertySensor(
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         try:
-            value = self.coordinator.get_property_value(
-                self._override_uuid, self._path
-            )
+            value = self.coordinator.get_property_value(self._override_uuid, self._path)
             if self._mapping_key and self._mapping_key in VALUE_MAPPINGS:
                 self._state = VALUE_MAPPINGS[self._mapping_key].get(value, value)
             else:

@@ -1,5 +1,7 @@
-from custom_components.comfoclime.comfoclime_api import ComfoClimeAPI
 import asyncio
+
+from custom_components.comfoclime.comfoclime_api import ComfoClimeAPI
+
 
 async def test_set_property():
     api = ComfoClimeAPI("http://10.0.10.95")  # deine IP
@@ -12,8 +14,9 @@ async def test_set_property():
         byte_count=1,
         faktor=1.0,
     )
-    
+
     # Close the session when done
     await api.close()
+
 
 asyncio.run(test_set_property())

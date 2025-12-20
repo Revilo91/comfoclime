@@ -36,7 +36,9 @@ class TestComfoClimeAPI:
         mock_response.raise_for_status = MagicMock()
 
         mock_session = AsyncMock()
-        mock_session.get = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
+        mock_session.get = MagicMock(
+            return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
+        )
 
         with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
             uuid = await api.async_get_uuid()
@@ -51,15 +53,19 @@ class TestComfoClimeAPI:
         api.uuid = "test-uuid"
 
         mock_response = AsyncMock()
-        mock_response.json = AsyncMock(return_value={
-            "indoorTemperature": 22.5,
-            "outdoorTemperature": 15.0,
-            "fanSpeed": 2,
-        })
+        mock_response.json = AsyncMock(
+            return_value={
+                "indoorTemperature": 22.5,
+                "outdoorTemperature": 15.0,
+                "fanSpeed": 2,
+            }
+        )
         mock_response.raise_for_status = MagicMock()
 
         mock_session = AsyncMock()
-        mock_session.get = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
+        mock_session.get = MagicMock(
+            return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
+        )
 
         with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
             data = await api.async_get_dashboard_data()
@@ -74,16 +80,20 @@ class TestComfoClimeAPI:
         api.uuid = "test-uuid"
 
         mock_response = AsyncMock()
-        mock_response.json = AsyncMock(return_value={
-            "devices": [
-                {"uuid": "device-1", "modelTypeId": 20},
-                {"uuid": "device-2", "modelTypeId": 21},
-            ]
-        })
+        mock_response.json = AsyncMock(
+            return_value={
+                "devices": [
+                    {"uuid": "device-1", "modelTypeId": 20},
+                    {"uuid": "device-2", "modelTypeId": 21},
+                ]
+            }
+        )
         mock_response.raise_for_status = MagicMock()
 
         mock_session = AsyncMock()
-        mock_session.get = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
+        mock_session.get = MagicMock(
+            return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
+        )
 
         with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
             devices = await api.async_get_connected_devices()
@@ -101,7 +111,9 @@ class TestComfoClimeAPI:
         mock_response.raise_for_status = MagicMock()
 
         mock_session = AsyncMock()
-        mock_session.get = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
+        mock_session.get = MagicMock(
+            return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
+        )
 
         with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
             value = await api.async_read_telemetry_for_device(
@@ -120,7 +132,9 @@ class TestComfoClimeAPI:
         mock_response.raise_for_status = MagicMock()
 
         mock_session = AsyncMock()
-        mock_session.get = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
+        mock_session.get = MagicMock(
+            return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
+        )
 
         with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
             value = await api.async_read_telemetry_for_device(
@@ -139,7 +153,9 @@ class TestComfoClimeAPI:
         mock_response.raise_for_status = MagicMock()
 
         mock_session = AsyncMock()
-        mock_session.get = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
+        mock_session.get = MagicMock(
+            return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
+        )
 
         with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
             value = await api.async_read_telemetry_for_device(
@@ -159,7 +175,9 @@ class TestComfoClimeAPI:
         mock_response.raise_for_status = MagicMock()
 
         mock_session = AsyncMock()
-        mock_session.get = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
+        mock_session.get = MagicMock(
+            return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
+        )
 
         with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
             value = await api.async_read_telemetry_for_device(
@@ -179,7 +197,9 @@ class TestComfoClimeAPI:
         mock_response.raise_for_status = MagicMock()
 
         mock_session = AsyncMock()
-        mock_session.get = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
+        mock_session.get = MagicMock(
+            return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
+        )
 
         with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
             value = await api.async_read_telemetry_for_device(
@@ -202,7 +222,9 @@ class TestComfoClimeAPIReadProperty:
         mock_response.raise_for_status = MagicMock()
 
         mock_session = AsyncMock()
-        mock_session.get = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
+        mock_session.get = MagicMock(
+            return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
+        )
 
         with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
             value = await api.async_read_property_for_device(
@@ -228,7 +250,9 @@ class TestComfoClimeAPIWriteOperations:
         mock_response.raise_for_status = MagicMock()
 
         mock_session = AsyncMock()
-        mock_session.put = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
+        mock_session.put = MagicMock(
+            return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
+        )
 
         with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
             result = await api.async_update_dashboard(fan_speed=3)
@@ -265,7 +289,9 @@ class TestComfoClimeAPIRateLimiting:
         mock_response.raise_for_status = MagicMock()
 
         mock_session = AsyncMock()
-        mock_session.get = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
+        mock_session.get = MagicMock(
+            return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
+        )
 
         with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
             await api.async_get_uuid()
@@ -289,7 +315,9 @@ class TestComfoClimeAPIRateLimiting:
         mock_response.raise_for_status = MagicMock()
 
         mock_session = AsyncMock()
-        mock_session.put = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
+        mock_session.put = MagicMock(
+            return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
+        )
 
         with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
             await api.async_update_dashboard(fan_speed=2)
@@ -313,7 +341,9 @@ class TestComfoClimeAPIByteConversion:
 
     def test_bytes_to_signed_int_2_byte_little_endian(self):
         """Test 2-byte little-endian conversion."""
-        result = ComfoClimeAPI.bytes_to_signed_int([0x12, 0x34], byte_count=2, signed=False)
+        result = ComfoClimeAPI.bytes_to_signed_int(
+            [0x12, 0x34], byte_count=2, signed=False
+        )
         assert result == 13330
 
     def test_signed_int_to_bytes_1_byte(self):

@@ -1,4 +1,5 @@
 """Tests for ComfoClime sensor entities."""
+
 import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 from custom_components.comfoclime.sensor import (
@@ -12,7 +13,9 @@ from custom_components.comfoclime.sensor import (
 class TestComfoClimeSensor:
     """Test ComfoClimeSensor class."""
 
-    def test_sensor_initialization(self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry):
+    def test_sensor_initialization(
+        self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry
+    ):
         """Test sensor initialization."""
         sensor = ComfoClimeSensor(
             hass=mock_hass,
@@ -35,7 +38,9 @@ class TestComfoClimeSensor:
         assert sensor._attr_state_class == "measurement"
         assert sensor._attr_unique_id == "test_entry_id_dashboard_indoorTemperature"
 
-    def test_sensor_state_update(self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry):
+    def test_sensor_state_update(
+        self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry
+    ):
         """Test sensor state update from coordinator."""
         sensor = ComfoClimeSensor(
             hass=mock_hass,
@@ -59,7 +64,9 @@ class TestComfoClimeSensor:
 
         assert sensor._state == 22.5
 
-    def test_sensor_value_mapping(self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry):
+    def test_sensor_value_mapping(
+        self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry
+    ):
         """Test sensor value mapping for temperatureProfile."""
         mock_coordinator.data = {"temperatureProfile": 0}
 
@@ -83,7 +90,9 @@ class TestComfoClimeSensor:
         # Should map 0 to "comfort"
         assert sensor._state == "comfort"
 
-    def test_sensor_device_info(self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry):
+    def test_sensor_device_info(
+        self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry
+    ):
         """Test sensor device info."""
         sensor = ComfoClimeSensor(
             hass=mock_hass,

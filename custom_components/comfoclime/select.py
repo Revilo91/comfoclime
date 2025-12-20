@@ -8,7 +8,10 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
-from .coordinator import ComfoClimePropertyCoordinator, ComfoClimeThermalprofileCoordinator
+from .coordinator import (
+    ComfoClimePropertyCoordinator,
+    ComfoClimeThermalprofileCoordinator,
+)
 from .entities.select_definitions import PROPERTY_SELECT_ENTITIES, SELECT_ENTITIES
 
 _LOGGER = logging.getLogger(__name__)
@@ -134,9 +137,7 @@ class ComfoClimeSelect(
             return
 
         try:
-            _LOGGER.debug(
-                f"Setting {self._name}: {option} (value={value})"
-            )
+            _LOGGER.debug(f"Setting {self._name}: {option} (value={value})")
 
             # Mapping aller SELECT_ENTITIES Keys zu thermal_profile Parametern
             # Basierend auf dem thermalprofile JSON Schema
@@ -162,8 +163,8 @@ class ComfoClimeSelect(
 
             self._current = option
             self._hass.add_job(self.coordinator.async_request_refresh)
-        except Exception as e:
-            _LOGGER.error(f"Fehler beim Setzen von {self._name}: {e}")
+        except Exception:
+            _LOGGER.exception(f"Fehler beim Setzen von {self._name}")
 
 
 class ComfoClimePropertySelect(
@@ -222,9 +223,7 @@ class ComfoClimePropertySelect(
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         try:
-            val = self.coordinator.get_property_value(
-                self._device["uuid"], self._path
-            )
+            val = self.coordinator.get_property_value(self._device["uuid"], self._path)
             self._current = self._options_map.get(val)
         except Exception as e:
             _LOGGER.debug(f"Fehler beim Laden von {self._name}: {e}")

@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Quick test to verify the caching implementation."""
+
 import asyncio
 import sys
 from unittest.mock import AsyncMock, MagicMock
 
 # Add the project to path
 import os
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from custom_components.comfoclime.comfoclime_api import ComfoClimeAPI
@@ -35,6 +37,7 @@ def test_cache_key_generation():
 def test_cache_ttl_constant():
     """Test that cache TTL is properly configured."""
     from custom_components.comfoclime.comfoclime_api import CACHE_TTL
+
     assert CACHE_TTL == 30.0, f"Expected CACHE_TTL=30.0, got {CACHE_TTL}"
     print("✅ Cache TTL constant test passed")
 
@@ -58,7 +61,9 @@ async def test_telemetry_cache():
     mock_response.raise_for_status = MagicMock()
 
     mock_session = AsyncMock()
-    mock_session.get = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
+    mock_session.get = MagicMock(
+        return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
+    )
 
     # Patch _get_session
     api._get_session = AsyncMock(return_value=mock_session)
@@ -69,7 +74,7 @@ async def test_telemetry_cache():
         telemetry_id="123",
         faktor=1.0,
         signed=False,
-        byte_count=1
+        byte_count=1,
     )
     assert result1 == 100
     assert mock_session.get.call_count == 1
@@ -81,7 +86,7 @@ async def test_telemetry_cache():
         telemetry_id="123",
         faktor=1.0,
         signed=False,
-        byte_count=1
+        byte_count=1,
     )
     assert result2 == 100
     assert mock_session.get.call_count == 1, "Cache hit - no additional API call"
@@ -99,16 +104,16 @@ async def test_property_cache():
     mock_response.raise_for_status = MagicMock()
 
     mock_session = AsyncMock()
-    mock_session.get = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
+    mock_session.get = MagicMock(
+        return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
+    )
 
     api._get_session = AsyncMock(return_value=mock_session)
     api._read_property_for_device_raw = AsyncMock(return_value=[75])
 
     # First call should hit API
     result1 = await api.async_read_property_for_device(
-        device_uuid="device-1",
-        property_path="29/1/10",
-        byte_count=1
+        device_uuid="device-1", property_path="29/1/10", byte_count=1
     )
     assert result1 == 75
     assert api._read_property_for_device_raw.call_count == 1
@@ -116,12 +121,12 @@ async def test_property_cache():
 
     # Second call should use cache
     result2 = await api.async_read_property_for_device(
-        device_uuid="device-1",
-        property_path="29/1/10",
-        byte_count=1
+        device_uuid="device-1", property_path="29/1/10", byte_count=1
     )
     assert result2 == 75
-    assert api._read_property_for_device_raw.call_count == 1, "Cache hit - no additional API call"
+    assert api._read_property_for_device_raw.call_count == 1, (
+        "Cache hit - no additional API call"
+    )
     print("✅ Second property call used cache")
 
 
