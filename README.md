@@ -34,7 +34,9 @@ API documentation with practical Python examples:
 
 Feel free to extend!
 
-## Development & Testing
+## Development
+
+### Dev Container Setup
 
 Want to test or develop this integration? Use the included **GitHub Codespace** or **Dev Container** setup!
 
@@ -103,8 +105,6 @@ Feel free to participate! 🙋‍♂️
 
 @michaelarnauts and his integration of ComfoConnect, where I discovered a lot of telemetries and properties of the ventilation unit:
 https://github.com/michaelarnauts/aiocomfoconnect
-
-## Development
 
 ### Running Tests
 
