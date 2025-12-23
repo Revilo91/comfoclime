@@ -18,7 +18,7 @@ ComfoClime is a HVAC solution as additional device for the ComfoAir Q series. It
 * locals in english and german
 
 ## Installation
-* add this repository via HACS (user defined repositories, URL: `https://github.com/msfuture/comfoclime`)
+* add this repository via HACS (user defined repositories, URL: `https://github.com/Revilo91/comfoclime`)
 * install the "Zehnder ComfoClime" integration in HACS
 * restart Home Assistant
 * add the ComfoClime device (connected devices like the ComfoAir Q are detected and added automatically)
@@ -45,13 +45,6 @@ Want to test or develop this integration? Use the included **GitHub Codespace** 
 - See [.devcontainer/README.md](.devcontainer/README.md) for detailed instructions
 
 This provides a complete Home Assistant development environment with debugging support.
-
-## Installation
-
-* add this repository via HACS (user defined repositories, URL: `https://github.com/msfuture/comfoclime`)
-* install the "Zehnder ComfoClime" integration in HACS
-* restart Home Assistant
-* add the ComfoClime device (connected devices like the ComfoAir Q are detected and added automatically)
 
 ## Climate Control Features
 
