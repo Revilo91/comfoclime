@@ -4,14 +4,14 @@ set_property:
   fields:
     device_id:
       name: Gerät
-      description: Das Zielgerät (z. B. ComfoClime 24)
+      description: Das Zielgerät (z.B. ComfoClime 24)
       required: true
       selector:
         device:
           integration: comfoclime
     path:
       name: Property-Pfad
-      description: Pfadangabe im Format X/Y/Z, z. B. 29/1/10
+      description: Pfadangabe im Format X/Y/Z, z.B. 29/1/10
       required: true
       example: "29/1/10"
       selector:

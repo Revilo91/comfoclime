@@ -1,3 +1,18 @@
 **/__pycache__
 .vscode
 /.history
+
+# Test artifacts
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+*.egg-info/
+.tox/
+*.log
+
+# Home Assistant development files
+.devcontainer/ha-config/
+
+# Pip artifacts
+=*
