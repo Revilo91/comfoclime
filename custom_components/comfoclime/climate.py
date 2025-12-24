@@ -217,7 +217,7 @@ class ComfoClimeClimate(
         """
         return (
             self.coordinator.last_update_success
-            and self._thermalprofile_coordinator.last_update_success
+            or self._thermalprofile_coordinator.last_update_success
         )
 
     @property
