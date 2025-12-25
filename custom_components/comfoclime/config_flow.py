@@ -72,6 +72,10 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                             "enable_frequent_updates", False
                         ),
                     ): bool,
+                    vol.Optional(
+                        "minimal_mode",
+                        default=self.entry.options.get("minimal_mode", False),
+                    ): bool,
                 }
             ),
         )

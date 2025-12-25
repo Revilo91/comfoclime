@@ -275,7 +275,8 @@
             "title": "Options",
             "description": "Advanced integration options",
             "data": {
-              "enable_diagnostics": "Activate diagnosis sensors"
+              "enable_diagnostics": "Activate diagnosis sensors",
+              "minimal_mode": "No communication with ComfoNet Bus (testing)"
             }
           }
         }

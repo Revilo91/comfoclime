@@ -272,7 +272,8 @@
             "title": "Optionen",
             "description": "Erweiterte Einstellungen für die Integration",
             "data": {
-              "enable_diagnostics": "Diagnose-Sensoren aktivieren"
+              "enable_diagnostics": "Diagnose-Sensoren aktivieren",
+              "minimal_mode": "Keine ComfoNet Abfragen (Testzwecke)"
             }
           }
         }

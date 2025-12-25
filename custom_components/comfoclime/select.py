@@ -57,12 +57,13 @@ async def async_setup_entry(
         if not select_defs:
             continue
 
-        entities.extend(
-            ComfoClimePropertySelect(
-                hass=hass, api=api, conf=select_def, device=device, entry=entry
+        if not entry.options.get("minimal_mode", False):
+            entities.extend(
+                ComfoClimePropertySelect(
+                    hass=hass, api=api, conf=select_def, device=device, entry=entry
+                )
+                for select_def in select_defs
             )
-            for select_def in select_defs
-        )
     async_add_entities(entities, True)
 
 

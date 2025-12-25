@@ -48,17 +48,18 @@ async def async_setup_entry(
         if dev_uuid == "NULL":
             continue
         for number_def in CONNECTED_DEVICE_NUMBER_PROPERTIES.get(model_id, []):
-            entities.extend(
-                [
-                    ComfoClimePropertyNumber(
-                        hass=hass,
-                        api=api,
-                        config=number_def,
-                        device=device,
-                        entry=entry,
-                    )
-                ]
-            )
+            if not entry.options.get("minimal_mode", False):
+                entities.extend(
+                    [
+                        ComfoClimePropertyNumber(
+                            hass=hass,
+                            api=api,
+                            config=number_def,
+                            device=device,
+                            entry=entry,
+                        )
+                    ]
+                )
 
     async_add_entities(entities, True)
 
@@ -89,15 +90,22 @@ class ComfoClimeTemperatureNumber(
     def available(self):
         """Return True if entity is available."""
         # For manual temperature setting, check if automatic mode is disabled
-        if self._key_path[0] == "temperature" and self._key_path[1] == "manualTemperature":
+        if (
+            self._key_path[0] == "temperature"
+            and self._key_path[1] == "manualTemperature"
+        ):
             try:
                 coordinator_data = self.coordinator.data
-                automatic_temperature_status = coordinator_data.get("temperature", {}).get("status")
+                automatic_temperature_status = coordinator_data.get(
+                    "temperature", {}
+                ).get("status")
 
                 # Only available if automatic mode is disabled (status = 0)
                 return automatic_temperature_status == 0
             except Exception as e:
-                _LOGGER.debug(f"Could not check automatic temperature status for availability: {e}")
+                _LOGGER.debug(
+                    f"Could not check automatic temperature status for availability: {e}"
+                )
                 # Return True if we can't determine the status to avoid breaking functionality
                 return True
 
@@ -155,14 +163,21 @@ class ComfoClimeTemperatureNumber(
 
     def set_native_value(self, value: float):
         # Check if this is a manual temperature setting
-        if self._key_path[0] == "temperature" and self._key_path[1] == "manualTemperature":
+        if (
+            self._key_path[0] == "temperature"
+            and self._key_path[1] == "manualTemperature"
+        ):
             # Check if automatic comfort temperature is enabled
             try:
                 coordinator_data = self.coordinator.data
-                automatic_temperature_status = coordinator_data.get("temperature", {}).get("status")
+                automatic_temperature_status = coordinator_data.get(
+                    "temperature", {}
+                ).get("status")
 
                 if automatic_temperature_status == 1:
-                    _LOGGER.warning(f"Cannot set manual temperature: automatic comfort temperature is enabled")
+                    _LOGGER.warning(
+                        f"Cannot set manual temperature: automatic comfort temperature is enabled"
+                    )
                     # Don't proceed with setting the temperature
                     return
             except Exception as e:
