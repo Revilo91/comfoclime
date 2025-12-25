@@ -383,12 +383,14 @@ class TestComfoClimeAPIFixSignedTemperature:
     def test_fix_signed_temperature_negative_as_unsigned(self):
         """Test that unsigned representation of negative temperature is fixed.
 
-        When the API returns 6553.5, it represents -0.5°C encoded as unsigned.
-        Raw bytes: -5 as signed int16 = 0xFFFB in little endian = [251, 255]
-        As unsigned: 65531 / 10 = 6553.1
+        Conversion for -0.5°C:
+        - Temperature: -0.5°C
+        - Raw value (scaled by 10): -5
+        - As signed int16: -5 = 0xFFFB in little endian = [251, 255]
+        - As unsigned int16: 65531
+        - API returns: 65531 / 10 = 6553.1
+        - fix_signed_temperature(6553.1) should return -0.5
         """
-        # -0.5°C comes as 6553.5 (65535 - 5 = 65530, 65530/10 = 6553.0, but -5/10 = -0.5)
-        # Actually: -5 as signed int16 -> 65531 as unsigned -> 6553.1 when divided by 10
         result = ComfoClimeAPI.fix_signed_temperature(6553.1)
         assert result == -0.5
 

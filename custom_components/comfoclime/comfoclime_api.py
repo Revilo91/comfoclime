@@ -304,8 +304,9 @@ class ComfoClimeAPI:
                 data = await response.json()
 
             # Fix signed temperature values
-            for key, val in data.items():
-                if "Temperature" in key and isinstance(val, (int, float)):
+            for key in list(data.keys()):
+                val = data[key]
+                if "Temperature" in key and val is not None and isinstance(val, (int, float)):
                     data[key] = self.fix_signed_temperature(val)
 
             return data
