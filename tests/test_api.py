@@ -365,3 +365,105 @@ class TestComfoClimeAPIByteConversion:
         """Test that invalid byte count raises ValueError."""
         with pytest.raises(ValueError, match="Unsupported byte count"):
             ComfoClimeAPI.bytes_to_signed_int([1, 2, 3], byte_count=3)
+
+
+class TestComfoClimeAPIFixSignedTemperature:
+    """Test fix_signed_temperature utility method."""
+
+    def test_fix_signed_temperature_positive_value(self):
+        """Test that positive temperature values pass through unchanged."""
+        result = ComfoClimeAPI.fix_signed_temperature(22.5)
+        assert result == 22.5
+
+    def test_fix_signed_temperature_zero(self):
+        """Test that zero passes through unchanged."""
+        result = ComfoClimeAPI.fix_signed_temperature(0.0)
+        assert result == 0.0
+
+    def test_fix_signed_temperature_negative_as_unsigned(self):
+        """Test that unsigned representation of negative temperature is fixed.
+
+        When the API returns 6553.5, it represents -0.5°C encoded as unsigned.
+        Raw bytes: -5 as signed int16 = 0xFFFB in little endian = [251, 255]
+        As unsigned: 65531 / 10 = 6553.1
+        """
+        # -0.5°C comes as 6553.5 (65535 - 5 = 65530, 65530/10 = 6553.0, but -5/10 = -0.5)
+        # Actually: -5 as signed int16 -> 65531 as unsigned -> 6553.1 when divided by 10
+        result = ComfoClimeAPI.fix_signed_temperature(6553.1)
+        assert result == -0.5
+
+    def test_fix_signed_temperature_large_negative(self):
+        """Test fixing a larger negative temperature like -10.0°C.
+
+        -100 as signed int16 = 65436 as unsigned = 6543.6 when divided by 10
+        """
+        result = ComfoClimeAPI.fix_signed_temperature(6543.6)
+        assert result == -10.0
+
+
+class TestComfoClimeAPIDashboardSignedTemperatures:
+    """Test that async_get_dashboard_data fixes signed temperatures."""
+
+    @pytest.mark.asyncio
+    async def test_async_get_dashboard_data_fixes_temperature_values(self):
+        """Test that temperature values in dashboard data are fixed for signed interpretation."""
+        api = ComfoClimeAPI("http://192.168.1.100")
+        api.uuid = "test-uuid"
+
+        # Simulate API returning unsigned representation of negative temperature
+        # outdoorTemperature: 6553.1 represents -0.5°C
+        mock_response = AsyncMock()
+        mock_response.json = AsyncMock(
+            return_value={
+                "indoorTemperature": 22.5,
+                "outdoorTemperature": 6553.1,  # This should become -0.5
+                "fanSpeed": 2,
+                "season": 1,
+            }
+        )
+        mock_response.raise_for_status = MagicMock()
+
+        mock_session = AsyncMock()
+        mock_session.get = MagicMock(
+            return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
+        )
+
+        with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
+            data = await api.async_get_dashboard_data()
+
+        # Temperature values should be fixed
+        assert data["indoorTemperature"] == 22.5  # Positive stays same
+        assert data["outdoorTemperature"] == -0.5  # Converted from unsigned
+        # Non-temperature values should be unchanged
+        assert data["fanSpeed"] == 2
+        assert data["season"] == 1
+
+    @pytest.mark.asyncio
+    async def test_async_get_dashboard_data_handles_none_temperature(self):
+        """Test that None temperature values are handled gracefully."""
+        api = ComfoClimeAPI("http://192.168.1.100")
+        api.uuid = "test-uuid"
+
+        mock_response = AsyncMock()
+        mock_response.json = AsyncMock(
+            return_value={
+                "indoorTemperature": 22.5,
+                "outdoorTemperature": None,  # None should be skipped
+                "setPointTemperature": None,  # Also None
+                "fanSpeed": 2,
+            }
+        )
+        mock_response.raise_for_status = MagicMock()
+
+        mock_session = AsyncMock()
+        mock_session.get = MagicMock(
+            return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
+        )
+
+        with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
+            data = await api.async_get_dashboard_data()
+
+        assert data["indoorTemperature"] == 22.5
+        assert data["outdoorTemperature"] is None  # None stays None
+        assert data["setPointTemperature"] is None
+        assert data["fanSpeed"] == 2

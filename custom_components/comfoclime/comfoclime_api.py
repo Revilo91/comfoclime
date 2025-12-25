@@ -301,7 +301,14 @@ class ComfoClimeAPI:
                 f"{self.base_url}/system/{self.uuid}/dashboard", timeout=timeout
             ) as response:
                 response.raise_for_status()
-                return await response.json()
+                data = await response.json()
+
+            # Fix signed temperature values
+            for key, val in data.items():
+                if "Temperature" in key and isinstance(val, (int, float)):
+                    data[key] = self.fix_signed_temperature(val)
+
+            return data
 
     async def async_get_connected_devices(self):
         async with self._request_lock:
