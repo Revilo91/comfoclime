@@ -272,6 +272,28 @@ class ComfoClimeAPI:
         signed_value = ComfoClimeAPI.bytes_to_signed_int(bytes_data)
         return signed_value / 10.0
 
+    @staticmethod
+    def fix_signed_temperatures_in_dict(data: dict) -> dict:
+        """Recursively fix signed temperature values in a dictionary.
+
+        Applies fix_signed_temperature to all keys containing "Temperature"
+        in both flat and nested dictionary structures.
+
+        Args:
+            data: Dictionary potentially containing temperature values
+
+        Returns:
+            Dictionary with fixed temperature values
+        """
+        for key in list(data.keys()):
+            val = data[key]
+            if isinstance(val, dict):
+                # Recursively process nested dictionaries
+                data[key] = ComfoClimeAPI.fix_signed_temperatures_in_dict(val)
+            elif "Temperature" in key and val is not None and isinstance(val, (int, float)):
+                data[key] = ComfoClimeAPI.fix_signed_temperature(val)
+        return data
+
     async def _async_get_uuid_internal(self):
         """Internal method to get UUID without acquiring lock."""
         await self._wait_for_rate_limit(is_write=False)
@@ -304,12 +326,7 @@ class ComfoClimeAPI:
                 data = await response.json()
 
             # Fix signed temperature values
-            for key in list(data.keys()):
-                val = data[key]
-                if "Temperature" in key and val is not None and isinstance(val, (int, float)):
-                    data[key] = self.fix_signed_temperature(val)
-
-            return data
+            return self.fix_signed_temperatures_in_dict(data)
 
     async def async_get_connected_devices(self):
         async with self._request_lock:
@@ -474,7 +491,9 @@ class ComfoClimeAPI:
                 session = await self._get_session()
                 async with session.get(url, timeout=timeout) as response:
                     response.raise_for_status()
-                    return await response.json()
+                    data = await response.json()
+                    # Fix signed temperature values in nested structure
+                    return self.fix_signed_temperatures_in_dict(data)
             except aiohttp.ClientError as e:
                 _LOGGER.warning(f"Fehler beim Abrufen von thermal_profile: {e}")
                 return {}  # leer zurückgeben statt crashen

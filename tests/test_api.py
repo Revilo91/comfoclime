@@ -469,3 +469,111 @@ class TestComfoClimeAPIDashboardSignedTemperatures:
         assert data["outdoorTemperature"] is None  # None stays None
         assert data["setPointTemperature"] is None
         assert data["fanSpeed"] == 2
+
+
+class TestComfoClimeAPIFixSignedTemperaturesInDict:
+    """Test fix_signed_temperatures_in_dict utility method."""
+
+    def test_fix_signed_temperatures_flat_dict(self):
+        """Test fixing temperatures in a flat dictionary."""
+        data = {
+            "indoorTemperature": 22.5,
+            "outdoorTemperature": 6553.1,  # -0.5°C as unsigned
+            "fanSpeed": 2,
+        }
+        result = ComfoClimeAPI.fix_signed_temperatures_in_dict(data)
+        assert result["indoorTemperature"] == 22.5
+        assert result["outdoorTemperature"] == -0.5
+        assert result["fanSpeed"] == 2
+
+    def test_fix_signed_temperatures_nested_dict(self):
+        """Test fixing temperatures in a nested dictionary (like thermal profile)."""
+        data = {
+            "season": {
+                "status": 1,
+                "heatingThresholdTemperature": 14.0,
+                "coolingThresholdTemperature": 17.0,
+            },
+            "temperature": {
+                "status": 0,
+                "manualTemperature": 6553.1,  # -0.5°C as unsigned
+            },
+            "heatingThermalProfileSeasonData": {
+                "comfortTemperature": 21.5,
+                "kneePointTemperature": 12.5,
+            },
+        }
+        result = ComfoClimeAPI.fix_signed_temperatures_in_dict(data)
+
+        # Check nested temperature values are fixed
+        assert result["season"]["heatingThresholdTemperature"] == 14.0
+        assert result["season"]["coolingThresholdTemperature"] == 17.0
+        assert result["temperature"]["manualTemperature"] == -0.5
+        assert result["heatingThermalProfileSeasonData"]["comfortTemperature"] == 21.5
+        assert result["heatingThermalProfileSeasonData"]["kneePointTemperature"] == 12.5
+        # Check non-temperature values unchanged
+        assert result["season"]["status"] == 1
+        assert result["temperature"]["status"] == 0
+
+    def test_fix_signed_temperatures_with_none_values(self):
+        """Test that None values are handled gracefully in nested dicts."""
+        data = {
+            "temperature": {
+                "manualTemperature": None,
+            },
+            "setPointTemperature": None,
+        }
+        result = ComfoClimeAPI.fix_signed_temperatures_in_dict(data)
+        assert result["temperature"]["manualTemperature"] is None
+        assert result["setPointTemperature"] is None
+
+
+class TestComfoClimeAPIThermalProfileSignedTemperatures:
+    """Test that async_get_thermal_profile fixes signed temperatures."""
+
+    @pytest.mark.asyncio
+    async def test_async_get_thermal_profile_fixes_temperature_values(self):
+        """Test that temperature values in thermal profile data are fixed."""
+        api = ComfoClimeAPI("http://192.168.1.100")
+        api.uuid = "test-uuid"
+
+        # Simulate API returning unsigned representation of negative temperature
+        mock_response = AsyncMock()
+        mock_response.json = AsyncMock(
+            return_value={
+                "season": {
+                    "status": 1,
+                    "season": 2,
+                    "heatingThresholdTemperature": 14.0,
+                    "coolingThresholdTemperature": 6553.1,  # -0.5°C as unsigned
+                },
+                "temperature": {
+                    "status": 1,
+                    "manualTemperature": 22.0,
+                },
+                "temperatureProfile": 0,
+                "heatingThermalProfileSeasonData": {
+                    "comfortTemperature": 21.5,
+                    "kneePointTemperature": 12.5,
+                    "reductionDeltaTemperature": 1.5,
+                },
+            }
+        )
+        mock_response.raise_for_status = MagicMock()
+
+        mock_session = AsyncMock()
+        mock_session.get = MagicMock(
+            return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
+        )
+
+        with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
+            data = await api.async_get_thermal_profile()
+
+        # Temperature values should be fixed
+        assert data["season"]["heatingThresholdTemperature"] == 14.0
+        assert data["season"]["coolingThresholdTemperature"] == -0.5  # Fixed from unsigned
+        assert data["temperature"]["manualTemperature"] == 22.0
+        assert data["heatingThermalProfileSeasonData"]["comfortTemperature"] == 21.5
+        # Non-temperature values should be unchanged
+        assert data["season"]["status"] == 1
+        assert data["temperatureProfile"] == 0
