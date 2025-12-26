@@ -276,7 +276,8 @@
             "description": "Advanced integration options",
             "data": {
               "enable_diagnostics": "Activate diagnosis sensors",
-              "minimal_mode": "No communication with ComfoNet Bus (testing)"
+              "minimal_mode": "No communication with ComfoNet Bus (testing)",
+              "throttle_comfonet": "Add a 10ms pause between ComfoNet polls"
             }
           }
         }

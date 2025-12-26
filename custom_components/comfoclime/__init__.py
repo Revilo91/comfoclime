@@ -27,7 +27,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = entry.data
     host = entry.data["host"]
-    api = ComfoClimeAPI(f"http://{host}", hass=hass)
+    api = ComfoClimeAPI(f"http://{host}", hass=hass, entry=entry)
     # Dashboard-Coordinator erstellen
     dashboard_coordinator = ComfoClimeDashboardCoordinator(hass, api)
     await dashboard_coordinator.async_config_entry_first_refresh()

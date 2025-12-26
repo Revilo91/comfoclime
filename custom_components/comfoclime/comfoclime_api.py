@@ -1,6 +1,7 @@
 # comfoclime_api.py
 import asyncio
 import logging
+import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -10,11 +11,12 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class ComfoClimeAPI:
-    def __init__(self, base_url, hass=None):
+    def __init__(self, base_url, hass=None, entry=None):
         self.hass = hass
         self.base_url = base_url.rstrip("/")
         self.uuid = None
         self._request_lock = asyncio.Lock()
+        self.entry = entry
 
     @staticmethod
     def bytes_to_signed_int(
@@ -151,6 +153,9 @@ class ComfoClimeAPI:
             raise ValueError("Unerwartetes Telemetrie-Format")
 
         value = self.bytes_to_signed_int(data, byte_count, signed)
+
+        if self.entry.options.get("throttle_comfonet", False):
+            time.sleep(0.01)
         return value * faktor
 
     async def async_read_property_for_device(
@@ -187,6 +192,8 @@ class ComfoClimeAPI:
         data = payload.get("data")
         if not isinstance(data, list) or not data:
             raise ValueError("Unerwartetes Property-Format")
+        if self.entry.options.get("throttle_comfonet", False):
+            time.sleep(0.01)
         return data
 
     def read_property_for_device(

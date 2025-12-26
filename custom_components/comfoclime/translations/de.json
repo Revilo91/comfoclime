@@ -273,7 +273,8 @@
             "description": "Erweiterte Einstellungen für die Integration",
             "data": {
               "enable_diagnostics": "Diagnose-Sensoren aktivieren",
-              "minimal_mode": "Keine ComfoNet Abfragen (Testzwecke)"
+              "minimal_mode": "Keine ComfoNet Abfragen (Testzwecke)",
+              "throttle_comfonet": "Wartezeit von 10ms zwischen ComfoNet Abfragen"
             }
           }
         }

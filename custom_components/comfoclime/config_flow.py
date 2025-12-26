@@ -76,6 +76,10 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         "minimal_mode",
                         default=self.entry.options.get("minimal_mode", False),
                     ): bool,
+                    vol.Optional(
+                        "throttle_comfonet",
+                        default=self.entry.options.get("throttle_comfonet", False),
+                    ): bool,
                 }
             ),
         )
