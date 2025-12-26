@@ -172,6 +172,8 @@ class ComfoClimeClimate(
             ClimateEntityFeature.TARGET_TEMPERATURE
             | ClimateEntityFeature.PRESET_MODE
             | ClimateEntityFeature.FAN_MODE
+            | ClimateEntityFeature.TURN_ON
+            | ClimateEntityFeature.TURN_OFF
         )
 
         # HVAC modes
@@ -636,3 +638,64 @@ class ComfoClimeClimate(
             attrs["last_manual_temperature"] = manual_temp
 
         return attrs
+
+    async def async_turn_off(self) -> None:
+        """Turn the climate device off.
+
+        Sets hpStandby=True via dashboard API to turn off the heat pump.
+        This is equivalent to setting HVAC mode to OFF.
+        """
+        try:
+            _LOGGER.debug("Turning off climate device - setting hpStandby=True")
+            await self.async_update_dashboard(hpStandby=True)
+
+            # Schedule non-blocking refresh of coordinators
+            await self._async_refresh_coordinators()
+
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            _LOGGER.exception(
+                "Timeout turning off climate device. "
+                "This may indicate network connectivity issues with the device."
+            )
+        except aiohttp.ClientError:
+            _LOGGER.exception("Network error turning off climate device")
+        except Exception:
+            _LOGGER.exception("Unexpected error turning off climate device")
+
+    async def async_turn_on(self) -> None:
+        """Turn the climate device on.
+
+        Sets hpStandby=False and restores the device to the last active season.
+        If no previous season is available, defaults to heating mode (season=1).
+        """
+        try:
+            # Get the current season from dashboard to restore
+            # If device is currently off (season might be None or any value),
+            # we use the stored season value, defaulting to heating (1) if not available
+            season = self._get_current_season()
+
+            # If season is 0 (transition/fan only) or not set, default to heating
+            if season == 0 or season is None:
+                season = 1  # Default to heating mode
+
+            _LOGGER.debug(
+                f"Turning on climate device - setting hpStandby=False, season={season}"
+            )
+
+            # Use atomic operation to set both season and hpStandby
+            # This prevents race conditions between thermal profile and dashboard updates
+            await self._api.async_set_hvac_season(season=season, hpStandby=False)
+
+            # Schedule non-blocking refresh of coordinators
+            await self._async_refresh_coordinators()
+
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            _LOGGER.exception(
+                "Timeout turning on climate device. "
+                "This may indicate network connectivity issues with the device."
+            )
+        except aiohttp.ClientError:
+            _LOGGER.exception("Network error turning on climate device")
+        except Exception:
+            _LOGGER.exception("Unexpected error turning on climate device")
+
