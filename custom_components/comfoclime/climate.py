@@ -8,6 +8,7 @@ from homeassistant.components.climate import (
     FAN_LOW,
     FAN_MEDIUM,
     FAN_OFF,
+    PRESET_AWAY,
     PRESET_BOOST,
     PRESET_COMFORT,
     PRESET_ECO,
@@ -46,6 +47,33 @@ PRESET_REVERSE_MAPPING = {v: k for k, v in PRESET_MAPPING.items()}
 
 # Add manual preset mode (status=0)
 PRESET_MANUAL = PRESET_NONE  # "none" preset means manual temperature control
+
+# Scenario Modes - special operating modes
+SCENARIO_COOKING = 4  # Kochen - 30 minutes high ventilation
+SCENARIO_PARTY = 5  # Party - 30 minutes high ventilation
+SCENARIO_HOLIDAY = 7  # Urlaub - 24 hours reduced mode
+SCENARIO_BOOST_MODE = 8  # Boost - 30 minutes maximum power
+
+PRESET_SCENARIO_COOKING = "cooking"
+PRESET_SCENARIO_PARTY = "party"
+
+# Scenario mapping
+SCENARIO_MAPPING = {
+    SCENARIO_COOKING: PRESET_SCENARIO_COOKING,
+    SCENARIO_PARTY: PRESET_SCENARIO_PARTY,
+    SCENARIO_HOLIDAY: PRESET_AWAY,
+    SCENARIO_BOOST_MODE: PRESET_BOOST,
+}
+
+SCENARIO_REVERSE_MAPPING = {v: k for k, v in SCENARIO_MAPPING.items()}
+
+# Default durations for scenarios in seconds (based on Mode_info.json)
+SCENARIO_DEFAULT_DURATIONS = {
+    SCENARIO_COOKING: 30,
+    SCENARIO_PARTY: 30,
+    SCENARIO_HOLIDAY: 1440,  # 24 hours
+    SCENARIO_BOOST_MODE: 30,
+}
 
 # Fan Mode Mapping (based on fan.py implementation)
 # fanSpeed from dashboard: 0, 1, 2, 3
@@ -464,6 +492,9 @@ class ComfoClimeClimate(
         Setting PRESET_MANUAL (none) switches to manual temperature control mode.
         Setting other presets (comfort/boost/eco) activates automatic mode with
         both seasonProfile and temperatureProfile set to the selected preset value.
+
+        Args:
+            preset_mode: The preset mode to activate
         """
         try:
             # Manual mode: User wants to use manual temperature control
@@ -540,12 +571,31 @@ class ComfoClimeClimate(
 
         Exposes all available data from the ComfoClime Dashboard API interface:
         - Dashboard data from /system/{UUID}/dashboard
+        - Scenario time left (remaining duration of active scenario in seconds)
         """
         attrs = {}
 
         # Add complete dashboard data from Dashboard API interface
         if self.coordinator.data:
             attrs["dashboard"] = self.coordinator.data
+
+            # Add scenario time left as a separate attribute for easier access
+            scenario_time_left = self.coordinator.data.get("scenarioTimeLeft")
+            if scenario_time_left is not None:
+                attrs["scenario_time_left"] = scenario_time_left
+                # Convert to human-readable format
+                hours, remainder = divmod(scenario_time_left, 3600)
+                minutes, seconds = divmod(remainder, 60)
+                if hours > 0:
+                    attrs["scenario_time_left_formatted"] = (
+                        f"{int(hours)}h {int(minutes)}m"
+                    )
+                elif minutes > 0:
+                    attrs["scenario_time_left_formatted"] = (
+                        f"{int(minutes)}m {int(seconds)}s"
+                    )
+                else:
+                    attrs["scenario_time_left_formatted"] = f"{int(seconds)}s"
 
         # For transparency: expose last_manual_temperature from thermal profile if available
         tp = getattr(self._thermalprofile_coordinator, "data", None) or {}
