@@ -40,7 +40,7 @@ service: comfoclime.set_scenario_mode
 data:
   entity_id: climate.comfoclime
   scenario: cooking
-  duration: 60  # 1 Stunde in Sekunden
+  duration: 60  # Dauer in Minuten, z.B. 60 für 1 Stunde
 ```
 
 
