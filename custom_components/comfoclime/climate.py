@@ -172,6 +172,8 @@ class ComfoClimeClimate(
             ClimateEntityFeature.TARGET_TEMPERATURE
             | ClimateEntityFeature.PRESET_MODE
             | ClimateEntityFeature.FAN_MODE
+            | ClimateEntityFeature.TURN_ON
+            | ClimateEntityFeature.TURN_OFF
         )
 
         # HVAC modes
@@ -636,3 +638,50 @@ class ComfoClimeClimate(
             attrs["last_manual_temperature"] = manual_temp
 
         return attrs
+
+    async def async_turn_off(self) -> None:
+        """Turn the climate device off.
+
+        Sets hpStandby=True via dashboard API to turn off the heat pump.
+        This is equivalent to setting HVAC mode to OFF.
+        """
+        try:
+            _LOGGER.debug("Turning off climate device - setting hpStandby=True")
+            await self.async_update_dashboard(hpStandby=True)
+
+            # Schedule non-blocking refresh of coordinators
+            await self._async_refresh_coordinators()
+
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            _LOGGER.exception(
+                "Timeout turning off climate device. "
+                "This may indicate network connectivity issues with the device."
+            )
+        except aiohttp.ClientError:
+            _LOGGER.exception("Network error turning off climate device")
+        except Exception:
+            _LOGGER.exception("Unexpected error turning off climate device")
+
+    async def async_turn_on(self) -> None:
+        """Turn the climate device on.
+
+        Sets hpStandby=False via dashboard API to turn on the heat pump.
+        The season remains unchanged.
+        """
+        try:
+            _LOGGER.debug("Turning on climate device - setting hpStandby=False")
+            await self.async_update_dashboard(hpStandby=False)
+
+            # Schedule non-blocking refresh of coordinators
+            await self._async_refresh_coordinators()
+
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            _LOGGER.exception(
+                "Timeout turning on climate device. "
+                "This may indicate network connectivity issues with the device."
+            )
+        except aiohttp.ClientError:
+            _LOGGER.exception("Network error turning on climate device")
+        except Exception:
+            _LOGGER.exception("Unexpected error turning on climate device")
+
