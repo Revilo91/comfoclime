@@ -96,8 +96,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         Supported scenarios:
         - cooking: High ventilation for cooking (default: 30 min)
         - party: High ventilation for parties (default: 30 min)
-        - holiday: Reduced mode for vacation (default: 24 hours)
-        - boost_mode: Maximum power boost (default: 30 min)
+        - away: Reduced mode for vacation (default: 24 hours)
+        - boost: Maximum power boost (default: 30 min)
         """
         entity_id = call.data["entity_id"]
         scenario = call.data["scenario"]
