@@ -62,6 +62,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         path = call.data["path"]
         value = call.data["value"]
         byte_count = call.data["byte_count"]
+        signed = call.data.get("signed", True)
         faktor = call.data.get("faktor", 1.0)
         dev_reg = dr.async_get(hass)
         device = dev_reg.async_get(device_id)
@@ -78,6 +79,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
                 property_path=path,
                 value=value,
                 byte_count=byte_count,
+                signed=signed,
                 faktor=faktor,
             )
             _LOGGER.info(f"Property {path} auf {value} gesetzt für {device_uuid}")
