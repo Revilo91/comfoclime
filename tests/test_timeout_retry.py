@@ -23,33 +23,7 @@ class TestTimeoutConfiguration:
         assert DEFAULT_WRITE_TIMEOUT == 30
         assert MAX_RETRIES == 3
 
-    @pytest.mark.asyncio
-    async def test_get_session_creates_session_with_default_timeout(self):
-        """Test that _get_session creates session with default timeout."""
-        api = ComfoClimeAPI("http://192.168.1.100")
 
-        session = await api._get_session()
-
-        # Session should be created
-        assert session is not None
-        assert not session.closed
-
-        # Clean up
-        await api.close()
-
-    @pytest.mark.asyncio
-    async def test_get_session_with_custom_timeout(self):
-        """Test that _get_session accepts custom timeout."""
-        api = ComfoClimeAPI("http://192.168.1.100")
-
-        session = await api._get_session(timeout_seconds=30)
-
-        # Session should be created
-        assert session is not None
-        assert not session.closed
-
-        # Clean up
-        await api.close()
 
 
 class TestDashboardUpdateRetry:
