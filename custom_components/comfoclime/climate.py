@@ -665,26 +665,12 @@ class ComfoClimeClimate(
     async def async_turn_on(self) -> None:
         """Turn the climate device on.
 
-        Sets hpStandby=False and restores the device to the last active season.
-        If no previous season is available, defaults to heating mode (season=1).
+        Sets hpStandby=False via dashboard API to turn on the heat pump.
+        The season remains unchanged.
         """
         try:
-            # Get the current season from dashboard to restore
-            # If device is currently off (season might be None or any value),
-            # we use the stored season value, defaulting to heating (1) if not available
-            season = self._get_current_season()
-
-            # If season is 0 (transition/fan only) or not set, default to heating
-            if season == 0 or season is None:
-                season = 1  # Default to heating mode
-
-            _LOGGER.debug(
-                f"Turning on climate device - setting hpStandby=False, season={season}"
-            )
-
-            # Use atomic operation to set both season and hpStandby
-            # This prevents race conditions between thermal profile and dashboard updates
-            await self._api.async_set_hvac_season(season=season, hpStandby=False)
+            _LOGGER.debug("Turning on climate device - setting hpStandby=False")
+            await self.async_update_dashboard(hpStandby=False)
 
             # Schedule non-blocking refresh of coordinators
             await self._async_refresh_coordinators()

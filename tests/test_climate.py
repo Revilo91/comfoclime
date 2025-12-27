@@ -575,14 +575,8 @@ class TestComfoClimeClimate:
         mock_device,
         mock_config_entry,
     ):
-        """Test turning on climate device with heating season."""
+        """Test turning on climate device."""
         mock_hass.async_create_task = MagicMock()
-
-        # Set up coordinator with heating season
-        mock_coordinator.data = {
-            "season": 1,  # heating
-            "hpStandby": True,
-        }
 
         climate = ComfoClimeClimate(
             dashboard_coordinator=mock_coordinator,
@@ -597,10 +591,8 @@ class TestComfoClimeClimate:
 
         await climate.async_turn_on()
 
-        # Should call async_set_hvac_season with season=1 (heating) and hpStandby=False
-        mock_api.async_set_hvac_season.assert_called_once_with(
-            season=1, hpStandby=False
-        )
+        # Should call async_update_dashboard with hpStandby=False only
+        mock_api.async_update_dashboard.assert_called_once_with(hpStandby=False)
 
     @pytest.mark.asyncio
     async def test_climate_turn_on_with_cooling_season(
@@ -612,7 +604,7 @@ class TestComfoClimeClimate:
         mock_device,
         mock_config_entry,
     ):
-        """Test turning on climate device with cooling season."""
+        """Test turning on climate device does not change season."""
         mock_hass.async_create_task = MagicMock()
 
         # Set up coordinator with cooling season
@@ -634,13 +626,11 @@ class TestComfoClimeClimate:
 
         await climate.async_turn_on()
 
-        # Should call async_set_hvac_season with season=2 (cooling) and hpStandby=False
-        mock_api.async_set_hvac_season.assert_called_once_with(
-            season=2, hpStandby=False
-        )
+        # Should call async_update_dashboard with hpStandby=False only, season unchanged
+        mock_api.async_update_dashboard.assert_called_once_with(hpStandby=False)
 
     @pytest.mark.asyncio
-    async def test_climate_turn_on_defaults_to_heating(
+    async def test_climate_turn_on_with_transition_season(
         self,
         mock_hass,
         mock_coordinator,
@@ -649,7 +639,7 @@ class TestComfoClimeClimate:
         mock_device,
         mock_config_entry,
     ):
-        """Test turning on climate device defaults to heating when season is 0 or None."""
+        """Test turning on climate device preserves transition season."""
         mock_hass.async_create_task = MagicMock()
 
         # Set up coordinator with transition season (0)
@@ -671,10 +661,8 @@ class TestComfoClimeClimate:
 
         await climate.async_turn_on()
 
-        # Should call async_set_hvac_season with season=1 (default to heating) and hpStandby=False
-        mock_api.async_set_hvac_season.assert_called_once_with(
-            season=1, hpStandby=False
-        )
+        # Should call async_update_dashboard with hpStandby=False only, season unchanged
+        mock_api.async_update_dashboard.assert_called_once_with(hpStandby=False)
 
     def test_climate_device_info(
         self,
