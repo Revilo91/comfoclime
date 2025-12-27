@@ -135,7 +135,7 @@ Beim Aktivieren eines Szenarios werden folgende Parameter an die Dashboard API g
 ```python
 {
     "scenario": 4,              # Szenario-Wert (4, 5, 7, oder 8)
-    "scenarioTimeLeft": 1800,   # Dauer in Sekunden (interner API-Parameter; wird im Code aus Minuten * 60 berechnet, Benutzer geben die Dauer in Minuten an)
+    "scenarioTimeLeft": 1800,   # Dauer (API-Parameter in Sekunden; wird im Code aus Minuten * 60 berechnet, Benutzer geben die Dauer in Minuten an)
     "timestamp": "YYYY-MM-DDTHH:MM:SSZ"
 }
 ```
