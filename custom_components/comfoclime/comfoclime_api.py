@@ -320,8 +320,6 @@ class ComfoClimeAPI:
             "scenarioTimeLeft": None,
             "season": season,
             "schedule": None,
-            "scenario": None,
-            "scenarioTimeLeft": None,
             "scenarioStartDelay": None
         }
 
