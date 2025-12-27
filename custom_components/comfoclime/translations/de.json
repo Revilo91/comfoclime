@@ -229,10 +229,15 @@
                 "name": "Klimasteuerung",
                 "state_attributes": {
                     "preset_mode": {
+                        "name": "Szenario",
                         "state": {
                             "comfort": "Komfort",
                             "power": "Power",
-                            "eco": "Eco"
+                            "eco": "Eco",
+                            "none": "Manuell",
+                            "cooking": "Kochen",
+                            "party": "Party",
+                            "away": "Abwesend"
                         }
                     },
                     "fan_mode": {

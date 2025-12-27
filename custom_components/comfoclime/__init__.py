@@ -124,7 +124,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         if start_delay is not None:
             if not isinstance(start_delay, str):
                 raise HomeAssistantError(
-                    f"start_delay must be a datetime string (e.g. '2025-11-21 12:00:00'), got: {type(start_delay).__name__}"
+                    f"start_delay must be a datetime string (e.g. 'YYYY-MM-DD HH:MM:SS'), got: {type(start_delay).__name__}"
                 )
 
         _LOGGER.debug(
@@ -155,7 +155,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
                 else:
                     _LOGGER.info(
                         f"Scenario mode '{scenario}' activated for {entity_id} "
-                        f"with duration {duration} min and start_delay {start_delay}"
+                        f"with duration {duration} and start_delay {start_delay}"
                     )
                     return
 

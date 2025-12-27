@@ -243,7 +243,9 @@
                             "comfort": "Comfort",
                             "power": "Power",
                             "eco": "Eco",
-                            "none": "Manual"
+                            "none": "Manual",
+                            "cooking": "Cooking",
+                            "party": "Party"
                         }
                     },
                     "fan_mode": {

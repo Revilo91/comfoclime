@@ -67,7 +67,7 @@ SCENARIO_MAPPING = {
 
 SCENARIO_REVERSE_MAPPING = {v: k for k, v in SCENARIO_MAPPING.items()}
 
-# Default durations for scenarios in seconds (based on Mode_info.json)
+# Default durations for scenarios in minutes
 SCENARIO_DEFAULT_DURATIONS = {
     SCENARIO_COOKING: 30,
     SCENARIO_PARTY: 30,
