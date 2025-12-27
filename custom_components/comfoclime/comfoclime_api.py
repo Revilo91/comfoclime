@@ -389,8 +389,8 @@ class ComfoClimeAPI:
             payload["seasonProfile"] = season_profile
         if status is not None:
             payload["status"] = status
-        if hpStandby is not None:
-            payload["hpStandby"] = hpStandby
+        if hp_standby is not None:
+            payload["hpStandby"] = hp_standby
         if scenario is not None:
             payload["scenario"] = scenario
         if scenario_time_left is not None:
