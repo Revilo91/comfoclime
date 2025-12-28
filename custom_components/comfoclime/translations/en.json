@@ -243,7 +243,9 @@
                             "comfort": "Comfort",
                             "power": "Power",
                             "eco": "Eco",
-                            "none": "Manual"
+                            "none": "Manual",
+                            "cooking": "Cooking",
+                            "party": "Party"
                         }
                     },
                     "fan_mode": {
@@ -284,7 +286,9 @@
                 "title": "Options",
                 "description": "Advanced integration options",
                 "data": {
-                    "enable_diagnostics": "Activate diagnosis sensors"
+                    "enable_diagnostics": "Activate diagnosis sensors",
+                    "minimal_mode": "No communication with ComfoNet Bus (testing)",
+                    "throttle_comfonet": "Add a 10ms pause between ComfoNet polls"
                 }
             }
         }

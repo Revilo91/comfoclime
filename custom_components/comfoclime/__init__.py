@@ -94,8 +94,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             await api.async_reset_system()
             _LOGGER.info("ComfoClime Neustart ausgelöst")
         except Exception as e:
-            _LOGGER.exception("Fehler beim Neustart des Geräts")
-            raise HomeAssistantError("Fehler beim Neustart des Geräts") from e
+            _LOGGER.error(f"Fehler beim Neustart des Geräts: {e}")
+            raise HomeAssistantError(f"Fehler beim Neustart des Geräts: {e}")
 
     async def handle_set_scenario_mode_service(call: ServiceCall):
         """Handle set_scenario_mode service call.
@@ -106,8 +106,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         Supported scenarios:
         - cooking: High ventilation for cooking (default: 30 min)
         - party: High ventilation for parties (default: 30 min)
-        - holiday: Reduced mode for vacation (default: 24 hours)
-        - boost_mode: Maximum power boost (default: 30 min)
+        - away: Reduced mode for vacation (default: 24 hours)
+        - scenario_boost: Maximum power boost (default: 30 min)
         """
         entity_id = call.data["entity_id"]
         scenario = call.data["scenario"]
@@ -134,7 +134,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         if start_delay is not None:
             if not isinstance(start_delay, str):
                 raise HomeAssistantError(
-                    f"start_delay must be a datetime string (e.g. '2025-11-21 12:00:00'), got: {type(start_delay).__name__}"
+                    f"start_delay must be a datetime string (e.g. 'YYYY-MM-DD HH:MM:SS'), got: {type(start_delay).__name__}"
                 )
 
         _LOGGER.debug(
@@ -165,7 +165,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
                 else:
                     _LOGGER.info(
                         f"Scenario mode '{scenario}' activated for {entity_id} "
-                        f"with duration {duration} min and start_delay {start_delay}"
+                        f"with duration {duration} and start_delay {start_delay}"
                     )
                     return
 

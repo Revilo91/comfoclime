@@ -37,9 +37,6 @@
             "tpma_temperature": {
                 "name": "Mittlere Außentemperatur"
             },
-            "comfo_clime_status": {
-                "name": "ComfoClime Status"
-            },
             "current_comfort_temperature": {
                 "name": "Aktuelle Zieltemperatur"
             },
@@ -128,12 +125,6 @@
                     "false": "Aus",
                     "true": "An"
                 }
-            },
-            "scenario_time_left": {
-                "name": "Szenario Restzeit"
-            },
-            "scenario": {
-                "name": "Aktives Szenario"
             }
         },
         "select": {
@@ -238,16 +229,18 @@
                 "name": "Klimasteuerung",
                 "state_attributes": {
                     "preset_mode": {
-                        "name": "Temperaturprofil",
+                        "name": "Szenario",
                         "state": {
                             "comfort": "Komfort",
                             "power": "Power",
                             "eco": "Eco",
-                            "none": "Manuell"
+                            "none": "Manuell",
+                            "cooking": "Kochen",
+                            "party": "Party",
+                            "away": "Abwesend"
                         }
                     },
                     "fan_mode": {
-                        "name": "Lüfterstufe",
                         "state": {
                             "off": "Aus",
                             "low": "Niedrig",
@@ -284,7 +277,9 @@
                 "title": "Optionen",
                 "description": "Erweiterte Einstellungen für die Integration",
                 "data": {
-                    "enable_diagnostics": "Diagnose-Sensoren aktivieren"
+                    "enable_diagnostics": "Diagnose-Sensoren aktivieren",
+                    "minimal_mode": "Keine ComfoNet Abfragen (Testzwecke)",
+                    "throttle_comfonet": "Wartezeit von 10ms zwischen ComfoNet Abfragen"
                 }
             }
         }

@@ -40,38 +40,10 @@ service: comfoclime.set_scenario_mode
 data:
   entity_id: climate.comfoclime
   scenario: cooking
-  duration: 60  # 1 Stunde in Sekunden
+  duration: 60  # Dauer in Minuten, z.B. 60 für 1 Stunde
 ```
 
-### Via Automation
 
-```yaml
-automation:
-  - alias: "Kochen-Modus aktivieren"
-    trigger:
-      - platform: state
-        entity_id: binary_sensor.kuche_bewegung
-        to: "on"
-    action:
-      - service: climate.set_preset_mode
-        target:
-          entity_id: climate.comfoclime
-        data:
-          preset_mode: cooking
-```
-
-### Benutzerdefinierte Dauer
-
-Für eine benutzerdefinierte Dauer verwende den `comfoclime.set_scenario_mode` Service:
-
-```yaml
-# Beispiel: Party-Modus für 2 Stunden
-service: comfoclime.set_scenario_mode
-data:
-  entity_id: climate.comfoclime
-  scenario: party
-  duration: 120
-```
 
 ## Restzeit-Anzeige
 
@@ -163,8 +135,8 @@ Beim Aktivieren eines Szenarios werden folgende Parameter an die Dashboard API g
 ```python
 {
     "scenario": 4,              # Szenario-Wert (4, 5, 7, oder 8)
-    "scenarioTimeLeft": 1800,   # Dauer in Sekunden (interner API-Parameter; wird im Code aus Minuten * 60 berechnet, Benutzer geben die Dauer in Minuten an)
-    "timestamp": "2024-11-12T10:30:00Z"
+    "scenarioTimeLeft": 1800,   # Dauer (API-Parameter in Sekunden; wird im Code aus Minuten * 60 berechnet, Benutzer geben die Dauer in Minuten an)
+    "timestamp": "YYYY-MM-DDTHH:MM:SSZ"
 }
 ```
 

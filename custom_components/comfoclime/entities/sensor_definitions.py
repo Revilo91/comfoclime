@@ -191,6 +191,20 @@ THERMALPROFILE_SENSORS = [
         "device_class": "temperature",
         "state_class": "measurement",
     },
+    {
+        "key": "scenarioTimeLeft",
+        "name": "Scenario Time Left",
+        "translation_key": "scenario_time_left",
+        "unit": "s",
+        "device_class": "duration",
+        "state_class": "measurement",
+    },
+    {
+        "key": "scenario",
+        "name": "Scenario",
+        "translation_key": "scenario",
+        "entity_category": "diagnostic",
+    },
 ]
 
 TELEMETRY_SENSORS = []

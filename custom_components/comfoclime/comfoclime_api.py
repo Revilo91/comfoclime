@@ -1,6 +1,7 @@
 # comfoclime_api.py
 import asyncio
 import logging
+import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -208,6 +209,9 @@ class ComfoClimeAPI:
     def bytes_to_signed_int(
         data: list, byte_count: int = None, signed: bool = True
     ) -> int:
+    def bytes_to_signed_int(
+        data: list, byte_count: int = None, signed: bool = True
+    ) -> int:
         """Convert raw bytes to a signed integer value.
 
         Args:
@@ -230,8 +234,12 @@ class ComfoClimeAPI:
             raise ValueError(f"Unsupported byte count: {byte_count}")
 
         return int.from_bytes(data[:byte_count], byteorder="little", signed=signed)
+        return int.from_bytes(data[:byte_count], byteorder="little", signed=signed)
 
     @staticmethod
+    def signed_int_to_bytes(
+        data: int, byte_count: int = 2, signed: bool = False
+    ) -> list:
     def signed_int_to_bytes(
         data: int, byte_count: int = 2, signed: bool = False
     ) -> list:
@@ -250,6 +258,7 @@ class ComfoClimeAPI:
         if byte_count not in (1, 2):
             raise ValueError(f"Unsupported byte count: {byte_count}")
 
+        return list(data.to_bytes(byte_count, byteorder="little", signed=signed))
         return list(data.to_bytes(byte_count, byteorder="little", signed=signed))
 
     @staticmethod
@@ -641,6 +650,12 @@ class ComfoClimeAPI:
         - 7: Urlaub (Holiday) - 24 hours reduced mode
         - 8: Boost - 30 minutes maximum power
 
+        Scenario modes:
+        - 4: Kochen (Cooking) - 30 minutes high ventilation
+        - 5: Party - 30 minutes high ventilation
+        - 7: Urlaub (Holiday) - 24 hours reduced mode
+        - 8: Boost - 30 minutes maximum power
+
         Args:
             set_point_temperature: Target temperature (°C) - activates manual mode
             fan_speed: Fan speed (0-3)
@@ -650,6 +665,9 @@ class ComfoClimeAPI:
             temperature_profile: Temperature profile/preset (0=comfort, 1=boost, 2=eco)
             season_profile: Season profile/preset (0=comfort, 1=boost, 2=eco)
             status: Temperature control mode (0=manual, 1=automatic)
+            scenario: Scenario mode (4=Kochen, 5=Party, 7=Urlaub, 8=Boost)
+            scenario_time_left: Duration for scenario in seconds (e.g., 1800 for 30min)
+            scenario_start_delay: Start delay for scenario in seconds (optional)
             scenario: Scenario mode (4=Kochen, 5=Party, 7=Urlaub, 8=Boost)
             scenario_time_left: Duration for scenario in seconds (e.g., 1800 for 30min)
             scenario_start_delay: Start delay for scenario in seconds (optional)
@@ -664,7 +682,23 @@ class ComfoClimeAPI:
             await self._async_get_uuid_internal()
 
         # Dynamically build payload; only include keys explicitly provided.
-        payload: dict = {}
+        # payload: dict = {}
+        payload: dict = {
+            "@type": None,
+            "name": None,
+            "displayName": None,
+            "description": None,
+            "timestamp": None,
+            "status": status,
+            "setPointTemperature": set_point_temperature,
+            "temperatureProfile": temperature_profile,
+            "seasonProfile": season_profile,
+            "fanSpeed": fan_speed,
+            "scenario": None,
+            "scenarioTimeLeft": None,
+            "season": season,
+            "schedule": None,
+        }
         if set_point_temperature is not None:
             payload["setPointTemperature"] = set_point_temperature
         if fan_speed is not None:

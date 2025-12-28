@@ -58,18 +58,20 @@ SCENARIO_BOOST_MODE = 8  # Boost - 30 minutes maximum power
 
 PRESET_SCENARIO_COOKING = "cooking"
 PRESET_SCENARIO_PARTY = "party"
+PRESET_SCENARIO_AWAY = "away"
+PRESET_SCENARIO_BOOST = "scenario_boost"
 
-# Scenario mapping
+# Scenario mapping - uses unique preset names to avoid conflicts with PRESET_MAPPING
 SCENARIO_MAPPING = {
     SCENARIO_COOKING: PRESET_SCENARIO_COOKING,
     SCENARIO_PARTY: PRESET_SCENARIO_PARTY,
-    SCENARIO_HOLIDAY: PRESET_AWAY,
-    SCENARIO_BOOST_MODE: PRESET_BOOST,
+    SCENARIO_HOLIDAY: PRESET_SCENARIO_AWAY,
+    SCENARIO_BOOST_MODE: PRESET_SCENARIO_BOOST,
 }
 
 SCENARIO_REVERSE_MAPPING = {v: k for k, v in SCENARIO_MAPPING.items()}
 
-# Default durations for scenarios in seconds (based on Mode_info.json)
+# Default durations for scenarios in minutes
 SCENARIO_DEFAULT_DURATIONS = {
     SCENARIO_COOKING: 30,
     SCENARIO_PARTY: 30,
@@ -589,15 +591,90 @@ class ComfoClimeClimate(
             # Schedule non-blocking refresh of coordinators
             await self._async_refresh_coordinators()
 
-        except (asyncio.TimeoutError, asyncio.CancelledError):
-            _LOGGER.exception(
-                f"Timeout setting fan mode to {fan_mode}. "
-                f"This may indicate network connectivity issues with the device."
-            )
-        except aiohttp.ClientError:
-            _LOGGER.exception(f"Network error setting fan mode to {fan_mode}")
         except Exception:
-            _LOGGER.exception(f"Unexpected error setting fan mode to {fan_mode}")
+            _LOGGER.exception(f"Failed to set fan mode {fan_mode}")
+
+    async def async_set_scenario_mode(
+        self,
+        scenario_mode: str,
+        duration: int | float | None = None,
+        start_delay: str | None = None,
+    ) -> None:
+        """Set scenario mode via dashboard API.
+
+        Activates a special operating mode (scenario) on the ComfoClime device.
+
+        Supported scenarios:
+        - cooking: High ventilation for cooking (default: 30 min)
+        - party: High ventilation for parties (default: 30 min)
+        - away: Reduced mode for vacation (default: 24 hours)
+        - boost: Maximum power boost (default: 30 min)
+
+        Args:
+            scenario_mode: The scenario mode to activate (cooking, party, away, boost)
+            duration: Optional duration in minutes. If not provided, uses default.
+            start_delay: Optional start delay as datetime string (YYYY-MM-DD HH:MM:SS)
+        """
+        if scenario_mode not in SCENARIO_REVERSE_MAPPING:
+            _LOGGER.error(f"Unknown scenario mode: {scenario_mode}")
+            return
+
+        try:
+            # Map scenario mode to API value
+            scenario_value = SCENARIO_REVERSE_MAPPING[scenario_mode]
+
+            # Calculate duration in seconds
+            if duration is not None:
+                # User provided duration in minutes, convert to seconds
+                scenario_time_left = int(duration * 60)
+            else:
+                # Use default duration from mapping (already in minutes)
+                default_duration = SCENARIO_DEFAULT_DURATIONS.get(scenario_value, 30)
+                scenario_time_left = default_duration * 60
+
+            # Calculate start delay in seconds if provided
+            scenario_start_delay = None
+            if start_delay is not None:
+                try:
+                    from datetime import datetime
+                    from zoneinfo import ZoneInfo
+
+                    # Parse the datetime string
+                    tz = ZoneInfo(self.hass.config.time_zone)
+                    start_time = datetime.strptime(start_delay, "%Y-%m-%d %H:%M:%S")
+                    start_time = start_time.replace(tzinfo=tz)
+                    now = datetime.now(tz)
+
+                    # Calculate delay in seconds from now
+                    delay_seconds = int((start_time - now).total_seconds())
+                    if delay_seconds > 0:
+                        scenario_start_delay = delay_seconds
+                    else:
+                        _LOGGER.warning(
+                            f"Start delay {start_delay} is in the past, starting immediately"
+                        )
+                except ValueError:
+                    _LOGGER.exception(f"Invalid start_delay format '{start_delay}'")
+                    raise
+
+            _LOGGER.debug(
+                f"Setting scenario mode to {scenario_mode} (value={scenario_value}) "
+                f"with duration={scenario_time_left}s, start_delay={scenario_start_delay}s"
+            )
+
+            # Update scenario via dashboard API
+            await self.async_update_dashboard(
+                scenario=scenario_value,
+                scenario_time_left=scenario_time_left,
+                scenario_start_delay=scenario_start_delay,
+            )
+
+            # Schedule non-blocking refresh of coordinators
+            await self._async_refresh_coordinators()
+
+        except Exception:
+            _LOGGER.exception(f"Failed to set scenario mode {scenario_mode}")
+            raise
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
