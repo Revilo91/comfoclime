@@ -37,6 +37,9 @@
             "tpma_temperature": {
                 "name": "Mittlere Außentemperatur"
             },
+            "comfo_clime_status": {
+                "name": "ComfoClime Status"
+            },
             "current_comfort_temperature": {
                 "name": "Aktuelle Zieltemperatur"
             },
@@ -125,6 +128,12 @@
                     "false": "Aus",
                     "true": "An"
                 }
+            },
+            "scenario_time_left": {
+                "name": "Szenario Restzeit"
+            },
+            "scenario": {
+                "name": "Aktives Szenario"
             }
         },
         "select": {
@@ -241,6 +250,7 @@
                         }
                     },
                     "fan_mode": {
+                        "name": "Lüfterstufe",
                         "state": {
                             "off": "Aus",
                             "low": "Niedrig",

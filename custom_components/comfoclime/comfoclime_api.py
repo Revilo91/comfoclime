@@ -1,7 +1,6 @@
 # comfoclime_api.py
 import asyncio
 import logging
-import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -209,9 +208,6 @@ class ComfoClimeAPI:
     def bytes_to_signed_int(
         data: list, byte_count: int = None, signed: bool = True
     ) -> int:
-    def bytes_to_signed_int(
-        data: list, byte_count: int = None, signed: bool = True
-    ) -> int:
         """Convert raw bytes to a signed integer value.
 
         Args:
@@ -234,12 +230,8 @@ class ComfoClimeAPI:
             raise ValueError(f"Unsupported byte count: {byte_count}")
 
         return int.from_bytes(data[:byte_count], byteorder="little", signed=signed)
-        return int.from_bytes(data[:byte_count], byteorder="little", signed=signed)
 
     @staticmethod
-    def signed_int_to_bytes(
-        data: int, byte_count: int = 2, signed: bool = False
-    ) -> list:
     def signed_int_to_bytes(
         data: int, byte_count: int = 2, signed: bool = False
     ) -> list:
@@ -258,7 +250,6 @@ class ComfoClimeAPI:
         if byte_count not in (1, 2):
             raise ValueError(f"Unsupported byte count: {byte_count}")
 
-        return list(data.to_bytes(byte_count, byteorder="little", signed=signed))
         return list(data.to_bytes(byte_count, byteorder="little", signed=signed))
 
     @staticmethod
@@ -682,23 +673,7 @@ class ComfoClimeAPI:
             await self._async_get_uuid_internal()
 
         # Dynamically build payload; only include keys explicitly provided.
-        # payload: dict = {}
-        payload: dict = {
-            "@type": None,
-            "name": None,
-            "displayName": None,
-            "description": None,
-            "timestamp": None,
-            "status": status,
-            "setPointTemperature": set_point_temperature,
-            "temperatureProfile": temperature_profile,
-            "seasonProfile": season_profile,
-            "fanSpeed": fan_speed,
-            "scenario": None,
-            "scenarioTimeLeft": None,
-            "season": season,
-            "schedule": None,
-        }
+        payload: dict = {}
         if set_point_temperature is not None:
             payload["setPointTemperature"] = set_point_temperature
         if fan_speed is not None:

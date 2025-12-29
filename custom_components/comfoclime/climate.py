@@ -591,8 +591,15 @@ class ComfoClimeClimate(
             # Schedule non-blocking refresh of coordinators
             await self._async_refresh_coordinators()
 
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            _LOGGER.exception(
+                f"Timeout setting fan mode to {fan_mode}. "
+                f"This may indicate network connectivity issues with the device."
+            )
+        except aiohttp.ClientError:
+            _LOGGER.exception(f"Network error setting fan mode to {fan_mode}")
         except Exception:
-            _LOGGER.exception(f"Failed to set fan mode {fan_mode}")
+            _LOGGER.exception(f"Unexpected error setting fan mode to {fan_mode}")
 
     async def async_set_scenario_mode(
         self,

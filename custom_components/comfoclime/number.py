@@ -117,15 +117,8 @@ class ComfoClimeTemperatureNumber(
             self._key_path[0] == "temperature"
             and self._key_path[1] == "manualTemperature"
         ):
-        if (
-            self._key_path[0] == "temperature"
-            and self._key_path[1] == "manualTemperature"
-        ):
             try:
                 coordinator_data = self.coordinator.data
-                automatic_temperature_status = coordinator_data.get(
-                    "temperature", {}
-                ).get("status")
                 automatic_temperature_status = coordinator_data.get(
                     "temperature", {}
                 ).get("status")
@@ -133,9 +126,6 @@ class ComfoClimeTemperatureNumber(
                 # Only available if automatic mode is disabled (status = 0)
                 return automatic_temperature_status == 0
             except Exception as e:
-                _LOGGER.debug(
-                    f"Could not check automatic temperature status for availability: {e}"
-                )
                 _LOGGER.debug(
                     f"Could not check automatic temperature status for availability: {e}"
                 )
@@ -200,16 +190,9 @@ class ComfoClimeTemperatureNumber(
             self._key_path[0] == "temperature"
             and self._key_path[1] == "manualTemperature"
         ):
-        if (
-            self._key_path[0] == "temperature"
-            and self._key_path[1] == "manualTemperature"
-        ):
             # Check if automatic comfort temperature is enabled
             try:
                 coordinator_data = self.coordinator.data
-                automatic_temperature_status = coordinator_data.get(
-                    "temperature", {}
-                ).get("status")
                 automatic_temperature_status = coordinator_data.get(
                     "temperature", {}
                 ).get("status")

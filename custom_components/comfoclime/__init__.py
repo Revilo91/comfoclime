@@ -94,8 +94,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             await api.async_reset_system()
             _LOGGER.info("ComfoClime Neustart ausgelöst")
         except Exception as e:
-            _LOGGER.error(f"Fehler beim Neustart des Geräts: {e}")
-            raise HomeAssistantError(f"Fehler beim Neustart des Geräts: {e}")
+            _LOGGER.exception("Fehler beim Neustart des Geräts")
+            raise HomeAssistantError("Fehler beim Neustart des Geräts") from e
 
     async def handle_set_scenario_mode_service(call: ServiceCall):
         """Handle set_scenario_mode service call.
