@@ -1,5 +1,6 @@
 import logging
 from datetime import timedelta
+from typing import Any
 
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -10,6 +11,11 @@ POLLING_INTERVAL_SECONDS = 60
 
 
 class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
+    """Coordinator for fetching dashboard data from the ComfoClime device.
+
+    Fetches dashboard data including temperature, fan speed, season, and heat pump status.
+    """
+
     def __init__(self, hass, api):
         super().__init__(
             hass,
@@ -20,14 +26,21 @@ class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
         self.api = api
 
     async def _async_update_data(self):
+        """Fetch dashboard data from the API."""
         try:
             return await self.api.async_get_dashboard_data()
         except Exception as e:
-            _LOGGER.warning(f"Fehler beim Abrufen der Dashboard-Daten: {e}")
-            raise UpdateFailed(f"Fehler beim Abrufen der Dashboard-Daten: {e}") from e
+            _LOGGER.debug(f"Error fetching dashboard data: {e}")
+            raise UpdateFailed(f"Error fetching dashboard data: {e}") from e
 
 
 class ComfoClimeThermalprofileCoordinator(DataUpdateCoordinator):
+    """Coordinator for fetching thermal profile data from the ComfoClime device.
+
+    Fetches thermal profile settings including season, temperature profiles,
+    and heating/cooling parameters.
+    """
+
     def __init__(self, hass, api):
         super().__init__(
             hass,
@@ -38,12 +51,12 @@ class ComfoClimeThermalprofileCoordinator(DataUpdateCoordinator):
         self.api = api
 
     async def _async_update_data(self):
+        """Fetch thermal profile data from the API."""
         try:
             return await self.api.async_get_thermal_profile()
         except Exception as e:
-            raise UpdateFailed(
-                f"Fehler beim Abrufen der Thermalprofile-Daten: {e}"
-            ) from e
+            _LOGGER.debug(f"Error fetching thermal profile data: {e}")
+            raise UpdateFailed(f"Error fetching thermal profile data: {e}") from e
 
 
 class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
@@ -95,7 +108,7 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self):
         """Fetch all registered telemetry data for all devices in batched manner."""
-        result: dict[str, dict[str, any]] = {}
+        result: dict[str, dict[str, Any]] = {}
 
         for device_uuid, telemetry_items in self._telemetry_registry.items():
             result[device_uuid] = {}
@@ -112,14 +125,13 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
                     result[device_uuid][telemetry_id] = value
                 except Exception as e:  # noqa: PERF203
                     _LOGGER.debug(
-                        f"Fehler beim Abrufen von Telemetrie {telemetry_id} "
-                        f"für Gerät {device_uuid}: {e}"
+                        f"Error fetching telemetry {telemetry_id} for device {device_uuid}: {e}"
                     )
                     result[device_uuid][telemetry_id] = None
 
         return result
 
-    def get_telemetry_value(self, device_uuid: str, telemetry_id: str | int) -> any:
+    def get_telemetry_value(self, device_uuid: str, telemetry_id: str | int) -> Any:
         """Get a cached telemetry value from the last update.
 
         Args:
@@ -185,7 +197,7 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self):
         """Fetch all registered property data for all devices in batched manner."""
-        result: dict[str, dict[str, any]] = {}
+        result: dict[str, dict[str, Any]] = {}
 
         for device_uuid, property_items in self._property_registry.items():
             result[device_uuid] = {}
@@ -202,14 +214,13 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
                     result[device_uuid][property_path] = value
                 except Exception as e:  # noqa: PERF203
                     _LOGGER.debug(
-                        f"Fehler beim Abrufen von Property {property_path} "
-                        f"für Gerät {device_uuid}: {e}"
+                        f"Error fetching property {property_path} for device {device_uuid}: {e}"
                     )
                     result[device_uuid][property_path] = None
 
         return result
 
-    def get_property_value(self, device_uuid: str, property_path: str) -> any:
+    def get_property_value(self, device_uuid: str, property_path: str) -> Any:
         """Get a cached property value from the last update.
 
         Args:
@@ -224,3 +235,67 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
 
         device_data = self.data.get(device_uuid, {})
         return device_data.get(property_path)
+
+
+class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
+    """Coordinator for fetching device definition data.
+
+    Fetches definition data for connected devices, particularly useful
+    for ComfoAirQ devices which provide detailed definition information.
+    """
+
+    def __init__(self, hass, api, devices=None):
+        super().__init__(
+            hass,
+            _LOGGER,
+            name="ComfoClime Device Definition",
+            update_interval=timedelta(seconds=POLLING_INTERVAL_SECONDS),
+        )
+        self.api = api
+        self.devices = devices or []
+
+    async def _async_update_data(self):
+        """Fetch definition data for all devices."""
+        result: dict[str, dict] = {}
+
+        for device in self.devices:
+            device_uuid = device.get("uuid")
+            model_type_id = device.get("modelTypeId")
+
+            # Only fetch definition for ComfoAirQ devices (modelTypeId = 1)
+            # ComfoClime devices don't provide much useful info
+            if model_type_id != 1:
+                _LOGGER.debug(
+                    f"Skipping definition fetch for device {device_uuid} with modelTypeId {model_type_id} (not ComfoAirQ)"
+                )
+                continue
+
+            try:
+                definition_data = await self.api.async_get_device_definition(
+                    device_uuid=device_uuid
+                )
+                result[device_uuid] = definition_data
+                _LOGGER.debug(
+                    f"Successfully fetched definition for device {device_uuid}"
+                )
+            except Exception as e:
+                _LOGGER.debug(
+                    f"Error fetching definition for device {device_uuid}: {e}"
+                )
+                result[device_uuid] = None
+
+        return result
+
+    def get_definition_data(self, device_uuid: str) -> dict | None:
+        """Get cached definition data for a device.
+
+        Args:
+            device_uuid: UUID of the device
+
+        Returns:
+            The cached definition data or None if not found
+        """
+        if not self.data:
+            return None
+
+        return self.data.get(device_uuid)

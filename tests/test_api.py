@@ -102,6 +102,33 @@ class TestComfoClimeAPI:
         assert devices[0]["uuid"] == "device-1"
 
     @pytest.mark.asyncio
+    async def test_async_get_device_definition(self):
+        """Test async getting device definition."""
+        api = ComfoClimeAPI("http://192.168.1.100")
+
+        mock_response = AsyncMock()
+        mock_response.json = AsyncMock(
+            return_value={
+                "deviceType": "ComfoAirQ",
+                "modelTypeId": 1,
+                "firmwareVersion": "1.2.3",
+                "serialNumber": "SIT14276877",
+            }
+        )
+        mock_response.raise_for_status = MagicMock()
+
+        mock_session = AsyncMock()
+        mock_session.get = MagicMock(
+            return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
+        )
+
+        with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
+            definition = await api.async_get_device_definition("SIT14276877")
+
+        assert definition["deviceType"] == "ComfoAirQ"
+        assert definition["modelTypeId"] == 1
+
+    @pytest.mark.asyncio
     async def test_async_read_telemetry_1_byte_unsigned(self):
         """Test reading 1-byte unsigned telemetry."""
         api = ComfoClimeAPI("http://192.168.1.100")

@@ -341,6 +341,25 @@ class ComfoClimeAPI:
                 data = await response.json()
                 return data.get("devices", [])
 
+    async def async_get_device_definition(self, device_uuid: str):
+        """Get device definition data.
+
+        Args:
+            device_uuid: UUID of the device
+
+        Returns:
+            Dictionary containing device definition data
+        """
+        async with self._request_lock:
+            await self._wait_for_rate_limit(is_write=False)
+            timeout = aiohttp.ClientTimeout(total=DEFAULT_READ_TIMEOUT)
+            session = await self._get_session()
+            url = f"{self.base_url}/device/{device_uuid}/definition"
+            async with session.get(url, timeout=timeout) as response:
+                response.raise_for_status()
+                data = await response.json()
+                return data
+
     async def async_read_telemetry_for_device(
         self,
         device_uuid: str,
