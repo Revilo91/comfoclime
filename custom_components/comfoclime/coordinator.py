@@ -10,6 +10,11 @@ POLLING_INTERVAL_SECONDS = 60
 
 
 class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
+    """Coordinator for fetching dashboard data from the ComfoClime device.
+
+    Fetches dashboard data including temperature, fan speed, season, and heat pump status.
+    """
+
     def __init__(self, hass, api):
         super().__init__(
             hass,
@@ -20,14 +25,21 @@ class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
         self.api = api
 
     async def _async_update_data(self):
+        """Fetch dashboard data from the API."""
         try:
             return await self.api.async_get_dashboard_data()
         except Exception as e:
-            _LOGGER.warning(f"Fehler beim Abrufen der Dashboard-Daten: {e}")
-            raise UpdateFailed(f"Fehler beim Abrufen der Dashboard-Daten: {e}") from e
+            _LOGGER.debug(f"Error fetching dashboard data: {e}")
+            raise UpdateFailed(f"Error fetching dashboard data: {e}") from e
 
 
 class ComfoClimeThermalprofileCoordinator(DataUpdateCoordinator):
+    """Coordinator for fetching thermal profile data from the ComfoClime device.
+
+    Fetches thermal profile settings including season, temperature profiles,
+    and heating/cooling parameters.
+    """
+
     def __init__(self, hass, api):
         super().__init__(
             hass,
@@ -38,12 +50,12 @@ class ComfoClimeThermalprofileCoordinator(DataUpdateCoordinator):
         self.api = api
 
     async def _async_update_data(self):
+        """Fetch thermal profile data from the API."""
         try:
             return await self.api.async_get_thermal_profile()
         except Exception as e:
-            raise UpdateFailed(
-                f"Fehler beim Abrufen der Thermalprofile-Daten: {e}"
-            ) from e
+            _LOGGER.debug(f"Error fetching thermal profile data: {e}")
+            raise UpdateFailed(f"Error fetching thermal profile data: {e}") from e
 
 
 class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
@@ -112,8 +124,7 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
                     result[device_uuid][telemetry_id] = value
                 except Exception as e:  # noqa: PERF203
                     _LOGGER.debug(
-                        f"Fehler beim Abrufen von Telemetrie {telemetry_id} "
-                        f"für Gerät {device_uuid}: {e}"
+                        f"Error fetching telemetry {telemetry_id} for device {device_uuid}: {e}"
                     )
                     result[device_uuid][telemetry_id] = None
 
@@ -202,8 +213,7 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
                     result[device_uuid][property_path] = value
                 except Exception as e:  # noqa: PERF203
                     _LOGGER.debug(
-                        f"Fehler beim Abrufen von Property {property_path} "
-                        f"für Gerät {device_uuid}: {e}"
+                        f"Error fetching property {property_path} for device {device_uuid}: {e}"
                     )
                     result[device_uuid][property_path] = None
 
@@ -238,7 +248,7 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
             hass,
             _LOGGER,
             name="ComfoClime Device Definition",
-            update_interval=timedelta(seconds=POLLING_INTERVAL_SECONDS * 10),  # Less frequent updates
+            update_interval=timedelta(seconds=POLLING_INTERVAL_SECONDS),
         )
         self.api = api
         self.devices = devices or []
