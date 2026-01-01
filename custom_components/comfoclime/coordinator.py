@@ -224,3 +224,68 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
 
         device_data = self.data.get(device_uuid, {})
         return device_data.get(property_path)
+
+
+class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
+    """Coordinator for fetching device definition data.
+
+    Fetches definition data for connected devices, particularly useful
+    for ComfoAirQ devices which provide detailed definition information.
+    """
+
+    def __init__(self, hass, api, devices=None):
+        super().__init__(
+            hass,
+            _LOGGER,
+            name="ComfoClime Device Definition",
+            update_interval=timedelta(seconds=POLLING_INTERVAL_SECONDS * 10),  # Less frequent updates
+        )
+        self.api = api
+        self.devices = devices or []
+
+    async def _async_update_data(self):
+        """Fetch definition data for all devices."""
+        result: dict[str, dict] = {}
+
+        for device in self.devices:
+            device_uuid = device.get("uuid")
+            model_type_id = device.get("modelTypeId")
+
+            # Only fetch definition for ComfoAirQ devices (modelTypeId = 1)
+            # ComfoClime devices don't provide much useful info
+            if model_type_id != 1:
+                _LOGGER.debug(
+                    f"Skipping definition fetch for device {device_uuid} "
+                    f"with modelTypeId {model_type_id} (not ComfoAirQ)"
+                )
+                continue
+
+            try:
+                definition_data = await self.api.async_get_device_definition(
+                    device_uuid=device_uuid
+                )
+                result[device_uuid] = definition_data
+                _LOGGER.debug(
+                    f"Successfully fetched definition for device {device_uuid}"
+                )
+            except Exception as e:
+                _LOGGER.debug(
+                    f"Fehler beim Abrufen der Definition für Gerät {device_uuid}: {e}"
+                )
+                result[device_uuid] = None
+
+        return result
+
+    def get_definition_data(self, device_uuid: str) -> dict | None:
+        """Get cached definition data for a device.
+
+        Args:
+            device_uuid: UUID of the device
+
+        Returns:
+            The cached definition data or None if not found
+        """
+        if not self.data:
+            return None
+
+        return self.data.get(device_uuid)

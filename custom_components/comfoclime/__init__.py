@@ -9,6 +9,7 @@ from homeassistant.helpers import config_validation as cv
 from .comfoclime_api import ComfoClimeAPI
 from .coordinator import (
     ComfoClimeDashboardCoordinator,
+    ComfoClimeDefinitionCoordinator,
     ComfoClimePropertyCoordinator,
     ComfoClimeTelemetryCoordinator,
     ComfoClimeThermalprofileCoordinator,
@@ -42,6 +43,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     # Create telemetry and property coordinators with device list
     tlcoordinator = ComfoClimeTelemetryCoordinator(hass, api, devices)
     propcoordinator = ComfoClimePropertyCoordinator(hass, api, devices)
+    
+    # Create definition coordinator for device definition data (mainly for ComfoAirQ)
+    definitioncoordinator = ComfoClimeDefinitionCoordinator(hass, api, devices)
+    await definitioncoordinator.async_config_entry_first_refresh()
 
     hass.data[DOMAIN][entry.entry_id] = {
         "api": api,
@@ -49,6 +54,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         "tpcoordinator": thermalprofile_coordinator,
         "tlcoordinator": tlcoordinator,
         "propcoordinator": propcoordinator,
+        "definitioncoordinator": definitioncoordinator,
         "devices": devices,
         "main_device": next((d for d in devices if d.get("modelTypeId") == 20), None),
     }
