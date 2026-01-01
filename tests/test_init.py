@@ -42,45 +42,64 @@ async def test_async_setup_entry(
             with patch(
                 "custom_components.comfoclime.ComfoClimeThermalprofileCoordinator"
             ) as mock_tp_coord:
-                # Setup mocks
-                mock_api_instance = MagicMock()
-                mock_api_instance.async_get_connected_devices = AsyncMock(
-                    return_value=[mock_device]
-                )
-                mock_api_class.return_value = mock_api_instance
+                with patch(
+                    "custom_components.comfoclime.ComfoClimeTelemetryCoordinator"
+                ) as mock_tl_coord:
+                    with patch(
+                        "custom_components.comfoclime.ComfoClimePropertyCoordinator"
+                    ) as mock_prop_coord:
+                        with patch(
+                            "custom_components.comfoclime.ComfoClimeDefinitionCoordinator"
+                        ) as mock_def_coord:
+                            # Setup mocks
+                            mock_api_instance = MagicMock()
+                            mock_api_instance.async_get_connected_devices = AsyncMock(
+                                return_value=[mock_device]
+                            )
+                            mock_api_class.return_value = mock_api_instance
 
-                mock_db_coord_instance = MagicMock()
-                mock_db_coord_instance.async_config_entry_first_refresh = AsyncMock()
-                mock_db_coord.return_value = mock_db_coord_instance
+                            mock_db_coord_instance = MagicMock()
+                            mock_db_coord_instance.async_config_entry_first_refresh = AsyncMock()
+                            mock_db_coord.return_value = mock_db_coord_instance
 
-                mock_tp_coord_instance = MagicMock()
-                mock_tp_coord_instance.async_config_entry_first_refresh = AsyncMock()
-                mock_tp_coord.return_value = mock_tp_coord_instance
+                            mock_tp_coord_instance = MagicMock()
+                            mock_tp_coord_instance.async_config_entry_first_refresh = AsyncMock()
+                            mock_tp_coord.return_value = mock_tp_coord_instance
 
-                # Call async_setup_entry
-                result = await async_setup_entry(mock_hass, mock_config_entry)
+                            mock_tl_coord_instance = MagicMock()
+                            mock_tl_coord.return_value = mock_tl_coord_instance
 
-                # Verify setup was successful
-                assert result is True
+                            mock_prop_coord_instance = MagicMock()
+                            mock_prop_coord.return_value = mock_prop_coord_instance
 
-                # Verify data was stored in hass.data
-                assert "comfoclime" in mock_hass.data
-                assert "test_entry_id" in mock_hass.data["comfoclime"]
+                            mock_def_coord_instance = MagicMock()
+                            mock_def_coord_instance.async_config_entry_first_refresh = AsyncMock()
+                            mock_def_coord.return_value = mock_def_coord_instance
 
-                # Verify platforms were set up
-                mock_hass.config_entries.async_forward_entry_setups.assert_called_once()
-                platforms = (
-                    mock_hass.config_entries.async_forward_entry_setups.call_args[0][1]
-                )
-                assert "sensor" in platforms
-                assert "switch" in platforms
-                assert "number" in platforms
-                assert "select" in platforms
-                assert "fan" in platforms
-                assert "climate" in platforms
+                            # Call async_setup_entry
+                            result = await async_setup_entry(mock_hass, mock_config_entry)
 
-                # Verify services were registered (set_property, reset_system, set_scenario_mode)
-                assert mock_hass.services.async_register.call_count == 3
+                            # Verify setup was successful
+                            assert result is True
+
+                            # Verify data was stored in hass.data
+                            assert "comfoclime" in mock_hass.data
+                            assert "test_entry_id" in mock_hass.data["comfoclime"]
+
+                            # Verify platforms were set up
+                            mock_hass.config_entries.async_forward_entry_setups.assert_called_once()
+                            platforms = (
+                                mock_hass.config_entries.async_forward_entry_setups.call_args[0][1]
+                            )
+                            assert "sensor" in platforms
+                            assert "switch" in platforms
+                            assert "number" in platforms
+                            assert "select" in platforms
+                            assert "fan" in platforms
+                            assert "climate" in platforms
+
+                            # Verify services were registered (set_property, reset_system, set_scenario_mode)
+                            assert mock_hass.services.async_register.call_count == 3
 
 
 @pytest.mark.asyncio
