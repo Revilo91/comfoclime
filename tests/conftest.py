@@ -139,6 +139,35 @@ def mock_property_coordinator():
 
 
 @pytest.fixture
+def mock_definition_coordinator():
+    """Create a mock definition coordinator."""
+    coordinator = MagicMock()
+    coordinator.data = {
+        "test-device-uuid": {
+            "indoorTemperature": 21.4,
+            "outdoorTemperature": 1.1,
+            "extractTemperature": 21.4,
+            "supplyTemperature": 16.8,
+            "exhaustTemperature": 5.6,
+        }
+    }
+    coordinator.async_request_refresh = AsyncMock()
+    coordinator.async_config_entry_first_refresh = AsyncMock()
+    coordinator.async_add_listener = MagicMock(return_value=lambda: None)
+    coordinator.last_update_success = True
+    coordinator.get_definition_data = MagicMock(
+        return_value={
+            "indoorTemperature": 21.4,
+            "outdoorTemperature": 1.1,
+            "extractTemperature": 21.4,
+            "supplyTemperature": 16.8,
+            "exhaustTemperature": 5.6,
+        }
+    )
+    return coordinator
+
+
+@pytest.fixture
 def mock_device():
     """Create a mock ComfoClime device."""
     return {

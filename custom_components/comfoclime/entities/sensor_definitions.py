@@ -583,3 +583,50 @@ CONNECTED_DEVICE_PROPERTIES = {
         },
     ],
 }
+
+# Definition-based sensors for ComfoAirQ devices (modelTypeId = 1)
+# These are fetched from /device/{UUID}/definition endpoint
+CONNECTED_DEVICE_DEFINITION_SENSORS = {
+    1: [
+        {
+            "key": "indoorTemperature",
+            "name": "Indoor Temperature",
+            "translation_key": "indoor_temperature",
+            "unit": "°C",
+            "device_class": "temperature",
+            "state_class": "measurement",
+        },
+        {
+            "key": "outdoorTemperature",
+            "name": "Outdoor Temperature",
+            "translation_key": "outdoor_temperature",
+            "unit": "°C",
+            "device_class": "temperature",
+            "state_class": "measurement",
+        },
+        {
+            "key": "extractTemperature",
+            "name": "Extract Temperature",
+            "translation_key": "extract_temperature",
+            "unit": "°C",
+            "device_class": "temperature",
+            "state_class": "measurement",
+        },
+        {
+            "key": "supplyTemperature",
+            "name": "Supply Temperature",
+            "translation_key": "supply_temperature",
+            "unit": "°C",
+            "device_class": "temperature",
+            "state_class": "measurement",
+        },
+        {
+            "key": "exhaustTemperature",
+            "name": "Exhaust Temperature",
+            "translation_key": "exhaust_temperature",
+            "unit": "°C",
+            "device_class": "temperature",
+            "state_class": "measurement",
+        },
+    ],
+}

@@ -6,6 +6,7 @@ from custom_components.comfoclime.sensor import (
     ComfoClimeSensor,
     ComfoClimeTelemetrySensor,
     ComfoClimePropertySensor,
+    ComfoClimeDefinitionSensor,
     async_setup_entry,
 )
 
@@ -303,6 +304,7 @@ async def test_async_setup_entry(
     mock_thermalprofile_coordinator,
     mock_telemetry_coordinator,
     mock_property_coordinator,
+    mock_definition_coordinator,
     mock_device,
     mock_api,
 ):
@@ -317,6 +319,7 @@ async def test_async_setup_entry(
                 "tpcoordinator": mock_thermalprofile_coordinator,
                 "tlcoordinator": mock_telemetry_coordinator,
                 "propcoordinator": mock_property_coordinator,
+                "definitioncoordinator": mock_definition_coordinator,
                 "devices": [mock_device],
                 "main_device": mock_device,
             }
@@ -329,3 +332,124 @@ async def test_async_setup_entry(
 
     # Verify entities were added
     assert async_add_entities.called
+
+
+class TestComfoClimeDefinitionSensor:
+    """Test ComfoClimeDefinitionSensor class."""
+
+    def test_definition_sensor_initialization(
+        self, mock_hass, mock_definition_coordinator, mock_device, mock_config_entry
+    ):
+        """Test definition sensor initialization."""
+        sensor = ComfoClimeDefinitionSensor(
+            hass=mock_hass,
+            coordinator=mock_definition_coordinator,
+            key="indoorTemperature",
+            name="Indoor Temperature",
+            translation_key="indoor_temperature",
+            unit="°C",
+            device_class="temperature",
+            state_class="measurement",
+            device=mock_device,
+            override_device_uuid="test-device-uuid",
+            entry=mock_config_entry,
+        )
+
+        assert sensor._key == "indoorTemperature"
+        assert sensor._name == "Indoor Temperature"
+        assert sensor._attr_native_unit_of_measurement == "°C"
+        assert sensor._attr_device_class == "temperature"
+        assert sensor._attr_state_class == "measurement"
+        assert (
+            sensor._attr_unique_id
+            == "test_entry_id_definition_test-device-uuid_indoorTemperature"
+        )
+
+    def test_definition_sensor_update(
+        self, mock_hass, mock_definition_coordinator, mock_device, mock_config_entry
+    ):
+        """Test definition sensor update from coordinator."""
+        sensor = ComfoClimeDefinitionSensor(
+            hass=mock_hass,
+            coordinator=mock_definition_coordinator,
+            key="indoorTemperature",
+            name="Indoor Temperature",
+            translation_key="indoor_temperature",
+            unit="°C",
+            device_class="temperature",
+            device=mock_device,
+            override_device_uuid="test-device-uuid",
+            entry=mock_config_entry,
+        )
+
+        # Mock async_write_ha_state
+        sensor.hass = mock_hass
+        sensor.async_write_ha_state = MagicMock()
+
+        # Trigger coordinator update
+        sensor._handle_coordinator_update()
+
+        assert sensor._state == 21.4
+        mock_definition_coordinator.get_definition_data.assert_called_once_with(
+            "test-device-uuid"
+        )
+
+    def test_definition_sensor_update_missing_key(
+        self, mock_hass, mock_definition_coordinator, mock_device, mock_config_entry
+    ):
+        """Test definition sensor update with missing key in definition data."""
+        # Create a mock that returns definition data without the requested key
+        mock_definition_coordinator.get_definition_data.return_value = {
+            "outdoorTemperature": 1.1,
+        }
+
+        sensor = ComfoClimeDefinitionSensor(
+            hass=mock_hass,
+            coordinator=mock_definition_coordinator,
+            key="indoorTemperature",
+            name="Indoor Temperature",
+            translation_key="indoor_temperature",
+            unit="°C",
+            device=mock_device,
+            override_device_uuid="test-device-uuid",
+            entry=mock_config_entry,
+        )
+
+        # Mock async_write_ha_state
+        sensor.hass = mock_hass
+        sensor.async_write_ha_state = MagicMock()
+
+        # Trigger coordinator update
+        sensor._handle_coordinator_update()
+
+        # Should be None since key doesn't exist in definition data
+        assert sensor._state is None
+
+    def test_definition_sensor_update_no_data(
+        self, mock_hass, mock_definition_coordinator, mock_device, mock_config_entry
+    ):
+        """Test definition sensor update when coordinator has no data."""
+        # Mock coordinator returns None for definition data
+        mock_definition_coordinator.get_definition_data.return_value = None
+
+        sensor = ComfoClimeDefinitionSensor(
+            hass=mock_hass,
+            coordinator=mock_definition_coordinator,
+            key="indoorTemperature",
+            name="Indoor Temperature",
+            translation_key="indoor_temperature",
+            unit="°C",
+            device=mock_device,
+            override_device_uuid="test-device-uuid",
+            entry=mock_config_entry,
+        )
+
+        # Mock async_write_ha_state
+        sensor.hass = mock_hass
+        sensor.async_write_ha_state = MagicMock()
+
+        # Trigger coordinator update
+        sensor._handle_coordinator_update()
+
+        # Should be None when coordinator has no definition data
+        assert sensor._state is None
