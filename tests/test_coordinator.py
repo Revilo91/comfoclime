@@ -21,7 +21,7 @@ async def test_telemetry_coordinator_concurrent_registration(mock_hass, mock_api
     coordinator = ComfoClimeTelemetryCoordinator(mock_hass, mock_api, devices=[])
 
     # Register initial telemetry
-    coordinator.register_telemetry(
+    await coordinator.register_telemetry(
         device_uuid="device1",
         telemetry_id="123",
         faktor=1.0,
@@ -32,7 +32,7 @@ async def test_telemetry_coordinator_concurrent_registration(mock_hass, mock_api
     # Mock API to register another telemetry during the update
     async def mock_read_telemetry(*args, **kwargs):
         # Simulate concurrent registration while update is running
-        coordinator.register_telemetry(
+        await coordinator.register_telemetry(
             device_uuid="device2",
             telemetry_id="456",
             faktor=1.0,
@@ -57,7 +57,7 @@ async def test_property_coordinator_concurrent_registration(mock_hass, mock_api)
     coordinator = ComfoClimePropertyCoordinator(mock_hass, mock_api, devices=[])
 
     # Register initial property
-    coordinator.register_property(
+    await coordinator.register_property(
         device_uuid="device1",
         property_path="29/1/10",
         faktor=1.0,
@@ -68,7 +68,7 @@ async def test_property_coordinator_concurrent_registration(mock_hass, mock_api)
     # Mock API to register another property during the update
     async def mock_read_property(*args, **kwargs):
         # Simulate concurrent registration while update is running
-        coordinator.register_property(
+        await coordinator.register_property(
             device_uuid="device2",
             property_path="29/1/6",
             faktor=1.0,
@@ -93,13 +93,13 @@ async def test_telemetry_coordinator_multiple_devices(mock_hass, mock_api):
     coordinator = ComfoClimeTelemetryCoordinator(mock_hass, mock_api, devices=[])
 
     # Register multiple telemetries for multiple devices
-    coordinator.register_telemetry(
+    await coordinator.register_telemetry(
         device_uuid="device1", telemetry_id="123", faktor=1.0, signed=True, byte_count=2
     )
-    coordinator.register_telemetry(
+    await coordinator.register_telemetry(
         device_uuid="device1", telemetry_id="456", faktor=2.0, signed=True, byte_count=2
     )
-    coordinator.register_telemetry(
+    await coordinator.register_telemetry(
         device_uuid="device2", telemetry_id="789", faktor=1.0, signed=False, byte_count=1
     )
 
@@ -125,13 +125,13 @@ async def test_property_coordinator_multiple_devices(mock_hass, mock_api):
     coordinator = ComfoClimePropertyCoordinator(mock_hass, mock_api, devices=[])
 
     # Register multiple properties for multiple devices
-    coordinator.register_property(
+    await coordinator.register_property(
         device_uuid="device1", property_path="29/1/10", faktor=1.0, signed=True, byte_count=2
     )
-    coordinator.register_property(
+    await coordinator.register_property(
         device_uuid="device1", property_path="29/1/6", faktor=1.0, signed=True, byte_count=1
     )
-    coordinator.register_property(
+    await coordinator.register_property(
         device_uuid="device2", property_path="30/2/5", faktor=0.1, signed=False, byte_count=2
     )
 
@@ -156,10 +156,10 @@ async def test_telemetry_coordinator_error_handling(mock_hass, mock_api):
     """Test TelemetryCoordinator handles errors gracefully."""
     coordinator = ComfoClimeTelemetryCoordinator(mock_hass, mock_api, devices=[])
 
-    coordinator.register_telemetry(
+    await coordinator.register_telemetry(
         device_uuid="device1", telemetry_id="123", faktor=1.0, signed=True, byte_count=2
     )
-    coordinator.register_telemetry(
+    await coordinator.register_telemetry(
         device_uuid="device1", telemetry_id="456", faktor=1.0, signed=True, byte_count=2
     )
 
@@ -184,10 +184,10 @@ async def test_property_coordinator_error_handling(mock_hass, mock_api):
     """Test PropertyCoordinator handles errors gracefully."""
     coordinator = ComfoClimePropertyCoordinator(mock_hass, mock_api, devices=[])
 
-    coordinator.register_property(
+    await coordinator.register_property(
         device_uuid="device1", property_path="29/1/10", faktor=1.0, signed=True, byte_count=2
     )
-    coordinator.register_property(
+    await coordinator.register_property(
         device_uuid="device1", property_path="29/1/6", faktor=1.0, signed=True, byte_count=1
     )
 

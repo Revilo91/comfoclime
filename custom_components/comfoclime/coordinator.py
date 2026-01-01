@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import timedelta
 from typing import Any
@@ -78,8 +79,10 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
         self.devices = devices or []
         # Registry of telemetry requests: {device_uuid: {telemetry_id: {faktor, signed, byte_count}}}
         self._telemetry_registry: dict[str, dict[str, dict]] = {}
+        # Lock to prevent concurrent modifications during iteration
+        self._registry_lock = asyncio.Lock()
 
-    def register_telemetry(
+    async def register_telemetry(
         self,
         device_uuid: str,
         telemetry_id: str,
@@ -96,24 +99,33 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
             signed: Whether the value is signed
             byte_count: Number of bytes to read
         """
-        if device_uuid not in self._telemetry_registry:
-            self._telemetry_registry[device_uuid] = {}
+        async with self._registry_lock:
+            if device_uuid not in self._telemetry_registry:
+                self._telemetry_registry[device_uuid] = {}
 
-        self._telemetry_registry[device_uuid][str(telemetry_id)] = {
-            "faktor": faktor,
-            "signed": signed,
-            "byte_count": byte_count,
-        }
-        _LOGGER.debug(f"Registered telemetry {telemetry_id} for device {device_uuid}")
+            self._telemetry_registry[device_uuid][str(telemetry_id)] = {
+                "faktor": faktor,
+                "signed": signed,
+                "byte_count": byte_count,
+            }
+            _LOGGER.debug(f"Registered telemetry {telemetry_id} for device {device_uuid}")
 
     async def _async_update_data(self):
         """Fetch all registered telemetry data for all devices in batched manner."""
         result: dict[str, dict[str, Any]] = {}
 
-        for device_uuid, telemetry_items in list(self._telemetry_registry.items()):
+        async with self._registry_lock:
+            # Create a snapshot of the registry while holding the lock
+            registry_snapshot = {
+                device_uuid: dict(telemetry_items)
+                for device_uuid, telemetry_items in self._telemetry_registry.items()
+            }
+
+        # Now iterate over the snapshot without holding the lock
+        for device_uuid, telemetry_items in registry_snapshot.items():
             result[device_uuid] = {}
 
-            for telemetry_id, params in list(telemetry_items.items()):
+            for telemetry_id, params in telemetry_items.items():
                 try:
                     value = await self.api.async_read_telemetry_for_device(
                         device_uuid=device_uuid,
@@ -167,8 +179,10 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
         self.devices = devices or []
         # Registry of property requests: {device_uuid: {path: {faktor, signed, byte_count}}}
         self._property_registry: dict[str, dict[str, dict]] = {}
+        # Lock to prevent concurrent modifications during iteration
+        self._registry_lock = asyncio.Lock()
 
-    def register_property(
+    async def register_property(
         self,
         device_uuid: str,
         property_path: str,
@@ -185,24 +199,33 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
             signed: Whether the value is signed
             byte_count: Number of bytes to read
         """
-        if device_uuid not in self._property_registry:
-            self._property_registry[device_uuid] = {}
+        async with self._registry_lock:
+            if device_uuid not in self._property_registry:
+                self._property_registry[device_uuid] = {}
 
-        self._property_registry[device_uuid][property_path] = {
-            "faktor": faktor,
-            "signed": signed,
-            "byte_count": byte_count,
-        }
-        _LOGGER.debug(f"Registered property {property_path} for device {device_uuid}")
+            self._property_registry[device_uuid][property_path] = {
+                "faktor": faktor,
+                "signed": signed,
+                "byte_count": byte_count,
+            }
+            _LOGGER.debug(f"Registered property {property_path} for device {device_uuid}")
 
     async def _async_update_data(self):
         """Fetch all registered property data for all devices in batched manner."""
         result: dict[str, dict[str, Any]] = {}
 
-        for device_uuid, property_items in list(self._property_registry.items()):
+        async with self._registry_lock:
+            # Create a snapshot of the registry while holding the lock
+            registry_snapshot = {
+                device_uuid: dict(property_items)
+                for device_uuid, property_items in self._property_registry.items()
+            }
+
+        # Now iterate over the snapshot without holding the lock
+        for device_uuid, property_items in registry_snapshot.items():
             result[device_uuid] = {}
 
-            for property_path, params in list(property_items.items()):
+            for property_path, params in property_items.items():
                 try:
                     value = await self.api.async_read_property_for_device(
                         device_uuid=device_uuid,

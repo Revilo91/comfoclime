@@ -57,7 +57,7 @@ async def async_setup_entry(
         for number_def in number_properties:
             _LOGGER.debug(f"Creating number entity for property: {number_def}")
             # Register property with coordinator for batched fetching
-            propcoordinator.register_property(
+            await propcoordinator.register_property(
                 device_uuid=dev_uuid,
                 property_path=number_def["property"],
                 faktor=number_def.get("faktor", 1.0),
