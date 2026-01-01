@@ -591,7 +591,7 @@ class ComfoClimeDefinitionSensor(
                 self._state = None
         except Exception:
             _LOGGER.debug(
-                "Fehler beim Abrufen von Definition %s", self._key, exc_info=True
+                "Error retrieving definition %s", self._key, exc_info=True
             )
             self._state = None
         self.async_write_ha_state()
