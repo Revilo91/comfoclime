@@ -43,7 +43,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     # Create telemetry and property coordinators with device list
     tlcoordinator = ComfoClimeTelemetryCoordinator(hass, api, devices)
     propcoordinator = ComfoClimePropertyCoordinator(hass, api, devices)
-    
+
     # Create definition coordinator for device definition data (mainly for ComfoAirQ)
     definitioncoordinator = ComfoClimeDefinitionCoordinator(hass, api, devices)
     await definitioncoordinator.async_config_entry_first_refresh()

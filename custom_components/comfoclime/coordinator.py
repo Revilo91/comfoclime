@@ -255,8 +255,7 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
             # ComfoClime devices don't provide much useful info
             if model_type_id != 1:
                 _LOGGER.debug(
-                    f"Skipping definition fetch for device {device_uuid} "
-                    f"with modelTypeId {model_type_id} (not ComfoAirQ)"
+                    f"Skipping definition fetch for device {device_uuid} with modelTypeId {model_type_id} (not ComfoAirQ)"
                 )
                 continue
 
