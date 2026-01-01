@@ -270,7 +270,7 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
                 )
             except Exception as e:
                 _LOGGER.debug(
-                    f"Fehler beim Abrufen der Definition für Gerät {device_uuid}: {e}"
+                    f"Error fetching definition for device {device_uuid}: {e}"
                 )
                 result[device_uuid] = None
 
