@@ -1,5 +1,6 @@
 import logging
 from datetime import timedelta
+from typing import Any
 
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -107,7 +108,7 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self):
         """Fetch all registered telemetry data for all devices in batched manner."""
-        result: dict[str, dict[str, any]] = {}
+        result: dict[str, dict[str, Any]] = {}
 
         for device_uuid, telemetry_items in self._telemetry_registry.items():
             result[device_uuid] = {}
@@ -130,7 +131,7 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
 
         return result
 
-    def get_telemetry_value(self, device_uuid: str, telemetry_id: str | int) -> any:
+    def get_telemetry_value(self, device_uuid: str, telemetry_id: str | int) -> Any:
         """Get a cached telemetry value from the last update.
 
         Args:
@@ -196,7 +197,7 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self):
         """Fetch all registered property data for all devices in batched manner."""
-        result: dict[str, dict[str, any]] = {}
+        result: dict[str, dict[str, Any]] = {}
 
         for device_uuid, property_items in self._property_registry.items():
             result[device_uuid] = {}
@@ -219,7 +220,7 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
 
         return result
 
-    def get_property_value(self, device_uuid: str, property_path: str) -> any:
+    def get_property_value(self, device_uuid: str, property_path: str) -> Any:
         """Get a cached property value from the last update.
 
         Args:
