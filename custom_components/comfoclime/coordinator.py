@@ -110,10 +110,10 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
         """Fetch all registered telemetry data for all devices in batched manner."""
         result: dict[str, dict[str, Any]] = {}
 
-        for device_uuid, telemetry_items in self._telemetry_registry.items():
+        for device_uuid, telemetry_items in list(self._telemetry_registry.items()):
             result[device_uuid] = {}
 
-            for telemetry_id, params in telemetry_items.items():
+            for telemetry_id, params in list(telemetry_items.items()):
                 try:
                     value = await self.api.async_read_telemetry_for_device(
                         device_uuid=device_uuid,
@@ -199,10 +199,10 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
         """Fetch all registered property data for all devices in batched manner."""
         result: dict[str, dict[str, Any]] = {}
 
-        for device_uuid, property_items in self._property_registry.items():
+        for device_uuid, property_items in list(self._property_registry.items()):
             result[device_uuid] = {}
 
-            for property_path, params in property_items.items():
+            for property_path, params in list(property_items.items()):
                 try:
                     value = await self.api.async_read_property_for_device(
                         device_uuid=device_uuid,
