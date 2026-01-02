@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 import aiohttp
 
-from .api_decorators import api_get, api_put_with_retry, with_request_lock
+from .api_decorators import api_get, api_put, with_request_lock
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -496,30 +496,32 @@ class ComfoClimeAPI:
             return None
         return data
 
-    async def async_get_thermal_profile(self):
-        async with self._request_lock:
-            await self._wait_for_rate_limit(is_write=False)
-            if not self.uuid:
-                await self._async_get_uuid_internal()
-            url = f"{self.base_url}/system/{self.uuid}/thermalprofile"
-            try:
-                timeout = aiohttp.ClientTimeout(total=DEFAULT_READ_TIMEOUT)
-                session = await self._get_session()
-                async with session.get(url, timeout=timeout) as response:
-                    response.raise_for_status()
-                    data = await response.json()
-                    # Fix signed temperature values in nested structure
-                    return self.fix_signed_temperatures_in_dict(data)
-            except aiohttp.ClientError as e:
-                _LOGGER.warning(f"Fehler beim Abrufen von thermal_profile: {e}")
-                return {}  # leer zurückgeben statt crashen
+    @api_get("/system/{uuid}/thermalprofile", requires_uuid=True, fix_temperatures=True, on_error={})
+    async def async_get_thermal_profile(self, response_data):
+        """Fetch thermal profile data from the API.
 
-    @api_put_with_retry(is_dashboard=False)
-    async def _update_thermal_profile(self, **kwargs) -> tuple[str, dict]:
+        The @api_get decorator handles:
+        - Request locking
+        - Rate limiting
+        - UUID retrieval
+        - Session management
+        - Temperature value fixing
+        - Error handling (returns {} on error)
+        """
+        return response_data
+
+    @api_put("/system/{uuid}/thermalprofile", requires_uuid=True)
+    async def _update_thermal_profile(self, **kwargs) -> dict:
         """Update thermal profile settings via API.
 
         Modern method for thermal profile updates. Only fields that are provided
         will be included in the update payload.
+
+        The @api_put decorator handles:
+        - UUID retrieval
+        - Rate limiting
+        - Retry with exponential backoff
+        - Error handling
 
         Supported kwargs:
             - season_status, season_value, heating_threshold_temperature, cooling_threshold_temperature
@@ -529,11 +531,8 @@ class ComfoClimeAPI:
             - cooling_comfort_temperature, cooling_knee_point_temperature, cooling_temperature_limit
 
         Returns:
-            Tuple of (url, payload) for the decorator to process.
+            Payload dict for the decorator to process.
         """
-        if not self.uuid:
-            await self._async_get_uuid_internal()
-
         # Use class-level FIELD_MAPPING
         field_mapping = self.FIELD_MAPPING
 
@@ -555,10 +554,9 @@ class ComfoClimeAPI:
                     payload[section] = {}
                 payload[section][key] = value
 
-        url = f"{self.base_url}/system/{self.uuid}/thermalprofile"
-        return url, payload
+        return payload
 
-    @api_put_with_retry(is_dashboard=True)
+    @api_put("/system/{uuid}/dashboard", requires_uuid=True, is_dashboard=True)
     async def _update_dashboard(
         self,
         set_point_temperature: float | None = None,
@@ -572,13 +570,14 @@ class ComfoClimeAPI:
         scenario: int | None = None,
         scenario_time_left: int | None = None,
         scenario_start_delay: int | None = None,
-    ) -> tuple[str, dict]:
+    ) -> dict:
         """Update dashboard settings via API.
 
         Modern method for dashboard updates. Only fields that are provided
         (not None) will be included in the update payload.
 
-        The @api_put_with_retry decorator handles:
+        The @api_put decorator handles:
+        - UUID retrieval
         - Rate limiting
         - Timestamp addition (is_dashboard=True)
         - Retry with exponential backoff
@@ -598,11 +597,8 @@ class ComfoClimeAPI:
             scenario_start_delay: Start delay for scenario in seconds (optional)
 
         Returns:
-            Tuple of (url, payload) for the decorator to process.
+            Payload dict for the decorator to process.
         """
-        if not self.uuid:
-            await self._async_get_uuid_internal()
-
         # Dynamically build payload; only include keys explicitly provided.
         payload: dict = {}
         if set_point_temperature is not None:
@@ -628,8 +624,7 @@ class ComfoClimeAPI:
         if scenario_start_delay is not None:
             payload["scenarioStartDelay"] = scenario_start_delay
 
-        url = f"{self.base_url}/system/{self.uuid}/dashboard"
-        return url, payload
+        return payload
 
     async def async_update_dashboard(self, **kwargs):
         """Async wrapper for update_dashboard method."""

@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from custom_components.comfoclime.api_decorators import (
     api_get,
-    api_put_with_retry,
+    api_put,
     with_request_lock,
 )
 
@@ -225,18 +225,19 @@ class MockAPIForPut:
         self.hass.config.time_zone = "UTC"
         self._wait_for_rate_limit = AsyncMock()
         self._get_session = AsyncMock()
+        self._async_get_uuid_internal = AsyncMock()
 
 
 @pytest.mark.asyncio
-async def test_api_put_with_retry_simple():
-    """Test api_put_with_retry decorator with simple endpoint."""
+async def test_api_put_simple():
+    """Test api_put decorator with simple endpoint."""
     mock_response = MagicMock()
     mock_response.status = 200
     mock_response.raise_for_status = MagicMock()
 
-    @api_put_with_retry(is_dashboard=False)
+    @api_put("/test/endpoint")
     async def test_method(self):
-        return "http://test.local/test/endpoint", {"key": "value"}
+        return {"key": "value"}
 
     api = MockAPIForPut()
 
@@ -255,16 +256,16 @@ async def test_api_put_with_retry_simple():
 
 
 @pytest.mark.asyncio
-async def test_api_put_with_retry_dashboard():
-    """Test api_put_with_retry decorator for dashboard updates."""
+async def test_api_put_dashboard():
+    """Test api_put decorator for dashboard updates."""
     mock_response = MagicMock()
     mock_response.status = 200
     mock_response.raise_for_status = MagicMock()
     mock_response.json = AsyncMock(return_value={"status": "ok"})
 
-    @api_put_with_retry(is_dashboard=True)
+    @api_put("/system/{uuid}/dashboard", requires_uuid=True, is_dashboard=True)
     async def test_method(self):
-        return "http://test.local/dashboard", {"temperature": 22.5}
+        return {"temperature": 22.5}
 
     api = MockAPIForPut()
 
@@ -285,12 +286,12 @@ async def test_api_put_with_retry_dashboard():
 
 
 @pytest.mark.asyncio
-async def test_api_put_with_retry_empty_payload():
-    """Test api_put_with_retry decorator with empty payload skips PUT."""
+async def test_api_put_empty_payload():
+    """Test api_put decorator with empty payload skips PUT."""
 
-    @api_put_with_retry(is_dashboard=False)
+    @api_put("/test/endpoint")
     async def test_method(self):
-        return "http://test.local/test", {}
+        return {}
 
     api = MockAPIForPut()
     api._get_session = AsyncMock()  # Should not be called
@@ -303,12 +304,12 @@ async def test_api_put_with_retry_empty_payload():
 
 
 @pytest.mark.asyncio
-async def test_api_put_with_retry_empty_payload_dashboard():
-    """Test api_put_with_retry decorator with empty payload for dashboard."""
+async def test_api_put_empty_payload_dashboard():
+    """Test api_put decorator with empty payload for dashboard."""
 
-    @api_put_with_retry(is_dashboard=True)
+    @api_put("/dashboard", is_dashboard=True)
     async def test_method(self):
-        return "http://test.local/dashboard", {}
+        return {}
 
     api = MockAPIForPut()
     api._get_session = AsyncMock()  # Should not be called
@@ -321,13 +322,13 @@ async def test_api_put_with_retry_empty_payload_dashboard():
 
 
 @pytest.mark.asyncio
-async def test_api_put_with_retry_preserves_function_metadata():
-    """Test that api_put_with_retry decorator preserves function metadata."""
+async def test_api_put_preserves_function_metadata():
+    """Test that api_put decorator preserves function metadata."""
 
-    @api_put_with_retry(is_dashboard=False)
+    @api_put("/test/endpoint")
     async def my_put_method(self):
         """This is the PUT docstring."""
-        return "http://test.local/test", {"data": 1}
+        return {"data": 1}
 
     assert my_put_method.__name__ == "my_put_method"
     assert "PUT docstring" in my_put_method.__doc__

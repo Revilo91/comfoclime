@@ -32,6 +32,7 @@ def api_get(
     fix_temperatures: bool = False,
     response_key: str | None = None,
     response_default: Any = None,
+    on_error: Any = None,
 ):
     """Decorator for GET API endpoints.
 
@@ -42,6 +43,7 @@ def api_get(
     - UUID retrieval (if requires_uuid=True)
     - Temperature value fixing (if fix_temperatures=True)
     - Response key extraction (if response_key is specified)
+    - Error handling (if on_error is specified)
 
     Args:
         url_template: URL template with placeholders (e.g., "/system/{uuid}/dashboard")
@@ -50,6 +52,7 @@ def api_get(
         fix_temperatures: Whether to fix signed temperature values in the response.
         response_key: Optional key to extract from response (e.g., "devices" returns data["devices"]).
         response_default: Default value when response_key is not found (default: None, uses empty dict).
+        on_error: Value to return on error instead of raising exception (e.g., {} for empty dict).
 
     Example:
         @api_get("/system/{uuid}/dashboard", requires_uuid=True, fix_temperatures=True)
@@ -74,117 +77,78 @@ def api_get(
                     param_name = params[i + 2]
                     url_kwargs[param_name] = arg
 
-            async with self._request_lock:
-                await self._wait_for_rate_limit(is_write=False)
+            try:
+                async with self._request_lock:
+                    await self._wait_for_rate_limit(is_write=False)
 
-                # Get UUID if required
-                if requires_uuid and not self.uuid:
-                    await self._async_get_uuid_internal()
+                    # Get UUID if required
+                    if requires_uuid and not self.uuid:
+                        await self._async_get_uuid_internal()
 
-                # Build URL from template
-                url = self.base_url + url_template.format(uuid=self.uuid, **url_kwargs)
+                    # Build URL from template
+                    url = self.base_url + url_template.format(uuid=self.uuid, **url_kwargs)
 
-                # Make request
-                timeout = aiohttp.ClientTimeout(total=DEFAULT_READ_TIMEOUT)
-                session = await self._get_session()
-                async with session.get(url, timeout=timeout) as response:
-                    response.raise_for_status()
-                    data = await response.json()
+                    # Make request
+                    timeout = aiohttp.ClientTimeout(total=DEFAULT_READ_TIMEOUT)
+                    session = await self._get_session()
+                    async with session.get(url, timeout=timeout) as response:
+                        response.raise_for_status()
+                        data = await response.json()
 
-                # Extract specific key if specified
-                if response_key:
-                    default = response_default if response_default is not None else {}
-                    data = data.get(response_key, default)
+                    # Extract specific key if specified
+                    if response_key:
+                        default = response_default if response_default is not None else {}
+                        data = data.get(response_key, default)
 
-                # Fix temperature values if needed
-                if fix_temperatures:
-                    data = self.fix_signed_temperatures_in_dict(data)
+                    # Fix temperature values if needed
+                    if fix_temperatures:
+                        data = self.fix_signed_temperatures_in_dict(data)
 
-                # Call the original function with the response data
-                return await func(self, data, *args, **kwargs)
+                    # Call the original function with the response data
+                    return await func(self, data, *args, **kwargs)
+
+            except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                if on_error is not None:
+                    _LOGGER.warning(f"Error fetching {url_template}: {e}")
+                    return on_error
+                raise
 
         return wrapper
 
     return decorator
 
 
-def api_get_cached(
+def api_put(
     url_template: str,
     *,
-    cache_type: str = "telemetry",
-):
-    """Decorator for GET API endpoints with caching.
-
-    Handles:
-    - Cache lookup and storage
-    - Request locking
-    - Rate limiting
-    - Session management
-
-    Args:
-        url_template: URL template with placeholders
-        cache_type: Cache type to use ("telemetry" or "property")
-
-    The decorated function should accept response_data and return the processed value.
-    The function's kwargs should include 'device_uuid' and either 'telemetry_id' or 'property_path'
-    for cache key generation.
-    """
-
-    def decorator(func: Callable) -> Callable:
-        @functools.wraps(func)
-        async def wrapper(
-            self,
-            device_uuid: str,
-            *args,
-            **kwargs,
-        ):
-            # Determine cache key based on cache type
-            if cache_type == "telemetry":
-                data_id = kwargs.get("telemetry_id", args[0] if args else "")
-            else:  # property
-                data_id = kwargs.get("property_path", args[0] if args else "")
-
-            cache_key = self._get_cache_key(device_uuid, str(data_id))
-            cache_dict = (
-                self._telemetry_cache if cache_type == "telemetry" else self._property_cache
-            )
-
-            # Check cache first
-            cached_value = self._get_from_cache(cache_dict, cache_key)
-            if cached_value is not None:
-                return cached_value
-
-            # Not in cache, call the decorated function to get data
-            result = await func(self, device_uuid, *args, **kwargs)
-
-            # Store in cache if result is not None
-            if result is not None:
-                self._set_cache(cache_dict, cache_key, result)
-
-            return result
-
-        return wrapper
-
-    return decorator
-
-
-def api_put_with_retry(
-    *,
+    requires_uuid: bool = False,
     is_dashboard: bool = False,
 ):
-    """Decorator for PUT API endpoints with retry logic.
+    """Decorator for PUT API endpoints.
 
     Handles:
     - Request locking
     - Rate limiting (write mode)
     - Session management
+    - UUID retrieval (if requires_uuid=True)
     - Retry with exponential backoff
+    - Timestamp addition (if is_dashboard=True)
     - Error handling
 
     Args:
+        url_template: URL template with placeholders (e.g., "/system/{uuid}/dashboard")
+                     Supports {uuid} for system UUID.
+        requires_uuid: Whether the endpoint requires the system UUID to be fetched first.
         is_dashboard: Whether this is a dashboard update (adds timestamp and headers).
 
-    The decorated function should build and return (url, payload) tuple.
+    The decorated function should build and return the payload dict.
+    The URL is built from the template.
+
+    Example:
+        @api_put("/system/{uuid}/dashboard", requires_uuid=True, is_dashboard=True)
+        async def _update_dashboard(self, **kwargs) -> dict:
+            payload = {...}
+            return payload
     """
 
     def decorator(func: Callable) -> Callable:
@@ -193,8 +157,15 @@ def api_put_with_retry(
             # Import here to avoid circular imports
             from .comfoclime_api import DEFAULT_WRITE_TIMEOUT, MAX_RETRIES
 
-            # Call the decorated function to get URL and payload
-            url, payload = await func(self, *args, **kwargs)
+            # Get UUID if required
+            if requires_uuid and not self.uuid:
+                await self._async_get_uuid_internal()
+
+            # Build URL from template
+            url = self.base_url + url_template.format(uuid=self.uuid)
+
+            # Call the decorated function to get payload
+            payload = await func(self, *args, **kwargs)
 
             if not payload:
                 _LOGGER.debug("No fields to update (empty payload) - skipping PUT.")
