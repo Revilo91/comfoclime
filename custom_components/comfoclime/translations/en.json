@@ -48,6 +48,9 @@
             },
             "current_comfort_temperature": {
                 "name": "Current Comfort Temperature"
+            },            
+            "powerfactor_heatpump": {
+                "name": "Powerfactor Heatpump"
             },
             "power_heatpump": {
                 "name": "Power Heatpump"
@@ -150,8 +153,8 @@
             "unknown_value_4198": {
                 "name": "Unknown Value 4198"
             },
-            "unknown_value_4202": {
-                "name": "Unknown Value 4202"
+            "unknown_temp_4202": {
+                "name": "Unknown Temp 4202"
             },
             "unknown_value_4203": {
                 "name": "Unknown Value 4203"
