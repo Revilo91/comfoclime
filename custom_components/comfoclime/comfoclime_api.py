@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 import aiohttp
 
-from .api_decorators import api_get, with_request_lock
+from .api_decorators import api_get, api_put_with_retry, with_request_lock
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -514,7 +514,8 @@ class ComfoClimeAPI:
                 _LOGGER.warning(f"Fehler beim Abrufen von thermal_profile: {e}")
                 return {}  # leer zurückgeben statt crashen
 
-    async def _update_thermal_profile(self, **kwargs) -> bool:
+    @api_put_with_retry(is_dashboard=False)
+    async def _update_thermal_profile(self, **kwargs) -> tuple[str, dict]:
         """Update thermal profile settings via API.
 
         Modern method for thermal profile updates. Only fields that are provided
@@ -528,7 +529,7 @@ class ComfoClimeAPI:
             - cooling_comfort_temperature, cooling_knee_point_temperature, cooling_temperature_limit
 
         Returns:
-            True if update was successful, False otherwise
+            Tuple of (url, payload) for the decorator to process.
         """
         if not self.uuid:
             await self._async_get_uuid_internal()
@@ -554,59 +555,10 @@ class ComfoClimeAPI:
                     payload[section] = {}
                 payload[section][key] = value
 
-        if not payload:
-            _LOGGER.debug(
-                "No thermal profile fields to update (empty payload) - skipping PUT"
-            )
-            return True
-
-        await self._wait_for_rate_limit(is_write=True)
-
         url = f"{self.base_url}/system/{self.uuid}/thermalprofile"
+        return url, payload
 
-        # Retry logic for transient failures
-        last_exception = None
-        for attempt in range(MAX_RETRIES + 1):
-            try:
-                # Use longer timeout for write operations
-                timeout = aiohttp.ClientTimeout(total=DEFAULT_WRITE_TIMEOUT)
-                session = await self._get_session()
-                _LOGGER.debug(
-                    f"Thermal profile update attempt {attempt + 1}/{MAX_RETRIES + 1}, "
-                    f"timeout={DEFAULT_WRITE_TIMEOUT}s, payload: {payload}"
-                )
-                async with session.put(url, json=payload, timeout=timeout) as response:
-                    response.raise_for_status()
-                    _LOGGER.debug(
-                        f"Thermal Profile Update erfolgreich, Status: {response.status}"
-                    )
-                    return response.status == 200
-            except (  # noqa: PERF203
-                asyncio.TimeoutError,
-                asyncio.CancelledError,
-                aiohttp.ClientError,
-            ) as e:
-                last_exception = e
-                if attempt < MAX_RETRIES:
-                    # Exponential backoff: 2s, 4s, 8s
-                    wait_time = 2 ** (attempt + 1)
-                    _LOGGER.warning(
-                        f"Thermal profile update failed (attempt {attempt + 1}/{MAX_RETRIES + 1}), "
-                        f"retrying in {wait_time}s: {type(e).__name__}: {e}"
-                    )
-                    await asyncio.sleep(wait_time)
-                else:
-                    _LOGGER.exception(
-                        f"Thermal profile update failed after {MAX_RETRIES + 1} attempts: "
-                        f"{type(e).__name__}"
-                    )
-
-        # If we get here, all retries failed
-        # last_exception should always be set by the loop, but we check defensively
-        if last_exception:
-            raise last_exception
-        raise RuntimeError("Thermal profile update failed with unknown error")
-
+    @api_put_with_retry(is_dashboard=True)
     async def _update_dashboard(
         self,
         set_point_temperature: float | None = None,
@@ -620,48 +572,17 @@ class ComfoClimeAPI:
         scenario: int | None = None,
         scenario_time_left: int | None = None,
         scenario_start_delay: int | None = None,
-    ) -> dict:
+    ) -> tuple[str, dict]:
         """Update dashboard settings via API.
 
         Modern method for dashboard updates. Only fields that are provided
         (not None) will be included in the update payload.
 
-        # Android app export from @msfuture
-        payload = {
-            "@type": None,
-            "name": None,
-            "displayName": None,
-            "description": None,
-            "timestamp": datetime.datetime.now().isoformat(),
-            "status": status,
-            "setPointTemperature": set_point_temperature,
-            "temperatureProfile": temperature_profile,
-            "seasonProfile": season_profile,
-            "fanSpeed": fan_speed,
-            "scenario": None,
-            "scenarioTimeLeft": None,
-            "season": season,
-            "schedule": None,
-            "scenario": None,
-            "scenarioTimeLeft": None,
-            "scenarioStartDelay": None
-        }
-
-        The API distinguishes between two modes:
-        - Automatic mode (status=1): Uses preset profiles (seasonProfile, temperatureProfile)
-        - Manual mode (status=0): Uses manual temperature (setPointTemperature)
-
-        Scenario modes:
-        - 4: Kochen (Cooking) - 30 minutes high ventilation
-        - 5: Party - 30 minutes high ventilation
-        - 7: Urlaub (Holiday) - 24 hours reduced mode
-        - 8: Boost - 30 minutes maximum power
-
-        Scenario modes:
-        - 4: Kochen (Cooking) - 30 minutes high ventilation
-        - 5: Party - 30 minutes high ventilation
-        - 7: Urlaub (Holiday) - 24 hours reduced mode
-        - 8: Boost - 30 minutes maximum power
+        The @api_put_with_retry decorator handles:
+        - Rate limiting
+        - Timestamp addition (is_dashboard=True)
+        - Retry with exponential backoff
+        - Error handling
 
         Args:
             set_point_temperature: Target temperature (°C) - activates manual mode
@@ -675,15 +596,9 @@ class ComfoClimeAPI:
             scenario: Scenario mode (4=Kochen, 5=Party, 7=Urlaub, 8=Boost)
             scenario_time_left: Duration for scenario in seconds (e.g., 1800 for 30min)
             scenario_start_delay: Start delay for scenario in seconds (optional)
-            scenario: Scenario mode (4=Kochen, 5=Party, 7=Urlaub, 8=Boost)
-            scenario_time_left: Duration for scenario in seconds (e.g., 1800 for 30min)
-            scenario_start_delay: Start delay for scenario in seconds (optional)
 
         Returns:
-            Response JSON from the API
-
-        Raises:
-            aiohttp.ClientError: If the API request fails
+            Tuple of (url, payload) for the decorator to process.
         """
         if not self.uuid:
             await self._async_get_uuid_internal()
@@ -713,71 +628,8 @@ class ComfoClimeAPI:
         if scenario_start_delay is not None:
             payload["scenarioStartDelay"] = scenario_start_delay
 
-        if not payload:
-            _LOGGER.debug(
-                "No dashboard fields to update (empty payload) - skipping PUT"
-            )
-            return {}
-
-        await self._wait_for_rate_limit(is_write=True)
-
-        # Add timestamp to payload
-        if not self.hass:
-            raise ValueError("hass instance required for timestamp generation")
-        tz = ZoneInfo(self.hass.config.time_zone)
-        payload["timestamp"] = datetime.now(tz).isoformat()
-
-        headers = {"content-type": "application/json; charset=utf-8"}
         url = f"{self.base_url}/system/{self.uuid}/dashboard"
-
-        # Retry logic for transient failures
-        last_exception = None
-        for attempt in range(MAX_RETRIES + 1):
-            try:
-                # Use longer timeout for write operations
-                timeout = aiohttp.ClientTimeout(total=DEFAULT_WRITE_TIMEOUT)
-                session = await self._get_session()
-                _LOGGER.debug(
-                    f"Dashboard update attempt {attempt + 1}/{MAX_RETRIES + 1}, "
-                    f"timeout={DEFAULT_WRITE_TIMEOUT}s, payload={payload}"
-                )
-                async with session.put(
-                    url, json=payload, headers=headers, timeout=timeout
-                ) as response:
-                    response.raise_for_status()
-                    try:
-                        resp_json = await response.json()
-                    except Exception:
-                        resp_json = {"text": await response.text()}
-                    _LOGGER.debug(
-                        f"Dashboard update OK payload={payload} response={resp_json}"
-                    )
-                    return resp_json
-            except (  # noqa: PERF203
-                asyncio.TimeoutError,
-                asyncio.CancelledError,
-                aiohttp.ClientError,
-            ) as e:
-                last_exception = e
-                if attempt < MAX_RETRIES:
-                    # Exponential backoff: 2s, 4s, 8s
-                    wait_time = 2 ** (attempt + 1)
-                    _LOGGER.warning(
-                        f"Dashboard update failed (attempt {attempt + 1}/{MAX_RETRIES + 1}), "
-                        f"retrying in {wait_time}s: {type(e).__name__}: {e}"
-                    )
-                    await asyncio.sleep(wait_time)
-                else:
-                    _LOGGER.exception(
-                        f"Dashboard update failed after {MAX_RETRIES + 1} attempts: "
-                        f"{type(e).__name__}"
-                    )
-
-        # If we get here, all retries failed
-        # last_exception should always be set by the loop, but we check defensively
-        if last_exception:
-            raise last_exception
-        raise RuntimeError("Dashboard update failed with unknown error")
+        return url, payload
 
     async def async_update_dashboard(self, **kwargs):
         """Async wrapper for update_dashboard method."""

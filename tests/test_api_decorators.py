@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from custom_components.comfoclime.api_decorators import (
     api_get,
+    api_put_with_retry,
     with_request_lock,
 )
 
@@ -212,3 +213,121 @@ async def test_api_get_preserves_function_metadata():
 
     assert my_documented_method.__name__ == "my_documented_method"
     assert "docstring" in my_documented_method.__doc__
+
+
+class MockAPIForPut:
+    """Mock API class for testing PUT decorators."""
+
+    def __init__(self):
+        self.base_url = "http://test.local"
+        self.uuid = "test-uuid"
+        self.hass = MagicMock()
+        self.hass.config.time_zone = "UTC"
+        self._wait_for_rate_limit = AsyncMock()
+        self._get_session = AsyncMock()
+
+
+@pytest.mark.asyncio
+async def test_api_put_with_retry_simple():
+    """Test api_put_with_retry decorator with simple endpoint."""
+    mock_response = MagicMock()
+    mock_response.status = 200
+    mock_response.raise_for_status = MagicMock()
+
+    @api_put_with_retry(is_dashboard=False)
+    async def test_method(self):
+        return "http://test.local/test/endpoint", {"key": "value"}
+
+    api = MockAPIForPut()
+
+    # Mock session and response
+    mock_session = MagicMock()
+    mock_context = MagicMock()
+    mock_context.__aenter__ = AsyncMock(return_value=mock_response)
+    mock_context.__aexit__ = AsyncMock()
+    mock_session.put = MagicMock(return_value=mock_context)
+    api._get_session = AsyncMock(return_value=mock_session)
+
+    result = await test_method(api)
+
+    assert result is True
+    api._wait_for_rate_limit.assert_called_once_with(is_write=True)
+
+
+@pytest.mark.asyncio
+async def test_api_put_with_retry_dashboard():
+    """Test api_put_with_retry decorator for dashboard updates."""
+    mock_response = MagicMock()
+    mock_response.status = 200
+    mock_response.raise_for_status = MagicMock()
+    mock_response.json = AsyncMock(return_value={"status": "ok"})
+
+    @api_put_with_retry(is_dashboard=True)
+    async def test_method(self):
+        return "http://test.local/dashboard", {"temperature": 22.5}
+
+    api = MockAPIForPut()
+
+    # Mock session and response
+    mock_session = MagicMock()
+    mock_context = MagicMock()
+    mock_context.__aenter__ = AsyncMock(return_value=mock_response)
+    mock_context.__aexit__ = AsyncMock()
+    mock_session.put = MagicMock(return_value=mock_context)
+    api._get_session = AsyncMock(return_value=mock_session)
+
+    result = await test_method(api)
+
+    assert result == {"status": "ok"}
+    # Verify PUT was called with timestamp in payload (dashboard mode)
+    put_call = mock_session.put.call_args
+    assert put_call is not None
+
+
+@pytest.mark.asyncio
+async def test_api_put_with_retry_empty_payload():
+    """Test api_put_with_retry decorator with empty payload skips PUT."""
+
+    @api_put_with_retry(is_dashboard=False)
+    async def test_method(self):
+        return "http://test.local/test", {}
+
+    api = MockAPIForPut()
+    api._get_session = AsyncMock()  # Should not be called
+
+    result = await test_method(api)
+
+    # Should return True without making any request
+    assert result is True
+    api._get_session.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_api_put_with_retry_empty_payload_dashboard():
+    """Test api_put_with_retry decorator with empty payload for dashboard."""
+
+    @api_put_with_retry(is_dashboard=True)
+    async def test_method(self):
+        return "http://test.local/dashboard", {}
+
+    api = MockAPIForPut()
+    api._get_session = AsyncMock()  # Should not be called
+
+    result = await test_method(api)
+
+    # Should return {} for dashboard without making any request
+    assert result == {}
+    api._get_session.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_api_put_with_retry_preserves_function_metadata():
+    """Test that api_put_with_retry decorator preserves function metadata."""
+
+    @api_put_with_retry(is_dashboard=False)
+    async def my_put_method(self):
+        """This is the PUT docstring."""
+        return "http://test.local/test", {"data": 1}
+
+    assert my_put_method.__name__ == "my_put_method"
+    assert "PUT docstring" in my_put_method.__doc__
