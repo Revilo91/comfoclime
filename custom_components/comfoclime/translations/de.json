@@ -49,6 +49,9 @@
             "current_comfort_temperature": {
                 "name": "Aktuelle Zieltemperatur"
             },
+            "powerfactor_heatpump": {
+                "name": "Wärmepumpe Leistungsfaktor"
+            },
             "power_heatpump": {
                 "name": "Wärmepumpe Leistungsaufnahme"
             },
@@ -150,8 +153,8 @@
             "unknown_value_4198": {
                 "name": "Unbekannter Wert 4198"
             },
-            "unknown_value_4202": {
-                "name": "Unbekannter Wert 4202"
+            "unknown_temp_4202": {
+                "name": "Unbekannte Temp 4202"
             },
             "unknown_value_4203": {
                 "name": "Unbekannter Wert 4203"
