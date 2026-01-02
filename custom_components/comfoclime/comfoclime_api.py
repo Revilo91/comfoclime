@@ -6,6 +6,8 @@ from zoneinfo import ZoneInfo
 
 import aiohttp
 
+from .api_decorators import api_get, with_request_lock
+
 _LOGGER = logging.getLogger(__name__)
 
 # Rate limiting configuration
@@ -307,41 +309,39 @@ class ComfoClimeAPI:
             self.uuid = data.get("uuid")
             return self.uuid
 
+    @with_request_lock
     async def async_get_uuid(self):
         """Get UUID with lock protection."""
-        async with self._request_lock:
-            return await self._async_get_uuid_internal()
+        return await self._async_get_uuid_internal()
 
-    async def async_get_dashboard_data(self):
-        async with self._request_lock:
-            await self._wait_for_rate_limit(is_write=False)
-            if not self.uuid:
-                await self._async_get_uuid_internal()
-            timeout = aiohttp.ClientTimeout(total=DEFAULT_READ_TIMEOUT)
-            session = await self._get_session()
-            async with session.get(
-                f"{self.base_url}/system/{self.uuid}/dashboard", timeout=timeout
-            ) as response:
-                response.raise_for_status()
-                data = await response.json()
+    @api_get("/system/{uuid}/dashboard", requires_uuid=True, fix_temperatures=True)
+    async def async_get_dashboard_data(self, response_data):
+        """Fetch dashboard data from the API.
 
-            # Fix signed temperature values
-            return self.fix_signed_temperatures_in_dict(data)
+        The @api_get decorator handles:
+        - Request locking
+        - Rate limiting
+        - UUID retrieval
+        - Session management
+        - Temperature value fixing
+        """
+        return response_data
 
-    async def async_get_connected_devices(self):
-        async with self._request_lock:
-            await self._wait_for_rate_limit(is_write=False)
-            if not self.uuid:
-                await self._async_get_uuid_internal()
-            timeout = aiohttp.ClientTimeout(total=DEFAULT_READ_TIMEOUT)
-            session = await self._get_session()
-            url = f"{self.base_url}/system/{self.uuid}/devices"
-            async with session.get(url, timeout=timeout) as response:
-                response.raise_for_status()
-                data = await response.json()
-                return data.get("devices", [])
+    @api_get("/system/{uuid}/devices", requires_uuid=True, response_key="devices")
+    async def async_get_connected_devices(self, response_data):
+        """Fetch connected devices from the API.
 
-    async def async_get_device_definition(self, device_uuid: str):
+        The @api_get decorator handles:
+        - Request locking
+        - Rate limiting
+        - UUID retrieval
+        - Session management
+        - Extracting 'devices' key from response
+        """
+        return response_data
+
+    @api_get("/device/{device_uuid}/definition")
+    async def async_get_device_definition(self, response_data, device_uuid: str):
         """Get device definition data.
 
         Args:
@@ -349,16 +349,13 @@ class ComfoClimeAPI:
 
         Returns:
             Dictionary containing device definition data
+
+        The @api_get decorator handles:
+        - Request locking
+        - Rate limiting
+        - Session management
         """
-        async with self._request_lock:
-            await self._wait_for_rate_limit(is_write=False)
-            timeout = aiohttp.ClientTimeout(total=DEFAULT_READ_TIMEOUT)
-            session = await self._get_session()
-            url = f"{self.base_url}/device/{device_uuid}/definition"
-            async with session.get(url, timeout=timeout) as response:
-                response.raise_for_status()
-                data = await response.json()
-                return data
+        return response_data
 
     async def async_read_telemetry_for_device(
         self,
