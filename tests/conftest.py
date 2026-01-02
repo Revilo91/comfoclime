@@ -114,7 +114,7 @@ def mock_telemetry_coordinator():
     coordinator.async_config_entry_first_refresh = AsyncMock()
     coordinator.async_add_listener = MagicMock(return_value=lambda: None)
     coordinator.last_update_success = True
-    coordinator.register_telemetry = MagicMock()
+    coordinator.register_telemetry = AsyncMock()
     coordinator.get_telemetry_value = MagicMock(return_value=25.5)
     return coordinator
 
@@ -133,7 +133,7 @@ def mock_property_coordinator():
     coordinator.async_config_entry_first_refresh = AsyncMock()
     coordinator.async_add_listener = MagicMock(return_value=lambda: None)
     coordinator.last_update_success = True
-    coordinator.register_property = MagicMock()
+    coordinator.register_property = AsyncMock()
     coordinator.get_property_value = MagicMock(return_value=100)
     return coordinator
 

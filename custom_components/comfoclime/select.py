@@ -58,7 +58,7 @@ async def async_setup_entry(
 
         for select_def in select_defs:
             # Register property with coordinator for batched fetching
-            propcoordinator.register_property(
+            await propcoordinator.register_property(
                 device_uuid=dev_uuid,
                 property_path=select_def["path"],
                 faktor=1.0,

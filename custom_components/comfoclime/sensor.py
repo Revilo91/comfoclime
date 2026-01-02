@@ -107,7 +107,7 @@ async def async_setup_entry(
     for sensor_def in TELEMETRY_SENSORS:
         device_uuid = api.uuid or (main_device.get("uuid") if main_device else None)
         if device_uuid:
-            tlcoordinator.register_telemetry(
+            await tlcoordinator.register_telemetry(
                 device_uuid=device_uuid,
                 telemetry_id=str(sensor_def["id"]),
                 faktor=sensor_def.get("faktor", 1.0),
@@ -152,7 +152,7 @@ async def async_setup_entry(
                     "enable_diagnostics", False
                 ):
                     # Register telemetry with coordinator for batched fetching
-                    tlcoordinator.register_telemetry(
+                    await tlcoordinator.register_telemetry(
                         device_uuid=dev_uuid,
                         telemetry_id=str(sensor_def["telemetry_id"]),
                         faktor=sensor_def.get("faktor", 1.0),
@@ -181,7 +181,7 @@ async def async_setup_entry(
         if property_defs:
             for prop_def in property_defs:
                 # Register property with coordinator for batched fetching
-                propcoordinator.register_property(
+                await propcoordinator.register_property(
                     device_uuid=dev_uuid,
                     property_path=prop_def["path"],
                     faktor=prop_def.get("faktor", 1.0),
