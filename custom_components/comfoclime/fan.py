@@ -88,7 +88,9 @@ async def async_setup_entry(
         if not main_device:
             _LOGGER.warning("Kein Hauptgerät mit modelTypeId 20 gefunden.")
             return
-
+        
+        # Note: Coordinator first refresh is already done in __init__.py
+        # We don't need to await it here to avoid blocking fan setup
         fan_entity = ComfoClimeFan(hass, coordinator, api, main_device, entry)
         async_add_entities([fan_entity], True)
 

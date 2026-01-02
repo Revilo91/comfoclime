@@ -24,6 +24,8 @@ async def async_setup_entry(
     dbcoordinator = data["coordinator"]
     main_device = data["main_device"]
 
+    # Note: Coordinator first refresh is already done in __init__.py
+    # We don't need to await it here to avoid blocking switch setup
     switches = []
 
     # Create switches from definitions
