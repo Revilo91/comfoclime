@@ -30,11 +30,8 @@ async def async_setup_entry(
     tpcoordinator = data["tpcoordinator"]
     propcoordinator: ComfoClimePropertyCoordinator = data["propcoordinator"]
 
-    try:
-        await tpcoordinator.async_config_entry_first_refresh()
-    except Exception as e:
-        _LOGGER.warning(f"Thermalprofile-Daten konnten nicht geladen werden: {e}")
-
+    # Note: Coordinator first refresh is already done in __init__.py
+    # We don't need to await it here to avoid blocking number setup
     entities = [
         ComfoClimeTemperatureNumber(
             hass, tpcoordinator, api, conf, device=main_device, entry=entry
