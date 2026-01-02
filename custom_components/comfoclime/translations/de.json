@@ -10,6 +10,12 @@
             "exhaust_temperature": {
                 "name": "Fortluft Temperatur"
             },
+            "extract_temperature": {
+                "name": "Abluft Temperatur"
+            },
+            "supply_temperature": {
+                "name": "Zuluft Temperatur"
+            },
             "extract_humidity": {
                 "name": "Abluft Feuchtigkeit"
             },
@@ -134,6 +140,36 @@
             },
             "scenario": {
                 "name": "Aktives Szenario"
+            },
+            "unknown_temp_4194": {
+                "name": "Unbekannte Temperatur 4194"
+            },
+            "unknown_temp_4197": {
+                "name": "Unbekannte Temperatur 4197"
+            },
+            "unknown_value_4198": {
+                "name": "Unbekannter Wert 4198"
+            },
+            "unknown_value_4202": {
+                "name": "Unbekannter Wert 4202"
+            },
+            "unknown_value_4203": {
+                "name": "Unbekannter Wert 4203"
+            },
+            "unknown_value_4204": {
+                "name": "Unbekannter Wert 4204"
+            },
+            "unknown_value_4205": {
+                "name": "Unbekannter Wert 4205"
+            },
+            "unknown_value_4206": {
+                "name": "Unbekannter Wert 4206"
+            },
+            "unknown_value_4207": {
+                "name": "Unbekannter Wert 4207"
+            },
+            "unknown_value_4208": {
+                "name": "Unbekannter Wert 4208"
             }
         },
         "select": {
