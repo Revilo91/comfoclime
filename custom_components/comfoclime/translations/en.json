@@ -50,10 +50,10 @@
                 "name": "Current Comfort Temperature"
             },            
             "powerfactor_heatpump": {
-                "name": "Powerfactor Heatpump"
+                "name": "Power Factor Heat Pump"
             },
             "power_heatpump": {
-                "name": "Power Heatpump"
+                "name": "Power Heat Pump"
             },
             "power_ventilation": {
                 "name": "Power Ventilation"
