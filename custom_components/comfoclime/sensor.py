@@ -57,11 +57,8 @@ async def async_setup_entry(
         "definitioncoordinator"
     ]
 
-    try:
-        await coordinator.async_config_entry_first_refresh()
-    except Exception as e:
-        _LOGGER.warning(f"Dashboard-Daten konnten nicht geladen werden: {e}")
-
+    # Note: Coordinator first refresh is already done in __init__.py
+    # We don't need to await it here to avoid blocking sensor setup
     devices = hass.data[DOMAIN][entry.entry_id]["devices"]
     main_device = hass.data[DOMAIN][entry.entry_id]["main_device"]
 
@@ -234,18 +231,27 @@ async def async_setup_entry(
                     )
                 )
 
-    # First refresh of telemetry and property coordinators after all registrations
-    try:
-        await tlcoordinator.async_config_entry_first_refresh()
-    except Exception as e:
-        _LOGGER.warning(f"Telemetrie-Daten konnten nicht geladen werden: {e}")
-
-    try:
-        await propcoordinator.async_config_entry_first_refresh()
-    except Exception as e:
-        _LOGGER.warning(f"Property-Daten konnten nicht geladen werden: {e}")
-
+    # Add entities immediately without waiting for data
+    # Coordinators will fetch data on their regular update interval
+    # This prevents timeout issues during setup with many devices
     async_add_entities(sensors, True)
+    
+    # Schedule background refresh of coordinators after entities are added
+    # This avoids blocking the setup process
+    async def _refresh_coordinators():
+        """Background task to refresh coordinators after entities are added."""
+        try:
+            await tlcoordinator.async_config_entry_first_refresh()
+        except Exception as e:
+            _LOGGER.debug(f"Telemetrie-Daten konnten nicht geladen werden: {e}")
+        
+        try:
+            await propcoordinator.async_config_entry_first_refresh()
+        except Exception as e:
+            _LOGGER.debug(f"Property-Daten konnten nicht geladen werden: {e}")
+    
+    # Run coordinator refresh in background
+    hass.async_create_task(_refresh_coordinators())
 
 
 class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], SensorEntity):
