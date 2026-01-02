@@ -17,11 +17,13 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from . import DOMAIN
 from .coordinator import (
     ComfoClimeDashboardCoordinator,
+    ComfoClimeDefinitionCoordinator,
     ComfoClimePropertyCoordinator,
     ComfoClimeTelemetryCoordinator,
     ComfoClimeThermalprofileCoordinator,
 )
 from .entities.sensor_definitions import (
+    CONNECTED_DEVICE_DEFINITION_SENSORS,
     CONNECTED_DEVICE_PROPERTIES,
     CONNECTED_DEVICE_SENSORS,
     DASHBOARD_SENSORS,
@@ -51,6 +53,9 @@ async def async_setup_entry(
     coordinator: ComfoClimeDashboardCoordinator = data["coordinator"]
     tlcoordinator: ComfoClimeTelemetryCoordinator = data["tlcoordinator"]
     propcoordinator: ComfoClimePropertyCoordinator = data["propcoordinator"]
+    definitioncoordinator: ComfoClimeDefinitionCoordinator = data[
+        "definitioncoordinator"
+    ]
 
     try:
         await coordinator.async_config_entry_first_refresh()
@@ -202,6 +207,27 @@ async def async_setup_entry(
                         device_class=prop_def.get("device_class"),
                         state_class=prop_def.get("state_class"),
                         entity_category=prop_def.get("entity_category"),
+                        device=device,
+                        override_device_uuid=dev_uuid,
+                        entry=entry,
+                    )
+                )
+
+        # Definition-based sensors (from /device/{UUID}/definition endpoint)
+        definition_defs = CONNECTED_DEVICE_DEFINITION_SENSORS.get(model_id)
+        if definition_defs:
+            for def_sensor_def in definition_defs:
+                sensors.append(
+                    ComfoClimeDefinitionSensor(
+                        hass=hass,
+                        coordinator=definitioncoordinator,
+                        key=def_sensor_def["key"],
+                        name=def_sensor_def["name"],
+                        translation_key=def_sensor_def.get("translation_key", False),
+                        unit=def_sensor_def.get("unit"),
+                        device_class=def_sensor_def.get("device_class"),
+                        state_class=def_sensor_def.get("state_class"),
+                        entity_category=def_sensor_def.get("entity_category"),
                         device=device,
                         override_device_uuid=dev_uuid,
                         entry=entry,
@@ -487,6 +513,85 @@ class ComfoClimePropertySensor(
         except Exception:
             _LOGGER.debug(
                 "Fehler beim Abrufen von Property %s", self._path, exc_info=True
+            )
+            self._state = None
+        self.async_write_ha_state()
+
+
+class ComfoClimeDefinitionSensor(
+    CoordinatorEntity[ComfoClimeDefinitionCoordinator], SensorEntity
+):
+    """Sensor for definition data using coordinator for batched fetching."""
+
+    def __init__(
+        self,
+        hass,
+        coordinator: ComfoClimeDefinitionCoordinator,
+        key: str,
+        name: str,
+        translation_key: str,
+        *,
+        unit: str | None = None,
+        device_class: str | None = None,
+        state_class: str | None = None,
+        entity_category: str | None = None,
+        device: dict | None = None,
+        override_device_uuid: str | None = None,
+        entry: ConfigEntry,
+    ):
+        super().__init__(coordinator)
+        self._hass = hass
+        self._key = key
+        self._name = name
+        self._attr_native_unit_of_measurement = unit
+        self._attr_device_class = (
+            SensorDeviceClass(device_class) if device_class else None
+        )
+        self._attr_state_class = SensorStateClass(state_class) if state_class else None
+        self._attr_entity_category = (
+            EntityCategory(entity_category) if entity_category else None
+        )
+        self._device = device
+        self._override_uuid = override_device_uuid
+        self._state = None
+        self._attr_config_entry_id = entry.entry_id
+        self._attr_unique_id = (
+            f"{entry.entry_id}_definition_{override_device_uuid}_{key}"
+        )
+        if not translation_key:
+            self._attr_name = name
+        else:
+            self._attr_translation_key = translation_key
+        self._attr_has_entity_name = True
+
+    @property
+    def native_value(self):
+        return self._state
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        if not self._device:
+            return None
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._device["uuid"])},
+            name=self._device.get("displayName", "ComfoClime"),
+            manufacturer="Zehnder",
+            model=self._device.get("@modelType"),
+            sw_version=self._device.get("version"),
+        )
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        try:
+            definition_data = self.coordinator.get_definition_data(self._override_uuid)
+            if definition_data:
+                self._state = definition_data.get(self._key)
+            else:
+                self._state = None
+        except Exception:
+            _LOGGER.debug(
+                "Error retrieving definition %s", self._key, exc_info=True
             )
             self._state = None
         self.async_write_ha_state()
