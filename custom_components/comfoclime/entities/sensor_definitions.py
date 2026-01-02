@@ -294,10 +294,12 @@ CONNECTED_DEVICE_SENSORS = {
         },
         {
             "telemetry_id": 4198,
-            "name": "Unknown value 4198",
-            "translation_key": "unknown_value_4198",
+            "name": "Power Factor Heatpump",
+            "translation_key": "powerfactor_heatpump"
+            "unit": "%",
+            "device_class": "power_factor",
+            "state_class": "measurement",
             "byte_count": 1,
-            "diagnose": True,
         },
         {
             "telemetry_id": 4201,
