@@ -50,7 +50,7 @@
                 "name": "Aktuelle Zieltemperatur"
             },
             "powerfactor_heatpump": {
-                "name": "Wärmepumpe Powerfaktor"
+                "name": "Wärmepumpe Leistungsfaktor"
             },
             "power_heatpump": {
                 "name": "Wärmepumpe Leistungsaufnahme"
