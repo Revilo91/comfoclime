@@ -6,6 +6,8 @@ from zoneinfo import ZoneInfo
 
 import aiohttp
 
+from .api_decorators import api_get, api_put, with_request_lock
+
 _LOGGER = logging.getLogger(__name__)
 
 # Rate limiting configuration
@@ -307,41 +309,39 @@ class ComfoClimeAPI:
             self.uuid = data.get("uuid")
             return self.uuid
 
+    @with_request_lock
     async def async_get_uuid(self):
         """Get UUID with lock protection."""
-        async with self._request_lock:
-            return await self._async_get_uuid_internal()
+        return await self._async_get_uuid_internal()
 
-    async def async_get_dashboard_data(self):
-        async with self._request_lock:
-            await self._wait_for_rate_limit(is_write=False)
-            if not self.uuid:
-                await self._async_get_uuid_internal()
-            timeout = aiohttp.ClientTimeout(total=DEFAULT_READ_TIMEOUT)
-            session = await self._get_session()
-            async with session.get(
-                f"{self.base_url}/system/{self.uuid}/dashboard", timeout=timeout
-            ) as response:
-                response.raise_for_status()
-                data = await response.json()
+    @api_get("/system/{uuid}/dashboard", requires_uuid=True, fix_temperatures=True)
+    async def async_get_dashboard_data(self, response_data):
+        """Fetch dashboard data from the API.
 
-            # Fix signed temperature values
-            return self.fix_signed_temperatures_in_dict(data)
+        The @api_get decorator handles:
+        - Request locking
+        - Rate limiting
+        - UUID retrieval
+        - Session management
+        - Temperature value fixing
+        """
+        return response_data
 
-    async def async_get_connected_devices(self):
-        async with self._request_lock:
-            await self._wait_for_rate_limit(is_write=False)
-            if not self.uuid:
-                await self._async_get_uuid_internal()
-            timeout = aiohttp.ClientTimeout(total=DEFAULT_READ_TIMEOUT)
-            session = await self._get_session()
-            url = f"{self.base_url}/system/{self.uuid}/devices"
-            async with session.get(url, timeout=timeout) as response:
-                response.raise_for_status()
-                data = await response.json()
-                return data.get("devices", [])
+    @api_get("/system/{uuid}/devices", requires_uuid=True, response_key="devices", response_default=[])
+    async def async_get_connected_devices(self, response_data):
+        """Fetch connected devices from the API.
 
-    async def async_get_device_definition(self, device_uuid: str):
+        The @api_get decorator handles:
+        - Request locking
+        - Rate limiting
+        - UUID retrieval
+        - Session management
+        - Extracting 'devices' key from response (returns [] if not found)
+        """
+        return response_data
+
+    @api_get("/device/{device_uuid}/definition")
+    async def async_get_device_definition(self, response_data, device_uuid: str):
         """Get device definition data.
 
         Args:
@@ -349,16 +349,13 @@ class ComfoClimeAPI:
 
         Returns:
             Dictionary containing device definition data
+
+        The @api_get decorator handles:
+        - Request locking
+        - Rate limiting
+        - Session management
         """
-        async with self._request_lock:
-            await self._wait_for_rate_limit(is_write=False)
-            timeout = aiohttp.ClientTimeout(total=DEFAULT_READ_TIMEOUT)
-            session = await self._get_session()
-            url = f"{self.base_url}/device/{device_uuid}/definition"
-            async with session.get(url, timeout=timeout) as response:
-                response.raise_for_status()
-                data = await response.json()
-                return data
+        return response_data
 
     async def async_read_telemetry_for_device(
         self,
@@ -499,29 +496,32 @@ class ComfoClimeAPI:
             return None
         return data
 
-    async def async_get_thermal_profile(self):
-        async with self._request_lock:
-            await self._wait_for_rate_limit(is_write=False)
-            if not self.uuid:
-                await self._async_get_uuid_internal()
-            url = f"{self.base_url}/system/{self.uuid}/thermalprofile"
-            try:
-                timeout = aiohttp.ClientTimeout(total=DEFAULT_READ_TIMEOUT)
-                session = await self._get_session()
-                async with session.get(url, timeout=timeout) as response:
-                    response.raise_for_status()
-                    data = await response.json()
-                    # Fix signed temperature values in nested structure
-                    return self.fix_signed_temperatures_in_dict(data)
-            except aiohttp.ClientError as e:
-                _LOGGER.warning(f"Fehler beim Abrufen von thermal_profile: {e}")
-                return {}  # leer zurückgeben statt crashen
+    @api_get("/system/{uuid}/thermalprofile", requires_uuid=True, fix_temperatures=True, on_error={})
+    async def async_get_thermal_profile(self, response_data):
+        """Fetch thermal profile data from the API.
 
-    async def _update_thermal_profile(self, **kwargs) -> bool:
+        The @api_get decorator handles:
+        - Request locking
+        - Rate limiting
+        - UUID retrieval
+        - Session management
+        - Temperature value fixing
+        - Error handling (returns {} on error)
+        """
+        return response_data
+
+    @api_put("/system/{uuid}/thermalprofile", requires_uuid=True)
+    async def _update_thermal_profile(self, **kwargs) -> dict:
         """Update thermal profile settings via API.
 
         Modern method for thermal profile updates. Only fields that are provided
         will be included in the update payload.
+
+        The @api_put decorator handles:
+        - UUID retrieval
+        - Rate limiting
+        - Retry with exponential backoff
+        - Error handling
 
         Supported kwargs:
             - season_status, season_value, heating_threshold_temperature, cooling_threshold_temperature
@@ -531,11 +531,8 @@ class ComfoClimeAPI:
             - cooling_comfort_temperature, cooling_knee_point_temperature, cooling_temperature_limit
 
         Returns:
-            True if update was successful, False otherwise
+            Payload dict for the decorator to process.
         """
-        if not self.uuid:
-            await self._async_get_uuid_internal()
-
         # Use class-level FIELD_MAPPING
         field_mapping = self.FIELD_MAPPING
 
@@ -557,59 +554,9 @@ class ComfoClimeAPI:
                     payload[section] = {}
                 payload[section][key] = value
 
-        if not payload:
-            _LOGGER.debug(
-                "No thermal profile fields to update (empty payload) - skipping PUT"
-            )
-            return True
+        return payload
 
-        await self._wait_for_rate_limit(is_write=True)
-
-        url = f"{self.base_url}/system/{self.uuid}/thermalprofile"
-
-        # Retry logic for transient failures
-        last_exception = None
-        for attempt in range(MAX_RETRIES + 1):
-            try:
-                # Use longer timeout for write operations
-                timeout = aiohttp.ClientTimeout(total=DEFAULT_WRITE_TIMEOUT)
-                session = await self._get_session()
-                _LOGGER.debug(
-                    f"Thermal profile update attempt {attempt + 1}/{MAX_RETRIES + 1}, "
-                    f"timeout={DEFAULT_WRITE_TIMEOUT}s, payload: {payload}"
-                )
-                async with session.put(url, json=payload, timeout=timeout) as response:
-                    response.raise_for_status()
-                    _LOGGER.debug(
-                        f"Thermal Profile Update erfolgreich, Status: {response.status}"
-                    )
-                    return response.status == 200
-            except (  # noqa: PERF203
-                asyncio.TimeoutError,
-                asyncio.CancelledError,
-                aiohttp.ClientError,
-            ) as e:
-                last_exception = e
-                if attempt < MAX_RETRIES:
-                    # Exponential backoff: 2s, 4s, 8s
-                    wait_time = 2 ** (attempt + 1)
-                    _LOGGER.warning(
-                        f"Thermal profile update failed (attempt {attempt + 1}/{MAX_RETRIES + 1}), "
-                        f"retrying in {wait_time}s: {type(e).__name__}: {e}"
-                    )
-                    await asyncio.sleep(wait_time)
-                else:
-                    _LOGGER.exception(
-                        f"Thermal profile update failed after {MAX_RETRIES + 1} attempts: "
-                        f"{type(e).__name__}"
-                    )
-
-        # If we get here, all retries failed
-        # last_exception should always be set by the loop, but we check defensively
-        if last_exception:
-            raise last_exception
-        raise RuntimeError("Thermal profile update failed with unknown error")
-
+    @api_put("/system/{uuid}/dashboard", requires_uuid=True, is_dashboard=True)
     async def _update_dashboard(
         self,
         set_point_temperature: float | None = None,
@@ -629,42 +576,12 @@ class ComfoClimeAPI:
         Modern method for dashboard updates. Only fields that are provided
         (not None) will be included in the update payload.
 
-        # Android app export from @msfuture
-        payload = {
-            "@type": None,
-            "name": None,
-            "displayName": None,
-            "description": None,
-            "timestamp": datetime.datetime.now().isoformat(),
-            "status": status,
-            "setPointTemperature": set_point_temperature,
-            "temperatureProfile": temperature_profile,
-            "seasonProfile": season_profile,
-            "fanSpeed": fan_speed,
-            "scenario": None,
-            "scenarioTimeLeft": None,
-            "season": season,
-            "schedule": None,
-            "scenario": None,
-            "scenarioTimeLeft": None,
-            "scenarioStartDelay": None
-        }
-
-        The API distinguishes between two modes:
-        - Automatic mode (status=1): Uses preset profiles (seasonProfile, temperatureProfile)
-        - Manual mode (status=0): Uses manual temperature (setPointTemperature)
-
-        Scenario modes:
-        - 4: Kochen (Cooking) - 30 minutes high ventilation
-        - 5: Party - 30 minutes high ventilation
-        - 7: Urlaub (Holiday) - 24 hours reduced mode
-        - 8: Boost - 30 minutes maximum power
-
-        Scenario modes:
-        - 4: Kochen (Cooking) - 30 minutes high ventilation
-        - 5: Party - 30 minutes high ventilation
-        - 7: Urlaub (Holiday) - 24 hours reduced mode
-        - 8: Boost - 30 minutes maximum power
+        The @api_put decorator handles:
+        - UUID retrieval
+        - Rate limiting
+        - Timestamp addition (is_dashboard=True)
+        - Retry with exponential backoff
+        - Error handling
 
         Args:
             set_point_temperature: Target temperature (°C) - activates manual mode
@@ -678,19 +595,10 @@ class ComfoClimeAPI:
             scenario: Scenario mode (4=Kochen, 5=Party, 7=Urlaub, 8=Boost)
             scenario_time_left: Duration for scenario in seconds (e.g., 1800 for 30min)
             scenario_start_delay: Start delay for scenario in seconds (optional)
-            scenario: Scenario mode (4=Kochen, 5=Party, 7=Urlaub, 8=Boost)
-            scenario_time_left: Duration for scenario in seconds (e.g., 1800 for 30min)
-            scenario_start_delay: Start delay for scenario in seconds (optional)
 
         Returns:
-            Response JSON from the API
-
-        Raises:
-            aiohttp.ClientError: If the API request fails
+            Payload dict for the decorator to process.
         """
-        if not self.uuid:
-            await self._async_get_uuid_internal()
-
         # Dynamically build payload; only include keys explicitly provided.
         payload: dict = {}
         if set_point_temperature is not None:
@@ -716,71 +624,7 @@ class ComfoClimeAPI:
         if scenario_start_delay is not None:
             payload["scenarioStartDelay"] = scenario_start_delay
 
-        if not payload:
-            _LOGGER.debug(
-                "No dashboard fields to update (empty payload) - skipping PUT"
-            )
-            return {}
-
-        await self._wait_for_rate_limit(is_write=True)
-
-        # Add timestamp to payload
-        if not self.hass:
-            raise ValueError("hass instance required for timestamp generation")
-        tz = ZoneInfo(self.hass.config.time_zone)
-        payload["timestamp"] = datetime.now(tz).isoformat()
-
-        headers = {"content-type": "application/json; charset=utf-8"}
-        url = f"{self.base_url}/system/{self.uuid}/dashboard"
-
-        # Retry logic for transient failures
-        last_exception = None
-        for attempt in range(MAX_RETRIES + 1):
-            try:
-                # Use longer timeout for write operations
-                timeout = aiohttp.ClientTimeout(total=DEFAULT_WRITE_TIMEOUT)
-                session = await self._get_session()
-                _LOGGER.debug(
-                    f"Dashboard update attempt {attempt + 1}/{MAX_RETRIES + 1}, "
-                    f"timeout={DEFAULT_WRITE_TIMEOUT}s, payload={payload}"
-                )
-                async with session.put(
-                    url, json=payload, headers=headers, timeout=timeout
-                ) as response:
-                    response.raise_for_status()
-                    try:
-                        resp_json = await response.json()
-                    except Exception:
-                        resp_json = {"text": await response.text()}
-                    _LOGGER.debug(
-                        f"Dashboard update OK payload={payload} response={resp_json}"
-                    )
-                    return resp_json
-            except (  # noqa: PERF203
-                asyncio.TimeoutError,
-                asyncio.CancelledError,
-                aiohttp.ClientError,
-            ) as e:
-                last_exception = e
-                if attempt < MAX_RETRIES:
-                    # Exponential backoff: 2s, 4s, 8s
-                    wait_time = 2 ** (attempt + 1)
-                    _LOGGER.warning(
-                        f"Dashboard update failed (attempt {attempt + 1}/{MAX_RETRIES + 1}), "
-                        f"retrying in {wait_time}s: {type(e).__name__}: {e}"
-                    )
-                    await asyncio.sleep(wait_time)
-                else:
-                    _LOGGER.exception(
-                        f"Dashboard update failed after {MAX_RETRIES + 1} attempts: "
-                        f"{type(e).__name__}"
-                    )
-
-        # If we get here, all retries failed
-        # last_exception should always be set by the loop, but we check defensively
-        if last_exception:
-            raise last_exception
-        raise RuntimeError("Dashboard update failed with unknown error")
+        return payload
 
     async def async_update_dashboard(self, **kwargs):
         """Async wrapper for update_dashboard method."""
