@@ -25,10 +25,6 @@ async def async_setup_entry(
     main_device = data["main_device"]
 
     switches = []
-    try:
-        await tpcoordinator.async_config_entry_first_refresh()
-    except Exception as e:
-        _LOGGER.warning(f"Thermalprofile-Daten konnten nicht geladen werden: {e}")
 
     # Create switches from definitions
     for s in SWITCHES:

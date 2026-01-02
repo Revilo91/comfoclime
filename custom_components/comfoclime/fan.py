@@ -88,10 +88,6 @@ async def async_setup_entry(
         if not main_device:
             _LOGGER.warning("Kein Hauptgerät mit modelTypeId 20 gefunden.")
             return
-        try:
-            await coordinator.async_config_entry_first_refresh()
-        except Exception as e:
-            _LOGGER.warning(f"Dashboard-Daten konnten nicht geladen werden: {e}")
 
         fan_entity = ComfoClimeFan(hass, coordinator, api, main_device, entry)
         async_add_entities([fan_entity], True)

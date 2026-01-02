@@ -57,11 +57,6 @@ async def async_setup_entry(
         "definitioncoordinator"
     ]
 
-    try:
-        await coordinator.async_config_entry_first_refresh()
-    except Exception as e:
-        _LOGGER.warning(f"Dashboard-Daten konnten nicht geladen werden: {e}")
-
     devices = hass.data[DOMAIN][entry.entry_id]["devices"]
     main_device = hass.data[DOMAIN][entry.entry_id]["main_device"]
 
