@@ -31,6 +31,7 @@ def api_get(
     requires_uuid: bool = False,
     fix_temperatures: bool = False,
     response_key: str | None = None,
+    response_default: Any = None,
 ):
     """Decorator for GET API endpoints.
 
@@ -48,6 +49,7 @@ def api_get(
         requires_uuid: Whether the endpoint requires the system UUID to be fetched first.
         fix_temperatures: Whether to fix signed temperature values in the response.
         response_key: Optional key to extract from response (e.g., "devices" returns data["devices"]).
+        response_default: Default value when response_key is not found (default: None, uses empty dict).
 
     Example:
         @api_get("/system/{uuid}/dashboard", requires_uuid=True, fix_temperatures=True)
@@ -91,7 +93,8 @@ def api_get(
 
                 # Extract specific key if specified
                 if response_key:
-                    data = data.get(response_key, [] if response_key == "devices" else {})
+                    default = response_default if response_default is not None else {}
+                    data = data.get(response_key, default)
 
                 # Fix temperature values if needed
                 if fix_temperatures:
@@ -194,7 +197,7 @@ def api_put_with_retry(
             url, payload = await func(self, *args, **kwargs)
 
             if not payload:
-                _LOGGER.debug(f"No fields to update (empty payload) - skipping PUT")
+                _LOGGER.debug("No fields to update (empty payload) - skipping PUT.")
                 return {} if is_dashboard else True
 
             await self._wait_for_rate_limit(is_write=True)

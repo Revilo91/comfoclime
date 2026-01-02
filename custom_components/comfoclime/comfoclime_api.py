@@ -327,7 +327,7 @@ class ComfoClimeAPI:
         """
         return response_data
 
-    @api_get("/system/{uuid}/devices", requires_uuid=True, response_key="devices")
+    @api_get("/system/{uuid}/devices", requires_uuid=True, response_key="devices", response_default=[])
     async def async_get_connected_devices(self, response_data):
         """Fetch connected devices from the API.
 
@@ -336,7 +336,7 @@ class ComfoClimeAPI:
         - Rate limiting
         - UUID retrieval
         - Session management
-        - Extracting 'devices' key from response
+        - Extracting 'devices' key from response (returns [] if not found)
         """
         return response_data
 
