@@ -28,17 +28,19 @@ async def async_setup(hass: HomeAssistant, config: dict):
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN][entry.entry_id] = entry.data
+    
     host = entry.data["host"]
     api = ComfoClimeAPI(f"http://{host}", hass=hass)
+    
+    # Get connected devices before creating coordinators
+    devices = await api.async_get_connected_devices()
+    
     # Dashboard-Coordinator erstellen
     dashboard_coordinator = ComfoClimeDashboardCoordinator(hass, api)
     await dashboard_coordinator.async_config_entry_first_refresh()
+    
     thermalprofile_coordinator = ComfoClimeThermalprofileCoordinator(hass, api)
     await thermalprofile_coordinator.async_config_entry_first_refresh()
-    devices = await api.async_get_connected_devices()
-    if DOMAIN not in hass.data:
-        hass.data[DOMAIN] = {}
 
     # Create telemetry and property coordinators with device list
     tlcoordinator = ComfoClimeTelemetryCoordinator(hass, api, devices)
