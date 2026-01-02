@@ -251,6 +251,7 @@ CONNECTED_DEVICE_SENSORS = {
         {
             "telemetry_id": 4194,
             "name": "Unknown temp 4194",
+            "translation_key": "unknown_temp_4194",
             "unit": "°C",
             "faktor": 0.1,
             "byte_count": 2,
@@ -283,6 +284,7 @@ CONNECTED_DEVICE_SENSORS = {
         {
             "telemetry_id": 4197,
             "name": "Unknown temp 4197",
+            "translation_key": "unknown_temp_4197",
             "unit": "°C",
             "faktor": 0.1,
             "byte_count": 2,
@@ -293,6 +295,7 @@ CONNECTED_DEVICE_SENSORS = {
         {
             "telemetry_id": 4198,
             "name": "Unknown value 4198",
+            "translation_key": "unknown_value_4198",
             "byte_count": 1,
             "diagnose": True,
         },
@@ -307,42 +310,49 @@ CONNECTED_DEVICE_SENSORS = {
         {
             "telemetry_id": 4202,
             "name": "Unknown value 4202",
+            "translation_key": "unknown_value_4202",
             "state_class": "measurement",
             "diagnose": True,
         },
         {
             "telemetry_id": 4203,
             "name": "Unknown value 4203",
+            "translation_key": "unknown_value_4203",
             "state_class": "measurement",
             "diagnose": True,
         },
         {
             "telemetry_id": 4204,
             "name": "Unknown value 4204",
+            "translation_key": "unknown_value_4204",
             "state_class": "measurement",
             "diagnose": True,
         },
         {
             "telemetry_id": 4205,
             "name": "Unknown value 4205",
+            "translation_key": "unknown_value_4205",
             "state_class": "measurement",
             "diagnose": True,
         },
         {
             "telemetry_id": 4206,
             "name": "Unknown value 4206",
+            "translation_key": "unknown_value_4206",
             "state_class": "measurement",
             "diagnose": True,
         },
         {
             "telemetry_id": 4207,
             "name": "Unknown value 4207",
+            "translation_key": "unknown_value_4207",
             "state_class": "measurement",
             "diagnose": True,
         },
         {
             "telemetry_id": 4208,
             "name": "Unknown value 4208",
+            "translation_key": "unknown_value_4208",
             "state_class": "measurement",
             "diagnose": True,
         },
