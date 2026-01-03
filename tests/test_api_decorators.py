@@ -216,6 +216,38 @@ async def test_api_get_preserves_function_metadata():
     assert "docstring" in my_documented_method.__doc__
 
 
+@pytest.mark.asyncio
+async def test_api_get_skip_lock():
+    """Test api_get decorator with skip_lock=True doesn't acquire lock."""
+    mock_response = {"uuid": "test-uuid-123"}
+
+    @api_get("/monitoring/ping", skip_lock=True)
+    async def test_method(self, response_data):
+        return response_data
+
+    api = MockAPI()
+
+    # Mock session and response
+    mock_session = MagicMock()
+    mock_context = MagicMock()
+    mock_context.__aenter__ = AsyncMock(return_value=MagicMock(
+        raise_for_status=MagicMock(),
+        json=AsyncMock(return_value=mock_response)
+    ))
+    mock_context.__aexit__ = AsyncMock()
+    mock_session.get = MagicMock(return_value=mock_context)
+    api._get_session = AsyncMock(return_value=mock_session)
+
+    result = await test_method(api)
+
+    assert result == mock_response
+    # With skip_lock=True, lock should NOT be acquired
+    api._request_lock.__aenter__.assert_not_called()
+    api._request_lock.__aexit__.assert_not_called()
+    # But rate limiting should still be called
+    api._wait_for_rate_limit.assert_called_once_with(is_write=False)
+
+
 class MockAPIForPut:
     """Mock API class for testing PUT decorators."""
 

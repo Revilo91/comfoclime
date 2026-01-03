@@ -318,23 +318,20 @@ class ComfoClimeAPI:
                 data[key] = ComfoClimeAPI.fix_signed_temperature(val)
         return data
 
-    async def _async_get_uuid_internal(self):
+    @api_get("/monitoring/ping", skip_lock=True)
+    async def _async_get_uuid_internal(self, response_data):
         """Internal method to get UUID.
         
         This method is called from within api_get decorators where the lock
-        is already held, so it must not use the decorator to avoid deadlock.
+        is already held, so it uses skip_lock=True to avoid deadlock.
         
-        It performs a simple GET to /monitoring/ping to fetch the system UUID.
+        The @api_get decorator handles:
+        - Rate limiting
+        - Session management
+        - HTTP request to /monitoring/ping
         """
-        url = self.base_url + "/monitoring/ping"
-        timeout = aiohttp.ClientTimeout(total=self.read_timeout)
-        session = await self._get_session()
-        
-        async with session.get(url, timeout=timeout) as response:
-            response.raise_for_status()
-            data = await response.json()
-            self.uuid = data.get("uuid")
-            return self.uuid
+        self.uuid = response_data.get("uuid")
+        return self.uuid
 
     @with_request_lock
     async def async_get_uuid(self):
