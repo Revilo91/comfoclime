@@ -41,7 +41,6 @@ Kurze, präzise Hinweise für KI-Coding-Agenten, damit sie sofort produktiv an d
 - `comfoclime.set_scenario_mode` — activate scenario mode with custom duration. Required: `entity_id`, `scenario` (cooking/party/away/boost). Optional: `duration` (minutes), `start_delay`.
 
 ## Development & debugging
-- **Python-Umgebung**: Alle Ausführungen (Tests, Skripte, API-Aufrufe) müssen in der `.venv` virtuellen Umgebung laufen. Vor jedem Projekt-Start aktivieren: `source .venv/bin/activate`.
 - Use provided Codespace/Dev Container — Home Assistant boots automatically on port 8123 (see `.devcontainer/README.md`).
 - Debug logging: `.devcontainer/configuration.yaml` enables debug for `custom_components.comfoclime`.
 - Fast iteration: `container restart` after code changes (not full devcontainer rebuild).
