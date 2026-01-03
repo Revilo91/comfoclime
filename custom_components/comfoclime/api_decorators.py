@@ -64,7 +64,6 @@ def api_get(
         @functools.wraps(func)
         async def wrapper(self, *args, **kwargs):
             # Import here to avoid circular imports
-            from .comfoclime_api import DEFAULT_READ_TIMEOUT
             import inspect
 
             # Bind positional arguments to their parameter names for URL formatting
@@ -89,7 +88,7 @@ def api_get(
                     url = self.base_url + url_template.format(uuid=self.uuid, **url_kwargs)
 
                     # Make request
-                    timeout = aiohttp.ClientTimeout(total=DEFAULT_READ_TIMEOUT)
+                    timeout = aiohttp.ClientTimeout(total=self.read_timeout)
                     session = await self._get_session()
                     async with session.get(url, timeout=timeout) as response:
                         response.raise_for_status()
@@ -155,7 +154,7 @@ def api_put(
         @functools.wraps(func)
         async def wrapper(self, *args, **kwargs):
             # Import here to avoid circular imports
-            from .comfoclime_api import DEFAULT_WRITE_TIMEOUT, MAX_RETRIES
+            from .comfoclime_api import MAX_RETRIES
 
             # Get UUID if required
             if requires_uuid and not self.uuid:
@@ -189,11 +188,11 @@ def api_put(
             last_exception = None
             for attempt in range(MAX_RETRIES + 1):
                 try:
-                    timeout = aiohttp.ClientTimeout(total=DEFAULT_WRITE_TIMEOUT)
+                    timeout = aiohttp.ClientTimeout(total=self.write_timeout)
                     session = await self._get_session()
                     _LOGGER.debug(
                         f"PUT attempt {attempt + 1}/{MAX_RETRIES + 1}, "
-                        f"timeout={DEFAULT_WRITE_TIMEOUT}s, payload={payload}"
+                        f"timeout={self.write_timeout}s, payload={payload}"
                     )
                     async with session.put(
                         url, json=payload, headers=headers, timeout=timeout

@@ -30,24 +30,38 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     hass.data.setdefault(DOMAIN, {})
     
     host = entry.data["host"]
-    api = ComfoClimeAPI(f"http://{host}", hass=hass)
+    
+    # Get configuration options with defaults
+    read_timeout = entry.options.get("read_timeout", 10)
+    write_timeout = entry.options.get("write_timeout", 30)
+    polling_interval = entry.options.get("polling_interval", 60)
+    cache_ttl = entry.options.get("cache_ttl", 30)
+    
+    # Create API instance with configured timeouts and cache TTL
+    api = ComfoClimeAPI(
+        f"http://{host}",
+        hass=hass,
+        read_timeout=read_timeout,
+        write_timeout=write_timeout,
+        cache_ttl=cache_ttl,
+    )
     
     # Get connected devices before creating coordinators
     devices = await api.async_get_connected_devices()
     
     # Dashboard-Coordinator erstellen
-    dashboard_coordinator = ComfoClimeDashboardCoordinator(hass, api)
+    dashboard_coordinator = ComfoClimeDashboardCoordinator(hass, api, polling_interval)
     await dashboard_coordinator.async_config_entry_first_refresh()
     
-    thermalprofile_coordinator = ComfoClimeThermalprofileCoordinator(hass, api)
+    thermalprofile_coordinator = ComfoClimeThermalprofileCoordinator(hass, api, polling_interval)
     await thermalprofile_coordinator.async_config_entry_first_refresh()
 
     # Create telemetry and property coordinators with device list
-    tlcoordinator = ComfoClimeTelemetryCoordinator(hass, api, devices)
-    propcoordinator = ComfoClimePropertyCoordinator(hass, api, devices)
+    tlcoordinator = ComfoClimeTelemetryCoordinator(hass, api, devices, polling_interval)
+    propcoordinator = ComfoClimePropertyCoordinator(hass, api, devices, polling_interval)
 
     # Create definition coordinator for device definition data (mainly for ComfoAirQ)
-    definitioncoordinator = ComfoClimeDefinitionCoordinator(hass, api, devices)
+    definitioncoordinator = ComfoClimeDefinitionCoordinator(hass, api, devices, polling_interval)
     await definitioncoordinator.async_config_entry_first_refresh()
 
     hass.data[DOMAIN][entry.entry_id] = {

@@ -328,7 +328,17 @@
                 "data": {
                     "enable_diagnostics": "Diagnose-Sensoren aktivieren",
                     "minimal_mode": "Keine ComfoNet Abfragen (Testzwecke)",
-                    "throttle_comfonet": "Wartezeit von 10ms zwischen ComfoNet Abfragen"
+                    "throttle_comfonet": "Wartezeit von 10ms zwischen ComfoNet Abfragen",
+                    "read_timeout": "Timeout für Lese-Operationen (Sekunden, 1-120)",
+                    "write_timeout": "Timeout für Schreib-Operationen (Sekunden, 1-120)",
+                    "polling_interval": "Aktualisierungsintervall (Sekunden, 10-600)",
+                    "cache_ttl": "Cache-Gültigkeitsdauer (Sekunden, 0-300)"
+                },
+                "data_description": {
+                    "read_timeout": "Maximale Wartezeit für API-Leseanfragen (Standard: 10 Sekunden)",
+                    "write_timeout": "Maximale Wartezeit für API-Schreibanfragen (Standard: 30 Sekunden)",
+                    "polling_interval": "Wie oft die Daten vom Gerät abgerufen werden (Standard: 60 Sekunden)",
+                    "cache_ttl": "Wie lange Telemetrie- und Property-Daten zwischengespeichert werden (Standard: 30 Sekunden, 0 = kein Cache)"
                 }
             }
         }

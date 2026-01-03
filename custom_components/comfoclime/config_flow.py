@@ -1,8 +1,18 @@
 import aiohttp
 import voluptuous as vol
+from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
+from homeassistant.core import callback
 
 DOMAIN = "comfoclime"
+
+# Default values for configuration options
+DEFAULT_READ_TIMEOUT = 10
+DEFAULT_WRITE_TIMEOUT = 30
+DEFAULT_POLLING_INTERVAL = 60
+DEFAULT_CACHE_TTL = 30
+DEFAULT_MIN_REQUEST_INTERVAL = 0.1
+DEFAULT_WRITE_COOLDOWN = 2.0
 
 
 class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -76,6 +86,22 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         "throttle_comfonet",
                         default=self.entry.options.get("throttle_comfonet", False),
                     ): bool,
+                    vol.Optional(
+                        "read_timeout",
+                        default=self.entry.options.get("read_timeout", DEFAULT_READ_TIMEOUT),
+                    ): vol.All(vol.Coerce(int), vol.Range(min=1, max=120)),
+                    vol.Optional(
+                        "write_timeout",
+                        default=self.entry.options.get("write_timeout", DEFAULT_WRITE_TIMEOUT),
+                    ): vol.All(vol.Coerce(int), vol.Range(min=1, max=120)),
+                    vol.Optional(
+                        "polling_interval",
+                        default=self.entry.options.get("polling_interval", DEFAULT_POLLING_INTERVAL),
+                    ): vol.All(vol.Coerce(int), vol.Range(min=10, max=600)),
+                    vol.Optional(
+                        "cache_ttl",
+                        default=self.entry.options.get("cache_ttl", DEFAULT_CACHE_TTL),
+                    ): vol.All(vol.Coerce(int), vol.Range(min=0, max=300)),
                 }
             ),
         )

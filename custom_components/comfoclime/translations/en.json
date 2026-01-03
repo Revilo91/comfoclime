@@ -327,7 +327,17 @@
                 "data": {
                     "enable_diagnostics": "Activate diagnosis sensors",
                     "minimal_mode": "No communication with ComfoNet Bus (testing)",
-                    "throttle_comfonet": "Add a 10ms pause between ComfoNet polls"
+                    "throttle_comfonet": "Add a 10ms pause between ComfoNet polls",
+                    "read_timeout": "Read operation timeout (seconds, 1-120)",
+                    "write_timeout": "Write operation timeout (seconds, 1-120)",
+                    "polling_interval": "Update interval (seconds, 10-600)",
+                    "cache_ttl": "Cache time-to-live (seconds, 0-300)"
+                },
+                "data_description": {
+                    "read_timeout": "Maximum wait time for API read requests (default: 10 seconds)",
+                    "write_timeout": "Maximum wait time for API write requests (default: 30 seconds)",
+                    "polling_interval": "How often to fetch data from the device (default: 60 seconds)",
+                    "cache_ttl": "How long to cache telemetry and property data (default: 30 seconds, 0 = no cache)"
                 }
             }
         }
