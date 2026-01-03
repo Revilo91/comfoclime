@@ -1,8 +1,10 @@
 name: Validate with hassfest
 
 on:
+  push:
   pull_request:
-    branches: [main, master]
+  schedule:
+    - cron:  '0 0 * * *'
 
 jobs:
   validate:

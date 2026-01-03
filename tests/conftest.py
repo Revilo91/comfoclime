@@ -1,6 +1,6 @@
 """Common fixtures for ComfoClime tests."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from homeassistant.config_entries import ConfigEntry
@@ -23,14 +23,6 @@ def mock_hass():
     hass.platform = mock_platform
 
     return hass
-
-
-@pytest.fixture
-def hass_with_frame_helper(mock_hass):
-    """Provide a mock Home Assistant with frame helper initialized."""
-    # Patch frame.report_usage to prevent "Frame helper not set up" errors
-    with patch("homeassistant.helpers.frame.report_usage"):
-        yield mock_hass
 
 
 @pytest.fixture
