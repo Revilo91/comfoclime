@@ -18,6 +18,23 @@ class TestComfoClimeAPI:
         assert api.uuid is None
         assert api._last_request_time == 0.0
         assert api._last_write_time == 0.0
+        assert api.read_timeout == 10  # Default value
+        assert api.write_timeout == 30  # Default value
+        assert api.cache_ttl == 30.0  # Default value
+
+    def test_api_initialization_with_custom_timeouts(self):
+        """Test API initialization with custom timeout values."""
+        api = ComfoClimeAPI(
+            "http://192.168.1.100",
+            read_timeout=20,
+            write_timeout=60,
+            cache_ttl=45,
+        )
+
+        assert api.base_url == "http://192.168.1.100"
+        assert api.read_timeout == 20
+        assert api.write_timeout == 60
+        assert api.cache_ttl == 45
 
     def test_api_initialization_strips_trailing_slash(self):
         """Test API initialization strips trailing slash."""
