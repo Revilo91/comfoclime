@@ -318,20 +318,18 @@ class ComfoClimeAPI:
                 data[key] = ComfoClimeAPI.fix_signed_temperature(val)
         return data
 
-    async def _async_get_uuid_internal(self):
-        """Internal method to get UUID without acquiring lock."""
-        await self._wait_for_rate_limit(is_write=False)
-        timeout = aiohttp.ClientTimeout(total=self.read_timeout)
-        session = await self._get_session()
-        async with session.get(
-            f"{self.base_url}/monitoring/ping", timeout=timeout
-        ) as response:
-            response.raise_for_status()
-            data = await response.json()
-            self.uuid = data.get("uuid")
-            return self.uuid
+    @api_get("/monitoring/ping")
+    async def _async_get_uuid_internal(self, response_data):
+        """Internal method to get UUID without acquiring lock.
+        
+        The @api_get decorator handles:
+        - Request locking
+        - Rate limiting
+        - Session management
+        """
+        self.uuid = response_data.get("uuid")
+        return self.uuid
 
-    @with_request_lock
     async def async_get_uuid(self):
         """Get UUID with lock protection."""
         return await self._async_get_uuid_internal()
@@ -379,6 +377,31 @@ class ComfoClimeAPI:
         """
         return response_data
 
+    @api_get("/device/{device_uuid}/telemetry/{telemetry_id}", on_error=None)
+    async def _read_telemetry_raw(
+        self, response_data, device_uuid: str, telemetry_id: str
+    ):
+        """Read raw telemetry data from device.
+        
+        The @api_get decorator handles:
+        - Request locking
+        - Rate limiting
+        - Session management
+        - Error handling (returns None on error)
+        
+        Args:
+            device_uuid: UUID of the device
+            telemetry_id: Telemetry ID to read
+            
+        Returns:
+            List of bytes or None on error
+        """
+        data = response_data.get("data")
+        if not isinstance(data, list) or len(data) == 0:
+            _LOGGER.debug(f"Ungültiges Telemetrie-Format für {telemetry_id}")
+            return None
+        return data
+    
     async def async_read_telemetry_for_device(
         self,
         device_uuid: str,
@@ -405,28 +428,11 @@ class ComfoClimeAPI:
         if cached_value is not None:
             return cached_value
 
-        # Not in cache, fetch from API
-        async with self._request_lock:
-            await self._wait_for_rate_limit(is_write=False)
-            try:
-                timeout = aiohttp.ClientTimeout(total=self.read_timeout)
-                session = await self._get_session()
-                url = f"{self.base_url}/device/{device_uuid}/telemetry/{telemetry_id}"
-                async with session.get(url, timeout=timeout) as response:
-                    response.raise_for_status()
-                    payload = await response.json()
-
-                data = payload.get("data")
-                if not isinstance(data, list) or len(data) == 0:
-                    _LOGGER.debug(f"Ungültiges Telemetrie-Format für {telemetry_id}")
-                    return None
-
-            except asyncio.TimeoutError:
-                _LOGGER.debug(f"Timeout beim Abrufen der Telemetrie {telemetry_id}")
-                return None
-            except Exception as e:
-                _LOGGER.debug(f"Fehler beim Abrufen der Telemetrie {telemetry_id}: {e}")
-                return None
+        # Not in cache, fetch from API using decorator
+        data = await self._read_telemetry_raw(device_uuid, telemetry_id)
+        
+        if data is None:
+            return None
 
         value = self.bytes_to_signed_int(data, byte_count, signed)
         result = value * faktor
@@ -462,14 +468,12 @@ class ComfoClimeAPI:
         if cached_value is not None:
             return cached_value
 
-        # Not in cache, fetch from API
-        async with self._request_lock:
-            await self._wait_for_rate_limit(is_write=False)
-            data = await self._read_property_for_device_raw(device_uuid, property_path)
+        # Not in cache, fetch from API using decorator
+        data = await self._read_property_for_device_raw(device_uuid, property_path)
 
-            # Wenn data leer/None ist, können wir nicht fortfahren
-            if not data:
-                return None
+        # Wenn data leer/None ist, können wir nicht fortfahren
+        if not data:
+            return None
 
         if byte_count in (1, 2):
             value = self.bytes_to_signed_int(data, byte_count, signed)
@@ -488,31 +492,26 @@ class ComfoClimeAPI:
 
         return result
 
+    @api_get("/device/{device_uuid}/property/{property_path}", on_error=None)
     async def _read_property_for_device_raw(
-        self, device_uuid: str, property_path: str
+        self, response_data, device_uuid: str, property_path: str
     ) -> None | list:
-        url = f"{self.base_url}/device/{device_uuid}/property/{property_path}"
-        try:
-            timeout = aiohttp.ClientTimeout(total=self.read_timeout)
-            session = await self._get_session()
-            async with session.get(url, timeout=timeout) as response:
-                try:
-                    response.raise_for_status()
-                except Exception as http_error:
-                    _LOGGER.debug(
-                        f"HTTP error beim Abrufen der Property {property_path} "
-                        f"(Status {response.status}): {http_error}"
-                    )
-                    return None
-                payload = await response.json()
-        except asyncio.TimeoutError:
-            _LOGGER.debug(f"Timeout beim Abrufen der Property {property_path}")
-            return None
-        except Exception as e:
-            _LOGGER.debug(f"Fehler beim Abrufen der Property {property_path}: {e}")
-            return None
-
-        data = payload.get("data")
+        """Read raw property data from device.
+        
+        The @api_get decorator handles:
+        - Request locking
+        - Rate limiting
+        - Session management
+        - Error handling (returns None on error)
+        
+        Args:
+            device_uuid: UUID of the device
+            property_path: Property path (e.g., "29/1/10")
+            
+        Returns:
+            List of bytes or None on error
+        """
+        data = response_data.get("data")
         if not isinstance(data, list) or not data:
             _LOGGER.debug(f"Ungültiges Datenformat für Property {property_path}")
             return None
@@ -737,6 +736,35 @@ class ComfoClimeAPI:
             if not hpStandby:  # Only set season if device is active
                 await self._update_thermal_profile(season_value=season)
 
+    @api_put("/device/{device_uuid}/method/{x}/{y}/3")
+    async def _set_property_internal(
+        self,
+        device_uuid: str,
+        x: int,
+        y: int,
+        z: int,
+        data: list,
+    ):
+        """Internal method to build property write payload.
+        
+        The @api_put decorator handles:
+        - Request locking
+        - Rate limiting (write mode)
+        - Session management
+        - Retry with exponential backoff
+        - Error handling
+        
+        Args:
+            device_uuid: UUID of the device
+            x, y: URL path parameters from property_path
+            z: First data byte (property ID)
+            data: Additional data bytes (value)
+            
+        Returns:
+            Payload dict for the decorator to process
+        """
+        return {"data": [z] + data}
+    
     async def async_set_property_for_device(
         self,
         device_uuid: str,
@@ -747,73 +775,47 @@ class ComfoClimeAPI:
         signed: bool = True,
         faktor: float = 1.0,
     ):
+        """Set property for a device.
+        
+        Args:
+            device_uuid: UUID of the device
+            property_path: Property path in format "x/y/z"
+            value: Value to set
+            byte_count: Number of bytes (1 or 2)
+            signed: Whether the value is signed
+            faktor: Factor to divide the value by before encoding
+            
+        Raises:
+            ValueError: If byte_count is not 1 or 2
+        """
+        if byte_count not in (1, 2):
+            raise ValueError("Nur 1 oder 2 Byte unterstützt")
+
+        raw_value = int(round(value / faktor))
+        data = self.signed_int_to_bytes(raw_value, byte_count, signed)
+
+        x, y, z = map(int, property_path.split("/"))
+        
         async with self._request_lock:
-            await self._wait_for_rate_limit(is_write=True)
-            if byte_count not in (1, 2):
-                raise ValueError("Nur 1 oder 2 Byte unterstützt")
+            result = await self._set_property_internal(device_uuid, x, y, z, data)
+            # Invalidate cache for this device after successful write
+            self._invalidate_cache_for_device(device_uuid)
+            return result
 
-            raw_value = int(round(value / faktor))
-            data = self.signed_int_to_bytes(raw_value, byte_count, signed)
-
-            x, y, z = map(int, property_path.split("/"))
-            url = f"{self.base_url}/device/{device_uuid}/method/{x}/{y}/3"
-            payload = {"data": [z] + data}
-
-            # Retry logic for transient failures
-            last_exception = None
-            for attempt in range(self.max_retries + 1):
-                try:
-                    # Use longer timeout for write operations
-                    timeout = aiohttp.ClientTimeout(total=self.write_timeout)
-                    session = await self._get_session()
-                    _LOGGER.debug(
-                        f"Property write attempt {attempt + 1}/{self.max_retries + 1}, "
-                        f"timeout={self.write_timeout}s, path={property_path}, payload={payload}"
-                    )
-                    async with session.put(
-                        url, json=payload, timeout=timeout
-                    ) as response:
-                        response.raise_for_status()
-                    # Invalidate cache for this device after successful write
-                    self._invalidate_cache_for_device(device_uuid)
-                    return  # Success, exit retry loop
-                except (  # noqa: PERF203
-                    asyncio.TimeoutError,
-                    asyncio.CancelledError,
-                    aiohttp.ClientError,
-                ) as e:
-                    last_exception = e
-                    if attempt < self.max_retries:
-                        # Exponential backoff: 2s, 4s, 8s
-                        wait_time = 2 ** (attempt + 1)
-                        _LOGGER.warning(
-                            f"Property write failed (attempt {attempt + 1}/{self.max_retries + 1}), "
-                            f"retrying in {wait_time}s: {type(e).__name__}: {e}"
-                        )
-                        await asyncio.sleep(wait_time)
-                    else:
-                        _LOGGER.exception(
-                            f"Property write failed after {self.max_retries + 1} attempts: "
-                            f"{type(e).__name__}"
-                        )
-
-            # If we get here, all retries failed
-            # last_exception should always be set by the loop, but we check defensively
-            if last_exception:
-                raise last_exception
-            raise RuntimeError(
-                f"Property write failed for {property_path} with unknown error"
-            )
-
+    @api_put("/system/reset")
+    async def _reset_system(self):
+        """Internal method to build reset payload.
+        
+        The @api_put decorator handles:
+        - Request locking
+        - Rate limiting
+        - Session management
+        - Retry with exponential backoff
+        """
+        # No payload needed for reset
+        return {}
+    
     async def async_reset_system(self):
         """Trigger a restart of the ComfoClime device."""
         async with self._request_lock:
-            await self._wait_for_rate_limit(is_write=True)
-            url = f"{self.base_url}/system/reset"
-
-            # Use longer timeout for write operations
-            timeout = aiohttp.ClientTimeout(total=self.write_timeout)
-            session = await self._get_session()
-            async with session.put(url, timeout=timeout) as response:
-                response.raise_for_status()
-                return response.status == 200
+            return await self._reset_system()

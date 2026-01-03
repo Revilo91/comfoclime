@@ -332,3 +332,37 @@ async def test_api_put_preserves_function_metadata():
 
     assert my_put_method.__name__ == "my_put_method"
     assert "PUT docstring" in my_put_method.__doc__
+
+
+@pytest.mark.asyncio
+async def test_api_put_with_url_parameters():
+    """Test api_put decorator with URL parameters."""
+    mock_response = MagicMock()
+    mock_response.status = 200
+    mock_response.raise_for_status = MagicMock()
+
+    @api_put("/device/{device_uuid}/method/{x}/{y}/3")
+    async def test_method(self, device_uuid: str, x: int, y: int):
+        return {"data": [1, 2, 3]}
+
+    api = MockAPIForPut()
+
+    # Mock session and response
+    mock_session = MagicMock()
+    mock_context = MagicMock()
+    mock_context.__aenter__ = AsyncMock(return_value=mock_response)
+    mock_context.__aexit__ = AsyncMock()
+    mock_session.put = MagicMock(return_value=mock_context)
+    api._get_session = AsyncMock(return_value=mock_session)
+
+    result = await test_method(api, "device-123", 29, 1)
+
+    assert result is True
+    # Verify PUT was called with correct URL
+    put_call = mock_session.put.call_args
+    assert put_call is not None
+    # Check that URL contains the parameters
+    called_url = put_call[0][0]
+    assert "device-123" in called_url
+    assert "/29/" in called_url
+    assert "/1/" in called_url

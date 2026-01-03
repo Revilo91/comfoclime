@@ -136,7 +136,7 @@ def api_put(
 
     Args:
         url_template: URL template with placeholders (e.g., "/system/{uuid}/dashboard")
-                     Supports {uuid} for system UUID.
+                     Supports {uuid} for system UUID and any kwarg names for other params.
         requires_uuid: Whether the endpoint requires the system UUID to be fetched first.
         is_dashboard: Whether this is a dashboard update (adds timestamp and headers).
 
@@ -148,6 +148,11 @@ def api_put(
         async def _update_dashboard(self, **kwargs) -> dict:
             payload = {...}
             return payload
+            
+        @api_put("/device/{device_uuid}/method/{x}/{y}/3")
+        async def _set_property(self, device_uuid: str, x: int, y: int, **kwargs) -> dict:
+            payload = {...}
+            return payload
     """
 
     def decorator(func: Callable) -> Callable:
@@ -157,8 +162,18 @@ def api_put(
             if requires_uuid and not self.uuid:
                 await self._async_get_uuid_internal()
 
+            # Bind positional arguments to their parameter names for URL formatting
+            sig = inspect.signature(func)
+            params = list(sig.parameters.keys())
+            # Skip 'self' (first param)
+            url_kwargs = dict(kwargs)
+            for i, arg in enumerate(args):
+                if i + 1 < len(params):  # +1 to skip 'self'
+                    param_name = params[i + 1]
+                    url_kwargs[param_name] = arg
+
             # Build URL from template
-            url = self.base_url + url_template.format(uuid=self.uuid)
+            url = self.base_url + url_template.format(uuid=self.uuid, **url_kwargs)
 
             # Call the decorated function to get payload
             payload = await func(self, *args, **kwargs)
