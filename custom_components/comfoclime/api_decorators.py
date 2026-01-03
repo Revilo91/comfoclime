@@ -33,11 +33,12 @@ def api_get(
     response_key: str | None = None,
     response_default: Any = None,
     on_error: Any = None,
+    skip_lock: bool = False,
 ):
     """Decorator for GET API endpoints.
 
     Handles:
-    - Request locking
+    - Request locking (unless skip_lock=True)
     - Rate limiting
     - Session management
     - UUID retrieval (if requires_uuid=True)
@@ -53,10 +54,16 @@ def api_get(
         response_key: Optional key to extract from response (e.g., "devices" returns data["devices"]).
         response_default: Default value when response_key is not found (default: None, uses empty dict).
         on_error: Value to return on error instead of raising exception (e.g., {} for empty dict).
+        skip_lock: Skip lock acquisition (for methods called from within locked context).
 
     Example:
         @api_get("/system/{uuid}/dashboard", requires_uuid=True, fix_temperatures=True)
         async def async_get_dashboard_data(self, response_data):
+            return response_data
+        
+        @api_get("/monitoring/ping", skip_lock=True)
+        async def _async_get_uuid_internal(self, response_data):
+            # Called from within api_get decorated methods, lock already held
             return response_data
     """
 
@@ -76,35 +83,44 @@ def api_get(
                     param_name = params[i + 2]
                     url_kwargs[param_name] = arg
 
+            async def _execute():
+                """Execute the API call (with or without lock)."""
+                await self._wait_for_rate_limit(is_write=False)
+
+                # Get UUID if required
+                if requires_uuid and not self.uuid:
+                    await self._async_get_uuid_internal()
+
+                # Build URL from template
+                url = self.base_url + url_template.format(uuid=self.uuid, **url_kwargs)
+
+                # Make request
+                timeout = aiohttp.ClientTimeout(total=self.read_timeout)
+                session = await self._get_session()
+                async with session.get(url, timeout=timeout) as response:
+                    response.raise_for_status()
+                    data = await response.json()
+
+                # Extract specific key if specified
+                if response_key:
+                    default = response_default if response_default is not None else {}
+                    data = data.get(response_key, default)
+
+                # Fix temperature values if needed
+                if fix_temperatures:
+                    data = self.fix_signed_temperatures_in_dict(data)
+
+                # Call the original function with the response data
+                return await func(self, data, *args, **kwargs)
+
             try:
-                async with self._request_lock:
-                    await self._wait_for_rate_limit(is_write=False)
-
-                    # Get UUID if required
-                    if requires_uuid and not self.uuid:
-                        await self._async_get_uuid_internal()
-
-                    # Build URL from template
-                    url = self.base_url + url_template.format(uuid=self.uuid, **url_kwargs)
-
-                    # Make request
-                    timeout = aiohttp.ClientTimeout(total=self.read_timeout)
-                    session = await self._get_session()
-                    async with session.get(url, timeout=timeout) as response:
-                        response.raise_for_status()
-                        data = await response.json()
-
-                    # Extract specific key if specified
-                    if response_key:
-                        default = response_default if response_default is not None else {}
-                        data = data.get(response_key, default)
-
-                    # Fix temperature values if needed
-                    if fix_temperatures:
-                        data = self.fix_signed_temperatures_in_dict(data)
-
-                    # Call the original function with the response data
-                    return await func(self, data, *args, **kwargs)
+                if skip_lock:
+                    # Execute without acquiring lock (lock already held by caller)
+                    return await _execute()
+                else:
+                    # Execute with lock acquisition
+                    async with self._request_lock:
+                        return await _execute()
 
             except (aiohttp.ClientError, asyncio.TimeoutError) as e:
                 if on_error is not None:
@@ -160,7 +176,7 @@ def api_put(
         async def wrapper(self, *args, **kwargs):
             # Get UUID if required
             if requires_uuid and not self.uuid:
-                await self._async_get_uuid_internal()
+                await self.async_get_uuid()
 
             # Bind positional arguments to their parameter names for URL formatting
             sig = inspect.signature(func)

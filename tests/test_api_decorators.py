@@ -21,6 +21,7 @@ class MockAPI:
         self._request_lock.__aexit__ = AsyncMock()
         self._wait_for_rate_limit = AsyncMock()
         self._async_get_uuid_internal = AsyncMock()
+        self.async_get_uuid = AsyncMock()
         self._get_session = AsyncMock()
 
     def fix_signed_temperatures_in_dict(self, data):
@@ -215,6 +216,38 @@ async def test_api_get_preserves_function_metadata():
     assert "docstring" in my_documented_method.__doc__
 
 
+@pytest.mark.asyncio
+async def test_api_get_skip_lock():
+    """Test api_get decorator with skip_lock=True doesn't acquire lock."""
+    mock_response = {"uuid": "test-uuid-123"}
+
+    @api_get("/monitoring/ping", skip_lock=True)
+    async def test_method(self, response_data):
+        return response_data
+
+    api = MockAPI()
+
+    # Mock session and response
+    mock_session = MagicMock()
+    mock_context = MagicMock()
+    mock_context.__aenter__ = AsyncMock(return_value=MagicMock(
+        raise_for_status=MagicMock(),
+        json=AsyncMock(return_value=mock_response)
+    ))
+    mock_context.__aexit__ = AsyncMock()
+    mock_session.get = MagicMock(return_value=mock_context)
+    api._get_session = AsyncMock(return_value=mock_session)
+
+    result = await test_method(api)
+
+    assert result == mock_response
+    # With skip_lock=True, lock should NOT be acquired
+    api._request_lock.__aenter__.assert_not_called()
+    api._request_lock.__aexit__.assert_not_called()
+    # But rate limiting should still be called
+    api._wait_for_rate_limit.assert_called_once_with(is_write=False)
+
+
 class MockAPIForPut:
     """Mock API class for testing PUT decorators."""
 
@@ -226,6 +259,7 @@ class MockAPIForPut:
         self._wait_for_rate_limit = AsyncMock()
         self._get_session = AsyncMock()
         self._async_get_uuid_internal = AsyncMock()
+        self.async_get_uuid = AsyncMock()
 
 
 @pytest.mark.asyncio
@@ -283,6 +317,43 @@ async def test_api_put_dashboard():
     # Verify PUT was called with timestamp in payload (dashboard mode)
     put_call = mock_session.put.call_args
     assert put_call is not None
+
+
+@pytest.mark.asyncio
+async def test_api_put_requires_uuid():
+    """Test api_put decorator calls async_get_uuid when UUID is not set."""
+    mock_response = MagicMock()
+    mock_response.status = 200
+    mock_response.raise_for_status = MagicMock()
+
+    @api_put("/system/{uuid}/data", requires_uuid=True)
+    async def test_method(self):
+        return {"data": "test"}
+
+    api = MockAPIForPut()
+    api.uuid = None  # UUID not set
+    
+    # Mock async_get_uuid to set the UUID
+    async def set_uuid():
+        api.uuid = "fetched-uuid"
+    api.async_get_uuid = AsyncMock(side_effect=set_uuid)
+
+    # Mock session and response
+    mock_session = MagicMock()
+    mock_context = MagicMock()
+    mock_context.__aenter__ = AsyncMock(return_value=mock_response)
+    mock_context.__aexit__ = AsyncMock()
+    mock_session.put = MagicMock(return_value=mock_context)
+    api._get_session = AsyncMock(return_value=mock_session)
+
+    result = await test_method(api)
+
+    assert result is True
+    # Verify async_get_uuid was called
+    api.async_get_uuid.assert_called_once()
+    # Verify UUID was set
+    assert api.uuid == "fetched-uuid"
+
 
 
 @pytest.mark.asyncio

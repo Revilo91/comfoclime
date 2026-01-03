@@ -2,6 +2,11 @@
 .vscode
 /.history
 
+# Python virtual environments
+.venv/
+venv/
+env/
+
 # Test artifacts
 .pytest_cache/
 .coverage
