@@ -150,34 +150,39 @@ async def async_setup_entry(
         sensor_defs = CONNECTED_DEVICE_SENSORS.get(model_id)
         if sensor_defs:
             for sensor_def in sensor_defs:
-                if not sensor_def.get("diagnose", False) or entry.options.get(
+                # Always create entities, but diagnostic ones are disabled by default
+                # unless enable_diagnostics is True
+                is_diagnose = sensor_def.get("diagnose", False)
+                enabled_default = not is_diagnose or entry.options.get(
                     "enable_diagnostics", False
-                ):
-                    # Register telemetry with coordinator for batched fetching
-                    await tlcoordinator.register_telemetry(
-                        device_uuid=dev_uuid,
-                        telemetry_id=str(sensor_def["telemetry_id"]),
+                )
+                
+                # Register telemetry with coordinator for batched fetching
+                await tlcoordinator.register_telemetry(
+                    device_uuid=dev_uuid,
+                    telemetry_id=str(sensor_def["telemetry_id"]),
+                    faktor=sensor_def.get("faktor", 1.0),
+                    signed=sensor_def.get("signed", True),
+                    byte_count=sensor_def.get("byte_count"),
+                )
+                sensors.append(
+                    ComfoClimeTelemetrySensor(
+                        hass=hass,
+                        coordinator=tlcoordinator,
+                        telemetry_id=sensor_def["telemetry_id"],
+                        name=sensor_def["name"],
+                        translation_key=sensor_def.get("translation_key", False),
+                        unit=sensor_def.get("unit"),
                         faktor=sensor_def.get("faktor", 1.0),
-                        signed=sensor_def.get("signed", True),
                         byte_count=sensor_def.get("byte_count"),
+                        device_class=sensor_def.get("device_class"),
+                        device=device,
+                        state_class=sensor_def.get("state_class"),
+                        override_device_uuid=dev_uuid,
+                        entry=entry,
+                        entity_registry_enabled_default=enabled_default,
                     )
-                    sensors.append(
-                        ComfoClimeTelemetrySensor(
-                            hass=hass,
-                            coordinator=tlcoordinator,
-                            telemetry_id=sensor_def["telemetry_id"],
-                            name=sensor_def["name"],
-                            translation_key=sensor_def.get("translation_key", False),
-                            unit=sensor_def.get("unit"),
-                            faktor=sensor_def.get("faktor", 1.0),
-                            byte_count=sensor_def.get("byte_count"),
-                            device_class=sensor_def.get("device_class"),
-                            device=device,
-                            state_class=sensor_def.get("state_class"),
-                            override_device_uuid=dev_uuid,
-                            entry=entry,
-                        )
-                    )
+                )
 
         property_defs = CONNECTED_DEVICE_PROPERTIES.get(model_id)
         if property_defs:
@@ -380,6 +385,7 @@ class ComfoClimeTelemetrySensor(
         device=None,
         override_device_uuid=None,
         entry=None,
+        entity_registry_enabled_default=True,
     ):
         super().__init__(coordinator)
         self._hass = hass
@@ -402,6 +408,7 @@ class ComfoClimeTelemetrySensor(
         self._entry = entry
         self._attr_config_entry_id = entry.entry_id
         self._attr_unique_id = f"{entry.entry_id}_telemetry_{telemetry_id}"
+        self._attr_entity_registry_enabled_default = entity_registry_enabled_default
         if not translation_key:
             self._attr_name = name
         else:
