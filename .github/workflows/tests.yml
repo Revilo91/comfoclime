@@ -1,9 +1,9 @@
 name: Tests
 
 on:
-  push:
   pull_request:
     branches: [main, master]
+  workflow_dispatch:
 
 jobs:
   test:
@@ -12,7 +12,7 @@ jobs:
       contents: read
     strategy:
       matrix:
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.11", "3.12", "3.13"]
 
     steps:
       - uses: actions/checkout@v4
