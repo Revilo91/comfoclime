@@ -4,6 +4,16 @@ from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 
 DOMAIN = "comfoclime"
 
+# Default values for configuration options
+DEFAULT_READ_TIMEOUT = 10
+DEFAULT_WRITE_TIMEOUT = 30
+DEFAULT_POLLING_INTERVAL = 60
+DEFAULT_CACHE_TTL = 30
+DEFAULT_MAX_RETRIES = 3
+DEFAULT_MIN_REQUEST_INTERVAL = 0.1
+DEFAULT_WRITE_COOLDOWN = 2.0
+DEFAULT_REQUEST_DEBOUNCE = 0.3
+
 
 class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 1
@@ -76,6 +86,38 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         "throttle_comfonet",
                         default=self.entry.options.get("throttle_comfonet", False),
                     ): bool,
+                    vol.Optional(
+                        "read_timeout",
+                        default=self.entry.options.get("read_timeout", DEFAULT_READ_TIMEOUT),
+                    ): vol.All(vol.Coerce(int), vol.Range(min=1, max=120)),
+                    vol.Optional(
+                        "write_timeout",
+                        default=self.entry.options.get("write_timeout", DEFAULT_WRITE_TIMEOUT),
+                    ): vol.All(vol.Coerce(int), vol.Range(min=1, max=120)),
+                    vol.Optional(
+                        "polling_interval",
+                        default=self.entry.options.get("polling_interval", DEFAULT_POLLING_INTERVAL),
+                    ): vol.All(vol.Coerce(int), vol.Range(min=10, max=600)),
+                    vol.Optional(
+                        "cache_ttl",
+                        default=self.entry.options.get("cache_ttl", DEFAULT_CACHE_TTL),
+                    ): vol.All(vol.Coerce(int), vol.Range(min=0, max=300)),
+                    vol.Optional(
+                        "max_retries",
+                        default=self.entry.options.get("max_retries", DEFAULT_MAX_RETRIES),
+                    ): vol.All(vol.Coerce(int), vol.Range(min=0, max=10)),
+                    vol.Optional(
+                        "min_request_interval",
+                        default=self.entry.options.get("min_request_interval", DEFAULT_MIN_REQUEST_INTERVAL),
+                    ): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=5.0)),
+                    vol.Optional(
+                        "write_cooldown",
+                        default=self.entry.options.get("write_cooldown", DEFAULT_WRITE_COOLDOWN),
+                    ): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=10.0)),
+                    vol.Optional(
+                        "request_debounce",
+                        default=self.entry.options.get("request_debounce", DEFAULT_REQUEST_DEBOUNCE),
+                    ): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=2.0)),
                 }
             ),
         )

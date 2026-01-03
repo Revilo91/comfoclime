@@ -325,9 +325,28 @@
                 "title": "Options",
                 "description": "Advanced integration options",
                 "data": {
-                    "enable_diagnostics": "Activate diagnosis sensors",
+                    "enable_diagnostics": "Enable diagnostic sensors by default",
                     "minimal_mode": "No communication with ComfoNet Bus (testing)",
-                    "throttle_comfonet": "Add a 10ms pause between ComfoNet polls"
+                    "throttle_comfonet": "Add a 10ms pause between ComfoNet polls",
+                    "read_timeout": "Read operation timeout (seconds, 1-120)",
+                    "write_timeout": "Write operation timeout (seconds, 1-120)",
+                    "polling_interval": "Update interval (seconds, 10-600)",
+                    "cache_ttl": "Cache time-to-live (seconds, 0-300)",
+                    "max_retries": "Maximum retry attempts (0-10)",
+                    "min_request_interval": "Minimum interval between requests (seconds, 0.0-5.0)",
+                    "write_cooldown": "Cooldown after write operations (seconds, 0.0-10.0)",
+                    "request_debounce": "Request debounce time (seconds, 0.0-2.0)"
+                },
+                "data_description": {
+                    "enable_diagnostics": "Enables diagnostic sensors by default. These can also be manually enabled in the device interface.",
+                    "read_timeout": "Maximum wait time for API read requests (default: 10 seconds)",
+                    "write_timeout": "Maximum wait time for API write requests (default: 30 seconds)",
+                    "polling_interval": "How often to fetch data from the device (default: 60 seconds)",
+                    "cache_ttl": "How long to cache telemetry and property data (default: 30 seconds, 0 = no cache)",
+                    "max_retries": "Number of retry attempts for failed API requests (default: 3, 0 = no retry)",
+                    "min_request_interval": "Minimum time between consecutive API requests (default: 0.1 seconds)",
+                    "write_cooldown": "Wait time after write operations before allowing reads (default: 2.0 seconds)",
+                    "request_debounce": "Debounce time for rapid successive identical requests (default: 0.3 seconds)"
                 }
             }
         }

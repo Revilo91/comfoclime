@@ -10,20 +10,18 @@ from .api_decorators import api_get, api_put, with_request_lock
 
 _LOGGER = logging.getLogger(__name__)
 
-# Rate limiting configuration
-MIN_REQUEST_INTERVAL = (
-    0.1  # Minimum seconds between any requests (reduced for better throughput)
-)
-WRITE_COOLDOWN = 2.0  # Seconds to wait after a write operation before allowing reads
-REQUEST_DEBOUNCE = 0.3  # Debounce time for rapid successive requests
-CACHE_TTL = 30.0  # Cache time-to-live in seconds
+# Rate limiting configuration (can be overridden via constructor)
+DEFAULT_MIN_REQUEST_INTERVAL = 0.1  # Minimum seconds between any requests
+DEFAULT_WRITE_COOLDOWN = 2.0  # Seconds to wait after a write operation before allowing reads
+DEFAULT_REQUEST_DEBOUNCE = 0.3  # Debounce time for rapid successive requests
 
-# Timeout configuration
+# Default timeout configuration (can be overridden via constructor)
 DEFAULT_READ_TIMEOUT = 10  # Timeout for read operations (GET)
 DEFAULT_WRITE_TIMEOUT = (
     30  # Timeout for write operations (PUT) - longer for dashboard updates
 )
-MAX_RETRIES = 3  # Number of retries for transient failures
+DEFAULT_CACHE_TTL = 30.0  # Cache time-to-live in seconds
+DEFAULT_MAX_RETRIES = 3  # Number of retries for transient failures
 
 
 class ComfoClimeAPI:
@@ -67,7 +65,18 @@ class ComfoClimeAPI:
         ),
     }
 
-    def __init__(self, base_url, hass=None):
+    def __init__(
+        self,
+        base_url,
+        hass=None,
+        read_timeout=DEFAULT_READ_TIMEOUT,
+        write_timeout=DEFAULT_WRITE_TIMEOUT,
+        cache_ttl=DEFAULT_CACHE_TTL,
+        max_retries=DEFAULT_MAX_RETRIES,
+        min_request_interval=DEFAULT_MIN_REQUEST_INTERVAL,
+        write_cooldown=DEFAULT_WRITE_COOLDOWN,
+        request_debounce=DEFAULT_REQUEST_DEBOUNCE,
+    ):
         self.base_url = base_url.rstrip("/")
         self.hass = hass
         self.uuid = None
@@ -79,6 +88,14 @@ class ComfoClimeAPI:
         # Cache for telemetry and property reads: {cache_key: (value, timestamp)}
         self._telemetry_cache: dict[str, tuple] = {}
         self._property_cache: dict[str, tuple] = {}
+        # Configurable timeouts, cache TTL, max retries, and rate limiting
+        self.read_timeout = read_timeout
+        self.write_timeout = write_timeout
+        self.cache_ttl = cache_ttl
+        self.max_retries = max_retries
+        self.min_request_interval = min_request_interval
+        self.write_cooldown = write_cooldown
+        self.request_debounce = request_debounce
 
     def _get_current_time(self) -> float:
         """Get current monotonic time for rate limiting."""
@@ -90,7 +107,9 @@ class ComfoClimeAPI:
 
     def _is_cache_valid(self, timestamp: float) -> bool:
         """Check if a cached value is still valid."""
-        return (self._get_current_time() - timestamp) < CACHE_TTL
+        if self.cache_ttl == 0:
+            return False  # Cache disabled
+        return (self._get_current_time() - timestamp) < self.cache_ttl
 
     def _get_from_cache(self, cache_dict: dict, cache_key: str):
         """Get a value from cache if it's still valid."""
@@ -140,12 +159,12 @@ class ComfoClimeAPI:
         wait_time = 0.0
 
         # Ensure minimum interval between requests
-        if time_since_last_request < MIN_REQUEST_INTERVAL:
-            wait_time = max(wait_time, MIN_REQUEST_INTERVAL - time_since_last_request)
+        if time_since_last_request < self.min_request_interval:
+            wait_time = max(wait_time, self.min_request_interval - time_since_last_request)
 
         # If this is a read and we recently wrote, wait for cooldown
-        if not is_write and time_since_last_write < WRITE_COOLDOWN:
-            wait_time = max(wait_time, WRITE_COOLDOWN - time_since_last_write)
+        if not is_write and time_since_last_write < self.write_cooldown:
+            wait_time = max(wait_time, self.write_cooldown - time_since_last_write)
 
         if wait_time > 0:
             _LOGGER.debug(f"Rate limiting: waiting {wait_time:.2f}s before request")
@@ -159,7 +178,7 @@ class ComfoClimeAPI:
             self._last_write_time = self._get_current_time()
 
     async def _debounced_request(
-        self, key: str, coro_factory, debounce_time: float = REQUEST_DEBOUNCE
+        self, key: str, coro_factory, debounce_time: float = None
     ):
         """Execute a request with debouncing to prevent rapid successive calls.
 
@@ -174,6 +193,9 @@ class ComfoClimeAPI:
         Returns:
             Result of the request
         """
+        if debounce_time is None:
+            debounce_time = self.request_debounce
+            
         # Cancel any pending request with the same key
         if key in self._pending_requests:
             pending_task = self._pending_requests[key]
@@ -299,7 +321,7 @@ class ComfoClimeAPI:
     async def _async_get_uuid_internal(self):
         """Internal method to get UUID without acquiring lock."""
         await self._wait_for_rate_limit(is_write=False)
-        timeout = aiohttp.ClientTimeout(total=DEFAULT_READ_TIMEOUT)
+        timeout = aiohttp.ClientTimeout(total=self.read_timeout)
         session = await self._get_session()
         async with session.get(
             f"{self.base_url}/monitoring/ping", timeout=timeout
@@ -387,7 +409,7 @@ class ComfoClimeAPI:
         async with self._request_lock:
             await self._wait_for_rate_limit(is_write=False)
             try:
-                timeout = aiohttp.ClientTimeout(total=DEFAULT_READ_TIMEOUT)
+                timeout = aiohttp.ClientTimeout(total=self.read_timeout)
                 session = await self._get_session()
                 url = f"{self.base_url}/device/{device_uuid}/telemetry/{telemetry_id}"
                 async with session.get(url, timeout=timeout) as response:
@@ -471,7 +493,7 @@ class ComfoClimeAPI:
     ) -> None | list:
         url = f"{self.base_url}/device/{device_uuid}/property/{property_path}"
         try:
-            timeout = aiohttp.ClientTimeout(total=DEFAULT_READ_TIMEOUT)
+            timeout = aiohttp.ClientTimeout(total=self.read_timeout)
             session = await self._get_session()
             async with session.get(url, timeout=timeout) as response:
                 try:
@@ -739,14 +761,14 @@ class ComfoClimeAPI:
 
             # Retry logic for transient failures
             last_exception = None
-            for attempt in range(MAX_RETRIES + 1):
+            for attempt in range(self.max_retries + 1):
                 try:
                     # Use longer timeout for write operations
-                    timeout = aiohttp.ClientTimeout(total=DEFAULT_WRITE_TIMEOUT)
+                    timeout = aiohttp.ClientTimeout(total=self.write_timeout)
                     session = await self._get_session()
                     _LOGGER.debug(
-                        f"Property write attempt {attempt + 1}/{MAX_RETRIES + 1}, "
-                        f"timeout={DEFAULT_WRITE_TIMEOUT}s, path={property_path}, payload={payload}"
+                        f"Property write attempt {attempt + 1}/{self.max_retries + 1}, "
+                        f"timeout={self.write_timeout}s, path={property_path}, payload={payload}"
                     )
                     async with session.put(
                         url, json=payload, timeout=timeout
@@ -761,17 +783,17 @@ class ComfoClimeAPI:
                     aiohttp.ClientError,
                 ) as e:
                     last_exception = e
-                    if attempt < MAX_RETRIES:
+                    if attempt < self.max_retries:
                         # Exponential backoff: 2s, 4s, 8s
                         wait_time = 2 ** (attempt + 1)
                         _LOGGER.warning(
-                            f"Property write failed (attempt {attempt + 1}/{MAX_RETRIES + 1}), "
+                            f"Property write failed (attempt {attempt + 1}/{self.max_retries + 1}), "
                             f"retrying in {wait_time}s: {type(e).__name__}: {e}"
                         )
                         await asyncio.sleep(wait_time)
                     else:
                         _LOGGER.exception(
-                            f"Property write failed after {MAX_RETRIES + 1} attempts: "
+                            f"Property write failed after {self.max_retries + 1} attempts: "
                             f"{type(e).__name__}"
                         )
 
@@ -790,7 +812,7 @@ class ComfoClimeAPI:
             url = f"{self.base_url}/system/reset"
 
             # Use longer timeout for write operations
-            timeout = aiohttp.ClientTimeout(total=DEFAULT_WRITE_TIMEOUT)
+            timeout = aiohttp.ClientTimeout(total=self.write_timeout)
             session = await self._get_session()
             async with session.put(url, timeout=timeout) as response:
                 response.raise_for_status()

@@ -64,7 +64,6 @@ def api_get(
         @functools.wraps(func)
         async def wrapper(self, *args, **kwargs):
             # Import here to avoid circular imports
-            from .comfoclime_api import DEFAULT_READ_TIMEOUT
             import inspect
 
             # Bind positional arguments to their parameter names for URL formatting
@@ -89,7 +88,7 @@ def api_get(
                     url = self.base_url + url_template.format(uuid=self.uuid, **url_kwargs)
 
                     # Make request
-                    timeout = aiohttp.ClientTimeout(total=DEFAULT_READ_TIMEOUT)
+                    timeout = aiohttp.ClientTimeout(total=self.read_timeout)
                     session = await self._get_session()
                     async with session.get(url, timeout=timeout) as response:
                         response.raise_for_status()
@@ -154,9 +153,6 @@ def api_put(
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         async def wrapper(self, *args, **kwargs):
-            # Import here to avoid circular imports
-            from .comfoclime_api import DEFAULT_WRITE_TIMEOUT, MAX_RETRIES
-
             # Get UUID if required
             if requires_uuid and not self.uuid:
                 await self._async_get_uuid_internal()
@@ -187,13 +183,13 @@ def api_put(
 
             # Retry logic
             last_exception = None
-            for attempt in range(MAX_RETRIES + 1):
+            for attempt in range(self.max_retries + 1):
                 try:
-                    timeout = aiohttp.ClientTimeout(total=DEFAULT_WRITE_TIMEOUT)
+                    timeout = aiohttp.ClientTimeout(total=self.write_timeout)
                     session = await self._get_session()
                     _LOGGER.debug(
-                        f"PUT attempt {attempt + 1}/{MAX_RETRIES + 1}, "
-                        f"timeout={DEFAULT_WRITE_TIMEOUT}s, payload={payload}"
+                        f"PUT attempt {attempt + 1}/{self.max_retries + 1}, "
+                        f"timeout={self.write_timeout}s, payload={payload}"
                     )
                     async with session.put(
                         url, json=payload, headers=headers, timeout=timeout
@@ -216,16 +212,16 @@ def api_put(
                     aiohttp.ClientError,
                 ) as e:
                     last_exception = e
-                    if attempt < MAX_RETRIES:
+                    if attempt < self.max_retries:
                         wait_time = 2 ** (attempt + 1)
                         _LOGGER.warning(
-                            f"Update failed (attempt {attempt + 1}/{MAX_RETRIES + 1}), "
+                            f"Update failed (attempt {attempt + 1}/{self.max_retries + 1}), "
                             f"retrying in {wait_time}s: {type(e).__name__}: {e}"
                         )
                         await asyncio.sleep(wait_time)
                     else:
                         _LOGGER.exception(
-                            f"Update failed after {MAX_RETRIES + 1} attempts: "
+                            f"Update failed after {self.max_retries + 1} attempts: "
                             f"{type(e).__name__}"
                         )
 

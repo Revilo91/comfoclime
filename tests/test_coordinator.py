@@ -346,3 +346,59 @@ async def test_definition_coordinator_get_value(hass_with_frame_helper, mock_api
     assert coordinator.get_definition_data("device1") == {"name": "Device 1"}
     assert coordinator.get_definition_data("device2") is None
     assert coordinator.get_definition_data("device3") is None
+
+
+@pytest.mark.asyncio
+async def test_dashboard_coordinator_custom_interval(hass_with_frame_helper, mock_api):
+    """Test dashboard coordinator with custom polling interval."""
+    custom_interval = 120
+    coordinator = ComfoClimeDashboardCoordinator(hass_with_frame_helper, mock_api, polling_interval=custom_interval)
+    
+    assert coordinator.update_interval.total_seconds() == custom_interval
+    assert coordinator.api == mock_api
+
+
+@pytest.mark.asyncio
+async def test_thermalprofile_coordinator_custom_interval(hass_with_frame_helper, mock_api):
+    """Test thermal profile coordinator with custom polling interval."""
+    custom_interval = 90
+    coordinator = ComfoClimeThermalprofileCoordinator(hass_with_frame_helper, mock_api, polling_interval=custom_interval)
+    
+    assert coordinator.update_interval.total_seconds() == custom_interval
+    assert coordinator.api == mock_api
+
+
+@pytest.mark.asyncio
+async def test_telemetry_coordinator_custom_interval(hass_with_frame_helper, mock_api):
+    """Test telemetry coordinator with custom polling interval."""
+    custom_interval = 45
+    devices = [{"uuid": "device-1", "modelTypeId": 20}]
+    coordinator = ComfoClimeTelemetryCoordinator(hass_with_frame_helper, mock_api, devices, polling_interval=custom_interval)
+    
+    assert coordinator.update_interval.total_seconds() == custom_interval
+    assert coordinator.api == mock_api
+    assert coordinator.devices == devices
+
+
+@pytest.mark.asyncio
+async def test_property_coordinator_custom_interval(hass_with_frame_helper, mock_api):
+    """Test property coordinator with custom polling interval."""
+    custom_interval = 75
+    devices = [{"uuid": "device-1", "modelTypeId": 20}]
+    coordinator = ComfoClimePropertyCoordinator(hass_with_frame_helper, mock_api, devices, polling_interval=custom_interval)
+    
+    assert coordinator.update_interval.total_seconds() == custom_interval
+    assert coordinator.api == mock_api
+    assert coordinator.devices == devices
+
+
+@pytest.mark.asyncio
+async def test_definition_coordinator_custom_interval(hass_with_frame_helper, mock_api):
+    """Test definition coordinator with custom polling interval."""
+    custom_interval = 150
+    devices = [{"uuid": "device-1", "modelTypeId": 1}]
+    coordinator = ComfoClimeDefinitionCoordinator(hass_with_frame_helper, mock_api, devices, polling_interval=custom_interval)
+    
+    assert coordinator.update_interval.total_seconds() == custom_interval
+    assert coordinator.api == mock_api
+    assert coordinator.devices == devices
