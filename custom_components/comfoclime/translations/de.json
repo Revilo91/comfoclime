@@ -333,7 +333,10 @@
                     "write_timeout": "Timeout für Schreib-Operationen (Sekunden, 1-120)",
                     "polling_interval": "Aktualisierungsintervall (Sekunden, 10-600)",
                     "cache_ttl": "Cache-Gültigkeitsdauer (Sekunden, 0-300)",
-                    "max_retries": "Maximale Wiederholungsversuche (0-10)"
+                    "max_retries": "Maximale Wiederholungsversuche (0-10)",
+                    "min_request_interval": "Mindestabstand zwischen Anfragen (Sekunden, 0.0-5.0)",
+                    "write_cooldown": "Wartezeit nach Schreibvorgängen (Sekunden, 0.0-10.0)",
+                    "request_debounce": "Anfrage-Entprellzeit (Sekunden, 0.0-2.0)"
                 },
                 "data_description": {
                     "enable_diagnostics": "Aktiviert Diagnose-Sensoren standardmäßig. Diese können auch manuell in der Geräte-Oberfläche aktiviert werden.",
@@ -341,7 +344,10 @@
                     "write_timeout": "Maximale Wartezeit für API-Schreibanfragen (Standard: 30 Sekunden)",
                     "polling_interval": "Wie oft die Daten vom Gerät abgerufen werden (Standard: 60 Sekunden)",
                     "cache_ttl": "Wie lange Telemetrie- und Property-Daten zwischengespeichert werden (Standard: 30 Sekunden, 0 = kein Cache)",
-                    "max_retries": "Anzahl der Wiederholungsversuche bei fehlgeschlagenen API-Anfragen (Standard: 3, 0 = keine Wiederholung)"
+                    "max_retries": "Anzahl der Wiederholungsversuche bei fehlgeschlagenen API-Anfragen (Standard: 3, 0 = keine Wiederholung)",
+                    "min_request_interval": "Minimaler Zeitabstand zwischen aufeinanderfolgenden API-Anfragen (Standard: 0.1 Sekunden)",
+                    "write_cooldown": "Wartezeit nach Schreibvorgängen bevor Lesevorgänge erlaubt sind (Standard: 2.0 Sekunden)",
+                    "request_debounce": "Entprellzeit für schnell aufeinanderfolgende gleiche Anfragen (Standard: 0.3 Sekunden)"
                 }
             }
         }

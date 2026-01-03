@@ -37,8 +37,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     polling_interval = entry.options.get("polling_interval", 60)
     cache_ttl = entry.options.get("cache_ttl", 30)
     max_retries = entry.options.get("max_retries", 3)
+    min_request_interval = entry.options.get("min_request_interval", 0.1)
+    write_cooldown = entry.options.get("write_cooldown", 2.0)
+    request_debounce = entry.options.get("request_debounce", 0.3)
     
-    # Create API instance with configured timeouts, cache TTL, and max retries
+    # Create API instance with configured timeouts, cache TTL, max retries, and rate limiting
     api = ComfoClimeAPI(
         f"http://{host}",
         hass=hass,
@@ -46,6 +49,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         write_timeout=write_timeout,
         cache_ttl=cache_ttl,
         max_retries=max_retries,
+        min_request_interval=min_request_interval,
+        write_cooldown=write_cooldown,
+        request_debounce=request_debounce,
     )
     
     # Get connected devices before creating coordinators

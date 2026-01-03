@@ -14,6 +14,9 @@ from custom_components.comfoclime.config_flow import (
     DEFAULT_POLLING_INTERVAL,
     DEFAULT_CACHE_TTL,
     DEFAULT_MAX_RETRIES,
+    DEFAULT_MIN_REQUEST_INTERVAL,
+    DEFAULT_WRITE_COOLDOWN,
+    DEFAULT_REQUEST_DEBOUNCE,
 )
 
 
@@ -127,6 +130,9 @@ async def test_options_flow_default_values():
     assert "polling_interval" in field_names
     assert "cache_ttl" in field_names
     assert "max_retries" in field_names
+    assert "min_request_interval" in field_names
+    assert "write_cooldown" in field_names
+    assert "request_debounce" in field_names
 
 
 @pytest.mark.asyncio
@@ -140,6 +146,9 @@ async def test_options_flow_with_existing_values():
         "polling_interval": 120,
         "cache_ttl": 60,
         "max_retries": 5,
+        "min_request_interval": 0.2,
+        "write_cooldown": 3.0,
+        "request_debounce": 0.5,
     }
     
     flow = ComfoClimeOptionsFlow(entry)
@@ -168,6 +177,9 @@ async def test_options_flow_save_values():
         "polling_interval": 90,
         "cache_ttl": 45,
         "max_retries": 2,
+        "min_request_interval": 0.15,
+        "write_cooldown": 2.5,
+        "request_debounce": 0.4,
     }
     
     result = await flow.async_step_init(user_input=user_input)
@@ -206,3 +218,6 @@ def test_default_constants():
     assert DEFAULT_POLLING_INTERVAL == 60
     assert DEFAULT_CACHE_TTL == 30
     assert DEFAULT_MAX_RETRIES == 3
+    assert DEFAULT_MIN_REQUEST_INTERVAL == 0.1
+    assert DEFAULT_WRITE_COOLDOWN == 2.0
+    assert DEFAULT_REQUEST_DEBOUNCE == 0.3
