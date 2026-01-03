@@ -325,7 +325,7 @@
                 "title": "Options",
                 "description": "Advanced integration options",
                 "data": {
-                    "enable_diagnostics": "Activate diagnosis sensors",
+                    "enable_diagnostics": "Enable diagnostic sensors by default",
                     "minimal_mode": "No communication with ComfoNet Bus (testing)",
                     "throttle_comfonet": "Add a 10ms pause between ComfoNet polls",
                     "read_timeout": "Read operation timeout (seconds, 1-120)",
@@ -334,6 +334,7 @@
                     "cache_ttl": "Cache time-to-live (seconds, 0-300)"
                 },
                 "data_description": {
+                    "enable_diagnostics": "Enables diagnostic sensors by default. These can also be manually enabled in the device interface.",
                     "read_timeout": "Maximum wait time for API read requests (default: 10 seconds)",
                     "write_timeout": "Maximum wait time for API write requests (default: 30 seconds)",
                     "polling_interval": "How often to fetch data from the device (default: 60 seconds)",
