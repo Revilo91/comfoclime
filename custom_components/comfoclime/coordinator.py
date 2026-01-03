@@ -7,8 +7,8 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 _LOGGER = logging.getLogger(__name__)
 
-# Longer polling interval to reduce API load on the Airduino board
-POLLING_INTERVAL_SECONDS = 60
+# Default polling interval to reduce API load on the Airduino board
+DEFAULT_POLLING_INTERVAL_SECONDS = 60
 
 
 class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
@@ -17,12 +17,12 @@ class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
     Fetches dashboard data including temperature, fan speed, season, and heat pump status.
     """
 
-    def __init__(self, hass, api):
+    def __init__(self, hass, api, polling_interval=DEFAULT_POLLING_INTERVAL_SECONDS):
         super().__init__(
             hass,
             _LOGGER,
             name="ComfoClime Dashboard",
-            update_interval=timedelta(seconds=POLLING_INTERVAL_SECONDS),
+            update_interval=timedelta(seconds=polling_interval),
         )
         self.api = api
 
@@ -42,12 +42,12 @@ class ComfoClimeThermalprofileCoordinator(DataUpdateCoordinator):
     and heating/cooling parameters.
     """
 
-    def __init__(self, hass, api):
+    def __init__(self, hass, api, polling_interval=DEFAULT_POLLING_INTERVAL_SECONDS):
         super().__init__(
             hass,
             _LOGGER,
             name="ComfoClime Thermalprofile",
-            update_interval=timedelta(seconds=POLLING_INTERVAL_SECONDS),
+            update_interval=timedelta(seconds=polling_interval),
         )
         self.api = api
 
@@ -68,12 +68,12 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
     significantly reducing API load on the Airduino board.
     """
 
-    def __init__(self, hass, api, devices=None):
+    def __init__(self, hass, api, devices=None, polling_interval=DEFAULT_POLLING_INTERVAL_SECONDS):
         super().__init__(
             hass,
             _LOGGER,
             name="ComfoClime Telemetry",
-            update_interval=timedelta(seconds=POLLING_INTERVAL_SECONDS),
+            update_interval=timedelta(seconds=polling_interval),
         )
         self.api = api
         self.devices = devices or []
@@ -168,12 +168,12 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
     update cycle, significantly reducing API load on the Airduino board.
     """
 
-    def __init__(self, hass, api, devices=None):
+    def __init__(self, hass, api, devices=None, polling_interval=DEFAULT_POLLING_INTERVAL_SECONDS):
         super().__init__(
             hass,
             _LOGGER,
             name="ComfoClime Properties",
-            update_interval=timedelta(seconds=POLLING_INTERVAL_SECONDS),
+            update_interval=timedelta(seconds=polling_interval),
         )
         self.api = api
         self.devices = devices or []
@@ -267,12 +267,12 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
     for ComfoAirQ devices which provide detailed definition information.
     """
 
-    def __init__(self, hass, api, devices=None):
+    def __init__(self, hass, api, devices=None, polling_interval=DEFAULT_POLLING_INTERVAL_SECONDS):
         super().__init__(
             hass,
             _LOGGER,
             name="ComfoClime Device Definition",
-            update_interval=timedelta(seconds=POLLING_INTERVAL_SECONDS),
+            update_interval=timedelta(seconds=polling_interval),
         )
         self.api = api
         self.devices = devices or []
