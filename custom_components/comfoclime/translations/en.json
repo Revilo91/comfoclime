@@ -331,14 +331,16 @@
                     "read_timeout": "Read operation timeout (seconds, 1-120)",
                     "write_timeout": "Write operation timeout (seconds, 1-120)",
                     "polling_interval": "Update interval (seconds, 10-600)",
-                    "cache_ttl": "Cache time-to-live (seconds, 0-300)"
+                    "cache_ttl": "Cache time-to-live (seconds, 0-300)",
+                    "max_retries": "Maximum retry attempts (0-10)"
                 },
                 "data_description": {
                     "enable_diagnostics": "Enables diagnostic sensors by default. These can also be manually enabled in the device interface.",
                     "read_timeout": "Maximum wait time for API read requests (default: 10 seconds)",
                     "write_timeout": "Maximum wait time for API write requests (default: 30 seconds)",
                     "polling_interval": "How often to fetch data from the device (default: 60 seconds)",
-                    "cache_ttl": "How long to cache telemetry and property data (default: 30 seconds, 0 = no cache)"
+                    "cache_ttl": "How long to cache telemetry and property data (default: 30 seconds, 0 = no cache)",
+                    "max_retries": "Number of retry attempts for failed API requests (default: 3, 0 = no retry)"
                 }
             }
         }

@@ -153,9 +153,6 @@ def api_put(
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         async def wrapper(self, *args, **kwargs):
-            # Import here to avoid circular imports
-            from .comfoclime_api import MAX_RETRIES
-
             # Get UUID if required
             if requires_uuid and not self.uuid:
                 await self._async_get_uuid_internal()
@@ -186,12 +183,12 @@ def api_put(
 
             # Retry logic
             last_exception = None
-            for attempt in range(MAX_RETRIES + 1):
+            for attempt in range(self.max_retries + 1):
                 try:
                     timeout = aiohttp.ClientTimeout(total=self.write_timeout)
                     session = await self._get_session()
                     _LOGGER.debug(
-                        f"PUT attempt {attempt + 1}/{MAX_RETRIES + 1}, "
+                        f"PUT attempt {attempt + 1}/{self.max_retries + 1}, "
                         f"timeout={self.write_timeout}s, payload={payload}"
                     )
                     async with session.put(
@@ -215,16 +212,16 @@ def api_put(
                     aiohttp.ClientError,
                 ) as e:
                     last_exception = e
-                    if attempt < MAX_RETRIES:
+                    if attempt < self.max_retries:
                         wait_time = 2 ** (attempt + 1)
                         _LOGGER.warning(
-                            f"Update failed (attempt {attempt + 1}/{MAX_RETRIES + 1}), "
+                            f"Update failed (attempt {attempt + 1}/{self.max_retries + 1}), "
                             f"retrying in {wait_time}s: {type(e).__name__}: {e}"
                         )
                         await asyncio.sleep(wait_time)
                     else:
                         _LOGGER.exception(
-                            f"Update failed after {MAX_RETRIES + 1} attempts: "
+                            f"Update failed after {self.max_retries + 1} attempts: "
                             f"{type(e).__name__}"
                         )
 

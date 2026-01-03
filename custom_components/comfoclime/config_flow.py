@@ -9,6 +9,7 @@ DEFAULT_READ_TIMEOUT = 10
 DEFAULT_WRITE_TIMEOUT = 30
 DEFAULT_POLLING_INTERVAL = 60
 DEFAULT_CACHE_TTL = 30
+DEFAULT_MAX_RETRIES = 3
 
 
 class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -98,6 +99,10 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         "cache_ttl",
                         default=self.entry.options.get("cache_ttl", DEFAULT_CACHE_TTL),
                     ): vol.All(vol.Coerce(int), vol.Range(min=0, max=300)),
+                    vol.Optional(
+                        "max_retries",
+                        default=self.entry.options.get("max_retries", DEFAULT_MAX_RETRIES),
+                    ): vol.All(vol.Coerce(int), vol.Range(min=0, max=10)),
                 }
             ),
         )

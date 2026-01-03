@@ -21,6 +21,7 @@ class TestComfoClimeAPI:
         assert api.read_timeout == 10  # Default value
         assert api.write_timeout == 30  # Default value
         assert api.cache_ttl == 30.0  # Default value
+        assert api.max_retries == 3  # Default value
 
     def test_api_initialization_with_custom_timeouts(self):
         """Test API initialization with custom timeout values."""
@@ -29,12 +30,14 @@ class TestComfoClimeAPI:
             read_timeout=20,
             write_timeout=60,
             cache_ttl=45,
+            max_retries=5,
         )
 
         assert api.base_url == "http://192.168.1.100"
         assert api.read_timeout == 20
         assert api.write_timeout == 60
         assert api.cache_ttl == 45
+        assert api.max_retries == 5
 
     def test_api_initialization_strips_trailing_slash(self):
         """Test API initialization strips trailing slash."""

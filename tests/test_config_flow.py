@@ -13,6 +13,7 @@ from custom_components.comfoclime.config_flow import (
     DEFAULT_WRITE_TIMEOUT,
     DEFAULT_POLLING_INTERVAL,
     DEFAULT_CACHE_TTL,
+    DEFAULT_MAX_RETRIES,
 )
 
 
@@ -125,6 +126,7 @@ async def test_options_flow_default_values():
     assert "write_timeout" in field_names
     assert "polling_interval" in field_names
     assert "cache_ttl" in field_names
+    assert "max_retries" in field_names
 
 
 @pytest.mark.asyncio
@@ -137,6 +139,7 @@ async def test_options_flow_with_existing_values():
         "write_timeout": 45,
         "polling_interval": 120,
         "cache_ttl": 60,
+        "max_retries": 5,
     }
     
     flow = ComfoClimeOptionsFlow(entry)
@@ -164,6 +167,7 @@ async def test_options_flow_save_values():
         "write_timeout": 40,
         "polling_interval": 90,
         "cache_ttl": 45,
+        "max_retries": 2,
     }
     
     result = await flow.async_step_init(user_input=user_input)
@@ -201,3 +205,4 @@ def test_default_constants():
     assert DEFAULT_WRITE_TIMEOUT == 30
     assert DEFAULT_POLLING_INTERVAL == 60
     assert DEFAULT_CACHE_TTL == 30
+    assert DEFAULT_MAX_RETRIES == 3
