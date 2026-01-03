@@ -297,11 +297,7 @@ CONNECTED_DEVICE_SENSORS = {
             "name": "Power Factor Heatpump",
             "translation_key": "powerfactor_heatpump",
             "unit": "%",
-            "device_class": "power_factor",
             "state_class": "measurement",
-            "byte_count": 1,
-            "signed": False,
-            "diagnose": True,
         },
         {
             "telemetry_id": 4201,
