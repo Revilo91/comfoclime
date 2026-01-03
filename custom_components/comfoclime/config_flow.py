@@ -1,8 +1,6 @@
 import aiohttp
 import voluptuous as vol
-from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
-from homeassistant.core import callback
 
 DOMAIN = "comfoclime"
 
@@ -11,8 +9,6 @@ DEFAULT_READ_TIMEOUT = 10
 DEFAULT_WRITE_TIMEOUT = 30
 DEFAULT_POLLING_INTERVAL = 60
 DEFAULT_CACHE_TTL = 30
-DEFAULT_MIN_REQUEST_INTERVAL = 0.1
-DEFAULT_WRITE_COOLDOWN = 2.0
 
 
 class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
