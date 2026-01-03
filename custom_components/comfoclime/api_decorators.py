@@ -160,7 +160,7 @@ def api_put(
         async def wrapper(self, *args, **kwargs):
             # Get UUID if required
             if requires_uuid and not self.uuid:
-                await self._async_get_uuid_internal()
+                await self.async_get_uuid()
 
             # Bind positional arguments to their parameter names for URL formatting
             sig = inspect.signature(func)
