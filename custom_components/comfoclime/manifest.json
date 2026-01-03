@@ -1,12 +1,12 @@
 {
   "domain": "comfoclime",
   "name": "Zehnder ComfoClime",
-  "codeowners": ["@msfuture"],
+  "codeowners": ["@msfuture","@revilo91"],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://github.com/msfuture/comfoclime",
+  "documentation": "https://github.com/revilo91/comfoclime",
   "iot_class": "local_polling",
-  "issue_tracker": "https://github.com/msfuture/comfoclime/issues",
+  "issue_tracker": "https://github.com/revilo91/comfoclime/issues",
   "requirements": ["aiohttp"],
-  "version": "1.3.0"
+  "version": "2.0.0"
 }
