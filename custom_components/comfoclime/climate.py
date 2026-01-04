@@ -453,7 +453,7 @@ class ComfoClimeClimate(
     async def async_update_dashboard(self, **kwargs) -> None:
         """Update dashboard settings via API.
 
-        Wrapper method that delegates to the API's update_dashboard method.
+        Wrapper method that delegates to the API's async_update_dashboard method.
         This ensures all dashboard updates go through the centralized API method.
 
         Args:

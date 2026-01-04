@@ -1,26 +1,25 @@
 # comfoclime_api.py
 import asyncio
 import logging
-from datetime import datetime
-from zoneinfo import ZoneInfo
 
 import aiohttp
 
-from .api_decorators import api_get, api_put, with_request_lock
+from .api_decorators import api_get, api_put
+from .rate_limiter_cache import (
+    DEFAULT_CACHE_TTL,
+    DEFAULT_MIN_REQUEST_INTERVAL,
+    DEFAULT_REQUEST_DEBOUNCE,
+    DEFAULT_WRITE_COOLDOWN,
+    RateLimiterCache,
+)
 
 _LOGGER = logging.getLogger(__name__)
-
-# Rate limiting configuration (can be overridden via constructor)
-DEFAULT_MIN_REQUEST_INTERVAL = 0.1  # Minimum seconds between any requests
-DEFAULT_WRITE_COOLDOWN = 2.0  # Seconds to wait after a write operation before allowing reads
-DEFAULT_REQUEST_DEBOUNCE = 0.3  # Debounce time for rapid successive requests
 
 # Default timeout configuration (can be overridden via constructor)
 DEFAULT_READ_TIMEOUT = 10  # Timeout for read operations (GET)
 DEFAULT_WRITE_TIMEOUT = (
     30  # Timeout for write operations (PUT) - longer for dashboard updates
 )
-DEFAULT_CACHE_TTL = 30.0  # Cache time-to-live in seconds
 DEFAULT_MAX_RETRIES = 3  # Number of retries for transient failures
 
 
@@ -82,135 +81,31 @@ class ComfoClimeAPI:
         self.uuid = None
         self._request_lock = asyncio.Lock()
         self._session = None
-        self._last_request_time = 0.0
-        self._last_write_time = 0.0
-        self._pending_requests: dict[str, asyncio.Task] = {}
-        # Cache for telemetry and property reads: {cache_key: (value, timestamp)}
-        self._telemetry_cache: dict[str, tuple] = {}
-        self._property_cache: dict[str, tuple] = {}
-        # Configurable timeouts, cache TTL, max retries, and rate limiting
+
+        # Initialize rate limiter and cache manager
+        self._rate_limiter = RateLimiterCache(
+            min_request_interval=min_request_interval,
+            write_cooldown=write_cooldown,
+            request_debounce=request_debounce,
+            cache_ttl=cache_ttl,
+        )
+
+        # Configurable timeouts and max retries
         self.read_timeout = read_timeout
         self.write_timeout = write_timeout
-        self.cache_ttl = cache_ttl
         self.max_retries = max_retries
-        self.min_request_interval = min_request_interval
-        self.write_cooldown = write_cooldown
-        self.request_debounce = request_debounce
 
-    def _get_current_time(self) -> float:
-        """Get current monotonic time for rate limiting."""
-        return asyncio.get_event_loop().time()
+    # -------------------------------------------------------------------------
+    # Rate limiting delegation (used by decorators)
+    # -------------------------------------------------------------------------
 
-    def _get_cache_key(self, device_uuid: str, data_id: str) -> str:
-        """Generate a cache key from device UUID and data ID."""
-        return f"{device_uuid}:{data_id}"
+    async def _wait_for_rate_limit(self, is_write: bool = False) -> None:
+        """Wait if necessary to respect rate limits."""
+        await self._rate_limiter.wait_for_rate_limit(is_write=is_write)
 
-    def _is_cache_valid(self, timestamp: float) -> bool:
-        """Check if a cached value is still valid."""
-        if self.cache_ttl == 0:
-            return False  # Cache disabled
-        return (self._get_current_time() - timestamp) < self.cache_ttl
-
-    def _get_from_cache(self, cache_dict: dict, cache_key: str):
-        """Get a value from cache if it's still valid."""
-        if cache_key in cache_dict:
-            value, timestamp = cache_dict[cache_key]
-            if self._is_cache_valid(timestamp):
-                _LOGGER.debug(f"Cache hit for {cache_key}")
-                return value
-            # Cache expired, remove it
-            del cache_dict[cache_key]
-        return None
-
-    def _set_cache(self, cache_dict: dict, cache_key: str, value):
-        """Store a value in cache with current timestamp."""
-        cache_dict[cache_key] = (value, self._get_current_time())
-
-    def _invalidate_cache_for_device(self, device_uuid: str):
-        """Invalidate all cache entries for a specific device."""
-        # Remove telemetry cache entries for this device
-        keys_to_remove = [
-            k for k in self._telemetry_cache.keys() if k.startswith(f"{device_uuid}:")
-        ]
-        for k in keys_to_remove:
-            del self._telemetry_cache[k]
-
-        # Remove property cache entries for this device
-        keys_to_remove = [
-            k for k in self._property_cache.keys() if k.startswith(f"{device_uuid}:")
-        ]
-        for k in keys_to_remove:
-            del self._property_cache[k]
-
-        _LOGGER.debug(f"Invalidated all cache entries for device {device_uuid}")
-
-    async def _wait_for_rate_limit(self, is_write: bool = False):
-        """Wait if necessary to respect rate limits.
-
-        Args:
-            is_write: True if this is a write operation (will set cooldown after)
-        """
-        current_time = self._get_current_time()
-
-        # Calculate minimum wait time
-        time_since_last_request = current_time - self._last_request_time
-        time_since_last_write = current_time - self._last_write_time
-
-        wait_time = 0.0
-
-        # Ensure minimum interval between requests
-        if time_since_last_request < self.min_request_interval:
-            wait_time = max(wait_time, self.min_request_interval - time_since_last_request)
-
-        # If this is a read and we recently wrote, wait for cooldown
-        if not is_write and time_since_last_write < self.write_cooldown:
-            wait_time = max(wait_time, self.write_cooldown - time_since_last_write)
-
-        if wait_time > 0:
-            _LOGGER.debug(f"Rate limiting: waiting {wait_time:.2f}s before request")
-            await asyncio.sleep(wait_time)
-
-        # Update last request time
-        self._last_request_time = self._get_current_time()
-
-        # If this is a write, update write time
-        if is_write:
-            self._last_write_time = self._get_current_time()
-
-    async def _debounced_request(
-        self, key: str, coro_factory, debounce_time: float = None
-    ):
-        """Execute a request with debouncing to prevent rapid successive calls.
-
-        If the same request (identified by key) is called again within debounce_time,
-        the previous pending request is cancelled and a new one is scheduled.
-
-        Args:
-            key: Unique identifier for this request type
-            coro_factory: Callable that returns the coroutine to execute
-            debounce_time: Time to wait before executing (allows cancellation)
-
-        Returns:
-            Result of the request
-        """
-        if debounce_time is None:
-            debounce_time = self.request_debounce
-            
-        # Cancel any pending request with the same key
-        if key in self._pending_requests:
-            pending_task = self._pending_requests[key]
-            if not pending_task.done():
-                pending_task.cancel()
-                try:
-                    await pending_task
-                except asyncio.CancelledError:
-                    pass
-
-        # Wait for debounce time
-        await asyncio.sleep(debounce_time)
-
-        # Execute the actual request
-        return await coro_factory()
+    # -------------------------------------------------------------------------
+    # Session management
+    # -------------------------------------------------------------------------
 
     async def _get_session(self):
         """Get or create aiohttp session.
@@ -314,17 +209,21 @@ class ComfoClimeAPI:
             if isinstance(val, dict):
                 # Recursively process nested dictionaries
                 data[key] = ComfoClimeAPI.fix_signed_temperatures_in_dict(val)
-            elif "Temperature" in key and val is not None and isinstance(val, (int, float)):
+            elif (
+                "Temperature" in key
+                and val is not None
+                and isinstance(val, (int, float))
+            ):
                 data[key] = ComfoClimeAPI.fix_signed_temperature(val)
         return data
 
     @api_get("/monitoring/ping", skip_lock=True)
     async def _async_get_uuid_internal(self, response_data):
         """Internal method to get UUID.
-        
-        This method is called from within api_get decorators where the lock
-        is already held, so it uses skip_lock=True to avoid deadlock.
-        
+
+        Uses skip_lock=True because it's called from within other api_get
+        decorated methods where the lock is already held.
+
         The @api_get decorator handles:
         - Rate limiting
         - Session management
@@ -333,15 +232,13 @@ class ComfoClimeAPI:
         self.uuid = response_data.get("uuid")
         return self.uuid
 
-    @with_request_lock
     async def async_get_uuid(self):
         """Get UUID with lock protection.
-        
-        Public method to fetch the system UUID. Acquires the lock and
-        respects rate limiting.
+
+        Public method to fetch the system UUID.
         """
-        await self._wait_for_rate_limit(is_write=False)
-        return await self._async_get_uuid_internal()
+        async with self._request_lock:
+            return await self._async_get_uuid_internal()
 
     @api_get("/system/{uuid}/dashboard", requires_uuid=True, fix_temperatures=True)
     async def async_get_dashboard_data(self, response_data):
@@ -356,7 +253,12 @@ class ComfoClimeAPI:
         """
         return response_data
 
-    @api_get("/system/{uuid}/devices", requires_uuid=True, response_key="devices", response_default=[])
+    @api_get(
+        "/system/{uuid}/devices",
+        requires_uuid=True,
+        response_key="devices",
+        response_default=[],
+    )
     async def async_get_connected_devices(self, response_data):
         """Fetch connected devices from the API.
 
@@ -369,7 +271,10 @@ class ComfoClimeAPI:
         """
         return response_data
 
-    @api_get("/device/{device_uuid}/definition")
+    @api_get(
+        "/device/{device_uuid}/definition",
+        fix_temperatures=True,
+    )
     async def async_get_device_definition(self, response_data, device_uuid: str):
         """Get device definition data.
 
@@ -386,22 +291,22 @@ class ComfoClimeAPI:
         """
         return response_data
 
-    @api_get("/device/{device_uuid}/telemetry/{telemetry_id}", on_error=None)
+    @api_get("/device/{device_uuid}/telemetry/{telemetry_id}")
     async def _read_telemetry_raw(
         self, response_data, device_uuid: str, telemetry_id: str
     ):
         """Read raw telemetry data from device.
-        
+
         The @api_get decorator handles:
         - Request locking
         - Rate limiting
         - Session management
         - Error handling (returns None on error)
-        
+
         Args:
             device_uuid: UUID of the device
             telemetry_id: Telemetry ID to read
-            
+
         Returns:
             List of bytes or None on error
         """
@@ -410,7 +315,7 @@ class ComfoClimeAPI:
             _LOGGER.debug(f"Ungültiges Telemetrie-Format für {telemetry_id}")
             return None
         return data
-    
+
     async def async_read_telemetry_for_device(
         self,
         device_uuid: str,
@@ -432,14 +337,14 @@ class ComfoClimeAPI:
             The telemetry value (or None if failed)
         """
         # Try to get from cache first
-        cache_key = self._get_cache_key(device_uuid, telemetry_id)
-        cached_value = self._get_from_cache(self._telemetry_cache, cache_key)
+        cache_key = RateLimiterCache.get_cache_key(device_uuid, telemetry_id)
+        cached_value = self._rate_limiter.get_telemetry_from_cache(cache_key)
         if cached_value is not None:
             return cached_value
 
         # Not in cache, fetch from API using decorator
         data = await self._read_telemetry_raw(device_uuid, telemetry_id)
-        
+
         if data is None:
             return None
 
@@ -447,7 +352,7 @@ class ComfoClimeAPI:
         result = value * faktor
 
         # Store in cache
-        self._set_cache(self._telemetry_cache, cache_key, result)
+        self._rate_limiter.set_telemetry_cache(cache_key, result)
 
         return result
 
@@ -472,8 +377,8 @@ class ComfoClimeAPI:
             The property value (or None if failed)
         """
         # Try to get from cache first
-        cache_key = self._get_cache_key(device_uuid, property_path)
-        cached_value = self._get_from_cache(self._property_cache, cache_key)
+        cache_key = RateLimiterCache.get_cache_key(device_uuid, property_path)
+        cached_value = self._rate_limiter.get_property_from_cache(cache_key)
         if cached_value is not None:
             return cached_value
 
@@ -497,26 +402,26 @@ class ComfoClimeAPI:
             raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
 
         # Store in cache
-        self._set_cache(self._property_cache, cache_key, result)
+        self._rate_limiter.set_property_cache(cache_key, result)
 
         return result
 
-    @api_get("/device/{device_uuid}/property/{property_path}", on_error=None)
+    @api_get("/device/{device_uuid}/property/{property_path}")
     async def _read_property_for_device_raw(
         self, response_data, device_uuid: str, property_path: str
     ) -> None | list:
         """Read raw property data from device.
-        
+
         The @api_get decorator handles:
         - Request locking
         - Rate limiting
         - Session management
         - Error handling (returns None on error)
-        
+
         Args:
             device_uuid: UUID of the device
             property_path: Property path (e.g., "29/1/10")
-            
+
         Returns:
             List of bytes or None on error
         """
@@ -526,7 +431,12 @@ class ComfoClimeAPI:
             return None
         return data
 
-    @api_get("/system/{uuid}/thermalprofile", requires_uuid=True, fix_temperatures=True, on_error={})
+    @api_get(
+        "/system/{uuid}/thermalprofile",
+        requires_uuid=True,
+        fix_temperatures=True,
+        on_error={},
+    )
     async def async_get_thermal_profile(self, response_data):
         """Fetch thermal profile data from the API.
 
@@ -587,7 +497,7 @@ class ComfoClimeAPI:
         return payload
 
     @api_put("/system/{uuid}/dashboard", requires_uuid=True, is_dashboard=True)
-    async def _update_dashboard(
+    async def async_update_dashboard(
         self,
         set_point_temperature: float | None = None,
         fan_speed: int | None = None,
@@ -656,26 +566,69 @@ class ComfoClimeAPI:
 
         return payload
 
-    async def async_update_dashboard(self, **kwargs):
-        """Async wrapper for update_dashboard method."""
-        async with self._request_lock:
-            return await self._update_dashboard(**kwargs)
+    @api_put("/system/{uuid}/thermalprofile", requires_uuid=True)
+    async def _async_update_thermal_profile(self, **kwargs) -> dict:
+        """Internal decorated method for thermal profile updates.
+
+        This method is decorated with @api_put which handles:
+        - UUID retrieval
+        - Rate limiting
+        - Retry with exponential backoff
+        - Error handling
+
+        Only called from async_update_thermal_profile wrapper to avoid duplication.
+
+        Supported kwargs:
+            - season_status, season_value, heating_threshold_temperature, cooling_threshold_temperature
+            - temperature_status, manual_temperature
+            - temperature_profile
+            - heating_comfort_temperature, heating_knee_point_temperature, heating_reduction_delta_temperature
+            - cooling_comfort_temperature, cooling_knee_point_temperature, cooling_temperature_limit
+
+        Returns:
+            Payload dict for the decorator to process.
+        """
+        # Use class-level FIELD_MAPPING
+        field_mapping = self.FIELD_MAPPING
+
+        # Dynamically build payload
+        payload: dict = {}
+
+        for param_name, value in kwargs.items():
+            if value is None or param_name not in field_mapping:
+                continue
+
+            section, key = field_mapping[param_name]
+
+            if key is None:
+                # Top-level field
+                payload[section] = value
+            else:
+                # Nested field
+                if section not in payload:
+                    payload[section] = {}
+                payload[section][key] = value
+
+        return payload
 
     async def async_update_thermal_profile(self, updates: dict | None = None, **kwargs):
-        """Async wrapper for update_thermal_profile method.
+        """Public async wrapper supporting both legacy dict and modern kwargs styles.
+
+        This method provides backward compatibility with legacy dict-based calls
+        while supporting modern kwargs-based calls. The actual update is delegated
+        to the decorated _async_update_thermal_profile method.
 
         Supports two calling styles:
         1. Legacy dict-based: async_update_thermal_profile({"season": {"season": 1}})
         2. Modern kwargs-based: async_update_thermal_profile(season_value=1)
         """
-        async with self._request_lock:
-            # If updates dict is provided, convert it to kwargs
-            if updates is not None:
-                return await self._convert_dict_to_kwargs_and_update(updates)
-            return await self._update_thermal_profile(**kwargs)
+        # If updates dict is provided, convert it to kwargs
+        if updates is not None:
+            return await self._convert_dict_to_kwargs_and_update(updates)
+        return await self._async_update_thermal_profile(**kwargs)
 
-    async def _convert_dict_to_kwargs_and_update(self, updates: dict) -> bool:
-        """Convert legacy dict-based updates to kwargs and call _update_thermal_profile."""
+    async def _convert_dict_to_kwargs_and_update(self, updates: dict):
+        """Convert legacy dict-based updates to kwargs and call _async_update_thermal_profile."""
         # Mapping von nested dict-Struktur zu kwargs
         conversion_map = {
             ("season", "status"): "season_status",
@@ -726,24 +679,24 @@ class ComfoClimeAPI:
                 if mapping_key in conversion_map:
                     kwargs[conversion_map[mapping_key]] = value
 
-        return await self._update_thermal_profile(**kwargs)
+        return await self._async_update_thermal_profile(**kwargs)
 
     async def async_set_hvac_season(self, season: int, hpStandby: bool = False):
         """Set HVAC season and standby state in a single atomic operation.
 
         This method updates both the season (via thermal profile) and hpStandby
-        (via dashboard) in a single lock to prevent race conditions.
+        (via dashboard) atomically. The decorators handle all locking internally,
+        so this method doesn't need explicit locking.
 
         Args:
             season: Season value (0=transition, 1=heating, 2=cooling)
             hpStandby: Heat pump standby state (False=active, True=standby/off)
         """
-        async with self._request_lock:
-            # First update dashboard to set hpStandby
-            await self._update_dashboard(hpStandby=hpStandby)
-            # Then update thermal profile to set season
-            if not hpStandby:  # Only set season if device is active
-                await self._update_thermal_profile(season_value=season)
+        # First update dashboard to set hpStandby
+        await self.async_update_dashboard(hpStandby=hpStandby)
+        # Then update thermal profile to set season
+        if not hpStandby:  # Only set season if device is active
+            await self._async_update_thermal_profile(season_value=season)
 
     @api_put("/device/{device_uuid}/method/{x}/{y}/3")
     async def _set_property_internal(
@@ -755,25 +708,25 @@ class ComfoClimeAPI:
         data: list,
     ):
         """Internal method to build property write payload.
-        
+
         The @api_put decorator handles:
         - Request locking
         - Rate limiting (write mode)
         - Session management
         - Retry with exponential backoff
         - Error handling
-        
+
         Args:
             device_uuid: UUID of the device
             x, y: URL path parameters from property_path
             z: First data byte (property ID)
             data: Additional data bytes (value)
-            
+
         Returns:
             Payload dict for the decorator to process
         """
         return {"data": [z] + data}
-    
+
     async def async_set_property_for_device(
         self,
         device_uuid: str,
@@ -785,7 +738,9 @@ class ComfoClimeAPI:
         faktor: float = 1.0,
     ):
         """Set property for a device.
-        
+
+        The decorator handles all locking, rate limiting, and retry logic.
+
         Args:
             device_uuid: UUID of the device
             property_path: Property path in format "x/y/z"
@@ -793,7 +748,7 @@ class ComfoClimeAPI:
             byte_count: Number of bytes (1 or 2)
             signed: Whether the value is signed
             faktor: Factor to divide the value by before encoding
-            
+
         Raises:
             ValueError: If byte_count is not 1 or 2
         """
@@ -804,27 +759,24 @@ class ComfoClimeAPI:
         data = self.signed_int_to_bytes(raw_value, byte_count, signed)
 
         x, y, z = map(int, property_path.split("/"))
-        
-        async with self._request_lock:
-            result = await self._set_property_internal(device_uuid, x, y, z, data)
-            # Invalidate cache for this device after successful write
-            self._invalidate_cache_for_device(device_uuid)
-            return result
+
+        result = await self._set_property_internal(device_uuid, x, y, z, data)
+        # Invalidate cache for this device after successful write
+        self._rate_limiter.invalidate_cache_for_device(device_uuid)
+        return result
 
     @api_put("/system/reset")
-    async def _reset_system(self):
-        """Internal method to build reset payload.
-        
+    async def async_reset_system(self):
+        """Trigger a restart of the ComfoClime device.
+
         The @api_put decorator handles:
         - Request locking
         - Rate limiting
         - Session management
         - Retry with exponential backoff
+        - Error handling
+
+        No payload needed for reset.
         """
         # No payload needed for reset
         return {}
-    
-    async def async_reset_system(self):
-        """Trigger a restart of the ComfoClime device."""
-        async with self._request_lock:
-            return await self._reset_system()

@@ -1190,7 +1190,7 @@ await api.async_set_hvac_season(hass, season=1, hpStandby=False)
 
 ```python
 # Deactivate heat pump via dashboard
-await api.async_update_dashboard(hass, hpStandby=True)
+await api.async_update_dashboard(hpStandby=True)
 ```
 
 **Setting Manual Temperature:**
@@ -1198,7 +1198,6 @@ await api.async_update_dashboard(hass, hpStandby=True)
 ```python
 # Switch to manual mode with specific temperature
 await api.async_update_dashboard(
-    hass,
     set_point_temperature=22.0,
     status=0  # 0=manual mode
 )
@@ -1209,7 +1208,6 @@ await api.async_update_dashboard(
 ```python
 # Switch to automatic mode with comfort preset
 await api.async_update_dashboard(
-    hass,
     temperature_profile=0,  # 0=comfort, 1=power, 2=eco
     status=1  # 1=automatic mode
 )
@@ -1219,7 +1217,7 @@ await api.async_update_dashboard(
 
 ```python
 # Set fan to medium speed
-await api.async_update_dashboard(hass, fan_speed=2)
+await api.async_update_dashboard(fan_speed=2)
 ```
 
 ### Entity Organization
