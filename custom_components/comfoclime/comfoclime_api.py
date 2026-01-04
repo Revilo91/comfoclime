@@ -684,7 +684,8 @@ class ComfoClimeAPI:
     async def async_update_thermal_profile(self, updates: dict | None = None, **kwargs):
         """Async wrapper for update_thermal_profile method.
 
-        The decorator handles all locking, rate limiting, and retry logic.
+        Both call paths ultimately invoke the decorated _update_thermal_profile
+        method, which handles all locking, rate limiting, and retry logic.
 
         Supports two calling styles:
         1. Legacy dict-based: async_update_thermal_profile({"season": {"season": 1}})
