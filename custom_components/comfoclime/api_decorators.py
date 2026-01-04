@@ -17,6 +17,7 @@ Usage:
 
 import asyncio
 import functools
+import inspect
 import logging
 from typing import Any, Callable
 
@@ -60,7 +61,7 @@ def api_get(
         @api_get("/system/{uuid}/dashboard", requires_uuid=True, fix_temperatures=True)
         async def async_get_dashboard_data(self, response_data):
             return response_data
-        
+
         @api_get("/monitoring/ping", skip_lock=True)
         async def _async_get_uuid_internal(self, response_data):
             # Called from within api_get decorated methods, lock already held
@@ -70,9 +71,6 @@ def api_get(
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         async def wrapper(self, *args, **kwargs):
-            # Import here to avoid circular imports
-            import inspect
-
             # Bind positional arguments to their parameter names for URL formatting
             sig = inspect.signature(func)
             params = list(sig.parameters.keys())
@@ -110,17 +108,16 @@ def api_get(
                 if fix_temperatures:
                     data = self.fix_signed_temperatures_in_dict(data)
 
-                # Call the original function with the response data
+                # Call the original function with the response data and remaining args/kwargs
                 return await func(self, data, *args, **kwargs)
 
             try:
                 if skip_lock:
                     # Execute without acquiring lock (lock already held by caller)
                     return await _execute()
-                else:
-                    # Execute with lock acquisition
-                    async with self._request_lock:
-                        return await _execute()
+                # Execute with lock acquisition
+                async with self._request_lock:
+                    return await _execute()
 
             except (aiohttp.ClientError, asyncio.TimeoutError) as e:
                 if on_error is not None:
@@ -138,11 +135,12 @@ def api_put(
     *,
     requires_uuid: bool = False,
     is_dashboard: bool = False,
+    skip_lock: bool = False,
 ):
     """Decorator for PUT API endpoints.
 
     Handles:
-    - Request locking
+    - Request locking (unless skip_lock=True)
     - Rate limiting (write mode)
     - Session management
     - UUID retrieval (if requires_uuid=True)
@@ -155,6 +153,7 @@ def api_put(
                      Supports {uuid} for system UUID and any kwarg names for other params.
         requires_uuid: Whether the endpoint requires the system UUID to be fetched first.
         is_dashboard: Whether this is a dashboard update (adds timestamp and headers).
+        skip_lock: Skip lock acquisition (for methods called from within locked context).
 
     The decorated function should build and return the payload dict.
     The URL is built from the template.
@@ -164,7 +163,7 @@ def api_put(
         async def _update_dashboard(self, **kwargs) -> dict:
             payload = {...}
             return payload
-            
+
         @api_put("/device/{device_uuid}/method/{x}/{y}/3")
         async def _set_property(self, device_uuid: str, x: int, y: int, **kwargs) -> dict:
             payload = {...}
@@ -174,10 +173,6 @@ def api_put(
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         async def wrapper(self, *args, **kwargs):
-            # Get UUID if required
-            if requires_uuid and not self.uuid:
-                await self.async_get_uuid()
-
             # Bind positional arguments to their parameter names for URL formatting
             sig = inspect.signature(func)
             params = list(sig.parameters.keys())
@@ -188,77 +183,89 @@ def api_put(
                     param_name = params[i + 1]
                     url_kwargs[param_name] = arg
 
-            # Build URL from template
-            url = self.base_url + url_template.format(uuid=self.uuid, **url_kwargs)
+            async def _execute():
+                """Execute the API call (with or without lock)."""
+                await self._wait_for_rate_limit(is_write=True)
 
-            # Call the decorated function to get payload
-            payload = await func(self, *args, **kwargs)
+                # Get UUID if required
+                if requires_uuid and not self.uuid:
+                    await self._async_get_uuid_internal()
 
-            if not payload:
-                _LOGGER.debug("No fields to update (empty payload) - skipping PUT.")
-                return {} if is_dashboard else True
+                # Build URL from template
+                url = self.base_url + url_template.format(uuid=self.uuid, **url_kwargs)
 
-            await self._wait_for_rate_limit(is_write=True)
+                # Call the decorated function to get payload
+                payload = await func(self, *args, **kwargs)
 
-            # Prepare headers and add timestamp for dashboard updates
-            headers = None
-            if is_dashboard:
-                from datetime import datetime
-                from zoneinfo import ZoneInfo
+                if not payload:
+                    _LOGGER.debug("No fields to update (empty payload) - skipping PUT.")
+                    return {} if is_dashboard else True
 
-                if not self.hass:
-                    raise ValueError("hass instance required for timestamp generation")
-                tz = ZoneInfo(self.hass.config.time_zone)
-                payload["timestamp"] = datetime.now(tz).isoformat()
-                headers = {"content-type": "application/json; charset=utf-8"}
+                # Prepare headers and add timestamp for dashboard updates
+                headers = None
+                if is_dashboard:
+                    from datetime import datetime
+                    from zoneinfo import ZoneInfo
 
-            # Retry logic
-            last_exception = None
-            for attempt in range(self.max_retries + 1):
-                try:
-                    timeout = aiohttp.ClientTimeout(total=self.write_timeout)
-                    session = await self._get_session()
-                    _LOGGER.debug(
-                        f"PUT attempt {attempt + 1}/{self.max_retries + 1}, "
-                        f"timeout={self.write_timeout}s, payload={payload}"
-                    )
-                    async with session.put(
-                        url, json=payload, headers=headers, timeout=timeout
-                    ) as response:
-                        response.raise_for_status()
-                        if is_dashboard:
-                            try:
-                                resp_json = await response.json()
-                            except Exception:
-                                resp_json = {"text": await response.text()}
-                            _LOGGER.debug(f"Update OK response={resp_json}")
-                            return resp_json
-                        else:
+                    if not self.hass:
+                        raise ValueError("hass instance required for timestamp generation")
+                    tz = ZoneInfo(self.hass.config.time_zone)
+                    payload["timestamp"] = datetime.now(tz).isoformat()
+                    headers = {"content-type": "application/json; charset=utf-8"}
+
+                # Retry logic
+                last_exception = None
+                for attempt in range(self.max_retries + 1):
+                    try:
+                        timeout = aiohttp.ClientTimeout(total=self.write_timeout)
+                        session = await self._get_session()
+                        _LOGGER.debug(
+                            f"PUT attempt {attempt + 1}/{self.max_retries + 1}, "
+                            f"timeout={self.write_timeout}s, payload={payload}"
+                        )
+                        async with session.put(
+                            url, json=payload, headers=headers, timeout=timeout
+                        ) as response:
+                            response.raise_for_status()
+                            if is_dashboard:
+                                try:
+                                    resp_json = await response.json()
+                                except Exception:
+                                    resp_json = {"text": await response.text()}
+                                _LOGGER.debug(f"Update OK response={resp_json}")
+                                return resp_json
                             _LOGGER.debug(f"Update OK status={response.status}")
                             return response.status == 200
 
-                except (  # noqa: PERF203
-                    asyncio.TimeoutError,
-                    asyncio.CancelledError,
-                    aiohttp.ClientError,
-                ) as e:
-                    last_exception = e
-                    if attempt < self.max_retries:
-                        wait_time = 2 ** (attempt + 1)
-                        _LOGGER.warning(
-                            f"Update failed (attempt {attempt + 1}/{self.max_retries + 1}), "
-                            f"retrying in {wait_time}s: {type(e).__name__}: {e}"
-                        )
-                        await asyncio.sleep(wait_time)
-                    else:
-                        _LOGGER.exception(
-                            f"Update failed after {self.max_retries + 1} attempts: "
-                            f"{type(e).__name__}"
-                        )
+                    except (  # noqa: PERF203
+                        asyncio.TimeoutError,
+                        asyncio.CancelledError,
+                        aiohttp.ClientError,
+                    ) as e:
+                        last_exception = e
+                        if attempt < self.max_retries:
+                            wait_time = 2 ** (attempt + 1)
+                            _LOGGER.warning(
+                                f"Update failed (attempt {attempt + 1}/{self.max_retries + 1}), "
+                                f"retrying in {wait_time}s: {type(e).__name__}: {e}"
+                            )
+                            await asyncio.sleep(wait_time)
+                        else:
+                            _LOGGER.exception(
+                                f"Update failed after {self.max_retries + 1} attempts: "
+                                f"{type(e).__name__}"
+                            )
 
-            if last_exception:
-                raise last_exception
-            raise RuntimeError("Update failed with unknown error")
+                if last_exception:
+                    raise last_exception
+                raise RuntimeError("Update failed with unknown error")
+
+            if skip_lock:
+                # Execute without acquiring lock (lock already held by caller)
+                return await _execute()
+            # Execute with lock acquisition
+            async with self._request_lock:
+                return await _execute()
 
         return wrapper
 

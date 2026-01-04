@@ -28,9 +28,9 @@ async def async_setup(hass: HomeAssistant, config: dict):
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     hass.data.setdefault(DOMAIN, {})
-    
+
     host = entry.data["host"]
-    
+
     # Get configuration options with defaults
     read_timeout = entry.options.get("read_timeout", 10)
     write_timeout = entry.options.get("write_timeout", 30)
@@ -40,7 +40,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     min_request_interval = entry.options.get("min_request_interval", 0.1)
     write_cooldown = entry.options.get("write_cooldown", 2.0)
     request_debounce = entry.options.get("request_debounce", 0.3)
-    
+
     # Create API instance with configured timeouts, cache TTL, max retries, and rate limiting
     api = ComfoClimeAPI(
         f"http://{host}",
@@ -53,24 +53,31 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         write_cooldown=write_cooldown,
         request_debounce=request_debounce,
     )
-    
+
     # Get connected devices before creating coordinators
     devices = await api.async_get_connected_devices()
-    
-    # Dashboard-Coordinator erstellen
+
+    # Create Dashboard-Coordinator
     dashboard_coordinator = ComfoClimeDashboardCoordinator(hass, api, polling_interval)
     await dashboard_coordinator.async_config_entry_first_refresh()
-    
-    thermalprofile_coordinator = ComfoClimeThermalprofileCoordinator(hass, api, polling_interval)
+
+    # Create Thermalprofile-Coordinator
+    thermalprofile_coordinator = ComfoClimeThermalprofileCoordinator(
+        hass, api, polling_interval
+    )
     await thermalprofile_coordinator.async_config_entry_first_refresh()
+
+    # Create definition coordinator for device definition data (mainly for ComfoAirQ)
+    definitioncoordinator = ComfoClimeDefinitionCoordinator(
+        hass, api, devices, polling_interval
+    )
+    await definitioncoordinator.async_config_entry_first_refresh()
 
     # Create telemetry and property coordinators with device list
     tlcoordinator = ComfoClimeTelemetryCoordinator(hass, api, devices, polling_interval)
-    propcoordinator = ComfoClimePropertyCoordinator(hass, api, devices, polling_interval)
-
-    # Create definition coordinator for device definition data (mainly for ComfoAirQ)
-    definitioncoordinator = ComfoClimeDefinitionCoordinator(hass, api, devices, polling_interval)
-    await definitioncoordinator.async_config_entry_first_refresh()
+    propcoordinator = ComfoClimePropertyCoordinator(
+        hass, api, devices, polling_interval
+    )
 
     hass.data[DOMAIN][entry.entry_id] = {
         "api": api,
@@ -115,9 +122,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             _LOGGER.info(f"Property {path} auf {value} gesetzt für {device_uuid}")
         except Exception as e:
             _LOGGER.exception(f"Fehler beim Setzen von Property {path}")
-            raise HomeAssistantError(
-                f"Fehler beim Setzen von Property {path}"
-            ) from e
+            raise HomeAssistantError(f"Fehler beim Setzen von Property {path}") from e
 
     async def handle_reset_system_service(call: ServiceCall):
         try:
