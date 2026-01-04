@@ -49,9 +49,9 @@ jobs:
             echo "committed=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Create tag
+      - name: Create tag and push
         run: |
-          git tag -a "v${{ github.event.inputs.version }}" -m "Release version ${{ github.event.inputs.version }}"
+          git tag -a "v${{ github.event.inputs.version }}" -m "v${{ github.event.inputs.version }}"
           if [ "${{ steps.commit.outputs.committed }}" = "true" ]; then
             git push origin HEAD:${{ github.ref }}
           fi
