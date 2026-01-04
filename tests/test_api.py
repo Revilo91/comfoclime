@@ -322,14 +322,14 @@ class TestComfoClimeAPIRateLimiting:
     def test_rate_limit_constants(self):
         """Test that rate limiting constants are defined."""
         from custom_components.comfoclime.comfoclime_api import (
-            MIN_REQUEST_INTERVAL,
-            REQUEST_DEBOUNCE,
-            WRITE_COOLDOWN,
+            DEFAULT_MIN_REQUEST_INTERVAL,
+            DEFAULT_REQUEST_DEBOUNCE,
+            DEFAULT_WRITE_COOLDOWN,
         )
 
-        assert MIN_REQUEST_INTERVAL == 0.1
-        assert WRITE_COOLDOWN == 2.0
-        assert REQUEST_DEBOUNCE == 0.3
+        assert DEFAULT_MIN_REQUEST_INTERVAL == 0.1
+        assert DEFAULT_WRITE_COOLDOWN == 2.0
+        assert DEFAULT_REQUEST_DEBOUNCE == 0.3
 
     @pytest.mark.asyncio
     async def test_rate_limit_updates_last_request_time(self):

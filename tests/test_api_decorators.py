@@ -16,6 +16,9 @@ class MockAPI:
     def __init__(self):
         self.base_url = "http://test.local"
         self.uuid = "test-uuid"
+        self.read_timeout = 10
+        self.write_timeout = 30
+        self.max_retries = 3
         self._request_lock = MagicMock()
         self._request_lock.__aenter__ = AsyncMock()
         self._request_lock.__aexit__ = AsyncMock()
@@ -99,6 +102,7 @@ async def test_api_get_with_parameters():
 
     @api_get("/device/{device_uuid}/definition")
     async def test_method(self, response_data, device_uuid: str):
+        assert device_uuid == "my-device-id"
         return response_data
 
     api = MockAPI()
@@ -254,8 +258,13 @@ class MockAPIForPut:
     def __init__(self):
         self.base_url = "http://test.local"
         self.uuid = "test-uuid"
+        self.write_timeout = 30
+        self.max_retries = 3
         self.hass = MagicMock()
         self.hass.config.time_zone = "UTC"
+        self._request_lock = MagicMock()
+        self._request_lock.__aenter__ = AsyncMock()
+        self._request_lock.__aexit__ = AsyncMock()
         self._wait_for_rate_limit = AsyncMock()
         self._get_session = AsyncMock()
         self._async_get_uuid_internal = AsyncMock()
@@ -321,7 +330,7 @@ async def test_api_put_dashboard():
 
 @pytest.mark.asyncio
 async def test_api_put_requires_uuid():
-    """Test api_put decorator calls async_get_uuid when UUID is not set."""
+    """Test api_put decorator calls _async_get_uuid_internal when UUID is not set."""
     mock_response = MagicMock()
     mock_response.status = 200
     mock_response.raise_for_status = MagicMock()
@@ -332,11 +341,11 @@ async def test_api_put_requires_uuid():
 
     api = MockAPIForPut()
     api.uuid = None  # UUID not set
-    
-    # Mock async_get_uuid to set the UUID
+
+    # Mock _async_get_uuid_internal to set the UUID
     async def set_uuid():
         api.uuid = "fetched-uuid"
-    api.async_get_uuid = AsyncMock(side_effect=set_uuid)
+    api._async_get_uuid_internal = AsyncMock(side_effect=set_uuid)
 
     # Mock session and response
     mock_session = MagicMock()
@@ -349,8 +358,8 @@ async def test_api_put_requires_uuid():
     result = await test_method(api)
 
     assert result is True
-    # Verify async_get_uuid was called
-    api.async_get_uuid.assert_called_once()
+    # Verify _async_get_uuid_internal was called
+    api._async_get_uuid_internal.assert_called_once()
     # Verify UUID was set
     assert api.uuid == "fetched-uuid"
 
