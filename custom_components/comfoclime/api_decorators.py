@@ -270,17 +270,3 @@ def api_put(
         return wrapper
 
     return decorator
-
-
-def with_request_lock(func: Callable) -> Callable:
-    """Simple decorator to wrap a method with request lock.
-
-    Use this for methods that need locking but don't fit the api_get/api_put patterns.
-    """
-
-    @functools.wraps(func)
-    async def wrapper(self, *args, **kwargs):
-        async with self._request_lock:
-            return await func(self, *args, **kwargs)
-
-    return wrapper

@@ -4,7 +4,7 @@ import logging
 
 import aiohttp
 
-from .api_decorators import api_get, api_put, with_request_lock
+from .api_decorators import api_get, api_put
 from .rate_limiter_cache import (
     DEFAULT_CACHE_TTL,
     DEFAULT_MIN_REQUEST_INTERVAL,
@@ -221,8 +221,8 @@ class ComfoClimeAPI:
     async def _async_get_uuid_internal(self, response_data):
         """Internal method to get UUID.
 
-        This method is called from within api_get decorators where the lock
-        is already held, so it uses skip_lock=True to avoid deadlock.
+        Uses skip_lock=True because it's called from within other api_get
+        decorated methods where the lock is already held.
 
         The @api_get decorator handles:
         - Rate limiting
@@ -232,15 +232,13 @@ class ComfoClimeAPI:
         self.uuid = response_data.get("uuid")
         return self.uuid
 
-    @with_request_lock
     async def async_get_uuid(self):
         """Get UUID with lock protection.
 
-        Public method to fetch the system UUID. Acquires the lock and
-        respects rate limiting.
+        Public method to fetch the system UUID.
         """
-        await self._wait_for_rate_limit(is_write=False)
-        return await self._async_get_uuid_internal()
+        async with self._request_lock:
+            return await self._async_get_uuid_internal()
 
     @api_get("/system/{uuid}/dashboard", requires_uuid=True, fix_temperatures=True)
     async def async_get_dashboard_data(self, response_data):

@@ -1,12 +1,12 @@
 """Tests for API decorators."""
 
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from custom_components.comfoclime.api_decorators import (
     api_get,
     api_put,
-    with_request_lock,
 )
 
 
@@ -46,10 +46,11 @@ async def test_api_get_simple():
     # Mock session and response
     mock_session = MagicMock()
     mock_context = MagicMock()
-    mock_context.__aenter__ = AsyncMock(return_value=MagicMock(
-        raise_for_status=MagicMock(),
-        json=AsyncMock(return_value=mock_response)
-    ))
+    mock_context.__aenter__ = AsyncMock(
+        return_value=MagicMock(
+            raise_for_status=MagicMock(), json=AsyncMock(return_value=mock_response)
+        )
+    )
     mock_context.__aexit__ = AsyncMock()
     mock_session.get = MagicMock(return_value=mock_context)
     api._get_session = AsyncMock(return_value=mock_session)
@@ -75,10 +76,11 @@ async def test_api_get_with_uuid():
     # Mock session and response
     mock_session = MagicMock()
     mock_context = MagicMock()
-    mock_context.__aenter__ = AsyncMock(return_value=MagicMock(
-        raise_for_status=MagicMock(),
-        json=AsyncMock(return_value=mock_response)
-    ))
+    mock_context.__aenter__ = AsyncMock(
+        return_value=MagicMock(
+            raise_for_status=MagicMock(), json=AsyncMock(return_value=mock_response)
+        )
+    )
     mock_context.__aexit__ = AsyncMock()
     mock_session.get = MagicMock(return_value=mock_context)
     api._get_session = AsyncMock(return_value=mock_session)
@@ -87,6 +89,7 @@ async def test_api_get_with_uuid():
     # Set UUID after internal call
     async def set_uuid():
         api.uuid = "fetched-uuid"
+
     api._async_get_uuid_internal.side_effect = set_uuid
 
     result = await test_method(api)
@@ -110,10 +113,11 @@ async def test_api_get_with_parameters():
     # Mock session and response
     mock_session = MagicMock()
     mock_context = MagicMock()
-    mock_context.__aenter__ = AsyncMock(return_value=MagicMock(
-        raise_for_status=MagicMock(),
-        json=AsyncMock(return_value=mock_response)
-    ))
+    mock_context.__aenter__ = AsyncMock(
+        return_value=MagicMock(
+            raise_for_status=MagicMock(), json=AsyncMock(return_value=mock_response)
+        )
+    )
     mock_context.__aexit__ = AsyncMock()
     mock_session.get = MagicMock(return_value=mock_context)
     api._get_session = AsyncMock(return_value=mock_session)
@@ -141,10 +145,11 @@ async def test_api_get_with_response_key():
     # Mock session and response
     mock_session = MagicMock()
     mock_context = MagicMock()
-    mock_context.__aenter__ = AsyncMock(return_value=MagicMock(
-        raise_for_status=MagicMock(),
-        json=AsyncMock(return_value=mock_response)
-    ))
+    mock_context.__aenter__ = AsyncMock(
+        return_value=MagicMock(
+            raise_for_status=MagicMock(), json=AsyncMock(return_value=mock_response)
+        )
+    )
     mock_context.__aexit__ = AsyncMock()
     mock_session.get = MagicMock(return_value=mock_context)
     api._get_session = AsyncMock(return_value=mock_session)
@@ -165,17 +170,16 @@ async def test_api_get_with_fix_temperatures():
         return response_data
 
     api = MockAPI()
-    api.fix_signed_temperatures_in_dict = MagicMock(
-        return_value={"temperature": 23.0}
-    )
+    api.fix_signed_temperatures_in_dict = MagicMock(return_value={"temperature": 23.0})
 
     # Mock session and response
     mock_session = MagicMock()
     mock_context = MagicMock()
-    mock_context.__aenter__ = AsyncMock(return_value=MagicMock(
-        raise_for_status=MagicMock(),
-        json=AsyncMock(return_value=mock_response)
-    ))
+    mock_context.__aenter__ = AsyncMock(
+        return_value=MagicMock(
+            raise_for_status=MagicMock(), json=AsyncMock(return_value=mock_response)
+        )
+    )
     mock_context.__aexit__ = AsyncMock()
     mock_session.get = MagicMock(return_value=mock_context)
     api._get_session = AsyncMock(return_value=mock_session)
@@ -185,26 +189,6 @@ async def test_api_get_with_fix_temperatures():
     # Should have called fix_signed_temperatures_in_dict
     api.fix_signed_temperatures_in_dict.assert_called_once_with(mock_response)
     assert result == {"temperature": 23.0}
-
-
-@pytest.mark.asyncio
-async def test_with_request_lock_decorator():
-    """Test with_request_lock decorator."""
-    call_count = 0
-
-    @with_request_lock
-    async def test_method(self):
-        nonlocal call_count
-        call_count += 1
-        return "result"
-
-    api = MockAPI()
-    result = await test_method(api)
-
-    assert result == "result"
-    assert call_count == 1
-    api._request_lock.__aenter__.assert_called_once()
-    api._request_lock.__aexit__.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -234,10 +218,11 @@ async def test_api_get_skip_lock():
     # Mock session and response
     mock_session = MagicMock()
     mock_context = MagicMock()
-    mock_context.__aenter__ = AsyncMock(return_value=MagicMock(
-        raise_for_status=MagicMock(),
-        json=AsyncMock(return_value=mock_response)
-    ))
+    mock_context.__aenter__ = AsyncMock(
+        return_value=MagicMock(
+            raise_for_status=MagicMock(), json=AsyncMock(return_value=mock_response)
+        )
+    )
     mock_context.__aexit__ = AsyncMock()
     mock_session.get = MagicMock(return_value=mock_context)
     api._get_session = AsyncMock(return_value=mock_session)
@@ -345,6 +330,7 @@ async def test_api_put_requires_uuid():
     # Mock _async_get_uuid_internal to set the UUID
     async def set_uuid():
         api.uuid = "fetched-uuid"
+
     api._async_get_uuid_internal = AsyncMock(side_effect=set_uuid)
 
     # Mock session and response
@@ -362,7 +348,6 @@ async def test_api_put_requires_uuid():
     api._async_get_uuid_internal.assert_called_once()
     # Verify UUID was set
     assert api.uuid == "fetched-uuid"
-
 
 
 @pytest.mark.asyncio
