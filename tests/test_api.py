@@ -16,15 +16,15 @@ class TestComfoClimeAPI:
 
         assert api.base_url == "http://192.168.1.100"
         assert api.uuid is None
-        assert api._last_request_time == 0.0
-        assert api._last_write_time == 0.0
+        assert api._rate_limiter._last_request_time == 0.0
+        assert api._rate_limiter._last_write_time == 0.0
         assert api.read_timeout == 10  # Default value
         assert api.write_timeout == 30  # Default value
-        assert api.cache_ttl == 30.0  # Default value
+        assert api._rate_limiter.cache_ttl == 30.0  # Default value
         assert api.max_retries == 3  # Default value
-        assert api.min_request_interval == 0.1  # Default value
-        assert api.write_cooldown == 2.0  # Default value
-        assert api.request_debounce == 0.3  # Default value
+        assert api._rate_limiter.min_request_interval == 0.1  # Default value
+        assert api._rate_limiter.write_cooldown == 2.0  # Default value
+        assert api._rate_limiter.request_debounce == 0.3  # Default value
 
     def test_api_initialization_with_custom_timeouts(self):
         """Test API initialization with custom timeout values."""
@@ -42,11 +42,11 @@ class TestComfoClimeAPI:
         assert api.base_url == "http://192.168.1.100"
         assert api.read_timeout == 20
         assert api.write_timeout == 60
-        assert api.cache_ttl == 45
+        assert api._rate_limiter.cache_ttl == 45
         assert api.max_retries == 5
-        assert api.min_request_interval == 0.2
-        assert api.write_cooldown == 3.0
-        assert api.request_debounce == 0.5
+        assert api._rate_limiter.min_request_interval == 0.2
+        assert api._rate_limiter.write_cooldown == 3.0
+        assert api._rate_limiter.request_debounce == 0.5
 
     def test_api_initialization_strips_trailing_slash(self):
         """Test API initialization strips trailing slash."""
@@ -337,7 +337,7 @@ class TestComfoClimeAPIRateLimiting:
         api = ComfoClimeAPI("http://192.168.1.100")
 
         # Initial state
-        assert api._last_request_time == 0.0
+        assert api._rate_limiter._last_request_time == 0.0
 
         # Mock session to avoid actual HTTP calls
         mock_response = AsyncMock()
@@ -353,7 +353,7 @@ class TestComfoClimeAPIRateLimiting:
             await api.async_get_uuid()
 
         # After request, last_request_time should be updated
-        assert api._last_request_time > 0.0
+        assert api._rate_limiter._last_request_time > 0.0
 
     @pytest.mark.asyncio
     async def test_write_operation_updates_write_time(self):
@@ -364,7 +364,7 @@ class TestComfoClimeAPIRateLimiting:
         api.hass.config.time_zone = "Europe/Berlin"
 
         # Initial state
-        assert api._last_write_time == 0.0
+        assert api._rate_limiter._last_write_time == 0.0
 
         mock_response = AsyncMock()
         mock_response.json = AsyncMock(return_value={"status": "ok"})
@@ -379,7 +379,7 @@ class TestComfoClimeAPIRateLimiting:
             await api.async_update_dashboard(fan_speed=2)
 
         # After write, last_write_time should be updated
-        assert api._last_write_time > 0.0
+        assert api._rate_limiter._last_write_time > 0.0
 
 
 class TestComfoClimeAPIByteConversion:

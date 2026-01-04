@@ -5,22 +5,21 @@ import logging
 import aiohttp
 
 from .api_decorators import api_get, api_put, with_request_lock
+from .rate_limiter_cache import (
+    DEFAULT_CACHE_TTL,
+    DEFAULT_MIN_REQUEST_INTERVAL,
+    DEFAULT_REQUEST_DEBOUNCE,
+    DEFAULT_WRITE_COOLDOWN,
+    RateLimiterCache,
+)
 
 _LOGGER = logging.getLogger(__name__)
-
-# Rate limiting configuration (can be overridden via constructor)
-DEFAULT_MIN_REQUEST_INTERVAL = 0.1  # Minimum seconds between any requests
-DEFAULT_WRITE_COOLDOWN = (
-    2.0  # Seconds to wait after a write operation before allowing reads
-)
-DEFAULT_REQUEST_DEBOUNCE = 0.3  # Debounce time for rapid successive requests
 
 # Default timeout configuration (can be overridden via constructor)
 DEFAULT_READ_TIMEOUT = 10  # Timeout for read operations (GET)
 DEFAULT_WRITE_TIMEOUT = (
     30  # Timeout for write operations (PUT) - longer for dashboard updates
 )
-DEFAULT_CACHE_TTL = 30.0  # Cache time-to-live in seconds
 DEFAULT_MAX_RETRIES = 3  # Number of retries for transient failures
 
 
@@ -82,137 +81,31 @@ class ComfoClimeAPI:
         self.uuid = None
         self._request_lock = asyncio.Lock()
         self._session = None
-        self._last_request_time = 0.0
-        self._last_write_time = 0.0
-        self._pending_requests: dict[str, asyncio.Task] = {}
-        # Cache for telemetry and property reads: {cache_key: (value, timestamp)}
-        self._telemetry_cache: dict[str, tuple] = {}
-        self._property_cache: dict[str, tuple] = {}
-        # Configurable timeouts, cache TTL, max retries, and rate limiting
+
+        # Initialize rate limiter and cache manager
+        self._rate_limiter = RateLimiterCache(
+            min_request_interval=min_request_interval,
+            write_cooldown=write_cooldown,
+            request_debounce=request_debounce,
+            cache_ttl=cache_ttl,
+        )
+
+        # Configurable timeouts and max retries
         self.read_timeout = read_timeout
         self.write_timeout = write_timeout
-        self.cache_ttl = cache_ttl
         self.max_retries = max_retries
-        self.min_request_interval = min_request_interval
-        self.write_cooldown = write_cooldown
-        self.request_debounce = request_debounce
 
-    def _get_current_time(self) -> float:
-        """Get current monotonic time for rate limiting."""
-        return asyncio.get_event_loop().time()
+    # -------------------------------------------------------------------------
+    # Rate limiting delegation (used by decorators)
+    # -------------------------------------------------------------------------
 
-    def _get_cache_key(self, device_uuid: str, data_id: str) -> str:
-        """Generate a cache key from device UUID and data ID."""
-        return f"{device_uuid}:{data_id}"
+    async def _wait_for_rate_limit(self, is_write: bool = False) -> None:
+        """Wait if necessary to respect rate limits."""
+        await self._rate_limiter.wait_for_rate_limit(is_write=is_write)
 
-    def _is_cache_valid(self, timestamp: float) -> bool:
-        """Check if a cached value is still valid."""
-        if self.cache_ttl == 0:
-            return False  # Cache disabled
-        return (self._get_current_time() - timestamp) < self.cache_ttl
-
-    def _get_from_cache(self, cache_dict: dict, cache_key: str):
-        """Get a value from cache if it's still valid."""
-        if cache_key in cache_dict:
-            value, timestamp = cache_dict[cache_key]
-            if self._is_cache_valid(timestamp):
-                _LOGGER.debug(f"Cache hit for {cache_key}")
-                return value
-            # Cache expired, remove it
-            del cache_dict[cache_key]
-        return None
-
-    def _set_cache(self, cache_dict: dict, cache_key: str, value):
-        """Store a value in cache with current timestamp."""
-        cache_dict[cache_key] = (value, self._get_current_time())
-
-    def _invalidate_cache_for_device(self, device_uuid: str):
-        """Invalidate all cache entries for a specific device."""
-        # Remove telemetry cache entries for this device
-        keys_to_remove = [
-            k for k in self._telemetry_cache.keys() if k.startswith(f"{device_uuid}:")
-        ]
-        for k in keys_to_remove:
-            del self._telemetry_cache[k]
-
-        # Remove property cache entries for this device
-        keys_to_remove = [
-            k for k in self._property_cache.keys() if k.startswith(f"{device_uuid}:")
-        ]
-        for k in keys_to_remove:
-            del self._property_cache[k]
-
-        _LOGGER.debug(f"Invalidated all cache entries for device {device_uuid}")
-
-    async def _wait_for_rate_limit(self, is_write: bool = False):
-        """Wait if necessary to respect rate limits.
-
-        Args:
-            is_write: True if this is a write operation (will set cooldown after)
-        """
-        current_time = self._get_current_time()
-
-        # Calculate minimum wait time
-        time_since_last_request = current_time - self._last_request_time
-        time_since_last_write = current_time - self._last_write_time
-
-        wait_time = 0.0
-
-        # Ensure minimum interval between requests
-        if time_since_last_request < self.min_request_interval:
-            wait_time = max(
-                wait_time, self.min_request_interval - time_since_last_request
-            )
-
-        # If this is a read and we recently wrote, wait for cooldown
-        if not is_write and time_since_last_write < self.write_cooldown:
-            wait_time = max(wait_time, self.write_cooldown - time_since_last_write)
-
-        if wait_time > 0:
-            _LOGGER.debug(f"Rate limiting: waiting {wait_time:.2f}s before request")
-            await asyncio.sleep(wait_time)
-
-        # Update last request time
-        self._last_request_time = self._get_current_time()
-
-        # If this is a write, update write time
-        if is_write:
-            self._last_write_time = self._get_current_time()
-
-    async def _debounced_request(
-        self, key: str, coro_factory, debounce_time: float = None
-    ):
-        """Execute a request with debouncing to prevent rapid successive calls.
-
-        If the same request (identified by key) is called again within debounce_time,
-        the previous pending request is cancelled and a new one is scheduled.
-
-        Args:
-            key: Unique identifier for this request type
-            coro_factory: Callable that returns the coroutine to execute
-            debounce_time: Time to wait before executing (allows cancellation)
-
-        Returns:
-            Result of the request
-        """
-        if debounce_time is None:
-            debounce_time = self.request_debounce
-
-        # Cancel any pending request with the same key
-        if key in self._pending_requests:
-            pending_task = self._pending_requests[key]
-            if not pending_task.done():
-                pending_task.cancel()
-                try:
-                    await pending_task
-                except asyncio.CancelledError:
-                    pass
-
-        # Wait for debounce time
-        await asyncio.sleep(debounce_time)
-
-        # Execute the actual request
-        return await coro_factory()
+    # -------------------------------------------------------------------------
+    # Session management
+    # -------------------------------------------------------------------------
 
     async def _get_session(self):
         """Get or create aiohttp session.
@@ -446,8 +339,8 @@ class ComfoClimeAPI:
             The telemetry value (or None if failed)
         """
         # Try to get from cache first
-        cache_key = self._get_cache_key(device_uuid, telemetry_id)
-        cached_value = self._get_from_cache(self._telemetry_cache, cache_key)
+        cache_key = RateLimiterCache.get_cache_key(device_uuid, telemetry_id)
+        cached_value = self._rate_limiter.get_telemetry_from_cache(cache_key)
         if cached_value is not None:
             return cached_value
 
@@ -461,7 +354,7 @@ class ComfoClimeAPI:
         result = value * faktor
 
         # Store in cache
-        self._set_cache(self._telemetry_cache, cache_key, result)
+        self._rate_limiter.set_telemetry_cache(cache_key, result)
 
         return result
 
@@ -486,8 +379,8 @@ class ComfoClimeAPI:
             The property value (or None if failed)
         """
         # Try to get from cache first
-        cache_key = self._get_cache_key(device_uuid, property_path)
-        cached_value = self._get_from_cache(self._property_cache, cache_key)
+        cache_key = RateLimiterCache.get_cache_key(device_uuid, property_path)
+        cached_value = self._rate_limiter.get_property_from_cache(cache_key)
         if cached_value is not None:
             return cached_value
 
@@ -511,7 +404,7 @@ class ComfoClimeAPI:
             raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
 
         # Store in cache
-        self._set_cache(self._property_cache, cache_key, result)
+        self._rate_limiter.set_property_cache(cache_key, result)
 
         return result
 
@@ -871,7 +764,7 @@ class ComfoClimeAPI:
 
         result = await self._set_property_internal(device_uuid, x, y, z, data)
         # Invalidate cache for this device after successful write
-        self._invalidate_cache_for_device(device_uuid)
+        self._rate_limiter.invalidate_cache_for_device(device_uuid)
         return result
 
     @api_put("/system/reset")

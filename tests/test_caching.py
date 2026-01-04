@@ -19,17 +19,18 @@ from custom_components.comfoclime.sensor import (
 def test_cache_initialization():
     """Test that cache is properly initialized."""
     api = ComfoClimeAPI("http://test")
-    assert isinstance(api._telemetry_cache, dict)
-    assert isinstance(api._property_cache, dict)
-    assert len(api._telemetry_cache) == 0
-    assert len(api._property_cache) == 0
+    assert isinstance(api._rate_limiter._telemetry_cache, dict)
+    assert isinstance(api._rate_limiter._property_cache, dict)
+    assert len(api._rate_limiter._telemetry_cache) == 0
+    assert len(api._rate_limiter._property_cache) == 0
     print("✅ Cache initialization test passed")
 
 
 def test_cache_key_generation():
     """Test cache key generation."""
-    api = ComfoClimeAPI("http://test")
-    key = api._get_cache_key("device-123", "telemetry-456")
+    from custom_components.comfoclime.rate_limiter_cache import RateLimiterCache
+
+    key = RateLimiterCache.get_cache_key("device-123", "telemetry-456")
     assert key == "device-123:telemetry-456"
     print("✅ Cache key generation test passed")
 
@@ -44,13 +45,6 @@ def test_cache_ttl_constant():
 
 async def test_telemetry_cache():
     """Test telemetry caching."""
-    api = AsyncMock(spec=ComfoClimeAPI)
-    api.base_url = "http://test"
-    api.uuid = "test-uuid"
-    api._telemetry_cache = {}
-    api._property_cache = {}
-    api._request_lock = asyncio.Lock()
-
     # Create a real API instance for testing
     api = ComfoClimeAPI("http://test")
     api.uuid = "test-uuid"
@@ -134,19 +128,19 @@ async def test_cache_invalidation():
     """Test that cache is invalidated for a device."""
     api = ComfoClimeAPI("http://test")
 
-    # Manually add some cache entries
-    api._set_cache(api._telemetry_cache, "device-1:telemetry-1", 100)
-    api._set_cache(api._telemetry_cache, "device-1:telemetry-2", 200)
-    api._set_cache(api._telemetry_cache, "device-2:telemetry-1", 300)
+    # Manually add some cache entries via the rate_limiter
+    api._rate_limiter.set_telemetry_cache("device-1:telemetry-1", 100)
+    api._rate_limiter.set_telemetry_cache("device-1:telemetry-2", 200)
+    api._rate_limiter.set_telemetry_cache("device-2:telemetry-1", 300)
 
-    assert len(api._telemetry_cache) == 3
+    assert len(api._rate_limiter._telemetry_cache) == 3
 
     # Invalidate cache for device-1
-    api._invalidate_cache_for_device("device-1")
+    api._rate_limiter.invalidate_cache_for_device("device-1")
 
     # Should have removed device-1 entries
-    assert len(api._telemetry_cache) == 1
-    assert "device-2:telemetry-1" in str(api._telemetry_cache)
+    assert len(api._rate_limiter._telemetry_cache) == 1
+    assert "device-2:telemetry-1" in str(api._rate_limiter._telemetry_cache)
     print("✅ Cache invalidation test passed")
 
 
