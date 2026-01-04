@@ -543,7 +543,8 @@ class ComfoClimeAPI:
     @api_get(
         "/system/{uuid}/thermalprofile",
         requires_uuid=True,
-        fix_temperatures=True
+        fix_temperatures=True,
+        on_error={},
     )
     async def async_get_thermal_profile(self, response_data):
         """Fetch thermal profile data from the API.
