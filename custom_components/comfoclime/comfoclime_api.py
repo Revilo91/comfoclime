@@ -834,7 +834,7 @@ class ComfoClimeAPI:
         self._invalidate_cache_for_device(device_uuid)
         return result
 
-    @api_put("/system/reset",)
+    @api_put("/system/reset")
     async def _reset_system(self):
         """Internal method to build reset payload.
 
