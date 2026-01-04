@@ -114,6 +114,30 @@ https://github.com/michaelarnauts/aiocomfoconnect
 
 ## Development
 
+### Releasing a New Version
+
+This project uses an automated release workflow. To create a new release:
+
+1. **Update the version in manifest.json** via a pull request:
+   ```bash
+   # Edit custom_components/comfoclime/manifest.json
+   # Update the "version" field to your new version (e.g., "2.0.1")
+   ```
+
+2. **Merge the version update PR** to the main branch
+
+3. **Trigger the release workflow**:
+   - Go to Actions → Release workflow
+   - Click "Run workflow"
+   - Enter the version number (must match manifest.json)
+   - The workflow will:
+     - Verify the version matches manifest.json
+     - Create and push a git tag
+     - Generate a changelog from commits since the last tag
+     - Create a GitHub release with the changelog
+
+**Note:** The main branch is protected and requires pull requests. The release workflow will not attempt to push directly to main - all version updates must go through the normal PR process first.
+
 ### Running Tests
 
 The integration includes a comprehensive test suite covering all entity types. To run the tests:
