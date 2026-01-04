@@ -327,8 +327,6 @@
                 "description": "Erweiterte Einstellungen für die Integration",
                 "data": {
                     "enable_diagnostics": "Diagnose-Sensoren standardmäßig aktivieren",
-                    "minimal_mode": "Keine ComfoNet Abfragen (Testzwecke)",
-                    "throttle_comfonet": "Wartezeit von 10ms zwischen ComfoNet Abfragen",
                     "read_timeout": "Timeout für Lese-Operationen (Sekunden, 1-120)",
                     "write_timeout": "Timeout für Schreib-Operationen (Sekunden, 1-120)",
                     "polling_interval": "Aktualisierungsintervall (Sekunden, 10-600)",
