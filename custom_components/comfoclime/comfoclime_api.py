@@ -559,6 +559,42 @@ class ComfoClimeAPI:
         """
         return response_data
 
+    def _build_thermal_profile_payload(self, **kwargs) -> dict:
+        """Build thermal profile payload dict from provided parameters.
+
+        Supported kwargs:
+            - season_status, season_value, heating_threshold_temperature, cooling_threshold_temperature
+            - temperature_status, manual_temperature
+            - temperature_profile
+            - heating_comfort_temperature, heating_knee_point_temperature, heating_reduction_delta_temperature
+            - cooling_comfort_temperature, cooling_knee_point_temperature, cooling_temperature_limit
+
+        Returns:
+            Payload dict with only provided (not None) fields.
+        """
+        # Use class-level FIELD_MAPPING
+        field_mapping = self.FIELD_MAPPING
+
+        # Dynamically build payload
+        payload: dict = {}
+
+        for param_name, value in kwargs.items():
+            if value is None or param_name not in field_mapping:
+                continue
+
+            section, key = field_mapping[param_name]
+
+            if key is None:
+                # Top-level field
+                payload[section] = value
+            else:
+                # Nested field
+                if section not in payload:
+                    payload[section] = {}
+                payload[section][key] = value
+
+        return payload
+
     @api_put("/system/{uuid}/thermalprofile", requires_uuid=True)
     async def _update_thermal_profile(self, **kwargs) -> dict:
         """Update thermal profile settings via API.
@@ -582,26 +618,72 @@ class ComfoClimeAPI:
         Returns:
             Payload dict for the decorator to process.
         """
-        # Use class-level FIELD_MAPPING
-        field_mapping = self.FIELD_MAPPING
+        return self._build_thermal_profile_payload(**kwargs)
 
-        # Dynamically build payload
+    @api_put("/system/{uuid}/thermalprofile", requires_uuid=True, skip_lock=True)
+    async def _update_thermal_profile_internal(self, **kwargs) -> dict:
+        """Internal thermal profile update with skip_lock=True.
+
+        Used when called from within a locked context (e.g., async_set_hvac_season).
+        """
+        return self._build_thermal_profile_payload(**kwargs)
+
+    def _build_dashboard_payload(
+        self,
+        set_point_temperature: float | None = None,
+        fan_speed: int | None = None,
+        season: int | None = None,
+        hpStandby: bool | None = None,
+        schedule: int | None = None,
+        temperature_profile: int | None = None,
+        season_profile: int | None = None,
+        status: int | None = None,
+        scenario: int | None = None,
+        scenario_time_left: int | None = None,
+        scenario_start_delay: int | None = None,
+    ) -> dict:
+        """Build dashboard payload dict from provided parameters.
+
+        Args:
+            set_point_temperature: Target temperature (°C) - activates manual mode
+            fan_speed: Fan speed (0-3)
+            season: Season value (0=transition, 1=heating, 2=cooling)
+            hpStandby: Heat pump standby state (True=standby/off, False=active)
+            schedule: Schedule mode
+            temperature_profile: Temperature profile/preset (0=comfort, 1=boost, 2=eco)
+            season_profile: Season profile/preset (0=comfort, 1=boost, 2=eco)
+            status: Temperature control mode (0=manual, 1=automatic)
+            scenario: Scenario mode (4=Kochen, 5=Party, 7=Urlaub, 8=Boost)
+            scenario_time_left: Duration for scenario in seconds (e.g., 1800 for 30min)
+            scenario_start_delay: Start delay for scenario in seconds (optional)
+
+        Returns:
+            Payload dict with only provided (not None) fields.
+        """
+        # Dynamically build payload; only include keys explicitly provided.
         payload: dict = {}
-
-        for param_name, value in kwargs.items():
-            if value is None or param_name not in field_mapping:
-                continue
-
-            section, key = field_mapping[param_name]
-
-            if key is None:
-                # Top-level field
-                payload[section] = value
-            else:
-                # Nested field
-                if section not in payload:
-                    payload[section] = {}
-                payload[section][key] = value
+        if set_point_temperature is not None:
+            payload["setPointTemperature"] = set_point_temperature
+        if fan_speed is not None:
+            payload["fanSpeed"] = fan_speed
+        if season is not None:
+            payload["season"] = season
+        if schedule is not None:
+            payload["schedule"] = schedule
+        if temperature_profile is not None:
+            payload["temperatureProfile"] = temperature_profile
+        if season_profile is not None:
+            payload["seasonProfile"] = season_profile
+        if status is not None:
+            payload["status"] = status
+        if hpStandby is not None:
+            payload["hpStandby"] = hpStandby
+        if scenario is not None:
+            payload["scenario"] = scenario
+        if scenario_time_left is not None:
+            payload["scenarioTimeLeft"] = scenario_time_left
+        if scenario_start_delay is not None:
+            payload["scenarioStartDelay"] = scenario_start_delay
 
         return payload
 
@@ -648,32 +730,57 @@ class ComfoClimeAPI:
         Returns:
             Payload dict for the decorator to process.
         """
-        # Dynamically build payload; only include keys explicitly provided.
-        payload: dict = {}
-        if set_point_temperature is not None:
-            payload["setPointTemperature"] = set_point_temperature
-        if fan_speed is not None:
-            payload["fanSpeed"] = fan_speed
-        if season is not None:
-            payload["season"] = season
-        if schedule is not None:
-            payload["schedule"] = schedule
-        if temperature_profile is not None:
-            payload["temperatureProfile"] = temperature_profile
-        if season_profile is not None:
-            payload["seasonProfile"] = season_profile
-        if status is not None:
-            payload["status"] = status
-        if hpStandby is not None:
-            payload["hpStandby"] = hpStandby
-        if scenario is not None:
-            payload["scenario"] = scenario
-        if scenario_time_left is not None:
-            payload["scenarioTimeLeft"] = scenario_time_left
-        if scenario_start_delay is not None:
-            payload["scenarioStartDelay"] = scenario_start_delay
+        return self._build_dashboard_payload(
+            set_point_temperature=set_point_temperature,
+            fan_speed=fan_speed,
+            season=season,
+            hpStandby=hpStandby,
+            schedule=schedule,
+            temperature_profile=temperature_profile,
+            season_profile=season_profile,
+            status=status,
+            scenario=scenario,
+            scenario_time_left=scenario_time_left,
+            scenario_start_delay=scenario_start_delay,
+        )
 
-        return payload
+    @api_put(
+        "/system/{uuid}/dashboard",
+        requires_uuid=True,
+        is_dashboard=True,
+        skip_lock=True,
+    )
+    async def _update_dashboard_internal(
+        self,
+        set_point_temperature: float | None = None,
+        fan_speed: int | None = None,
+        season: int | None = None,
+        hpStandby: bool | None = None,
+        schedule: int | None = None,
+        temperature_profile: int | None = None,
+        season_profile: int | None = None,
+        status: int | None = None,
+        scenario: int | None = None,
+        scenario_time_left: int | None = None,
+        scenario_start_delay: int | None = None,
+    ) -> dict:
+        """Internal dashboard update with skip_lock=True.
+
+        Used when called from within a locked context (e.g., async_set_hvac_season).
+        """
+        return self._build_dashboard_payload(
+            set_point_temperature=set_point_temperature,
+            fan_speed=fan_speed,
+            season=season,
+            hpStandby=hpStandby,
+            schedule=schedule,
+            temperature_profile=temperature_profile,
+            season_profile=season_profile,
+            status=status,
+            scenario=scenario,
+            scenario_time_left=scenario_time_left,
+            scenario_start_delay=scenario_start_delay,
+        )
 
     async def async_update_dashboard(self, **kwargs):
         """Async wrapper for update_dashboard method.
@@ -751,22 +858,24 @@ class ComfoClimeAPI:
 
         return await self._update_thermal_profile(**kwargs)
 
+    @with_request_lock
     async def async_set_hvac_season(self, season: int, hpStandby: bool = False):
         """Set HVAC season and standby state in a single atomic operation.
 
         This method updates both the season (via thermal profile) and hpStandby
-        (via dashboard) atomically. The decorators handle all locking internally,
-        so this method doesn't need explicit locking.
+        (via dashboard) atomically. The @with_request_lock decorator ensures both
+        updates happen without interleaving with other API calls.
 
         Args:
             season: Season value (0=transition, 1=heating, 2=cooling)
             hpStandby: Heat pump standby state (False=active, True=standby/off)
         """
-        # First update dashboard to set hpStandby
-        await self._update_dashboard(hpStandby=hpStandby)
-        # Then update thermal profile to set season
-        if not hpStandby:  # Only set season if device is active
-            await self._update_thermal_profile(season_value=season)
+        # Use internal methods with skip_lock=True to avoid deadlock
+        # Both calls are protected by the @with_request_lock decorator
+        await self._update_dashboard_internal(hpStandby=hpStandby)
+        # Only set season if device is active
+        if not hpStandby:
+            await self._update_thermal_profile_internal(season_value=season)
 
     @api_put("/device/{device_uuid}/method/{x}/{y}/3")
     async def _set_property_internal(
