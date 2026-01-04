@@ -606,7 +606,7 @@ class ComfoClimeAPI:
         return payload
 
     @api_put("/system/{uuid}/dashboard", requires_uuid=True, is_dashboard=True)
-    async def _update_dashboard(
+    async def async_update_dashboard(
         self,
         set_point_temperature: float | None = None,
         fan_speed: int | None = None,
@@ -675,18 +675,57 @@ class ComfoClimeAPI:
 
         return payload
 
-    async def async_update_dashboard(self, **kwargs):
-        """Async wrapper for update_dashboard method.
+    @api_put("/system/{uuid}/thermalprofile", requires_uuid=True)
+    async def _async_update_thermal_profile(self, **kwargs) -> dict:
+        """Internal decorated method for thermal profile updates.
 
-        The decorator handles all locking, rate limiting, and retry logic.
+        This method is decorated with @api_put which handles:
+        - UUID retrieval
+        - Rate limiting
+        - Retry with exponential backoff
+        - Error handling
+
+        Only called from async_update_thermal_profile wrapper to avoid duplication.
+
+        Supported kwargs:
+            - season_status, season_value, heating_threshold_temperature, cooling_threshold_temperature
+            - temperature_status, manual_temperature
+            - temperature_profile
+            - heating_comfort_temperature, heating_knee_point_temperature, heating_reduction_delta_temperature
+            - cooling_comfort_temperature, cooling_knee_point_temperature, cooling_temperature_limit
+
+        Returns:
+            Payload dict for the decorator to process.
         """
-        return await self._update_dashboard(**kwargs)
+        # Use class-level FIELD_MAPPING
+        field_mapping = self.FIELD_MAPPING
+
+        # Dynamically build payload
+        payload: dict = {}
+
+        for param_name, value in kwargs.items():
+            if value is None or param_name not in field_mapping:
+                continue
+
+            section, key = field_mapping[param_name]
+
+            if key is None:
+                # Top-level field
+                payload[section] = value
+            else:
+                # Nested field
+                if section not in payload:
+                    payload[section] = {}
+                payload[section][key] = value
+
+        return payload
 
     async def async_update_thermal_profile(self, updates: dict | None = None, **kwargs):
-        """Async wrapper for update_thermal_profile method.
+        """Public async wrapper supporting both legacy dict and modern kwargs styles.
 
-        Both call paths ultimately invoke the decorated _update_thermal_profile
-        method, which handles all locking, rate limiting, and retry logic.
+        This method provides backward compatibility with legacy dict-based calls
+        while supporting modern kwargs-based calls. The actual update is delegated
+        to the decorated _async_update_thermal_profile method.
 
         Supports two calling styles:
         1. Legacy dict-based: async_update_thermal_profile({"season": {"season": 1}})
@@ -695,10 +734,10 @@ class ComfoClimeAPI:
         # If updates dict is provided, convert it to kwargs
         if updates is not None:
             return await self._convert_dict_to_kwargs_and_update(updates)
-        return await self._update_thermal_profile(**kwargs)
+        return await self._async_update_thermal_profile(**kwargs)
 
-    async def _convert_dict_to_kwargs_and_update(self, updates: dict) -> bool:
-        """Convert legacy dict-based updates to kwargs and call _update_thermal_profile."""
+    async def _convert_dict_to_kwargs_and_update(self, updates: dict):
+        """Convert legacy dict-based updates to kwargs and call _async_update_thermal_profile."""
         # Mapping von nested dict-Struktur zu kwargs
         conversion_map = {
             ("season", "status"): "season_status",
@@ -749,7 +788,7 @@ class ComfoClimeAPI:
                 if mapping_key in conversion_map:
                     kwargs[conversion_map[mapping_key]] = value
 
-        return await self._update_thermal_profile(**kwargs)
+        return await self._async_update_thermal_profile(**kwargs)
 
     async def async_set_hvac_season(self, season: int, hpStandby: bool = False):
         """Set HVAC season and standby state in a single atomic operation.
@@ -763,10 +802,10 @@ class ComfoClimeAPI:
             hpStandby: Heat pump standby state (False=active, True=standby/off)
         """
         # First update dashboard to set hpStandby
-        await self._update_dashboard(hpStandby=hpStandby)
+        await self.async_update_dashboard(hpStandby=hpStandby)
         # Then update thermal profile to set season
         if not hpStandby:  # Only set season if device is active
-            await self._update_thermal_profile(season_value=season)
+            await self._async_update_thermal_profile(season_value=season)
 
     @api_put("/device/{device_uuid}/method/{x}/{y}/3")
     async def _set_property_internal(
@@ -836,21 +875,17 @@ class ComfoClimeAPI:
         return result
 
     @api_put("/system/reset")
-    async def _reset_system(self):
-        """Internal method to build reset payload.
+    async def async_reset_system(self):
+        """Trigger a restart of the ComfoClime device.
 
         The @api_put decorator handles:
         - Request locking
         - Rate limiting
         - Session management
         - Retry with exponential backoff
+        - Error handling
+
+        No payload needed for reset.
         """
         # No payload needed for reset
         return {}
-
-    async def async_reset_system(self):
-        """Trigger a restart of the ComfoClime device.
-
-        The decorator handles all locking, rate limiting, and retry logic.
-        """
-        return await self._reset_system()
