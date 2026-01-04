@@ -122,9 +122,6 @@ async def test_options_flow_default_values():
     field_names = {key.schema: key for key in schema.keys()}
     
     assert "enable_diagnostics" in field_names
-    assert "enable_frequent_updates" in field_names
-    assert "minimal_mode" in field_names
-    assert "throttle_comfonet" in field_names
     assert "read_timeout" in field_names
     assert "write_timeout" in field_names
     assert "polling_interval" in field_names
@@ -169,9 +166,6 @@ async def test_options_flow_save_values():
     
     user_input = {
         "enable_diagnostics": True,
-        "enable_frequent_updates": False,
-        "minimal_mode": False,
-        "throttle_comfonet": False,
         "read_timeout": 20,
         "write_timeout": 40,
         "polling_interval": 90,

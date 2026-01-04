@@ -326,8 +326,6 @@
                 "description": "Advanced integration options",
                 "data": {
                     "enable_diagnostics": "Enable diagnostic sensors by default",
-                    "minimal_mode": "No communication with ComfoNet Bus (testing)",
-                    "throttle_comfonet": "Add a 10ms pause between ComfoNet polls",
                     "read_timeout": "Read operation timeout (seconds, 1-120)",
                     "write_timeout": "Write operation timeout (seconds, 1-120)",
                     "polling_interval": "Update interval (seconds, 10-600)",
