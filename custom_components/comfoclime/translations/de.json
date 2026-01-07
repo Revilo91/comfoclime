@@ -208,6 +208,30 @@
                     "on": "An"
                 }
             }
+            ,
+            "passive_temperature": {
+                "name": "Passive Temperatur",
+                "state": {
+                    "off": "Aus",
+                    "autoonly": "Nur Auto",
+                    "on": "Ein"
+                }
+            },
+            "temperature_profile_modus": {
+                "name": "Temperaturprofil Modus",
+                "state": {
+                    "adaptiv": "Adaptiv",
+                    "fixed value": "Fester Wert"
+                }
+            },
+            "temp_passively_preset": {
+                "name": "Passive Temperatur Voreinstellung",
+                "state": {
+                    "slow": "Langsam",
+                    "medium": "Mittel",
+                    "fast": "Schnell"
+                }
+            }
         },
         "number": {
             "heating_comfort_temperature": {

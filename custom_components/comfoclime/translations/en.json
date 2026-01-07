@@ -48,7 +48,7 @@
             },
             "current_comfort_temperature": {
                 "name": "Current Comfort Temperature"
-            },            
+            },
             "powerfactor_heatpump": {
                 "name": "Power Factor Heat Pump"
             },
@@ -206,6 +206,30 @@
                     "off": "Off",
                     "autoonly": "Auto Only",
                     "on": "On"
+                }
+            }
+            ,
+            "passive_temperature": {
+                "name": "Passive Temperature",
+                "state": {
+                    "off": "Off",
+                    "autoonly": "Auto Only",
+                    "on": "On"
+                }
+            },
+            "temperature_profile_modus": {
+                "name": "Temperature Profile Mode",
+                "state": {
+                    "adaptiv": "Adaptive",
+                    "fixed value": "Fixed value"
+                }
+            },
+            "temp_passively_preset": {
+                "name": "Passive Temperature Preset",
+                "state": {
+                    "slow": "Slow",
+                    "medium": "Medium",
+                    "fast": "Fast"
                 }
             }
         },
