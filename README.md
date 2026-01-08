@@ -9,12 +9,13 @@ HomeAssistant integration of Zehnder ComfoClime (and all devices in ComfoNet bus
 ComfoClime is a HVAC solution as additional device for the ComfoAir Q series. It comes with its own app and an propietary JSON API. The ComfoClime unit is connected to the local network via WiFi/WLAN, the API is available only local via HTTP requests without authentication. The integration can also control the ventilation main unit ComfoAir Q. It currently offers:
 
 * reading the dashboard data similar to the official app
-* climate control entity with HVAC modes (heat/cool/fan_only/off) and preset modes (comfort/power/eco)
+* climate control entity with HVAC modes (heat/cool/fan_only/off) and preset modes (comfort/boost/eco)
+* scenario modes (cooking, party, away, boost) for special operating situations
 * reading and writing the active temperature profile
 * setting the ventilation fan speed
 * autodiscovering all connected devices
 * property (r/w) and telemetry (r/o) values of *all* connected devices
-* restarting the ComfoClime unit via service call
+* service calls for setting properties, restarting the system, and activating scenario modes
 * configuration via config flow by host/ip
 * locals in english and german
 
@@ -65,9 +66,17 @@ The integration provides a comprehensive climate control entity that unifies all
 - **Fan Only**: Ventilation only mode (season set to transition)
 
 ### Preset Modes
+- **Manual** (none): Manual temperature control mode
 - **Comfort**: Maximum comfort temperature profile
-- **Power**: Power saving temperature profile
+- **Boost**: Power saving temperature profile
 - **Eco**: Energy efficient temperature profile
+
+### Scenario Modes (via service call)
+Special operating modes activated through the `comfoclime.set_scenario_mode` service:
+- **Cooking**: High ventilation for cooking (default: 30 min)
+- **Party**: High ventilation for parties (default: 30 min)
+- **Away**: Reduced mode for vacation (default: 24 hours)
+- **Boost**: Maximum power boost (default: 30 min)
 
 ### Temperature Control
 - Set target temperature for heating (15-25°C) and cooling (20-28°C) seasons
