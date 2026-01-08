@@ -156,7 +156,7 @@ SCENARIO_DEFAULT_DURATIONS = {
 - ⏱️ Die Restzeit wird automatisch vom Gerät heruntergezählt
 - 🔄 Ein aktives Szenario kann jederzeit durch ein anderes Preset überschrieben werden
 - 🛑 Um ein Szenario vorzeitig zu beenden, wähle ein anderes Preset (z.B. "Komfort")
-- 📊 Die Restzeit wird über die Dashboard API abgerufen und alle 30 Sekunden aktualisiert
+- 📊 Die Restzeit wird über die Dashboard API abgerufen und alle 60 Sekunden aktualisiert
 
 ## Troubleshooting
 
@@ -171,7 +171,7 @@ SCENARIO_DEFAULT_DURATIONS = {
 Die Restzeit wird als Attribut der Climate Entity bereitgestellt. Stelle sicher, dass:
 
 - Die Dashboard-Daten erfolgreich abgerufen werden
-- Der Coordinator läuft (Update-Intervall: 30 Sekunden)
+- Der Coordinator läuft (Update-Intervall: 60 Sekunden)
 
 ### Benutzerdefinierte Dauer funktioniert nicht
 
