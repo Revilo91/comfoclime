@@ -173,6 +173,42 @@
             },
             "unknown_value_4208": {
                 "name": "Unbekannter Wert 4208"
+            },
+            "dashboard_accesses_per_minute": {
+                "name": "Dashboard Zugriffe pro Minute"
+            },
+            "thermalprofile_accesses_per_minute": {
+                "name": "Wärmeprofil Zugriffe pro Minute"
+            },
+            "telemetry_accesses_per_minute": {
+                "name": "Telemetrie Zugriffe pro Minute"
+            },
+            "property_accesses_per_minute": {
+                "name": "Property Zugriffe pro Minute"
+            },
+            "definition_accesses_per_minute": {
+                "name": "Definition Zugriffe pro Minute"
+            },
+            "dashboard_accesses_per_hour": {
+                "name": "Dashboard Zugriffe pro Stunde"
+            },
+            "thermalprofile_accesses_per_hour": {
+                "name": "Wärmeprofil Zugriffe pro Stunde"
+            },
+            "telemetry_accesses_per_hour": {
+                "name": "Telemetrie Zugriffe pro Stunde"
+            },
+            "property_accesses_per_hour": {
+                "name": "Property Zugriffe pro Stunde"
+            },
+            "definition_accesses_per_hour": {
+                "name": "Definition Zugriffe pro Stunde"
+            },
+            "total_api_accesses_per_minute": {
+                "name": "Gesamt API Zugriffe pro Minute"
+            },
+            "total_api_accesses_per_hour": {
+                "name": "Gesamt API Zugriffe pro Stunde"
             }
         },
         "select": {

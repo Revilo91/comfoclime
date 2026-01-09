@@ -545,3 +545,107 @@ CONNECTED_DEVICE_DEFINITION_SENSORS = {
         },
     ],
 }
+
+# Access tracking sensors for monitoring API access patterns
+# These sensors expose per-coordinator access counts
+ACCESS_TRACKING_SENSORS = [
+    # Per-coordinator per-minute sensors
+    {
+        "coordinator": "Dashboard",
+        "metric": "per_minute",
+        "name": "Dashboard Accesses per Minute",
+        "translation_key": "dashboard_accesses_per_minute",
+        "state_class": "measurement",
+        "entity_category": "diagnostic",
+    },
+    {
+        "coordinator": "Thermalprofile",
+        "metric": "per_minute",
+        "name": "Thermalprofile Accesses per Minute",
+        "translation_key": "thermalprofile_accesses_per_minute",
+        "state_class": "measurement",
+        "entity_category": "diagnostic",
+    },
+    {
+        "coordinator": "Telemetry",
+        "metric": "per_minute",
+        "name": "Telemetry Accesses per Minute",
+        "translation_key": "telemetry_accesses_per_minute",
+        "state_class": "measurement",
+        "entity_category": "diagnostic",
+    },
+    {
+        "coordinator": "Property",
+        "metric": "per_minute",
+        "name": "Property Accesses per Minute",
+        "translation_key": "property_accesses_per_minute",
+        "state_class": "measurement",
+        "entity_category": "diagnostic",
+    },
+    {
+        "coordinator": "Definition",
+        "metric": "per_minute",
+        "name": "Definition Accesses per Minute",
+        "translation_key": "definition_accesses_per_minute",
+        "state_class": "measurement",
+        "entity_category": "diagnostic",
+    },
+    # Per-coordinator per-hour sensors
+    {
+        "coordinator": "Dashboard",
+        "metric": "per_hour",
+        "name": "Dashboard Accesses per Hour",
+        "translation_key": "dashboard_accesses_per_hour",
+        "state_class": "measurement",
+        "entity_category": "diagnostic",
+    },
+    {
+        "coordinator": "Thermalprofile",
+        "metric": "per_hour",
+        "name": "Thermalprofile Accesses per Hour",
+        "translation_key": "thermalprofile_accesses_per_hour",
+        "state_class": "measurement",
+        "entity_category": "diagnostic",
+    },
+    {
+        "coordinator": "Telemetry",
+        "metric": "per_hour",
+        "name": "Telemetry Accesses per Hour",
+        "translation_key": "telemetry_accesses_per_hour",
+        "state_class": "measurement",
+        "entity_category": "diagnostic",
+    },
+    {
+        "coordinator": "Property",
+        "metric": "per_hour",
+        "name": "Property Accesses per Hour",
+        "translation_key": "property_accesses_per_hour",
+        "state_class": "measurement",
+        "entity_category": "diagnostic",
+    },
+    {
+        "coordinator": "Definition",
+        "metric": "per_hour",
+        "name": "Definition Accesses per Hour",
+        "translation_key": "definition_accesses_per_hour",
+        "state_class": "measurement",
+        "entity_category": "diagnostic",
+    },
+    # Total access sensors
+    {
+        "coordinator": None,  # Total across all coordinators
+        "metric": "total_per_minute",
+        "name": "Total API Accesses per Minute",
+        "translation_key": "total_api_accesses_per_minute",
+        "state_class": "measurement",
+        "entity_category": "diagnostic",
+    },
+    {
+        "coordinator": None,  # Total across all coordinators
+        "metric": "total_per_hour",
+        "name": "Total API Accesses per Hour",
+        "translation_key": "total_api_accesses_per_hour",
+        "state_class": "measurement",
+        "entity_category": "diagnostic",
+    },
+]
