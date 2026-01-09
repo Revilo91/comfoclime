@@ -148,14 +148,16 @@ data = get_dashboard("http://192.168.1.100", uuid)
 #   "supplyAirFlow": 484,
 #   "fanSpeed": 2,
 #   "seasonProfile": 0,
-#   "temperatureProfile": 0,  # 0=Comfort, 1=Power, 2=Eco
+#   "temperatureProfile": 0,  # 0=Comfort, 1=Boost, 2=Eco
 #   "season": 2,              # 0=Transition, 1=Heating, 2=Cooling
 #   "schedule": 0,
 #   "status": 1,
 #   "heatPumpStatus": 5,      # See Heat Pump Status Codes
 #   "hpStandby": false,
 #   "freeCoolingEnabled": false,
-#   "caqFreeCoolingAvailable": true
+#   "caqFreeCoolingAvailable": true,
+#   "scenario": null,          # Active scenario mode (4=cooking, 5=party, 7=away, 8=boost, null=none)
+#   "scenarioTimeLeft": null   # Remaining time in seconds for active scenario
 # }
 
 # Response in MANUAL mode includes setPointTemperature instead:
@@ -185,9 +187,12 @@ def update_dashboard(base_url, uuid, **kwargs):
         season: Season value (0=transition, 1=heating, 2=cooling)
         hpStandby: Heat pump standby state (True=standby/off, False=active)
         schedule: Schedule mode
-        temperature_profile: Temperature profile (0=comfort, 1=power, 2=eco)
-        season_profile: Season profile (0=comfort, 1=power, 2=eco)
+        temperature_profile: Temperature profile (0=comfort, 1=boost, 2=eco)
+        season_profile: Season profile (0=comfort, 1=boost, 2=eco)
         status: Temperature control mode (0=manual, 1=automatic)
+        scenario: Scenario mode (4=cooking, 5=party, 7=away, 8=boost)
+        scenario_time_left: Duration for scenario in seconds (e.g., 1800 for 30min)
+        scenario_start_delay: Start delay for scenario in seconds (optional)
     """
     # Build payload dynamically with only provided fields
     payload = {}
@@ -208,6 +213,12 @@ def update_dashboard(base_url, uuid, **kwargs):
         payload["status"] = kwargs["status"]
     if kwargs.get("hpStandby") is not None:
         payload["hpStandby"] = kwargs["hpStandby"]
+    if kwargs.get("scenario") is not None:
+        payload["scenario"] = kwargs["scenario"]
+    if kwargs.get("scenario_time_left") is not None:
+        payload["scenarioTimeLeft"] = kwargs["scenario_time_left"]
+    if kwargs.get("scenario_start_delay") is not None:
+        payload["scenarioStartDelay"] = kwargs["scenario_start_delay"]
 
     # Add timestamp
     payload["timestamp"] = datetime.datetime.now().isoformat()
@@ -246,6 +257,11 @@ update_dashboard("http://192.168.1.100", uuid,
 update_dashboard("http://192.168.1.100", uuid,
                 season=2,  # 2=cooling
                 hpStandby=False)
+
+# 7. Activate scenario mode (e.g., cooking with 30 minutes duration)
+update_dashboard("http://192.168.1.100", uuid,
+                scenario=4,  # 4=cooking, 5=party, 7=away, 8=boost
+                scenario_time_left=1800)  # Duration in seconds (30 min = 1800s)
 ```
 
 **Legacy method (still works but less flexible):**
@@ -607,7 +623,7 @@ RMI (Remote Method Invocation) provides access to device properties. Based on th
 | 1       | 11       | RW     | UINT16 | 0.1    | Max temp while cooling   | 20-28°C                            |
 | 1       | 12       | RW     | UINT16 | 0.1    | Heating delta            | 0-5°C                              |
 | 1       | 13       | RW     | UINT16 | 0.1    | Manual target temp       | 18-28°C                            |
-| 1       | 29       | RW     | UINT8  | 1      | Temperature profile      | 0=Comfort, 1=Power, 2=Eco          |
+| 1       | 29       | RW     | UINT8  | 1      | Temperature profile      | 0=Comfort, 1=Boost, 2=Eco          |
 
 #### HEATPUMP Properties (Unit 23)
 
@@ -680,9 +696,12 @@ class ComfoClimeAPI:
             season: Season value (0=transition, 1=heating, 2=cooling)
             hpStandby: Heat pump standby state (True=off, False=active)
             schedule: Schedule mode
-            temperature_profile: Temperature profile (0=comfort, 1=power, 2=eco)
-            season_profile: Season profile (0=comfort, 1=power, 2=eco)
+            temperature_profile: Temperature profile (0=comfort, 1=boost, 2=eco)
+            season_profile: Season profile (0=comfort, 1=boost, 2=eco)
             status: Control mode (0=manual, 1=automatic)
+            scenario: Scenario mode (4=cooking, 5=party, 7=away, 8=boost)
+            scenario_time_left: Duration for scenario in seconds
+            scenario_start_delay: Start delay for scenario in seconds
         """
         import datetime
         uuid = self.get_uuid()
@@ -705,6 +724,12 @@ class ComfoClimeAPI:
             payload["status"] = kwargs["status"]
         if kwargs.get("hpStandby") is not None:
             payload["hpStandby"] = kwargs["hpStandby"]
+        if kwargs.get("scenario") is not None:
+            payload["scenario"] = kwargs["scenario"]
+        if kwargs.get("scenario_time_left") is not None:
+            payload["scenarioTimeLeft"] = kwargs["scenario_time_left"]
+        if kwargs.get("scenario_start_delay") is not None:
+            payload["scenarioStartDelay"] = kwargs["scenario_start_delay"]
 
         payload["timestamp"] = datetime.datetime.now().isoformat()
 
@@ -872,13 +897,41 @@ class ComfoClimeAPI:
         """Set comfort preset (switches to automatic mode)"""
         return self.update_dashboard(temperature_profile=0, status=1)
 
-    def set_preset_power(self) -> bool:
-        """Set power preset (switches to automatic mode)"""
+    def set_preset_boost(self) -> bool:
+        """Set boost preset (switches to automatic mode)"""
         return self.update_dashboard(temperature_profile=1, status=1)
 
     def set_preset_eco(self) -> bool:
         """Set eco preset (switches to automatic mode)"""
         return self.update_dashboard(temperature_profile=2, status=1)
+
+    def set_scenario_cooking(self, duration_minutes: int = 30) -> bool:
+        """Activate cooking scenario (high ventilation)"""
+        return self.update_dashboard(
+            scenario=4,
+            scenario_time_left=duration_minutes * 60
+        )
+
+    def set_scenario_party(self, duration_minutes: int = 30) -> bool:
+        """Activate party scenario (high ventilation)"""
+        return self.update_dashboard(
+            scenario=5,
+            scenario_time_left=duration_minutes * 60
+        )
+
+    def set_scenario_away(self, duration_minutes: int = 1440) -> bool:
+        """Activate away scenario (24 hours reduced mode)"""
+        return self.update_dashboard(
+            scenario=7,
+            scenario_time_left=duration_minutes * 60
+        )
+
+    def set_scenario_boost(self, duration_minutes: int = 30) -> bool:
+        """Activate boost scenario (maximum power)"""
+        return self.update_dashboard(
+            scenario=8,
+            scenario_time_left=duration_minutes * 60
+        )
 
     def set_fan_speed(self, speed: int) -> bool:
         """Set fan speed (0-3)"""
@@ -908,6 +961,12 @@ api.set_manual_temperature(22.5)      # Set manual temperature to 22.5°C
 api.set_preset_comfort()              # Use comfort preset
 api.set_fan_speed(2)                  # Set fan to medium speed
 api.set_hvac_mode_off()               # Turn off heat pump
+
+# Scenario mode examples
+api.set_scenario_cooking(30)          # Activate cooking mode for 30 minutes
+api.set_scenario_party(60)            # Activate party mode for 60 minutes
+api.set_scenario_away(1440)           # Activate away mode for 24 hours
+api.set_scenario_boost(15)            # Activate boost mode for 15 minutes
 
 # Read telemetry
 tpma_temp = api.read_telemetry(uuid, 4145, factor=0.1)
@@ -1131,8 +1190,16 @@ A comprehensive climate control entity that unifies all temperature and ventilat
 
 - **Manual** (none): Manual temperature control (via `setPointTemperature`)
 - **Comfort**: Comfort temperature profile (`temperatureProfile=0`)
-- **Boost** (Power): Power saving profile (`temperatureProfile=1`)
+- **Boost**: Boost/power saving profile (`temperatureProfile=1`)
 - **Eco**: Energy efficient profile (`temperatureProfile=2`)
+
+**Scenario Modes (via service call):**
+
+Special operating modes activated through the `comfoclime.set_scenario_mode` service:
+- **Cooking**: High ventilation for cooking (scenario=4, default: 30 min)
+- **Party**: High ventilation for parties (scenario=5, default: 30 min)
+- **Away**: Reduced mode for vacation (scenario=7, default: 24 hours)
+- **Boost**: Maximum power boost (scenario=8, default: 30 min)
 
 **Features:**
 
