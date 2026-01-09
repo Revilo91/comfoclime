@@ -1,8 +1,5 @@
 """Tests for the AccessTracker module."""
 
-import time
-from unittest.mock import patch
-
 import pytest
 
 from custom_components.comfoclime.access_tracker import AccessTracker
@@ -132,26 +129,35 @@ class TestAccessTracker:
         """Test that old entries are cleaned up after the hour window."""
         tracker = AccessTracker()
         
-        # Mock time.monotonic to simulate old entries
-        with patch.object(tracker, '_get_current_time') as mock_time:
-            # Record access at time 0
-            mock_time.return_value = 0
-            tracker.record_access("Dashboard")
+        # Use a helper class that allows mocking time
+        class MockTracker(AccessTracker):
+            def __init__(self):
+                super().__init__()
+                self._mock_time = 0
             
-            # Record access at time 30 (30 seconds later)
-            mock_time.return_value = 30
-            tracker.record_access("Dashboard")
-            
-            # Check at time 70 - first access should be outside minute window
-            mock_time.return_value = 70
-            assert tracker.get_accesses_per_minute("Dashboard") == 1  # Only the second access
-            
-            # Check at time 3700 - both should be outside hour window
-            mock_time.return_value = 3700
-            assert tracker.get_accesses_per_hour("Dashboard") == 0
-            
-            # But total should still count all accesses
-            assert tracker.get_total_accesses("Dashboard") == 2
+            def _get_current_time(self):
+                return self._mock_time
+        
+        mock_tracker = MockTracker()
+        
+        # Record access at time 0
+        mock_tracker._mock_time = 0
+        mock_tracker.record_access("Dashboard")
+        
+        # Record access at time 30 (30 seconds later)
+        mock_tracker._mock_time = 30
+        mock_tracker.record_access("Dashboard")
+        
+        # Check at time 70 - first access should be outside minute window
+        mock_tracker._mock_time = 70
+        assert mock_tracker.get_accesses_per_minute("Dashboard") == 1  # Only the second access
+        
+        # Check at time 3700 - both should be outside hour window
+        mock_tracker._mock_time = 3700
+        assert mock_tracker.get_accesses_per_hour("Dashboard") == 0
+        
+        # But total should still count all accesses
+        assert mock_tracker.get_total_accesses("Dashboard") == 2
 
 
 class TestAccessTrackerIntegration:
