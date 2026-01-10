@@ -51,16 +51,16 @@ jobs:
       - name: Generate changelog
         id: changelog
         run: |
-          # Get the previous tag (excluding the one just created)
-          CURRENT_TAG="v${{ github.event.inputs.version }}"
-          PREVIOUS_TAG=$(git tag -l --sort=-version:refname | grep -v "^${CURRENT_TAG}$" | head -n 1)
+          # Get the previous tag (the newly created tag is now the most recent)
+          # So we get the second most recent tag
+          PREVIOUS_TAG=$(git tag -l --sort=-version:refname | sed -n '2p')
           
           if [ -z "$PREVIOUS_TAG" ]; then
             echo "No previous tag found, including all commits"
             CHANGELOG=$(git log HEAD --pretty=format:"- %s (%h)" --no-merges)
           else
             echo "Generating changelog since $PREVIOUS_TAG"
-            CHANGELOG=$(git log ${PREVIOUS_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+            CHANGELOG=$(git log "${PREVIOUS_TAG}..HEAD" --pretty=format:"- %s (%h)" --no-merges)
           fi
           
           # Handle multi-line output for GitHub Actions
