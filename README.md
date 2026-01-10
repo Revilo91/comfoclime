@@ -169,7 +169,7 @@ Pre-releases are useful for beta testing new features before a stable release:
      - Verify the version format and matches manifest.json
      - Create and push a git tag
      - Generate a changelog from commits since the last tag
-     - Create a GitHub pre-release marked as pre-release
+     - Create a GitHub pre-release with warning message
 
 **Note:** The main branch is protected and requires pull requests. The release workflows will not attempt to push directly to main - all version updates must go through the normal PR process first.
 

@@ -51,8 +51,9 @@ jobs:
       - name: Generate changelog
         id: changelog
         run: |
-          # Get the previous tag using git describe
-          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          # Get the previous tag (excluding the one just created)
+          CURRENT_TAG="v${{ github.event.inputs.version }}"
+          PREVIOUS_TAG=$(git tag -l --sort=-version:refname | grep -v "^${CURRENT_TAG}$" | head -n 1)
           
           if [ -z "$PREVIOUS_TAG" ]; then
             echo "No previous tag found, including all commits"
