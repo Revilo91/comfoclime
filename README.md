@@ -125,27 +125,40 @@ https://github.com/michaelarnauts/aiocomfoconnect
 
 ### Releasing a New Version
 
-This project uses an automated release workflow. To create a new release:
+This project uses automated release workflows that handle everything for you:
 
-1. **Update the version in manifest.json** via a pull request:
-   ```bash
-   # Edit custom_components/comfoclime/manifest.json
-   # Update the "version" field to your new version (e.g., "2.0.1")
-   ```
+#### Creating a Stable Release
 
-2. **Merge the version update PR** to the main branch
-
-3. **Trigger the release workflow**:
+1. **Trigger the release workflow**:
    - Go to Actions → Release workflow
    - Click "Run workflow"
-   - Enter the version number (must match manifest.json)
-   - The workflow will:
-     - Verify the version matches manifest.json
+   - Enter the version number (e.g., `2.1.0`)
+   - The workflow will automatically:
+     - Update the version in manifest.json
+     - Create a pull request with the version change
+     - Auto-merge the PR (if branch protection allows)
      - Create and push a git tag
      - Generate a changelog from commits since the last tag
      - Create a GitHub release with the changelog
 
-**Note:** The main branch is protected and requires pull requests. The release workflow will not attempt to push directly to main - all version updates must go through the normal PR process first.
+#### Creating a Pre-Release
+
+Pre-releases are useful for beta testing new features before a stable release:
+
+1. **Trigger the pre-release workflow**:
+   - Go to Actions → Pre-Release workflow
+   - Click "Run workflow"
+   - Enter the pre-release version number (e.g., `2.1.0-beta.1`, `2.1.0-rc.1`, `2.1.0-alpha.1`)
+   - Supported formats: `X.Y.Z-alpha.N`, `X.Y.Z-beta.N`, `X.Y.Z-rc.N`
+   - The workflow will automatically:
+     - Update the version in manifest.json
+     - Create a pull request with the version change
+     - Auto-merge the PR (if branch protection allows)
+     - Create and push a git tag
+     - Generate a changelog from commits since the last tag
+     - Create a GitHub pre-release with warning message
+
+**Note:** The workflows create PRs for version updates to comply with branch protection rules. If auto-merge is enabled on the repository, the PRs will be merged automatically. Otherwise, you need to manually approve and merge the PR, then the release will be created.
 
 ### Running Tests
 

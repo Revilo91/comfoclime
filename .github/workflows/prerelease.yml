@@ -1,15 +1,15 @@
-name: Release
+name: Pre-Release
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version number (e.g., 2.1.0)'
+        description: 'Pre-release version number (e.g., 2.1.0-beta.1, 2.1.0-rc.1, 2.1.0-alpha.1)'
         required: true
         type: string
 
 jobs:
-  release:
+  prerelease:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -21,10 +21,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Validate version format
+      - name: Validate pre-release version format
         run: |
-          if ! echo "${{ github.event.inputs.version }}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "Error: Version must be in format X.Y.Z (e.g., 2.1.0)"
+          if ! echo "${{ github.event.inputs.version }}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta|rc)\.[0-9]+$'; then
+            echo "Error: Pre-release version must be in format X.Y.Z-suffix.N"
+            echo "Examples: 2.1.0-beta.1, 2.1.0-rc.1, 2.1.0-alpha.1"
             exit 1
           fi
 
@@ -64,7 +65,7 @@ jobs:
           body: |
             Automated version bump to ${{ github.event.inputs.version }}
             
-            This PR was created automatically by the release workflow.
+            This PR was created automatically by the pre-release workflow.
           labels: release
 
       - name: Enable auto-merge for PR
@@ -124,14 +125,19 @@ jobs:
           echo "$CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Create GitHub Release
+      - name: Create GitHub Pre-Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: "v${{ github.event.inputs.version }}"
           name: "v${{ github.event.inputs.version }}"
           body: |
+            ## ⚠️ Pre-Release
+            
+            This is a pre-release version and may contain bugs or incomplete features.
+            Use at your own risk and please report any issues you encounter.
+            
             ## Changes
             
             ${{ steps.changelog.outputs.changelog }}
           draft: false
-          prerelease: false
+          prerelease: true
