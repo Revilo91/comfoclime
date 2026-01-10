@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
 
     steps:
       - name: Checkout code
@@ -27,20 +28,78 @@ jobs:
             exit 1
           fi
 
-      - name: Verify manifest.json version matches
-        run: |
-          MANIFEST_VERSION=$(jq -r '.version' custom_components/comfoclime/manifest.json)
-          if [ "$MANIFEST_VERSION" != "${{ github.event.inputs.version }}" ]; then
-            echo "Error: Version in manifest.json ($MANIFEST_VERSION) does not match the release version (${{ github.event.inputs.version }})"
-            echo "Please update manifest.json version to ${{ github.event.inputs.version }} before creating the release"
-            exit 1
-          fi
-          echo "Version verification successful: $MANIFEST_VERSION"
-
       - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Get previous tag for changelog
+        id: previous_tag
+        run: |
+          # Get the previous tag before creating the new one
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          echo "previous_tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
+          if [ -z "$PREVIOUS_TAG" ]; then
+            echo "No previous tag found"
+          else
+            echo "Previous tag: $PREVIOUS_TAG"
+          fi
+
+      - name: Update manifest.json version
+        run: |
+          jq --arg version "${{ github.event.inputs.version }}" '.version = $version' \
+            custom_components/comfoclime/manifest.json > manifest.tmp
+          mv manifest.tmp custom_components/comfoclime/manifest.json
+          echo "Updated manifest.json to version ${{ github.event.inputs.version }}"
+
+      - name: Create Pull Request
+        id: create_pr
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Bump version to ${{ github.event.inputs.version }}"
+          branch: "release/v${{ github.event.inputs.version }}"
+          delete-branch: true
+          title: "Release v${{ github.event.inputs.version }}"
+          body: |
+            Automated version bump to ${{ github.event.inputs.version }}
+            
+            This PR was created automatically by the release workflow.
+          labels: release
+
+      - name: Enable auto-merge for PR
+        if: steps.create_pr.outputs.pull-request-number != ''
+        run: |
+          gh pr merge ${{ steps.create_pr.outputs.pull-request-number }} --auto --squash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Wait for PR to be merged
+        if: steps.create_pr.outputs.pull-request-number != ''
+        run: |
+          echo "Waiting for PR #${{ steps.create_pr.outputs.pull-request-number }} to be merged..."
+          for i in {1..60}; do
+            PR_STATE=$(gh pr view ${{ steps.create_pr.outputs.pull-request-number }} --json state -q .state)
+            if [ "$PR_STATE" = "MERGED" ]; then
+              echo "PR has been merged!"
+              break
+            fi
+            if [ $i -eq 60 ]; then
+              echo "Error: PR was not merged within 5 minutes"
+              exit 1
+            fi
+            echo "PR state: $PR_STATE. Waiting... ($i/60)"
+            sleep 5
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Checkout main branch
+        if: steps.create_pr.outputs.pull-request-number != ''
+        run: |
+          git fetch origin
+          git checkout main
+          git pull origin main
 
       - name: Create and push tag
         run: |
@@ -50,15 +109,14 @@ jobs:
       - name: Generate changelog
         id: changelog
         run: |
-          # Get the previous tag using git describe
-          PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          PREVIOUS_TAG="${{ steps.previous_tag.outputs.previous_tag }}"
           
           if [ -z "$PREVIOUS_TAG" ]; then
             echo "No previous tag found, including all commits"
             CHANGELOG=$(git log HEAD --pretty=format:"- %s (%h)" --no-merges)
           else
             echo "Generating changelog since $PREVIOUS_TAG"
-            CHANGELOG=$(git log ${PREVIOUS_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+            CHANGELOG=$(git log "${PREVIOUS_TAG}..HEAD" --pretty=format:"- %s (%h)" --no-merges)
           fi
           
           # Handle multi-line output for GitHub Actions
