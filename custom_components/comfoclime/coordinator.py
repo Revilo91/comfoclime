@@ -1,9 +1,12 @@
 import asyncio
 import logging
 from datetime import timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+
+if TYPE_CHECKING:
+    from .access_tracker import AccessTracker
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -17,7 +20,13 @@ class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
     Fetches dashboard data including temperature, fan speed, season, and heat pump status.
     """
 
-    def __init__(self, hass, api, polling_interval=DEFAULT_POLLING_INTERVAL_SECONDS):
+    def __init__(
+        self,
+        hass,
+        api,
+        polling_interval=DEFAULT_POLLING_INTERVAL_SECONDS,
+        access_tracker: "AccessTracker | None" = None,
+    ):
         super().__init__(
             hass,
             _LOGGER,
@@ -25,11 +34,15 @@ class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
             update_interval=timedelta(seconds=polling_interval),
         )
         self.api = api
+        self._access_tracker = access_tracker
 
     async def _async_update_data(self):
         """Fetch dashboard data from the API."""
         try:
-            return await self.api.async_get_dashboard_data()
+            result = await self.api.async_get_dashboard_data()
+            if self._access_tracker:
+                self._access_tracker.record_access("Dashboard")
+            return result
         except Exception as e:
             _LOGGER.debug(f"Error fetching dashboard data: {e}")
             raise UpdateFailed(f"Error fetching dashboard data: {e}") from e
@@ -42,7 +55,13 @@ class ComfoClimeThermalprofileCoordinator(DataUpdateCoordinator):
     and heating/cooling parameters.
     """
 
-    def __init__(self, hass, api, polling_interval=DEFAULT_POLLING_INTERVAL_SECONDS):
+    def __init__(
+        self,
+        hass,
+        api,
+        polling_interval=DEFAULT_POLLING_INTERVAL_SECONDS,
+        access_tracker: "AccessTracker | None" = None,
+    ):
         super().__init__(
             hass,
             _LOGGER,
@@ -50,11 +69,15 @@ class ComfoClimeThermalprofileCoordinator(DataUpdateCoordinator):
             update_interval=timedelta(seconds=polling_interval),
         )
         self.api = api
+        self._access_tracker = access_tracker
 
     async def _async_update_data(self):
         """Fetch thermal profile data from the API."""
         try:
-            return await self.api.async_get_thermal_profile()
+            result = await self.api.async_get_thermal_profile()
+            if self._access_tracker:
+                self._access_tracker.record_access("Thermalprofile")
+            return result
         except Exception as e:
             _LOGGER.debug(f"Error fetching thermal profile data: {e}")
             raise UpdateFailed(f"Error fetching thermal profile data: {e}") from e
@@ -68,7 +91,14 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
     significantly reducing API load on the Airduino board.
     """
 
-    def __init__(self, hass, api, devices=None, polling_interval=DEFAULT_POLLING_INTERVAL_SECONDS):
+    def __init__(
+        self,
+        hass,
+        api,
+        devices=None,
+        polling_interval=DEFAULT_POLLING_INTERVAL_SECONDS,
+        access_tracker: "AccessTracker | None" = None,
+    ):
         super().__init__(
             hass,
             _LOGGER,
@@ -77,6 +107,7 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
         )
         self.api = api
         self.devices = devices or []
+        self._access_tracker = access_tracker
         # Registry of telemetry requests: {device_uuid: {telemetry_id: {faktor, signed, byte_count}}}
         self._telemetry_registry: dict[str, dict[str, dict]] = {}
         # Lock to prevent concurrent modifications during iteration
@@ -135,6 +166,9 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
                         byte_count=params["byte_count"],
                     )
                     result[device_uuid][telemetry_id] = value
+                    # Track each individual API call
+                    if self._access_tracker:
+                        self._access_tracker.record_access("Telemetry")
                 except Exception as e:  # noqa: PERF203
                     _LOGGER.debug(
                         f"Error fetching telemetry {telemetry_id} for device {device_uuid}: {e}"
@@ -168,7 +202,14 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
     update cycle, significantly reducing API load on the Airduino board.
     """
 
-    def __init__(self, hass, api, devices=None, polling_interval=DEFAULT_POLLING_INTERVAL_SECONDS):
+    def __init__(
+        self,
+        hass,
+        api,
+        devices=None,
+        polling_interval=DEFAULT_POLLING_INTERVAL_SECONDS,
+        access_tracker: "AccessTracker | None" = None,
+    ):
         super().__init__(
             hass,
             _LOGGER,
@@ -177,6 +218,7 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
         )
         self.api = api
         self.devices = devices or []
+        self._access_tracker = access_tracker
         # Registry of property requests: {device_uuid: {path: {faktor, signed, byte_count}}}
         self._property_registry: dict[str, dict[str, dict]] = {}
         # Lock to prevent concurrent modifications during iteration
@@ -235,6 +277,9 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
                         byte_count=params["byte_count"],
                     )
                     result[device_uuid][property_path] = value
+                    # Track each individual API call
+                    if self._access_tracker:
+                        self._access_tracker.record_access("Property")
                 except Exception as e:  # noqa: PERF203
                     _LOGGER.debug(
                         f"Error fetching property {property_path} for device {device_uuid}: {e}"
@@ -267,7 +312,14 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
     for ComfoAirQ devices which provide detailed definition information.
     """
 
-    def __init__(self, hass, api, devices=None, polling_interval=DEFAULT_POLLING_INTERVAL_SECONDS):
+    def __init__(
+        self,
+        hass,
+        api,
+        devices=None,
+        polling_interval=DEFAULT_POLLING_INTERVAL_SECONDS,
+        access_tracker: "AccessTracker | None" = None,
+    ):
         super().__init__(
             hass,
             _LOGGER,
@@ -276,6 +328,7 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
         )
         self.api = api
         self.devices = devices or []
+        self._access_tracker = access_tracker
 
     async def _async_update_data(self):
         """Fetch definition data for all devices."""
@@ -298,6 +351,9 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
                     device_uuid=device_uuid
                 )
                 result[device_uuid] = definition_data
+                # Track each individual API call
+                if self._access_tracker:
+                    self._access_tracker.record_access("Definition")
                 _LOGGER.debug(
                     f"Successfully fetched definition for device {device_uuid}"
                 )

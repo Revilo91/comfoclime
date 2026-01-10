@@ -15,6 +15,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
+from .access_tracker import AccessTracker
 from .coordinator import (
     ComfoClimeDashboardCoordinator,
     ComfoClimeDefinitionCoordinator,
@@ -23,6 +24,7 @@ from .coordinator import (
     ComfoClimeThermalprofileCoordinator,
 )
 from .entities.sensor_definitions import (
+    ACCESS_TRACKING_SENSORS,
     CONNECTED_DEVICE_DEFINITION_SENSORS,
     CONNECTED_DEVICE_PROPERTIES,
     CONNECTED_DEVICE_SENSORS,
@@ -235,6 +237,24 @@ async def async_setup_entry(
                         entry=entry,
                     )
                 )
+
+    # Access tracking sensors for monitoring API access patterns
+    access_tracker: AccessTracker = data["access_tracker"]
+    for sensor_def in ACCESS_TRACKING_SENSORS:
+        sensors.append(
+            ComfoClimeAccessTrackingSensor(
+                hass=hass,
+                access_tracker=access_tracker,
+                coordinator_name=sensor_def.get("coordinator"),
+                metric=sensor_def["metric"],
+                name=sensor_def["name"],
+                translation_key=sensor_def.get("translation_key", False),
+                state_class=sensor_def.get("state_class"),
+                entity_category=sensor_def.get("entity_category"),
+                device=main_device,
+                entry=entry,
+            )
+        )
 
     # Add entities immediately without waiting for data
     # Coordinators will fetch data on their regular update interval
@@ -608,3 +628,133 @@ class ComfoClimeDefinitionSensor(
             )
             self._state = None
         self.async_write_ha_state()
+
+
+class ComfoClimeAccessTrackingSensor(SensorEntity):
+    """Sensor for tracking API access patterns per coordinator.
+
+    These sensors expose the number of API accesses per minute and per hour
+    for each coordinator, helping users monitor and optimize API access patterns.
+    """
+
+    def __init__(
+        self,
+        hass,
+        access_tracker: AccessTracker,
+        coordinator_name: str | None,
+        metric: str,
+        name: str,
+        translation_key: str,
+        *,
+        state_class: str | None = None,
+        entity_category: str | None = None,
+        device: dict | None = None,
+        entry: ConfigEntry,
+    ):
+        """Initialize the access tracking sensor.
+
+        Args:
+            hass: Home Assistant instance.
+            access_tracker: The AccessTracker instance to get data from.
+            coordinator_name: Name of the coordinator to track, or None for totals.
+            metric: The metric type (per_minute, per_hour, total_per_minute, total_per_hour).
+            name: Human-readable name for the sensor.
+            translation_key: Translation key for localization.
+            state_class: Sensor state class.
+            entity_category: Entity category (e.g., diagnostic).
+            device: Device information dict.
+            entry: Config entry.
+        """
+        self._hass = hass
+        self._access_tracker = access_tracker
+        self._coordinator_name = coordinator_name
+        self._metric = metric
+        self._name = name
+        self._state = 0
+        self._attr_state_class = SensorStateClass(state_class) if state_class else None
+        self._attr_entity_category = (
+            EntityCategory(entity_category) if entity_category else None
+        )
+        self._device = device
+        self._entry = entry
+        self._attr_config_entry_id = entry.entry_id
+
+        # Build unique_id based on coordinator and metric
+        if coordinator_name:
+            self._attr_unique_id = (
+                f"{entry.entry_id}_access_{coordinator_name.lower()}_{metric}"
+            )
+        else:
+            self._attr_unique_id = f"{entry.entry_id}_access_{metric}"
+
+        if not translation_key:
+            self._attr_name = name
+        else:
+            self._attr_translation_key = translation_key
+        self._attr_has_entity_name = True
+
+        # These sensors don't have a native unit (they count accesses)
+        self._attr_native_unit_of_measurement = None
+
+    @property
+    def native_value(self):
+        """Return the current value of the sensor."""
+        return self._state
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return device info for this sensor."""
+        if not self._device:
+            return None
+
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._device["uuid"])},
+            name=self._device.get("displayName", "ComfoClime"),
+            manufacturer="Zehnder",
+            model=self._device.get("@modelType"),
+            sw_version=self._device.get("version", None),
+        )
+
+    @property
+    def should_poll(self) -> bool:
+        """Return True as we need to poll to get updated access counts."""
+        return True
+
+    async def async_update(self) -> None:
+        """Update the sensor state from the access tracker."""
+        try:
+            if self._metric == "per_minute":
+                self._state = self._access_tracker.get_accesses_per_minute(
+                    self._coordinator_name
+                )
+            elif self._metric == "per_hour":
+                self._state = self._access_tracker.get_accesses_per_hour(
+                    self._coordinator_name
+                )
+            elif self._metric == "total_per_minute":
+                self._state = self._access_tracker.get_total_accesses_per_minute()
+            elif self._metric == "total_per_hour":
+                self._state = self._access_tracker.get_total_accesses_per_hour()
+            else:
+                self._state = 0
+        except Exception:
+            _LOGGER.debug(
+                "Error updating access tracking sensor %s", self._name, exc_info=True
+            )
+            self._state = 0
+
+    @property
+    def extra_state_attributes(self):
+        """Return additional attributes with detailed access information."""
+        if self._coordinator_name:
+            return {
+                "coordinator": self._coordinator_name,
+                "metric": self._metric,
+                "total_accesses": self._access_tracker.get_total_accesses(
+                    self._coordinator_name
+                ),
+            }
+        return {
+            "metric": self._metric,
+            "summary": self._access_tracker.get_summary(),
+        }
