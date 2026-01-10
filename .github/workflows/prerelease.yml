@@ -43,6 +43,18 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+      - name: Get previous tag for changelog
+        id: previous_tag
+        run: |
+          # Get the previous tag before creating the new one
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          echo "previous_tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
+          if [ -z "$PREVIOUS_TAG" ]; then
+            echo "No previous tag found"
+          else
+            echo "Previous tag: $PREVIOUS_TAG"
+          fi
+
       - name: Create and push tag
         run: |
           git tag -a "v${{ github.event.inputs.version }}" -m "v${{ github.event.inputs.version }}"
@@ -51,9 +63,7 @@ jobs:
       - name: Generate changelog
         id: changelog
         run: |
-          # Get the previous tag (the newly created tag is now the most recent)
-          # So we get the second most recent tag
-          PREVIOUS_TAG=$(git tag -l --sort=-version:refname | sed -n '2p')
+          PREVIOUS_TAG="${{ steps.previous_tag.outputs.previous_tag }}"
           
           if [ -z "$PREVIOUS_TAG" ]; then
             echo "No previous tag found, including all commits"
