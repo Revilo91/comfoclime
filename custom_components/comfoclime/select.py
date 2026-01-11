@@ -13,7 +13,7 @@ from .coordinator import (
     ComfoClimeThermalprofileCoordinator,
 )
 from .entities.select_definitions import PROPERTY_SELECT_ENTITIES, SELECT_ENTITIES
-from .entity_helper import is_entity_category_enabled
+from .entity_helper import is_entity_category_enabled, is_entity_enabled
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -33,12 +33,13 @@ async def async_setup_entry(
     entities = []
     
     if is_entity_category_enabled(entry.options, "selects", "thermal_profile"):
-        entities.extend([
-            ComfoClimeSelect(
-                hass, tpcoordinator, api, conf, device=main_device, entry=entry
-            )
-            for conf in SELECT_ENTITIES
-        ])
+        for conf in SELECT_ENTITIES:
+            if is_entity_enabled(entry.options, "selects", "thermal_profile", conf):
+                entities.append(
+                    ComfoClimeSelect(
+                        hass, tpcoordinator, api, conf, device=main_device, entry=entry
+                    )
+                )
 
     # Verbundene Geräte abrufen
     try:
@@ -47,7 +48,7 @@ async def async_setup_entry(
         _LOGGER.warning(f"Verbundene Geräte konnten nicht geladen werden: {e}")
         devices = []
 
-    if is_entity_category_enabled(entry.options, "selects", "connected_device_properties"):
+    if is_entity_category_enabled(entry.options, "selects", "connected_properties"):
         for device in devices:
             model_id = device.get("modelTypeId")
             dev_uuid = device.get("uuid")
@@ -59,6 +60,10 @@ async def async_setup_entry(
                 continue
 
             for select_def in select_defs:
+                # Check if this individual select property is enabled
+                if not is_entity_enabled(entry.options, "selects", "connected_properties", select_def):
+                    continue
+                
                 # Register property with coordinator for batched fetching
                 await propcoordinator.register_property(
                     device_uuid=dev_uuid,

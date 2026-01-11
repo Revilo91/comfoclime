@@ -11,7 +11,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
 from .entities.switch_definitions import SWITCHES
-from .entity_helper import is_entity_category_enabled
+from .entity_helper import is_entity_category_enabled, is_entity_enabled
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,8 +30,12 @@ async def async_setup_entry(
     switches = []
 
     # Create switches from definitions only if enabled
-    if is_entity_category_enabled(entry.options, "switches"):
+    if is_entity_category_enabled(entry.options, "switches", "all"):
         for s in SWITCHES:
+            # Check if this individual switch is enabled
+            if not is_entity_enabled(entry.options, "switches", "all", s):
+                continue
+            
             # Determine which coordinator to use based on endpoint
             coordinator = (
                 tpcoordinator if s["endpoint"] == "thermal_profile" else dbcoordinator

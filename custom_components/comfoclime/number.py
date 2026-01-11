@@ -16,7 +16,7 @@ from .entities.number_definitions import (
     CONNECTED_DEVICE_NUMBER_PROPERTIES,
     NUMBER_ENTITIES,
 )
-from .entity_helper import is_entity_category_enabled
+from .entity_helper import is_entity_category_enabled, is_entity_enabled
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -36,14 +36,15 @@ async def async_setup_entry(
     entities = []
     
     if is_entity_category_enabled(entry.options, "numbers", "thermal_profile"):
-        entities.extend([
-            ComfoClimeTemperatureNumber(
-                hass, tpcoordinator, api, conf, device=main_device, entry=entry
-            )
-            for conf in NUMBER_ENTITIES
-        ])
+        for conf in NUMBER_ENTITIES:
+            if is_entity_enabled(entry.options, "numbers", "thermal_profile", conf):
+                entities.append(
+                    ComfoClimeTemperatureNumber(
+                        hass, tpcoordinator, api, conf, device=main_device, entry=entry
+                    )
+                )
 
-    if is_entity_category_enabled(entry.options, "numbers", "connected_device_properties"):
+    if is_entity_category_enabled(entry.options, "numbers", "connected_properties"):
         for device in devices:
             model_id = device.get("modelTypeId")
             dev_uuid = device.get("uuid")
@@ -57,6 +58,10 @@ async def async_setup_entry(
             )
 
             for number_def in number_properties:
+                # Check if this individual number property is enabled
+                if not is_entity_enabled(entry.options, "numbers", "connected_properties", number_def):
+                    continue
+                
                 _LOGGER.debug(f"Creating number entity for property: {number_def}")
                 # Register property with coordinator for batched fetching
                 await propcoordinator.register_property(

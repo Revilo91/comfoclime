@@ -3,7 +3,10 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.helpers import selector
 
-from .entity_helper import get_default_enabled_entities, get_entity_selection_options
+from .entity_helper import (
+    get_default_enabled_individual_entities,
+    get_individual_entity_options,
+)
 
 DOMAIN = "comfoclime"
 
@@ -161,11 +164,11 @@ class ComfoClimeOptionsFlow(OptionsFlow):
 
         # Get current enabled entities or use defaults
         current_enabled = self.entry.options.get(
-            "enabled_entities", list(get_default_enabled_entities())
+            "enabled_entities", list(get_default_enabled_individual_entities())
         )
 
-        # Get all available entity selection options
-        selection_options = get_entity_selection_options()
+        # Get all available entity selection options (individual entities)
+        selection_options = get_individual_entity_options()
 
         return self.async_show_form(
             step_id="entities",
