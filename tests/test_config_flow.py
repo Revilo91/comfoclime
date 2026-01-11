@@ -169,7 +169,9 @@ async def test_options_flow_entities_step():
     assert "enabled_entities" in field_names
     
     # Check default value is set to all enabled categories
-    enabled_entities_key = [key for key in schema.keys() if key.schema == "enabled_entities"][0]
+    enabled_entities_keys = [key for key in schema.keys() if key.schema == "enabled_entities"]
+    assert len(enabled_entities_keys) > 0, "enabled_entities key not found in schema"
+    enabled_entities_key = enabled_entities_keys[0]
     default_value = enabled_entities_key.default()
     assert isinstance(default_value, list)
     assert len(default_value) > 0
@@ -189,7 +191,9 @@ async def test_options_flow_entities_options_format():
     
     # Get the SelectSelector from the schema
     schema = result["data_schema"].schema
-    enabled_entities_key = [key for key in schema.keys() if key.schema == "enabled_entities"][0]
+    enabled_entities_keys = [key for key in schema.keys() if key.schema == "enabled_entities"]
+    assert len(enabled_entities_keys) > 0, "enabled_entities key not found in schema"
+    enabled_entities_key = enabled_entities_keys[0]
     select_selector = schema[enabled_entities_key]
     
     # Verify the selector has a config with options
@@ -227,7 +231,9 @@ async def test_options_flow_entities_step_with_existing_values():
     
     # Check that existing selection is preserved
     schema = result["data_schema"].schema
-    enabled_entities_key = [key for key in schema.keys() if key.schema == "enabled_entities"][0]
+    enabled_entities_keys = [key for key in schema.keys() if key.schema == "enabled_entities"]
+    assert len(enabled_entities_keys) > 0, "enabled_entities key not found in schema"
+    enabled_entities_key = enabled_entities_keys[0]
     default_value = enabled_entities_key.default()
     assert default_value == ["sensors_dashboard", "switches"]
 
