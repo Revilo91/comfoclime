@@ -394,12 +394,12 @@
             },
             "entities": {
                 "title": "Entity-Auswahl",
-                "description": "Wählen Sie aus, welche Entity-Typen aktiviert werden sollen. Das Deaktivieren von Entity-Typen kann die API-Last auf Ihrem ComfoClime-Gerät reduzieren.",
+                "description": "Wählen Sie einzelne Entities aus, die aktiviert werden sollen. Das Deaktivieren von Entities kann die API-Last auf Ihrem ComfoClime-Gerät reduzieren.",
                 "data": {
-                    "enabled_entities": "Aktivierte Entity-Kategorien"
+                    "enabled_entities": "Aktivierte Entities"
                 },
                 "data_description": {
-                    "enabled_entities": "Wählen Sie aus, welche Entity-Kategorien erstellt werden sollen. Nicht ausgewählte Kategorien werden nicht geladen, wodurch der API-Zugriff auf das ComfoClime-Gerät reduziert wird. Änderungen erfordern einen Neustart von Home Assistant."
+                    "enabled_entities": "Wählen Sie einzelne Entities aus, die erstellt werden sollen. Nicht ausgewählte Entities werden nicht geladen, wodurch der API-Zugriff auf das ComfoClime-Gerät reduziert wird. Änderungen erfordern einen Neustart von Home Assistant."
                 }
             }
         }

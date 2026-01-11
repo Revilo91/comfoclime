@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers import selector
 
 from custom_components.comfoclime.config_flow import (
     ComfoClimeConfigFlow,
@@ -212,6 +213,10 @@ async def test_options_flow_entities_options_format():
         assert "label" in opt
         assert isinstance(opt["value"], str)
         assert isinstance(opt["label"], str)
+    
+    # Verify that the selector mode is DROPDOWN for better UX with many options
+    assert "mode" in select_selector.config
+    assert select_selector.config["mode"] == selector.SelectSelectorMode.DROPDOWN
 
 
 @pytest.mark.asyncio
