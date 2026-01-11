@@ -18,7 +18,7 @@ from custom_components.comfoclime.config_flow import (
     DEFAULT_WRITE_COOLDOWN,
     DEFAULT_REQUEST_DEBOUNCE,
 )
-from custom_components.comfoclime.entity_helper import get_default_enabled_entities
+from custom_components.comfoclime.entity_helper import get_default_enabled_individual_entities
 
 
 @pytest.mark.asyncio
