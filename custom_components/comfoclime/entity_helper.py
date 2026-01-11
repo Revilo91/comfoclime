@@ -105,6 +105,7 @@ def get_default_enabled_entities() -> Set[str]:
         "sensors_connected_device_telemetry",
         "sensors_connected_device_properties",
         "sensors_connected_device_definition",
+        # Note: sensors_access_tracking is diagnostic and disabled by default
         "switches",
         "numbers_thermal_profile",
         "numbers_connected_device_properties",

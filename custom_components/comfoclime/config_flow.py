@@ -66,13 +66,6 @@ class ComfoClimeOptionsFlow(OptionsFlow):
 
     async def async_step_init(self, user_input=None):
         """Handle options flow - show menu."""
-        if user_input is not None:
-            # User selected which settings to configure
-            if user_input.get("next_step") == "general":
-                return await self.async_step_general()
-            elif user_input.get("next_step") == "entities":
-                return await self.async_step_entities()
-
         return self.async_show_menu(
             step_id="init",
             menu_options=["general", "entities"],

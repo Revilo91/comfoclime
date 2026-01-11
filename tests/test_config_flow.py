@@ -107,7 +107,7 @@ async def test_user_flow_connection_error():
 
 @pytest.mark.asyncio
 async def test_options_flow_default_values():
-    """Test options flow shows menu."""
+    """Test options flow shows configuration menu."""
     entry = MagicMock()
     entry.options = {}
     
