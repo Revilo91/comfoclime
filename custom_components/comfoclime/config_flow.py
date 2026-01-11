@@ -181,7 +181,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         selector.SelectSelectorConfig(
                             options=selection_options,
                             multiple=True,
-                            mode=selector.SelectSelectorMode.LIST,
+                            mode=selector.SelectSelectorMode.DROPDOWN,
                         )
                     ),
                 }

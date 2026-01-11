@@ -393,12 +393,12 @@
             },
             "entities": {
                 "title": "Entity Selection",
-                "description": "Select which entity types to enable. Disabling entity types can reduce API load on your ComfoClime device.",
+                "description": "Select individual entities to enable. Disabling entities can reduce API load on your ComfoClime device.",
                 "data": {
-                    "enabled_entities": "Enabled Entity Categories"
+                    "enabled_entities": "Enabled Entities"
                 },
                 "data_description": {
-                    "enabled_entities": "Select which entity categories should be created. Unchecked categories will not be loaded, reducing API access to the ComfoClime device. Changes require a restart of Home Assistant."
+                    "enabled_entities": "Select individual entities to be created. Unselected entities will not be loaded, reducing API access to the ComfoClime device. Changes require a restart of Home Assistant."
                 }
             }
         }
