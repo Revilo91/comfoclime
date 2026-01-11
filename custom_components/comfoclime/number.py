@@ -16,6 +16,7 @@ from .entities.number_definitions import (
     CONNECTED_DEVICE_NUMBER_PROPERTIES,
     NUMBER_ENTITIES,
 )
+from .entity_helper import is_entity_category_enabled
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -32,45 +33,49 @@ async def async_setup_entry(
 
     # Note: Coordinator first refresh is already done in __init__.py
     # We don't need to await it here to avoid blocking number setup
-    entities = [
-        ComfoClimeTemperatureNumber(
-            hass, tpcoordinator, api, conf, device=main_device, entry=entry
-        )
-        for conf in NUMBER_ENTITIES
-    ]
-
-    for device in devices:
-        model_id = device.get("modelTypeId")
-        dev_uuid = device.get("uuid")
-        if dev_uuid == "NULL":
-            _LOGGER.debug(f"Skipping device with NULL uuid (model_id: {model_id})")
-            continue
-
-        number_properties = CONNECTED_DEVICE_NUMBER_PROPERTIES.get(model_id, [])
-        _LOGGER.debug(
-            f"Found {len(number_properties)} number properties for model_id {model_id}"
-        )
-
-        for number_def in number_properties:
-            _LOGGER.debug(f"Creating number entity for property: {number_def}")
-            # Register property with coordinator for batched fetching
-            await propcoordinator.register_property(
-                device_uuid=dev_uuid,
-                property_path=number_def["property"],
-                faktor=number_def.get("faktor", 1.0),
-                signed=number_def.get("signed", True),
-                byte_count=number_def.get("byte_count"),
+    entities = []
+    
+    if is_entity_category_enabled(entry.options, "numbers", "thermal_profile"):
+        entities.extend([
+            ComfoClimeTemperatureNumber(
+                hass, tpcoordinator, api, conf, device=main_device, entry=entry
             )
-            entities.append(
-                ComfoClimePropertyNumber(
-                    hass=hass,
-                    coordinator=propcoordinator,
-                    api=api,
-                    config=number_def,
-                    device=device,
-                    entry=entry,
+            for conf in NUMBER_ENTITIES
+        ])
+
+    if is_entity_category_enabled(entry.options, "numbers", "connected_device_properties"):
+        for device in devices:
+            model_id = device.get("modelTypeId")
+            dev_uuid = device.get("uuid")
+            if dev_uuid == "NULL":
+                _LOGGER.debug(f"Skipping device with NULL uuid (model_id: {model_id})")
+                continue
+
+            number_properties = CONNECTED_DEVICE_NUMBER_PROPERTIES.get(model_id, [])
+            _LOGGER.debug(
+                f"Found {len(number_properties)} number properties for model_id {model_id}"
+            )
+
+            for number_def in number_properties:
+                _LOGGER.debug(f"Creating number entity for property: {number_def}")
+                # Register property with coordinator for batched fetching
+                await propcoordinator.register_property(
+                    device_uuid=dev_uuid,
+                    property_path=number_def["property"],
+                    faktor=number_def.get("faktor", 1.0),
+                    signed=number_def.get("signed", True),
+                    byte_count=number_def.get("byte_count"),
                 )
-            )
+                entities.append(
+                    ComfoClimePropertyNumber(
+                        hass=hass,
+                        coordinator=propcoordinator,
+                        api=api,
+                        config=number_def,
+                        device=device,
+                        entry=entry,
+                    )
+                )
 
     _LOGGER.debug(f"Adding {len(entities)} number entities to Home Assistant")
     async_add_entities(entities, True)

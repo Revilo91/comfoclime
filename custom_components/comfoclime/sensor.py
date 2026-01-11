@@ -32,6 +32,7 @@ from .entities.sensor_definitions import (
     TELEMETRY_SENSORS,
     THERMALPROFILE_SENSORS,
 )
+from .entity_helper import is_entity_category_enabled
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -65,47 +66,49 @@ async def async_setup_entry(
     main_device = hass.data[DOMAIN][entry.entry_id]["main_device"]
 
     # Dashboard-Sensoren
-    sensor_list = [
-        ComfoClimeSensor(
-            hass=hass,
-            coordinator=coordinator,
-            api=api,
-            sensor_type=sensor_def["key"],
-            name=sensor_def["name"],
-            translation_key=sensor_def["translation_key"],
-            unit=sensor_def.get("unit"),
-            device_class=sensor_def.get("device_class"),
-            state_class=sensor_def.get("state_class"),
-            entity_category=sensor_def.get("entity_category"),
-            device=main_device,
-            entry=entry,
-        )
-        for sensor_def in DASHBOARD_SENSORS
-    ]
-    sensors.extend(sensor_list)
+    if is_entity_category_enabled(entry.options, "sensors", "dashboard"):
+        sensor_list = [
+            ComfoClimeSensor(
+                hass=hass,
+                coordinator=coordinator,
+                api=api,
+                sensor_type=sensor_def["key"],
+                name=sensor_def["name"],
+                translation_key=sensor_def["translation_key"],
+                unit=sensor_def.get("unit"),
+                device_class=sensor_def.get("device_class"),
+                state_class=sensor_def.get("state_class"),
+                entity_category=sensor_def.get("entity_category"),
+                device=main_device,
+                entry=entry,
+            )
+            for sensor_def in DASHBOARD_SENSORS
+        ]
+        sensors.extend(sensor_list)
 
     # ThermalProfile-Sensoren
     thermalprofile_coordinator: ComfoClimeThermalprofileCoordinator = data[
         "tpcoordinator"
     ]
-    sensor_list = [
-        ComfoClimeSensor(
-            hass=hass,
-            coordinator=thermalprofile_coordinator,
-            api=api,
-            sensor_type=sensor_def["key"],
-            name=sensor_def["name"],
-            translation_key=sensor_def["translation_key"],
-            unit=sensor_def.get("unit"),
-            device_class=sensor_def.get("device_class"),
-            state_class=sensor_def.get("state_class"),
-            entity_category=sensor_def.get("entity_category"),
-            device=main_device,
-            entry=entry,
-        )
-        for sensor_def in THERMALPROFILE_SENSORS
-    ]
-    sensors.extend(sensor_list)
+    if is_entity_category_enabled(entry.options, "sensors", "thermalprofile"):
+        sensor_list = [
+            ComfoClimeSensor(
+                hass=hass,
+                coordinator=thermalprofile_coordinator,
+                api=api,
+                sensor_type=sensor_def["key"],
+                name=sensor_def["name"],
+                translation_key=sensor_def["translation_key"],
+                unit=sensor_def.get("unit"),
+                device_class=sensor_def.get("device_class"),
+                state_class=sensor_def.get("state_class"),
+                entity_category=sensor_def.get("entity_category"),
+                device=main_device,
+                entry=entry,
+            )
+            for sensor_def in THERMALPROFILE_SENSORS
+        ]
+        sensors.extend(sensor_list)
 
     # Feste Telemetrie-Sensoren für das ComfoClime-Gerät (from TELEMETRY_SENSORS)
     for sensor_def in TELEMETRY_SENSORS:
@@ -150,7 +153,7 @@ async def async_setup_entry(
             continue
 
         sensor_defs = CONNECTED_DEVICE_SENSORS.get(model_id)
-        if sensor_defs:
+        if sensor_defs and is_entity_category_enabled(entry.options, "sensors", "connected_device_telemetry"):
             for sensor_def in sensor_defs:
                 # Always create entities, but diagnostic ones are disabled by default
                 # unless enable_diagnostics is True
@@ -187,7 +190,7 @@ async def async_setup_entry(
                 )
 
         property_defs = CONNECTED_DEVICE_PROPERTIES.get(model_id)
-        if property_defs:
+        if property_defs and is_entity_category_enabled(entry.options, "sensors", "connected_device_properties"):
             for prop_def in property_defs:
                 # Register property with coordinator for batched fetching
                 await propcoordinator.register_property(
@@ -219,7 +222,7 @@ async def async_setup_entry(
 
         # Definition-based sensors (from /device/{UUID}/definition endpoint)
         definition_defs = CONNECTED_DEVICE_DEFINITION_SENSORS.get(model_id)
-        if definition_defs:
+        if definition_defs and is_entity_category_enabled(entry.options, "sensors", "connected_device_definition"):
             for def_sensor_def in definition_defs:
                 sensors.append(
                     ComfoClimeDefinitionSensor(
@@ -240,21 +243,22 @@ async def async_setup_entry(
 
     # Access tracking sensors for monitoring API access patterns
     access_tracker: AccessTracker = data["access_tracker"]
-    for sensor_def in ACCESS_TRACKING_SENSORS:
-        sensors.append(
-            ComfoClimeAccessTrackingSensor(
-                hass=hass,
-                access_tracker=access_tracker,
-                coordinator_name=sensor_def.get("coordinator"),
-                metric=sensor_def["metric"],
-                name=sensor_def["name"],
-                translation_key=sensor_def.get("translation_key", False),
-                state_class=sensor_def.get("state_class"),
-                entity_category=sensor_def.get("entity_category"),
-                device=main_device,
-                entry=entry,
+    if is_entity_category_enabled(entry.options, "sensors", "access_tracking"):
+        for sensor_def in ACCESS_TRACKING_SENSORS:
+            sensors.append(
+                ComfoClimeAccessTrackingSensor(
+                    hass=hass,
+                    access_tracker=access_tracker,
+                    coordinator_name=sensor_def.get("coordinator"),
+                    metric=sensor_def["metric"],
+                    name=sensor_def["name"],
+                    translation_key=sensor_def.get("translation_key", False),
+                    state_class=sensor_def.get("state_class"),
+                    entity_category=sensor_def.get("entity_category"),
+                    device=main_device,
+                    entry=entry,
+                )
             )
-        )
 
     # Add entities immediately without waiting for data
     # Coordinators will fetch data on their regular update interval

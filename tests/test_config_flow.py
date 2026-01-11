@@ -18,6 +18,7 @@ from custom_components.comfoclime.config_flow import (
     DEFAULT_WRITE_COOLDOWN,
     DEFAULT_REQUEST_DEBOUNCE,
 )
+from custom_components.comfoclime.entity_helper import get_default_enabled_entities
 
 
 @pytest.mark.asyncio
@@ -106,7 +107,7 @@ async def test_user_flow_connection_error():
 
 @pytest.mark.asyncio
 async def test_options_flow_default_values():
-    """Test options flow shows default values."""
+    """Test options flow shows configuration menu."""
     entry = MagicMock()
     entry.options = {}
     
@@ -114,8 +115,24 @@ async def test_options_flow_default_values():
     
     result = await flow.async_step_init(user_input=None)
     
-    assert result["type"] == FlowResultType.FORM
+    assert result["type"] == FlowResultType.MENU
     assert result["step_id"] == "init"
+    assert "general" in result["menu_options"]
+    assert "entities" in result["menu_options"]
+
+
+@pytest.mark.asyncio
+async def test_options_flow_general_step():
+    """Test general settings step shows all configuration fields."""
+    entry = MagicMock()
+    entry.options = {}
+    
+    flow = ComfoClimeOptionsFlow(entry)
+    
+    result = await flow.async_step_general(user_input=None)
+    
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "general"
     
     # Check that schema has the expected fields with default values
     schema = result["data_schema"].schema
@@ -130,6 +147,54 @@ async def test_options_flow_default_values():
     assert "min_request_interval" in field_names
     assert "write_cooldown" in field_names
     assert "request_debounce" in field_names
+
+
+@pytest.mark.asyncio
+async def test_options_flow_entities_step():
+    """Test entity selection step shows entity categories."""
+    entry = MagicMock()
+    entry.options = {}
+    
+    flow = ComfoClimeOptionsFlow(entry)
+    
+    result = await flow.async_step_entities(user_input=None)
+    
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "entities"
+    
+    # Check that schema has the enabled_entities field
+    schema = result["data_schema"].schema
+    field_names = {key.schema: key for key in schema.keys()}
+    
+    assert "enabled_entities" in field_names
+    
+    # Check default value is set to all enabled categories
+    enabled_entities_key = [key for key in schema.keys() if key.schema == "enabled_entities"][0]
+    default_value = enabled_entities_key.default()
+    assert isinstance(default_value, list)
+    assert len(default_value) > 0
+
+
+@pytest.mark.asyncio
+async def test_options_flow_entities_step_with_existing_values():
+    """Test entity selection preserves existing values."""
+    entry = MagicMock()
+    entry.options = {
+        "enabled_entities": ["sensors_dashboard", "switches"]
+    }
+    
+    flow = ComfoClimeOptionsFlow(entry)
+    
+    result = await flow.async_step_entities(user_input=None)
+    
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "entities"
+    
+    # Check that existing selection is preserved
+    schema = result["data_schema"].schema
+    enabled_entities_key = [key for key in schema.keys() if key.schema == "enabled_entities"][0]
+    default_value = enabled_entities_key.default()
+    assert default_value == ["sensors_dashboard", "switches"]
 
 
 @pytest.mark.asyncio
@@ -176,7 +241,25 @@ async def test_options_flow_save_values():
         "request_debounce": 0.4,
     }
     
-    result = await flow.async_step_init(user_input=user_input)
+    result = await flow.async_step_general(user_input=user_input)
+    
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    assert result["data"] == user_input
+
+
+@pytest.mark.asyncio
+async def test_options_flow_save_entity_selection():
+    """Test options flow saves entity selection."""
+    entry = MagicMock()
+    entry.options = {}
+    
+    flow = ComfoClimeOptionsFlow(entry)
+    
+    user_input = {
+        "enabled_entities": ["sensors_dashboard", "switches", "numbers_thermal_profile"]
+    }
+    
+    result = await flow.async_step_entities(user_input=user_input)
     
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert result["data"] == user_input
@@ -192,7 +275,7 @@ async def test_options_flow_validates_timeout_ranges():
     
     # Test with out-of-range values should be caught by voluptuous validation
     # This test verifies the schema is properly configured
-    result = await flow.async_step_init(user_input=None)
+    result = await flow.async_step_general(user_input=None)
     
     schema = result["data_schema"].schema
     
@@ -203,6 +286,21 @@ async def test_options_flow_validates_timeout_ranges():
             assert hasattr(key, "default")
             assert key.default() == DEFAULT_READ_TIMEOUT
             break
+
+
+@pytest.mark.asyncio
+async def test_options_flow_menu_navigation():
+    """Test navigation from menu to different steps."""
+    entry = MagicMock()
+    entry.options = {}
+    
+    flow = ComfoClimeOptionsFlow(entry)
+    
+    # Test menu shows correct options
+    result = await flow.async_step_init(user_input=None)
+    assert result["type"] == FlowResultType.MENU
+    assert "general" in result["menu_options"]
+    assert "entities" in result["menu_options"]
 
 
 def test_default_constants():

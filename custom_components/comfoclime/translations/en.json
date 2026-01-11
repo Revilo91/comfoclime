@@ -358,7 +358,15 @@
     "options": {
         "step": {
             "init": {
-                "title": "Options",
+                "title": "Configuration Options",
+                "description": "Select which settings you want to configure",
+                "menu_options": {
+                    "general": "General Settings",
+                    "entities": "Entity Selection"
+                }
+            },
+            "general": {
+                "title": "General Settings",
                 "description": "Advanced integration options",
                 "data": {
                     "enable_diagnostics": "Enable diagnostic sensors by default",
@@ -382,6 +390,33 @@
                     "write_cooldown": "Wait time after write operations before allowing reads (default: 2.0 seconds)",
                     "request_debounce": "Debounce time for rapid successive identical requests (default: 0.3 seconds)"
                 }
+            },
+            "entities": {
+                "title": "Entity Selection",
+                "description": "Select which entity types to enable. Disabling entity types can reduce API load on your ComfoClime device.",
+                "data": {
+                    "enabled_entities": "Enabled Entity Categories"
+                },
+                "data_description": {
+                    "enabled_entities": "Select which entity categories should be created. Unchecked categories will not be loaded, reducing API access to the ComfoClime device. Changes require a restart of Home Assistant."
+                }
+            }
+        }
+    },
+    "selector": {
+        "enabled_entities": {
+            "options": {
+                "sensors_dashboard": "Dashboard Sensors",
+                "sensors_thermalprofile": "Thermal Profile Sensors",
+                "sensors_connected_device_telemetry": "Connected Device Telemetry Sensors",
+                "sensors_connected_device_properties": "Connected Device Property Sensors",
+                "sensors_connected_device_definition": "Connected Device Definition Sensors",
+                "sensors_access_tracking": "Access Tracking Sensors (Diagnostic)",
+                "switches": "Switches",
+                "numbers_thermal_profile": "Thermal Profile Number Controls",
+                "numbers_connected_device_properties": "Connected Device Number Properties",
+                "selects_thermal_profile": "Thermal Profile Select Controls",
+                "selects_connected_device_properties": "Connected Device Select Properties"
             }
         }
     }
