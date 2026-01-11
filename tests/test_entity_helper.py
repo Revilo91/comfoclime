@@ -180,8 +180,11 @@ def test_get_individual_entity_options():
         assert "label" in option
         assert isinstance(option["value"], str)
         assert isinstance(option["label"], str)
-        # Check that labels have emoji prefixes
-        assert any(emoji in option["label"] for emoji in ["📊", "🌡️", "📡", "🔧", "📋", "🔍", "🔌", "🔢", "📝"])
+        # Check that labels have emoji prefixes (verifies user-friendly formatting)
+        # Note: Emojis are: 📊 Dashboard, 🌡️ Thermal, 📡 Device telemetry, 🔧 Device property,
+        # 📋 Device definition, 🔍 Access tracking, 🔌 Switch, 🔢 Number, 📝 Select
+        has_emoji = any(char in option["label"] for char in "📊🌡️📡🔧📋🔍🔌🔢📝")
+        assert has_emoji, f"Label '{option['label']}' should have emoji prefix"
     
     # Check that some specific entities are present
     values = [opt["value"] for opt in options]
