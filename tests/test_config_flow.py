@@ -176,6 +176,41 @@ async def test_options_flow_entities_step():
 
 
 @pytest.mark.asyncio
+async def test_options_flow_entities_options_format():
+    """Test entity selection options are properly formatted dictionaries."""
+    entry = MagicMock()
+    entry.options = {}
+    
+    flow = ComfoClimeOptionsFlow(entry)
+    
+    result = await flow.async_step_entities(user_input=None)
+    
+    assert result["type"] == FlowResultType.FORM
+    
+    # Get the SelectSelector from the schema
+    schema = result["data_schema"].schema
+    enabled_entities_key = [key for key in schema.keys() if key.schema == "enabled_entities"][0]
+    select_selector = schema[enabled_entities_key]
+    
+    # Verify the selector has a config with options
+    assert hasattr(select_selector, "config")
+    assert "options" in select_selector.config
+    options = select_selector.config["options"]
+    
+    # Verify options is a list and each option has the correct format
+    assert isinstance(options, list)
+    assert len(options) > 0
+    
+    # Each option should be a dict with "value" and "label" keys
+    for opt in options:
+        assert isinstance(opt, dict)
+        assert "value" in opt
+        assert "label" in opt
+        assert isinstance(opt["value"], str)
+        assert isinstance(opt["label"], str)
+
+
+@pytest.mark.asyncio
 async def test_options_flow_entities_step_with_existing_values():
     """Test entity selection preserves existing values."""
     entry = MagicMock()
