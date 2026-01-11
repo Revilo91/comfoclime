@@ -5,6 +5,7 @@ import logging
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -177,8 +178,9 @@ class ComfoClimeSwitch(CoordinatorEntity, SwitchEntity):
                 await self._set_thermal_profile_status(value)
             else:  # dashboard
                 await self._set_dashboard_status(value)
-        except Exception:
+        except Exception as e:
             _LOGGER.exception(f"Fehler beim Setzen von {self._name}")
+            raise HomeAssistantError(f"Fehler beim Setzen von {self._name}") from e
 
     async def _set_thermal_profile_status(self, value: int):
         """Set thermal profile switch status via API."""

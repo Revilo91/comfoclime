@@ -3,6 +3,7 @@ import logging
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -170,8 +171,9 @@ class ComfoClimeSelect(
 
             self._current = option
             self._hass.add_job(self.coordinator.async_request_refresh)
-        except Exception:
+        except Exception as e:
             _LOGGER.exception(f"Fehler beim Setzen von {self._name}")
+            raise HomeAssistantError(f"Fehler beim Setzen von {self._name}") from e
 
 
 class ComfoClimePropertySelect(
@@ -253,5 +255,6 @@ class ComfoClimePropertySelect(
             self._current = option
             # Trigger coordinator refresh to update all entities
             await self.coordinator.async_request_refresh()
-        except Exception:
+        except Exception as e:
             _LOGGER.exception(f"Fehler beim Setzen von {self._name}")
+            raise HomeAssistantError(f"Fehler beim Setzen von {self._name}") from e
