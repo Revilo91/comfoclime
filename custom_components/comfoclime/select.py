@@ -13,6 +13,7 @@ from .coordinator import (
     ComfoClimeThermalprofileCoordinator,
 )
 from .entities.select_definitions import PROPERTY_SELECT_ENTITIES, SELECT_ENTITIES
+from .entity_helper import is_entity_category_enabled
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -29,12 +30,15 @@ async def async_setup_entry(
 
     # Note: Coordinator first refresh is already done in __init__.py
     # We don't need to await it here to avoid blocking select setup
-    entities = [
-        ComfoClimeSelect(
-            hass, tpcoordinator, api, conf, device=main_device, entry=entry
-        )
-        for conf in SELECT_ENTITIES
-    ]
+    entities = []
+    
+    if is_entity_category_enabled(entry.options, "selects", "thermal_profile"):
+        entities.extend([
+            ComfoClimeSelect(
+                hass, tpcoordinator, api, conf, device=main_device, entry=entry
+            )
+            for conf in SELECT_ENTITIES
+        ])
 
     # Verbundene Geräte abrufen
     try:
@@ -43,35 +47,36 @@ async def async_setup_entry(
         _LOGGER.warning(f"Verbundene Geräte konnten nicht geladen werden: {e}")
         devices = []
 
-    for device in devices:
-        model_id = device.get("modelTypeId")
-        dev_uuid = device.get("uuid")
-        if dev_uuid == "NULL":
-            continue
+    if is_entity_category_enabled(entry.options, "selects", "connected_device_properties"):
+        for device in devices:
+            model_id = device.get("modelTypeId")
+            dev_uuid = device.get("uuid")
+            if dev_uuid == "NULL":
+                continue
 
-        select_defs = PROPERTY_SELECT_ENTITIES.get(model_id)
-        if not select_defs:
-            continue
+            select_defs = PROPERTY_SELECT_ENTITIES.get(model_id)
+            if not select_defs:
+                continue
 
-        for select_def in select_defs:
-            # Register property with coordinator for batched fetching
-            await propcoordinator.register_property(
-                device_uuid=dev_uuid,
-                property_path=select_def["path"],
-                faktor=1.0,
-                signed=False,
-                byte_count=1,
-            )
-            entities.append(
-                ComfoClimePropertySelect(
-                    hass=hass,
-                    coordinator=propcoordinator,
-                    api=api,
-                    conf=select_def,
-                    device=device,
-                    entry=entry,
+            for select_def in select_defs:
+                # Register property with coordinator for batched fetching
+                await propcoordinator.register_property(
+                    device_uuid=dev_uuid,
+                    property_path=select_def["path"],
+                    faktor=1.0,
+                    signed=False,
+                    byte_count=1,
                 )
-            )
+                entities.append(
+                    ComfoClimePropertySelect(
+                        hass=hass,
+                        coordinator=propcoordinator,
+                        api=api,
+                        conf=select_def,
+                        device=device,
+                        entry=entry,
+                    )
+                )
     async_add_entities(entities, True)
 
 

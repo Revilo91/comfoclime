@@ -359,7 +359,15 @@
     "options": {
         "step": {
             "init": {
-                "title": "Optionen",
+                "title": "Konfigurationsoptionen",
+                "description": "Wählen Sie aus, welche Einstellungen Sie konfigurieren möchten",
+                "menu_options": {
+                    "general": "Allgemeine Einstellungen",
+                    "entities": "Entity-Auswahl"
+                }
+            },
+            "general": {
+                "title": "Allgemeine Einstellungen",
                 "description": "Erweiterte Einstellungen für die Integration",
                 "data": {
                     "enable_diagnostics": "Diagnose-Sensoren standardmäßig aktivieren",
@@ -383,6 +391,33 @@
                     "write_cooldown": "Wartezeit nach Schreibvorgängen bevor Lesevorgänge erlaubt sind (Standard: 2.0 Sekunden)",
                     "request_debounce": "Entprellzeit für schnell aufeinanderfolgende gleiche Anfragen (Standard: 0.3 Sekunden)"
                 }
+            },
+            "entities": {
+                "title": "Entity-Auswahl",
+                "description": "Wählen Sie aus, welche Entity-Typen aktiviert werden sollen. Das Deaktivieren von Entity-Typen kann die API-Last auf Ihrem ComfoClime-Gerät reduzieren.",
+                "data": {
+                    "enabled_entities": "Aktivierte Entity-Kategorien"
+                },
+                "data_description": {
+                    "enabled_entities": "Wählen Sie aus, welche Entity-Kategorien erstellt werden sollen. Nicht ausgewählte Kategorien werden nicht geladen, wodurch der API-Zugriff auf das ComfoClime-Gerät reduziert wird. Änderungen erfordern einen Neustart von Home Assistant."
+                }
+            }
+        }
+    },
+    "selector": {
+        "enabled_entities": {
+            "options": {
+                "sensors_dashboard": "Dashboard-Sensoren",
+                "sensors_thermalprofile": "Thermalprofil-Sensoren",
+                "sensors_connected_device_telemetry": "Verbundene Geräte - Telemetrie-Sensoren",
+                "sensors_connected_device_properties": "Verbundene Geräte - Property-Sensoren",
+                "sensors_connected_device_definition": "Verbundene Geräte - Definitions-Sensoren",
+                "sensors_access_tracking": "Zugriffs-Tracking-Sensoren (Diagnose)",
+                "switches": "Schalter",
+                "numbers_thermal_profile": "Thermalprofil - Zahlen-Steuerungen",
+                "numbers_connected_device_properties": "Verbundene Geräte - Zahlen-Properties",
+                "selects_thermal_profile": "Thermalprofil - Auswahl-Steuerungen",
+                "selects_connected_device_properties": "Verbundene Geräte - Auswahl-Properties"
             }
         }
     }

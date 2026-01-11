@@ -3,6 +3,8 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.helpers import selector
 
+from .entity_helper import get_default_enabled_entities, get_entity_selection_options
+
 DOMAIN = "comfoclime"
 
 # Default values for configuration options
@@ -60,13 +62,30 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
 class ComfoClimeOptionsFlow(OptionsFlow):
     def __init__(self, entry):
         self.entry = entry
+        self._data = {}
 
     async def async_step_init(self, user_input=None):
+        """Handle options flow - show menu."""
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            # User selected which settings to configure
+            if user_input.get("next_step") == "general":
+                return await self.async_step_general()
+            elif user_input.get("next_step") == "entities":
+                return await self.async_step_entities()
+
+        return self.async_show_menu(
+            step_id="init",
+            menu_options=["general", "entities"],
+        )
+
+    async def async_step_general(self, user_input=None):
+        """Handle general configuration options."""
+        if user_input is not None:
+            self._data.update(user_input)
+            return self.async_create_entry(title="", data={**self.entry.options, **self._data})
 
         return self.async_show_form(
-            step_id="init",
+            step_id="general",
             data_schema=vol.Schema(
                 {
                     vol.Optional(
@@ -135,6 +154,38 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                     ): selector.NumberSelector(
                         selector.NumberSelectorConfig(
                             min=0.0, max=2.0, step=0.1, mode=selector.NumberSelectorMode.BOX
+                        )
+                    ),
+                }
+            ),
+        )
+
+    async def async_step_entities(self, user_input=None):
+        """Handle entity selection configuration."""
+        if user_input is not None:
+            self._data.update(user_input)
+            return self.async_create_entry(title="", data={**self.entry.options, **self._data})
+
+        # Get current enabled entities or use defaults
+        current_enabled = self.entry.options.get(
+            "enabled_entities", list(get_default_enabled_entities())
+        )
+
+        # Get all available entity selection options
+        selection_options = get_entity_selection_options()
+
+        return self.async_show_form(
+            step_id="entities",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(
+                        "enabled_entities",
+                        default=current_enabled,
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=[opt["value"] for opt in selection_options],
+                            multiple=True,
+                            mode=selector.SelectSelectorMode.LIST,
                         )
                     ),
                 }

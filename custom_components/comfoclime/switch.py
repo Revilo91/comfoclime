@@ -11,6 +11,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
 from .entities.switch_definitions import SWITCHES
+from .entity_helper import is_entity_category_enabled
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,27 +29,28 @@ async def async_setup_entry(
     # We don't need to await it here to avoid blocking switch setup
     switches = []
 
-    # Create switches from definitions
-    for s in SWITCHES:
-        # Determine which coordinator to use based on endpoint
-        coordinator = (
-            tpcoordinator if s["endpoint"] == "thermal_profile" else dbcoordinator
-        )
-
-        switches.append(
-            ComfoClimeSwitch(
-                hass,
-                coordinator,
-                api,
-                s["key"],
-                s["translation_key"],
-                s["name"],
-                invert=s.get("invert", False),
-                endpoint=s["endpoint"],
-                device=main_device,
-                entry=entry,
+    # Create switches from definitions only if enabled
+    if is_entity_category_enabled(entry.options, "switches"):
+        for s in SWITCHES:
+            # Determine which coordinator to use based on endpoint
+            coordinator = (
+                tpcoordinator if s["endpoint"] == "thermal_profile" else dbcoordinator
             )
-        )
+
+            switches.append(
+                ComfoClimeSwitch(
+                    hass,
+                    coordinator,
+                    api,
+                    s["key"],
+                    s["translation_key"],
+                    s["name"],
+                    invert=s.get("invert", False),
+                    endpoint=s["endpoint"],
+                    device=main_device,
+                    entry=entry,
+                )
+            )
 
     async_add_entities(switches, True)
 
