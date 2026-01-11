@@ -179,10 +179,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         default=current_enabled,
                     ): selector.SelectSelector(
                         selector.SelectSelectorConfig(
-                            options=[
-                                selector.SelectOptionDict(value=opt["value"], label=opt["label"])
-                                for opt in selection_options
-                            ],
+                            options=selection_options,
                             multiple=True,
                             mode=selector.SelectSelectorMode.LIST,
                         )
