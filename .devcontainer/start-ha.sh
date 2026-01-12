@@ -10,4 +10,4 @@ echo ""
 echo "Press Ctrl+C to stop Home Assistant"
 echo ""
 
-python3.13 -m homeassistant -c "$CONFIG_DIR"
+python3 -m homeassistant -c "$CONFIG_DIR"

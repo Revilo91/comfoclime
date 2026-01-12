@@ -108,6 +108,16 @@ container logs
 container enter
 ```
 
+Hinweis: Die oben gezeigten `container`-Befehle stammen aus speziellen Home Assistant/Supervisor-Images und sind nicht in jedem Devcontainer vorhanden. Wenn `container` auf deinem System nicht verfügbar ist, nutze stattdessen das mitgelieferte Start-Skript oder starte Home Assistant direkt:
+
+```bash
+# start using the included script
+bash .devcontainer/start-ha.sh
+
+# or run directly with python
+python3 -m homeassistant -c .devcontainer/ha-config
+```
+
 ## Fehlersuche
 
 ### Port 8123 ist nicht erreichbar
