@@ -350,7 +350,9 @@
         "error": {
             "cannot_connect": "Verbindung fehlgeschlagen.",
             "no_uuid": "Antwort erhalten, aber keine UUID gefunden.",
-            "no_response": "Das Gerät hat nicht korrekt geantwortet."
+            "no_response": "Das Gerät hat nicht korrekt geantwortet.",
+            "entity_options_error": "Fehler beim Laden der Entity-Optionen. Überprüfen Sie die Logs für weitere Details.",
+            "no_entities_available": "Keine Entities verfügbar. Dies kann auf einen Konfigurationsfehler hindeuten."
         },
         "abort": {
             "already_configured": "Dieses Gerät ist bereits konfiguriert."
@@ -363,7 +365,45 @@
                 "description": "Wählen Sie aus, welche Einstellungen Sie konfigurieren möchten",
                 "menu_options": {
                     "general": "Allgemeine Einstellungen",
-                    "entities": "Entity-Auswahl"
+                    "entities_menu": "Entity-Auswahl"
+                }
+            },
+            "entities_menu": {
+                "title": "Entity-Auswahl",
+                "description": "Wählen Sie die Entity-Kategorie aus, die Sie konfigurieren möchten",
+                "menu_options": {
+                    "entities_sensors": "Sensoren",
+                    "entities_switches": "Schalter",
+                    "entities_numbers": "Zahlen-Steuerungen",
+                    "entities_selects": "Auswahl-Steuerungen"
+                }
+            },
+            "entities_sensors": {
+                "title": "Sensor-Auswahl",
+                "description": "Wählen Sie die Sensoren aus, die aktiviert sein sollen",
+                "data": {
+                    "enabled_sensors": "Aktivierte Sensoren"
+                }
+            },
+            "entities_switches": {
+                "title": "Schalter-Auswahl",
+                "description": "Wählen Sie die Schalter aus, die aktiviert sein sollen",
+                "data": {
+                    "enabled_switches": "Aktivierte Schalter"
+                }
+            },
+            "entities_numbers": {
+                "title": "Zahlen-Steuerung-Auswahl",
+                "description": "Wählen Sie die Zahlen-Steuerungen aus, die aktiviert sein sollen",
+                "data": {
+                    "enabled_numbers": "Aktivierte Zahlen-Steuerungen"
+                }
+            },
+            "entities_selects": {
+                "title": "Auswahl-Steuerung-Auswahl",
+                "description": "Wählen Sie die Auswahl-Steuerungen aus, die aktiviert sein sollen",
+                "data": {
+                    "enabled_selects": "Aktivierte Auswahl-Steuerungen"
                 }
             },
             "general": {
@@ -400,6 +440,10 @@
                 },
                 "data_description": {
                     "enabled_entities": "Wählen Sie einzelne Entities aus, die erstellt werden sollen. Nicht ausgewählte Entities werden nicht geladen, wodurch der API-Zugriff auf das ComfoClime-Gerät reduziert wird. Änderungen erfordern einen Neustart von Home Assistant."
+                },
+                "error": {
+                    "entity_options_error": "Fehler beim Laden der Entity-Optionen. Überprüfen Sie die Logs für weitere Details.",
+                    "no_entities_available": "Keine Entities verfügbar. Dies kann auf einen Konfigurationsfehler hindeuten."
                 }
             }
         }

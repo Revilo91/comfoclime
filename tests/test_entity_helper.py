@@ -17,12 +17,12 @@ from custom_components.comfoclime.entity_helper import (
 def test_get_all_entity_categories():
     """Test that get_all_entity_categories returns expected structure."""
     categories = get_all_entity_categories()
-    
+
     assert "sensors" in categories
     assert "switches" in categories
     assert "numbers" in categories
     assert "selects" in categories
-    
+
     # Check sensor subcategories
     assert "dashboard" in categories["sensors"]
     assert "thermalprofile" in categories["sensors"]
@@ -30,11 +30,11 @@ def test_get_all_entity_categories():
     assert "connected_device_properties" in categories["sensors"]
     assert "connected_device_definition" in categories["sensors"]
     assert "access_tracking" in categories["sensors"]
-    
+
     # Check numbers subcategories
     assert "thermal_profile" in categories["numbers"]
     assert "connected_device_properties" in categories["numbers"]
-    
+
     # Check selects subcategories
     assert "thermal_profile" in categories["selects"]
     assert "connected_device_properties" in categories["selects"]
@@ -43,17 +43,17 @@ def test_get_all_entity_categories():
 def test_get_entity_selection_options():
     """Test that selection options are properly formatted."""
     options = get_entity_selection_options()
-    
+
     assert isinstance(options, list)
     assert len(options) > 0
-    
+
     # Check that each option has required keys
     for option in options:
         assert "value" in option
         assert "label" in option
         assert isinstance(option["value"], str)
         assert isinstance(option["label"], str)
-    
+
     # Check that specific categories are present
     values = [opt["value"] for opt in options]
     assert "sensors_dashboard" in values
@@ -66,10 +66,10 @@ def test_get_entity_selection_options():
 def test_get_default_enabled_entities():
     """Test that default enabled entities returns a set."""
     defaults = get_default_enabled_entities()
-    
+
     assert isinstance(defaults, set)
     assert len(defaults) > 0
-    
+
     # Check that core categories are enabled by default
     assert "sensors_dashboard" in defaults
     assert "sensors_thermalprofile" in defaults
@@ -94,11 +94,11 @@ def test_is_entity_category_enabled_with_selection():
             "switches",
         ]
     }
-    
+
     # Enabled categories should return True
     assert is_entity_category_enabled(options, "sensors", "dashboard") is True
     assert is_entity_category_enabled(options, "switches") is True
-    
+
     # Disabled categories should return False
     assert is_entity_category_enabled(options, "sensors", "thermalprofile") is False
     assert is_entity_category_enabled(options, "numbers", "thermal_profile") is False
@@ -110,10 +110,10 @@ def test_is_entity_category_enabled_category_only():
     options = {
         "enabled_entities": ["switches"]
     }
-    
+
     # Without subcategory parameter
     assert is_entity_category_enabled(options, "switches") is True
-    
+
     # Categories not in the list should be disabled
     options2 = {
         "enabled_entities": ["sensors_dashboard"]
@@ -126,7 +126,7 @@ def test_is_entity_category_enabled_empty_selection():
     options = {
         "enabled_entities": []
     }
-    
+
     assert is_entity_category_enabled(options, "sensors", "dashboard") is False
     assert is_entity_category_enabled(options, "switches") is False
     assert is_entity_category_enabled(options, "numbers", "thermal_profile") is False
@@ -168,41 +168,56 @@ def test_make_sensor_id_with_metric():
 
 
 def test_get_individual_entity_options():
-    """Test that individual entity options are properly formatted."""
+    """Test that individual entity options are properly formatted with optgroups."""
     options = get_individual_entity_options()
-    
+
     assert isinstance(options, list)
     assert len(options) > 0
-    
-    # Check that each option has required keys
-    for option in options:
-        assert "value" in option
-        assert "label" in option
-        assert isinstance(option["value"], str)
-        assert isinstance(option["label"], str)
-        # Check that labels have emoji prefixes (verifies user-friendly formatting)
+
+    # Check that each option group has required keys
+    for option_group in options:
+        assert "label" in option_group, "Option group should have 'label' key"
+        assert "options" in option_group, "Option group should have 'options' key"
+        assert isinstance(option_group["label"], str), "Group label should be string"
+        assert isinstance(option_group["options"], list), "Options should be a list"
+
+        # Check that group label has emoji prefix (verifies user-friendly formatting)
         # Note: Emojis are: 📊 Dashboard, 🌡️ Thermal, 📡 Device telemetry, 🔧 Device property,
         # 📋 Device definition, 🔍 Access tracking, 🔌 Switch, 🔢 Number, 📝 Select
-        has_emoji = any(char in option["label"] for char in "📊🌡️📡🔧📋🔍🔌🔢📝")
-        assert has_emoji, f"Label '{option['label']}' should have emoji prefix"
-    
-    # Check that some specific entities are present
-    values = [opt["value"] for opt in options]
-    assert any("sensors_dashboard_indoorTemperature" in v for v in values)
-    assert any("switches_all_" in v for v in values)
+        has_emoji = any(char in option_group["label"] for char in "📊🌡️📡🔧📋🔍🔌🔢📝")
+        assert has_emoji, f"Group label '{option_group['label']}' should have emoji prefix"
+
+        # Check that each item in the group has required keys
+        for item in option_group["options"]:
+            assert "value" in item, "Each option should have 'value' key"
+            assert "label" in item, "Each option should have 'label' key"
+            assert isinstance(item["value"], str), "Option value should be string"
+            assert isinstance(item["label"], str), "Option label should be string"
+
+    # Check that some specific entities are present by flattening and checking values
+    all_values = []
+    for group in options:
+        for item in group["options"]:
+            all_values.append(item["value"])
+
+    assert any("sensors_dashboard_indoorTemperature" in v for v in all_values), \
+        "Should contain indoor temperature sensor"
+    assert any("switches_all_" in v for v in all_values), \
+        "Should contain switches"
+    assert len(all_values) > 10, "Should have multiple entities"
 
 
 def test_get_default_enabled_individual_entities():
     """Test that default enabled individual entities returns a set."""
     defaults = get_default_enabled_individual_entities()
-    
+
     assert isinstance(defaults, set)
     assert len(defaults) > 0
-    
+
     # Check that some core entities are enabled by default
     assert any("sensors_dashboard_indoorTemperature" in d for d in defaults)
     assert any("switches_all_" in d for d in defaults)
-    
+
     # Check that diagnostic sensors are NOT enabled by default
     # (access tracking sensors should not be in defaults)
     assert not any("access_tracking" in d and "per_minute" in d for d in defaults)
@@ -211,7 +226,7 @@ def test_get_default_enabled_individual_entities():
 def test_is_entity_enabled_with_none():
     """Test that all entities are enabled when options is None or empty."""
     sensor_def = {"key": "indoorTemperature", "name": "Indoor Temperature"}
-    
+
     # When enabled_entities is None (not configured yet), everything should be enabled
     assert is_entity_enabled({}, "sensors", "dashboard", sensor_def) is True
 
@@ -222,7 +237,7 @@ def test_is_entity_enabled_individual_selected():
     options = {
         "enabled_entities": ["sensors_dashboard_indoorTemperature"]
     }
-    
+
     assert is_entity_enabled(options, "sensors", "dashboard", sensor_def) is True
 
 
@@ -233,7 +248,7 @@ def test_is_entity_enabled_individual_not_selected():
     options = {
         "enabled_entities": ["sensors_dashboard_outdoorTemperature"]
     }
-    
+
     # indoor temp is not selected, should be False
     assert is_entity_enabled(options, "sensors", "dashboard", sensor_def) is False
     # outdoor temp is selected, should be True
@@ -246,7 +261,7 @@ def test_is_entity_enabled_category_backward_compat():
     options = {
         "enabled_entities": ["sensors_dashboard"]  # Old-style category selection
     }
-    
+
     # Should enable all entities in that category for backward compatibility
     assert is_entity_enabled(options, "sensors", "dashboard", sensor_def) is True
 
@@ -261,7 +276,7 @@ def test_is_entity_enabled_mixed_selection():
             "sensors_dashboard_outdoorTemperature"  # Individual entity
         ]
     }
-    
+
     # When individual entities are present, category is ignored
     # Only outdoor temp is explicitly enabled
     assert is_entity_enabled(options, "sensors", "dashboard", sensor_def) is False
@@ -276,7 +291,7 @@ def test_is_entity_category_enabled_with_individual_entities():
             "sensors_dashboard_outdoorTemperature"
         ]
     }
-    
+
     # Category should be enabled if any individual entities from it are enabled
     assert is_entity_category_enabled(options, "sensors", "dashboard") is True
     # Other categories should be disabled

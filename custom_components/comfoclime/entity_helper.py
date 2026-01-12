@@ -20,10 +20,31 @@ from .entities.select_definitions import PROPERTY_SELECT_ENTITIES, SELECT_ENTITI
 
 _LOGGER = logging.getLogger(__name__)
 
+# Map known modelTypeId values to friendly names for UI grouping
+MODEL_TYPE_NAMES = {
+    20: "ComfoClime",
+    1: "ComfoAirQ",
+}
+
+
+def _friendly_model_name(model_id) -> str:
+    """Return a human-friendly model name for a model_id, safe for strings/ints.
+
+    If the model_id exists in MODEL_TYPE_NAMES, return that. Otherwise return
+    a fallback 'Model {model_id}'.
+    """
+    if model_id is None:
+        return "Unknown Model"
+    try:
+        mid = int(model_id)
+    except Exception:
+        return f"Model {model_id}"
+    return MODEL_TYPE_NAMES.get(mid, f"Model {mid}")
+
 
 def get_all_entity_categories() -> Dict[str, Dict[str, List]]:
     """Get all entity definitions organized by category.
-    
+
     Returns:
         Dict with structure:
         {
@@ -69,12 +90,12 @@ def get_all_entity_categories() -> Dict[str, Dict[str, List]]:
 
 def _make_sensor_id(category: str, subcategory: str, sensor_def: dict) -> str:
     """Create a unique ID for a sensor.
-    
+
     Args:
         category: Main category (sensors, switches, numbers, selects)
         subcategory: Subcategory (dashboard, thermalprofile, etc.)
         sensor_def: Sensor definition dict
-        
+
     Returns:
         Unique sensor ID string
     """
@@ -89,102 +110,260 @@ def _make_sensor_id(category: str, subcategory: str, sensor_def: dict) -> str:
     elif "property" in sensor_def:
         identifier = f"prop_{sensor_def['property'].replace('/', '_')}"
     elif "metric" in sensor_def:
-        coord = sensor_def.get("coordinator", "total").lower()
+        coordinator = sensor_def.get("coordinator")
+        # Handle None coordinator value safely
+        if coordinator is not None:
+            coord = str(coordinator).lower()
+        else:
+            coord = "total"
         identifier = f"{coord}_{sensor_def['metric']}"
     else:
         # Fallback to name-based ID
         identifier = sensor_def.get("name", "unknown").lower().replace(" ", "_")
-    
+
     return f"{category}_{subcategory}_{identifier}"
 
 
-def get_individual_entity_options() -> List[Dict[str, str]]:
-    """Get list of individual entities for user selection in config flow.
-    
+def _format_simple_entities(
+    entity_list: List[Dict],
+    category: str,
+    subcategory: str,
+    emoji: str,
+    prefix: str = ""
+) -> List[Dict]:
+    """Format simple entities (without per-model grouping) to option dicts.
+
+    Args:
+        entity_list: List of entity definitions
+        category: Entity category (sensors, switches, etc.)
+        subcategory: Entity subcategory (dashboard, thermal_profile, etc.)
+        emoji: Emoji to prefix the label with
+        prefix: Optional prefix for the label (e.g., "Thermal • ")
+
     Returns:
-        List of dicts with 'value' and 'label' keys for multi-select UI,
-        grouped by category for better organization
+        List of {value, label} dicts
     """
     options = []
-    
-    # Dashboard sensors
-    for sensor_def in DASHBOARD_SENSORS:
-        sensor_id = _make_sensor_id("sensors", "dashboard", sensor_def)
-        label = f"📊 Dashboard: {sensor_def['name']}"
-        options.append({"value": sensor_id, "label": label})
-    
-    # Thermal profile sensors
-    for sensor_def in THERMALPROFILE_SENSORS:
-        sensor_id = _make_sensor_id("sensors", "thermalprofile", sensor_def)
-        label = f"🌡️ Thermal: {sensor_def['name']}"
-        options.append({"value": sensor_id, "label": label})
-    
-    # Connected device telemetry sensors (modelTypeId-based)
-    # Note: These are model-specific, so we'll create entries for known models
-    for model_id, sensor_list in CONNECTED_DEVICE_SENSORS.items():
-        for sensor_def in sensor_list:
-            sensor_id = _make_sensor_id("sensors", "connected_telemetry", sensor_def)
-            label = f"📡 Device {model_id}: {sensor_def['name']}"
-            options.append({"value": sensor_id, "label": label})
-    
-    # Connected device properties
-    for model_id, prop_list in CONNECTED_DEVICE_PROPERTIES.items():
-        for prop_def in prop_list:
-            sensor_id = _make_sensor_id("sensors", "connected_properties", prop_def)
-            label = f"🔧 Device {model_id} Property: {prop_def['name']}"
-            options.append({"value": sensor_id, "label": label})
-    
-    # Connected device definition sensors
-    for model_id, def_list in CONNECTED_DEVICE_DEFINITION_SENSORS.items():
-        for def_sensor in def_list:
-            sensor_id = _make_sensor_id("sensors", "connected_definition", def_sensor)
-            label = f"📋 Device {model_id} Definition: {def_sensor['name']}"
-            options.append({"value": sensor_id, "label": label})
-    
-    # Access tracking sensors
-    for sensor_def in ACCESS_TRACKING_SENSORS:
-        sensor_id = _make_sensor_id("sensors", "access_tracking", sensor_def)
-        label = f"🔍 Tracking: {sensor_def['name']}"
-        options.append({"value": sensor_id, "label": label})
-    
-    # Switches
-    for switch_def in SWITCHES:
-        switch_id = _make_sensor_id("switches", "all", switch_def)
-        label = f"🔌 Switch: {switch_def['name']}"
-        options.append({"value": switch_id, "label": label})
-    
-    # Number entities
-    for number_def in NUMBER_ENTITIES:
-        number_id = _make_sensor_id("numbers", "thermal_profile", number_def)
-        label = f"🔢 Number: {number_def['name']}"
-        options.append({"value": number_id, "label": label})
-    
-    # Connected device number properties
-    for model_id, number_list in CONNECTED_DEVICE_NUMBER_PROPERTIES.items():
-        for number_def in number_list:
-            number_id = _make_sensor_id("numbers", "connected_properties", number_def)
-            label = f"🔢 Device {model_id} Number: {number_def['name']}"
-            options.append({"value": number_id, "label": label})
-    
-    # Select entities
-    for select_def in SELECT_ENTITIES:
-        select_id = _make_sensor_id("selects", "thermal_profile", select_def)
-        label = f"📝 Select: {select_def['name']}"
-        options.append({"value": select_id, "label": label})
-    
-    # Connected device select properties
-    for model_id, select_list in PROPERTY_SELECT_ENTITIES.items():
-        for select_def in select_list:
-            select_id = _make_sensor_id("selects", "connected_properties", select_def)
-            label = f"📝 Device {model_id} Select: {select_def['name']}"
-            options.append({"value": select_id, "label": label})
-    
+    for entity_def in entity_list:
+        try:
+            entity_id = _make_sensor_id(category, subcategory, entity_def)
+            label = entity_def['name']
+            full_label = f"{emoji} {prefix}{label}" if prefix else f"{emoji} {label}"
+            options.append({"value": entity_id, "label": full_label})
+        except (KeyError, AttributeError) as e:
+            _LOGGER.error(f"❌ Error processing {category}_{subcategory} entity {entity_def}: {e}", exc_info=True)
+    return options
+
+
+def _format_per_model_entities(
+    entity_dict: Dict,
+    category: str,
+    subcategory: str,
+    emoji: str,
+    fallback_name: str = ""
+) -> List[Dict]:
+    """Format entities grouped per connected device model to option dicts.
+
+    Args:
+        entity_dict: Dictionary mapping model_id to list of entity definitions
+        category: Entity category (sensors, numbers, selects, etc.)
+        subcategory: Entity subcategory
+        emoji: Emoji to prefix the label with
+        fallback_name: Fallback name pattern if 'name' key is missing
+
+    Returns:
+        List of {value, label} dicts
+    """
+    options = []
+    for model_id, entity_list in entity_dict.items():
+        model_name = _friendly_model_name(model_id)
+        for entity_def in entity_list:
+            try:
+                entity_id = _make_sensor_id(category, subcategory, entity_def)
+                if fallback_name:
+                    label = entity_def.get('name', fallback_name.format(**entity_def))
+                else:
+                    label = entity_def.get('name', 'unknown')
+                options.append({"value": entity_id, "label": f"{emoji} {model_name} • {label}"})
+            except (KeyError, AttributeError) as e:
+                _LOGGER.error(f"❌ Error processing {category}_{subcategory} for model {model_id}: {e}", exc_info=True)
+    return options
+
+
+def _get_sensor_options() -> List[Dict]:
+    """Get all sensor entity options (dashboard, thermal, telemetry, properties, etc.)."""
+    options = []
+    options.extend(_get_dashboard_sensors())
+    options.extend(_get_thermalprofile_sensors())
+    options.extend(_get_connected_device_telemetry_sensors())
+    options.extend(_get_connected_device_properties_sensors())
+    options.extend(_get_connected_device_definition_sensors())
+    options.extend(_get_access_tracking_sensors())
+    return options
+
+
+def _get_dashboard_sensors() -> List[Dict]:
+    """Get all dashboard sensor entity options."""
+    return _format_simple_entities(DASHBOARD_SENSORS, "sensors", "dashboard", "📊")
+
+
+def _get_thermalprofile_sensors() -> List[Dict]:
+    """Get all thermal profile sensor entity options."""
+    return _format_simple_entities(THERMALPROFILE_SENSORS, "sensors", "thermalprofile", "🌡️")
+
+
+def _get_connected_device_telemetry_sensors() -> List[Dict]:
+    """Get all connected device telemetry sensor entity options."""
+    return _format_per_model_entities(
+        CONNECTED_DEVICE_SENSORS,
+        "sensors",
+        "connected_telemetry",
+        "📡",
+        fallback_name="telemetry_{telemetry_id}"
+    )
+
+
+def _get_connected_device_properties_sensors() -> List[Dict]:
+    """Get all connected device properties sensor entity options."""
+    return _format_per_model_entities(
+        CONNECTED_DEVICE_PROPERTIES,
+        "sensors",
+        "connected_properties",
+        "🔧",
+        fallback_name="prop_{path}"
+    )
+
+
+def _get_connected_device_definition_sensors() -> List[Dict]:
+    """Get all connected device definition sensor entity options."""
+    return _format_per_model_entities(
+        CONNECTED_DEVICE_DEFINITION_SENSORS,
+        "sensors",
+        "connected_definition",
+        "📋"
+    )
+
+
+def _get_access_tracking_sensors() -> List[Dict]:
+    """Get all access tracking sensor entity options."""
+    return _format_simple_entities(ACCESS_TRACKING_SENSORS, "sensors", "access_tracking", "🔍")
+
+
+def _get_switch_options() -> List[Dict]:
+    """Get all switch entity options."""
+    return _format_simple_entities(SWITCHES, "switches", "all", "🔌")
+
+
+def _get_number_options() -> List[Dict]:
+    """Get all number entity options (thermal profile and connected device properties)."""
+    options = []
+    # Thermal profile numbers
+    options.extend(_format_simple_entities(NUMBER_ENTITIES, "numbers", "thermal_profile", "🔢", prefix="Thermal • "))
+
+    # Connected device number properties - per model
+    options.extend(_format_per_model_entities(
+        CONNECTED_DEVICE_NUMBER_PROPERTIES,
+        "numbers",
+        "connected_properties",
+        "🔢",
+        fallback_name="number_{property}"
+    ))
+    return options
+
+
+def _get_select_options() -> List[Dict]:
+    """Get all select entity options (thermal profile and connected device properties)."""
+    options = []
+    # Thermal profile selects
+    options.extend(_format_simple_entities(SELECT_ENTITIES, "selects", "thermal_profile", "📝", prefix="Thermal • "))
+
+    # Connected device select properties - per model
+    options.extend(_format_per_model_entities(
+        PROPERTY_SELECT_ENTITIES,
+        "selects",
+        "connected_properties",
+        "📝",
+        fallback_name="select_{property}"
+    ))
+    return options
+
+
+def get_sensors() -> List[Dict]:
+    """Get all sensor entity options."""
+    return _get_sensor_options()
+
+
+def get_dashboard_sensors() -> List[Dict]:
+    """Get all dashboard sensor entity options."""
+    return _get_dashboard_sensors()
+
+
+def get_thermalprofile_sensors() -> List[Dict]:
+    """Get all thermal profile sensor entity options."""
+    return _get_thermalprofile_sensors()
+
+
+def get_connected_device_telemetry_sensors() -> List[Dict]:
+    """Get all connected device telemetry sensor entity options."""
+    return _get_connected_device_telemetry_sensors()
+
+
+def get_connected_device_properties_sensors() -> List[Dict]:
+    """Get all connected device properties sensor entity options."""
+    return _get_connected_device_properties_sensors()
+
+
+def get_connected_device_definition_sensors() -> List[Dict]:
+    """Get all connected device definition sensor entity options."""
+    return _get_connected_device_definition_sensors()
+
+
+def get_access_tracking_sensors() -> List[Dict]:
+    """Get all access tracking sensor entity options."""
+    return _get_access_tracking_sensors()
+
+
+def get_switches() -> List[Dict]:
+    """Get all switch entity options."""
+    return _get_switch_options()
+
+
+def get_numbers() -> List[Dict]:
+    """Get all number entity options."""
+    return _get_number_options()
+
+
+def get_selects() -> List[Dict]:
+    """Get all select entity options."""
+    return _get_select_options()
+
+
+def get_individual_entity_options() -> List[Dict]:
+    """Get list of individual entities for user selection in config flow.
+
+    Returns a FLAT list of {value, label} dicts (NOT optgroups).
+    Grouping is handled through label prefixes and visual separation.
+
+    Returns:
+        List of {value, label} dicts for SelectSelector options
+    """
+    options = []
+
+    _LOGGER.debug("🔍 get_individual_entity_options() called - start building flat options")
+
+    options.extend(_get_sensor_options())
+    options.extend(_get_switch_options())
+    options.extend(_get_number_options())
+    options.extend(_get_select_options())
+
+    _LOGGER.debug(f"✅ get_individual_entity_options() finished - created {len(options)} total options")
+
     return options
 
 
 def get_entity_selection_options() -> List[Dict[str, str]]:
     """Get list of entity categories for user selection in config flow.
-    
+
     Returns:
         List of dicts with 'value' and 'label' keys for multi-select UI
     """
@@ -209,7 +388,7 @@ def get_entity_selection_options() -> List[Dict[str, str]]:
 
 def get_default_enabled_entities() -> Set[str]:
     """Get default set of enabled entity categories.
-    
+
     Returns:
         Set of entity category keys that should be enabled by default
     """
@@ -231,93 +410,93 @@ def get_default_enabled_entities() -> Set[str]:
 
 def get_default_enabled_individual_entities() -> Set[str]:
     """Get default set of enabled individual entities.
-    
+
     Returns:
         Set of individual entity IDs that should be enabled by default.
         This includes all entities except diagnostic ones.
     """
     enabled = set()
-    
+
     # Dashboard sensors - all by default
     for sensor_def in DASHBOARD_SENSORS:
         enabled.add(_make_sensor_id("sensors", "dashboard", sensor_def))
-    
+
     # Thermal profile sensors - all by default
     for sensor_def in THERMALPROFILE_SENSORS:
         enabled.add(_make_sensor_id("sensors", "thermalprofile", sensor_def))
-    
+
     # Connected device telemetry - all non-diagnostic by default
     for model_id, sensor_list in CONNECTED_DEVICE_SENSORS.items():
         for sensor_def in sensor_list:
             if not sensor_def.get("diagnose", False):
                 enabled.add(_make_sensor_id("sensors", "connected_telemetry", sensor_def))
-    
+
     # Connected device properties - all by default
     for model_id, prop_list in CONNECTED_DEVICE_PROPERTIES.items():
         for prop_def in prop_list:
             enabled.add(_make_sensor_id("sensors", "connected_properties", prop_def))
-    
+
     # Connected device definition sensors - all by default
     for model_id, def_list in CONNECTED_DEVICE_DEFINITION_SENSORS.items():
         for def_sensor in def_list:
             enabled.add(_make_sensor_id("sensors", "connected_definition", def_sensor))
-    
+
     # Access tracking sensors - NONE by default (diagnostic)
     # (intentionally not added)
-    
+
     # Switches - all by default
     for switch_def in SWITCHES:
         enabled.add(_make_sensor_id("switches", "all", switch_def))
-    
+
     # Number entities - all by default
     for number_def in NUMBER_ENTITIES:
         enabled.add(_make_sensor_id("numbers", "thermal_profile", number_def))
-    
+
     for model_id, number_list in CONNECTED_DEVICE_NUMBER_PROPERTIES.items():
         for number_def in number_list:
             enabled.add(_make_sensor_id("numbers", "connected_properties", number_def))
-    
+
     # Select entities - all by default
     for select_def in SELECT_ENTITIES:
         enabled.add(_make_sensor_id("selects", "thermal_profile", select_def))
-    
+
     for model_id, select_list in PROPERTY_SELECT_ENTITIES.items():
         for select_def in select_list:
             enabled.add(_make_sensor_id("selects", "connected_properties", select_def))
-    
+
     return enabled
 
 
 def is_entity_enabled(
-    options: dict, 
-    category: str, 
-    subcategory: str, 
+    options: dict,
+    category: str,
+    subcategory: str,
     entity_def: dict
 ) -> bool:
     """Check if an individual entity is enabled in options.
-    
+
     Args:
         options: Config entry options dict
         category: Main category (sensors, switches, numbers, selects)
         subcategory: Subcategory (dashboard, thermalprofile, etc.)
         entity_def: Entity definition dict
-    
+
     Returns:
         True if enabled, False otherwise
     """
     enabled_entities = options.get("enabled_entities", None)
-    
+
     # If no selection has been made yet, enable everything by default
     if enabled_entities is None:
         return True
-    
+
     # Build the individual entity ID
     entity_id = _make_sensor_id(category, subcategory, entity_def)
-    
+
     # Check if this specific entity is enabled
     if entity_id in enabled_entities:
         return True
-    
+
     # Fall back to category-level check for backward compatibility
     # If the category is enabled but no individual entities are selected,
     # enable all entities in that category
@@ -325,18 +504,18 @@ def is_entity_enabled(
         category_key = f"{category}_{subcategory}"
     else:
         category_key = category
-    
+
     if category_key in enabled_entities:
         # Category is enabled - check if any individual entities from this category are in the selection
         # If not, it means we're using old-style category selection, so enable all
         any_individual_in_category = any(
-            e.startswith(f"{category}_{subcategory}_") 
+            e.startswith(f"{category}_{subcategory}_")
             for e in enabled_entities
         )
         if not any_individual_in_category:
             # Old-style category selection - enable all in category
             return True
-    
+
     return False
 
 
@@ -344,34 +523,34 @@ def is_entity_category_enabled(
     options: dict, category: str, subcategory: str = None
 ) -> bool:
     """Check if an entity category is enabled in options.
-    
+
     This function is kept for backward compatibility and for checking
     if we should even attempt to load entities from a category.
-    
+
     Args:
         options: Config entry options dict
         category: Main category (sensors, switches, numbers, selects)
         subcategory: Optional subcategory (dashboard, thermalprofile, etc.)
-    
+
     Returns:
         True if enabled, False otherwise
     """
     enabled_entities = options.get("enabled_entities", None)
-    
+
     # If no selection has been made yet, enable everything by default
     if enabled_entities is None:
         return True
-    
+
     # Build the key to check
     if subcategory:
         key = f"{category}_{subcategory}"
     else:
         key = category
-    
+
     # Check if category itself is enabled
     if key in enabled_entities:
         return True
-    
+
     # Check if any individual entities from this category are enabled
     # This handles the case where user selected individual entities
     prefix = f"{category}_{subcategory}_" if subcategory else f"{category}_"
