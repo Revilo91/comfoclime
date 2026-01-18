@@ -240,6 +240,22 @@ class ComfoClimeAPI:
         async with self._request_lock:
             return await self._async_get_uuid_internal()
 
+    @api_get("/monitoring/ping")
+    async def async_get_monitoring_ping(self, response_data):
+        """Get monitoring/ping data including uptime.
+
+        Returns full monitoring data including:
+        - uuid: Device UUID
+        - uptime: Device uptime in seconds (up_time_seconds)
+        - timestamp: Current timestamp
+
+        The @api_get decorator handles:
+        - Request locking
+        - Rate limiting
+        - Session management
+        """
+        return response_data
+
     @api_get("/system/{uuid}/dashboard", requires_uuid=True, fix_temperatures=True)
     async def async_get_dashboard_data(self, response_data):
         """Fetch dashboard data from the API.

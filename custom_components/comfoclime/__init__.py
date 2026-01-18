@@ -11,6 +11,7 @@ from .comfoclime_api import ComfoClimeAPI
 from .coordinator import (
     ComfoClimeDashboardCoordinator,
     ComfoClimeDefinitionCoordinator,
+    ComfoClimeMonitoringCoordinator,
     ComfoClimePropertyCoordinator,
     ComfoClimeTelemetryCoordinator,
     ComfoClimeThermalprofileCoordinator,
@@ -73,6 +74,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     )
     await thermalprofile_coordinator.async_config_entry_first_refresh()
 
+    # Create Monitoring-Coordinator
+    monitoring_coordinator = ComfoClimeMonitoringCoordinator(
+        hass, api, polling_interval, access_tracker=access_tracker
+    )
+    await monitoring_coordinator.async_config_entry_first_refresh()
+
     # Create definition coordinator for device definition data (mainly for ComfoAirQ)
     definitioncoordinator = ComfoClimeDefinitionCoordinator(
         hass, api, devices, polling_interval, access_tracker=access_tracker
@@ -91,6 +98,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         "api": api,
         "coordinator": dashboard_coordinator,
         "tpcoordinator": thermalprofile_coordinator,
+        "monitoringcoordinator": monitoring_coordinator,
         "tlcoordinator": tlcoordinator,
         "propcoordinator": propcoordinator,
         "definitioncoordinator": definitioncoordinator,

@@ -94,6 +94,18 @@ DASHBOARD_SENSORS = [
     },
 ]
 
+MONITORING_SENSORS = [
+    {
+        "key": "uptime",
+        "name": "Uptime",
+        "translation_key": "uptime",
+        "unit": "s",
+        "device_class": "duration",
+        "state_class": "total_increasing",
+        "entity_category": "diagnostic",
+    },
+]
+
 THERMALPROFILE_SENSORS = [
     {
         "key": "season.status",

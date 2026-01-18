@@ -43,46 +43,53 @@ async def test_async_setup_entry(
                 "custom_components.comfoclime.ComfoClimeThermalprofileCoordinator"
             ) as mock_tp_coord:
                 with patch(
-                    "custom_components.comfoclime.ComfoClimeTelemetryCoordinator"
-                ) as mock_tl_coord:
+                    "custom_components.comfoclime.ComfoClimeMonitoringCoordinator"
+                ) as mock_mon_coord:
                     with patch(
-                        "custom_components.comfoclime.ComfoClimePropertyCoordinator"
-                    ) as mock_prop_coord:
+                        "custom_components.comfoclime.ComfoClimeTelemetryCoordinator"
+                    ) as mock_tl_coord:
                         with patch(
-                            "custom_components.comfoclime.ComfoClimeDefinitionCoordinator"
-                        ) as mock_def_coord:
-                            # Setup mocks
-                            mock_api_instance = MagicMock()
-                            mock_api_instance.async_get_connected_devices = AsyncMock(
-                                return_value=[mock_device]
-                            )
-                            mock_api_class.return_value = mock_api_instance
+                            "custom_components.comfoclime.ComfoClimePropertyCoordinator"
+                        ) as mock_prop_coord:
+                            with patch(
+                                "custom_components.comfoclime.ComfoClimeDefinitionCoordinator"
+                            ) as mock_def_coord:
+                                # Setup mocks
+                                mock_api_instance = MagicMock()
+                                mock_api_instance.async_get_connected_devices = AsyncMock(
+                                    return_value=[mock_device]
+                                )
+                                mock_api_class.return_value = mock_api_instance
 
-                            mock_db_coord_instance = MagicMock()
-                            mock_db_coord_instance.async_config_entry_first_refresh = AsyncMock()
-                            mock_db_coord.return_value = mock_db_coord_instance
+                                mock_db_coord_instance = MagicMock()
+                                mock_db_coord_instance.async_config_entry_first_refresh = AsyncMock()
+                                mock_db_coord.return_value = mock_db_coord_instance
 
-                            mock_tp_coord_instance = MagicMock()
-                            mock_tp_coord_instance.async_config_entry_first_refresh = AsyncMock()
-                            mock_tp_coord.return_value = mock_tp_coord_instance
+                                mock_tp_coord_instance = MagicMock()
+                                mock_tp_coord_instance.async_config_entry_first_refresh = AsyncMock()
+                                mock_tp_coord.return_value = mock_tp_coord_instance
 
-                            mock_tl_coord_instance = MagicMock()
-                            mock_tl_coord.return_value = mock_tl_coord_instance
+                                mock_mon_coord_instance = MagicMock()
+                                mock_mon_coord_instance.async_config_entry_first_refresh = AsyncMock()
+                                mock_mon_coord.return_value = mock_mon_coord_instance
 
-                            mock_prop_coord_instance = MagicMock()
-                            mock_prop_coord.return_value = mock_prop_coord_instance
+                                mock_tl_coord_instance = MagicMock()
+                                mock_tl_coord.return_value = mock_tl_coord_instance
 
-                            mock_def_coord_instance = MagicMock()
-                            mock_def_coord_instance.async_config_entry_first_refresh = AsyncMock()
-                            mock_def_coord.return_value = mock_def_coord_instance
+                                mock_prop_coord_instance = MagicMock()
+                                mock_prop_coord.return_value = mock_prop_coord_instance
 
-                            # Call async_setup_entry
-                            result = await async_setup_entry(mock_hass, mock_config_entry)
+                                mock_def_coord_instance = MagicMock()
+                                mock_def_coord_instance.async_config_entry_first_refresh = AsyncMock()
+                                mock_def_coord.return_value = mock_def_coord_instance
 
-                            # Verify setup was successful
-                            assert result is True
+                                # Call async_setup_entry
+                                result = await async_setup_entry(mock_hass, mock_config_entry)
 
-                            # Verify data was stored in hass.data
+                                # Verify setup was successful
+                                assert result is True
+
+                                # Verify data was stored in hass.data
                             assert "comfoclime" in mock_hass.data
                             assert "test_entry_id" in mock_hass.data["comfoclime"]
 
