@@ -101,7 +101,7 @@ MONITORING_SENSORS = [
         "translation_key": "uptime",
         "unit": "s",
         "device_class": "duration",
-        "state_class": "total_increasing",
+        "state_class": "measurement",
         "entity_category": "diagnostic",
     },
 ]

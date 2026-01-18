@@ -91,11 +91,7 @@ def _make_sensor_id(category: str, subcategory: str, sensor_def: dict) -> str:
     elif "property" in sensor_def:
         identifier = f"prop_{sensor_def['property'].replace('/', '_')}"
     elif "metric" in sensor_def:
-        coord = sensor_def.get("coordinator")
-        if coord is None:
-            coord = "total"
-        else:
-            coord = coord.lower()
+        coord = (sensor_def.get("coordinator") or "total").lower()
         identifier = f"{coord}_{sensor_def['metric']}"
     else:
         # Fallback to name-based ID
