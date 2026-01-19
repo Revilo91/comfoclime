@@ -19,6 +19,7 @@ from .access_tracker import AccessTracker
 from .coordinator import (
     ComfoClimeDashboardCoordinator,
     ComfoClimeDefinitionCoordinator,
+    ComfoClimeMonitoringCoordinator,
     ComfoClimePropertyCoordinator,
     ComfoClimeTelemetryCoordinator,
     ComfoClimeThermalprofileCoordinator,
@@ -29,6 +30,7 @@ from .entities.sensor_definitions import (
     CONNECTED_DEVICE_PROPERTIES,
     CONNECTED_DEVICE_SENSORS,
     DASHBOARD_SENSORS,
+    MONITORING_SENSORS,
     TELEMETRY_SENSORS,
     THERMALPROFILE_SENSORS,
 )
@@ -97,6 +99,32 @@ async def async_setup_entry(
                     ComfoClimeSensor(
                         hass=hass,
                         coordinator=thermalprofile_coordinator,
+                        api=api,
+                        sensor_type=sensor_def["key"],
+                        name=sensor_def["name"],
+                        translation_key=sensor_def["translation_key"],
+                        unit=sensor_def.get("unit"),
+                        device_class=sensor_def.get("device_class"),
+                        state_class=sensor_def.get("state_class"),
+                        entity_category=sensor_def.get("entity_category"),
+                        device=main_device,
+                        entry=entry,
+                    )
+                )
+
+    # Monitoring-Sensoren (uptime, etc.)
+    monitoring_coordinator: ComfoClimeMonitoringCoordinator = data.get(
+        "monitoringcoordinator"
+    )
+    if monitoring_coordinator and is_entity_category_enabled(
+        entry.options, "sensors", "monitoring"
+    ):
+        for sensor_def in MONITORING_SENSORS:
+            if is_entity_enabled(entry.options, "sensors", "monitoring", sensor_def):
+                sensors.append(
+                    ComfoClimeSensor(
+                        hass=hass,
+                        coordinator=monitoring_coordinator,
                         api=api,
                         sensor_type=sensor_def["key"],
                         name=sensor_def["name"],

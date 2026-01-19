@@ -49,6 +49,9 @@ def mock_api():
     api = MagicMock()
     api.uuid = "test-uuid-12345"
     api.async_get_uuid = AsyncMock(return_value="test-uuid-12345")
+    api.async_get_monitoring_ping = AsyncMock(
+        return_value={"uuid": "test-uuid-12345", "uptime": 123456, "timestamp": "2024-01-15T10:30:00Z"}
+    )
     api.async_get_connected_devices = AsyncMock(return_value=[])
     api.async_read_telemetry_for_device = AsyncMock(return_value=22.5)
     api.async_read_property_for_device = AsyncMock(return_value=1)

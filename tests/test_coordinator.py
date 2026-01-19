@@ -8,6 +8,7 @@ from homeassistant.helpers.update_coordinator import UpdateFailed
 from custom_components.comfoclime.coordinator import (
     ComfoClimeDashboardCoordinator,
     ComfoClimeDefinitionCoordinator,
+    ComfoClimeMonitoringCoordinator,
     ComfoClimePropertyCoordinator,
     ComfoClimeTelemetryCoordinator,
     ComfoClimeThermalprofileCoordinator,
@@ -402,3 +403,40 @@ async def test_definition_coordinator_custom_interval(hass_with_frame_helper, mo
     assert coordinator.update_interval.total_seconds() == custom_interval
     assert coordinator.api == mock_api
     assert coordinator.devices == devices
+
+
+@pytest.mark.asyncio
+async def test_monitoring_coordinator_success(hass_with_frame_helper, mock_api):
+    """Test monitoring coordinator successful data fetch."""
+    mock_api.async_get_monitoring_ping = AsyncMock(
+        return_value={"uuid": "test-uuid", "uptime": 123456, "timestamp": "2024-01-15T10:30:00Z"}
+    )
+    
+    coordinator = ComfoClimeMonitoringCoordinator(hass_with_frame_helper, mock_api)
+    result = await coordinator._async_update_data()
+    
+    assert result["uuid"] == "test-uuid"
+    assert result["uptime"] == 123456
+    assert result["timestamp"] == "2024-01-15T10:30:00Z"
+    mock_api.async_get_monitoring_ping.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_monitoring_coordinator_failure(hass_with_frame_helper, mock_api):
+    """Test monitoring coordinator handles API errors."""
+    mock_api.async_get_monitoring_ping = AsyncMock(side_effect=Exception("Connection error"))
+    
+    coordinator = ComfoClimeMonitoringCoordinator(hass_with_frame_helper, mock_api)
+    
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+
+
+@pytest.mark.asyncio
+async def test_monitoring_coordinator_custom_interval(hass_with_frame_helper, mock_api):
+    """Test monitoring coordinator with custom polling interval."""
+    custom_interval = 120
+    coordinator = ComfoClimeMonitoringCoordinator(hass_with_frame_helper, mock_api, polling_interval=custom_interval)
+    
+    assert coordinator.update_interval.total_seconds() == custom_interval
+    assert coordinator.api == mock_api

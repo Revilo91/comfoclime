@@ -94,6 +94,18 @@ DASHBOARD_SENSORS = [
     },
 ]
 
+MONITORING_SENSORS = [
+    {
+        "key": "uptime",
+        "name": "Uptime",
+        "translation_key": "uptime",
+        "unit": "s",
+        "device_class": "duration",
+        "state_class": "measurement",
+        "entity_category": "diagnostic",
+    },
+]
+
 THERMALPROFILE_SENSORS = [
     {
         "key": "season.status",
@@ -590,6 +602,14 @@ ACCESS_TRACKING_SENSORS = [
         "state_class": "measurement",
         "entity_category": "diagnostic",
     },
+    {
+        "coordinator": "Monitoring",
+        "metric": "per_minute",
+        "name": "Monitoring Accesses per Minute",
+        "translation_key": "monitoring_accesses_per_minute",
+        "state_class": "measurement",
+        "entity_category": "diagnostic",
+    },
     # Per-coordinator per-hour sensors
     {
         "coordinator": "Dashboard",
@@ -628,6 +648,14 @@ ACCESS_TRACKING_SENSORS = [
         "metric": "per_hour",
         "name": "Definition Accesses per Hour",
         "translation_key": "definition_accesses_per_hour",
+        "state_class": "measurement",
+        "entity_category": "diagnostic",
+    },
+    {
+        "coordinator": "Monitoring",
+        "metric": "per_hour",
+        "name": "Monitoring Accesses per Hour",
+        "translation_key": "monitoring_accesses_per_hour",
         "state_class": "measurement",
         "entity_category": "diagnostic",
     },

@@ -48,6 +48,40 @@ class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
             raise UpdateFailed(f"Error fetching dashboard data: {e}") from e
 
 
+class ComfoClimeMonitoringCoordinator(DataUpdateCoordinator):
+    """Coordinator for fetching monitoring data from the ComfoClime device.
+
+    Fetches monitoring/ping data including device uptime.
+    """
+
+    def __init__(
+        self,
+        hass,
+        api,
+        polling_interval=DEFAULT_POLLING_INTERVAL_SECONDS,
+        access_tracker: "AccessTracker | None" = None,
+    ):
+        super().__init__(
+            hass,
+            _LOGGER,
+            name="ComfoClime Monitoring",
+            update_interval=timedelta(seconds=polling_interval),
+        )
+        self.api = api
+        self._access_tracker = access_tracker
+
+    async def _async_update_data(self):
+        """Fetch monitoring data from the API."""
+        try:
+            result = await self.api.async_get_monitoring_ping()
+            if self._access_tracker:
+                self._access_tracker.record_access("Monitoring")
+            return result
+        except Exception as e:
+            _LOGGER.debug(f"Error fetching monitoring data: {e}")
+            raise UpdateFailed(f"Error fetching monitoring data: {e}") from e
+
+
 class ComfoClimeThermalprofileCoordinator(DataUpdateCoordinator):
     """Coordinator for fetching thermal profile data from the ComfoClime device.
 
