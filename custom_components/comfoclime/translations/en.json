@@ -48,7 +48,7 @@
             },
             "current_comfort_temperature": {
                 "name": "Current Comfort Temperature"
-            },            
+            },
             "powerfactor_heatpump": {
                 "name": "Power Factor Heat Pump"
             },
@@ -349,7 +349,9 @@
         "error": {
             "cannot_connect": "Connection failed, cannot connect.",
             "no_uuid": "Device online, but didn't get a serial number.",
-            "no_response": "Device didn't respond with valid data."
+            "no_response": "Device didn't respond with valid data.",
+            "entity_options_error": "Failed to load entity options. Check the logs for more details.",
+            "no_entities_available": "No entities available. This may indicate a configuration error."
         },
         "abort": {
             "already_configured": "This device is already configured."
@@ -362,61 +364,46 @@
                 "description": "Select which settings you want to configure",
                 "menu_options": {
                     "general": "General Settings",
-                    "entities": "Entity Selection"
+                    "entities_menu": "Entity Selection"
                 }
             },
-            "general": {
-                "title": "General Settings",
-                "description": "Advanced integration options",
-                "data": {
-                    "enable_diagnostics": "Enable diagnostic sensors by default",
-                    "read_timeout": "Read operation timeout (seconds, 1-120)",
-                    "write_timeout": "Write operation timeout (seconds, 1-120)",
-                    "polling_interval": "Update interval (seconds, 10-600)",
-                    "cache_ttl": "Cache time-to-live (seconds, 0-300)",
-                    "max_retries": "Maximum retry attempts (0-10)",
-                    "min_request_interval": "Minimum interval between requests (seconds, 0.0-5.0)",
-                    "write_cooldown": "Cooldown after write operations (seconds, 0.0-10.0)",
-                    "request_debounce": "Request debounce time (seconds, 0.0-2.0)"
-                },
-                "data_description": {
-                    "enable_diagnostics": "Enables diagnostic sensors by default. These can also be manually enabled in the device interface.",
-                    "read_timeout": "Maximum wait time for API read requests (default: 10 seconds)",
-                    "write_timeout": "Maximum wait time for API write requests (default: 30 seconds)",
-                    "polling_interval": "How often to fetch data from the device (default: 60 seconds)",
-                    "cache_ttl": "How long to cache telemetry and property data (default: 30 seconds, 0 = no cache)",
-                    "max_retries": "Number of retry attempts for failed API requests (default: 3, 0 = no retry)",
-                    "min_request_interval": "Minimum time between consecutive API requests (default: 0.1 seconds)",
-                    "write_cooldown": "Wait time after write operations before allowing reads (default: 2.0 seconds)",
-                    "request_debounce": "Debounce time for rapid successive identical requests (default: 0.3 seconds)"
-                }
-            },
-            "entities": {
+            "entities_menu": {
                 "title": "Entity Selection",
-                "description": "Select individual entities to enable. Disabling entities can reduce API load on your ComfoClime device.",
-                "data": {
-                    "enabled_entities": "Enabled Entities"
-                },
-                "data_description": {
-                    "enabled_entities": "Select individual entities to be created. Unselected entities will not be loaded, reducing API access to the ComfoClime device. Changes require a restart of Home Assistant."
+                "description": "Select which entity category you want to configure",
+                "menu_options": {
+                    "entities_sensors": "Sensors",
+                    "entities_switches": "Switches",
+                    "entities_numbers": "Numbers",
+                    "entities_selects": "Selects"
                 }
-            }
-        }
-    },
-    "selector": {
-        "enabled_entities": {
-            "options": {
-                "sensors_dashboard": "Dashboard Sensors",
-                "sensors_thermalprofile": "Thermal Profile Sensors",
-                "sensors_connected_device_telemetry": "Connected Device Telemetry Sensors",
-                "sensors_connected_device_properties": "Connected Device Property Sensors",
-                "sensors_connected_device_definition": "Connected Device Definition Sensors",
-                "sensors_access_tracking": "Access Tracking Sensors (Diagnostic)",
-                "switches": "Switches",
-                "numbers_thermal_profile": "Thermal Profile Number Controls",
-                "numbers_connected_device_properties": "Connected Device Number Properties",
-                "selects_thermal_profile": "Thermal Profile Select Controls",
-                "selects_connected_device_properties": "Connected Device Select Properties"
+            },
+            "entities_sensors": {
+                "title": "Sensor Selection",
+                "description": "Select which sensors should be enabled",
+                "data": {
+                    "enabled_sensors": "Enabled Sensors"
+                }
+            },
+            "entities_switches": {
+                "title": "Switch Selection",
+                "description": "Select which switches should be enabled",
+                "data": {
+                    "enabled_switches": "Enabled Switches"
+                }
+            },
+            "entities_numbers": {
+                "title": "Number Selection",
+                "description": "Select which number entities should be enabled",
+                "data": {
+                    "enabled_numbers": "Enabled Numbers"
+                }
+            },
+            "entities_selects": {
+                "title": "Select Selection",
+                "description": "Select which select entities should be enabled",
+                "data": {
+                    "enabled_selects": "Enabled Selects"
+                }
             }
         }
     }

@@ -3,6 +3,7 @@ import logging
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -245,8 +246,9 @@ class ComfoClimeTemperatureNumber(
             await self._api.async_update_thermal_profile(**{param_name: value})
             self._value = value
             await self.coordinator.async_request_refresh()
-        except Exception:
+        except Exception as e:
             _LOGGER.exception(f"Fehler beim Setzen von {self._name}")
+            raise HomeAssistantError(f"Fehler beim Setzen von {self._name}") from e
 
 
 class ComfoClimePropertyNumber(
@@ -346,7 +348,10 @@ class ComfoClimePropertyNumber(
             self._value = value
             # Trigger coordinator refresh to update all entities
             await self.coordinator.async_request_refresh()
-        except Exception:
+        except Exception as e:
             _LOGGER.exception(
                 f"Fehler beim Schreiben von Property {self._property_path}"
             )
+            raise HomeAssistantError(
+                f"Fehler beim Schreiben von Property {self._property_path}"
+            ) from e

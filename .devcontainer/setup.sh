@@ -8,12 +8,12 @@ echo "Setting up ComfoClime development environment..."
 # Install system dependencies
 echo "Installing system dependencies..."
 sudo apt-get update -qq
-sudo apt-get install -y build-essential python3.13 python3.13-dev python3.13-venv libpcap-dev
+sudo apt-get install -y build-essential python3 python3-dev python3-venv libpcap-dev
 
-# Bootstrap pip for Python 3.13
-echo "Bootstrapping pip for Python 3.13..."
-python3.13 -m ensurepip --upgrade
-python3.13 -m pip install --upgrade pip wheel setuptools
+# Bootstrap pip for the system Python 3
+echo "Bootstrapping pip for Python 3..."
+python3 -m ensurepip --upgrade || true
+python3 -m pip install --upgrade pip wheel setuptools
 
 # Determine config directory
 if [ -d "/config" ]; then
@@ -43,7 +43,7 @@ cp /workspaces/comfoclime/.devcontainer/scenes.yaml "$CONFIG_DIR/scenes.yaml"
 # Install Home Assistant if not already present
 if ! command -v hass &> /dev/null; then
   echo "Installing Home Assistant Core..."
-  python3.13 -m pip install --upgrade homeassistant
+  python3 -m pip install --upgrade homeassistant
 else
   echo "Home Assistant already installed: $(hass --version 2>/dev/null || echo 'version unknown')"
 fi
@@ -53,6 +53,6 @@ echo "Setup complete!"
 echo "Configuration directory: $CONFIG_DIR"
 echo ""
 echo "To start Home Assistant, run:"
-echo "  python3.13 -m homeassistant -c $CONFIG_DIR"
+echo "  python3 -m homeassistant -c $CONFIG_DIR"
 echo ""
 echo "Home Assistant will be available at http://localhost:8123"

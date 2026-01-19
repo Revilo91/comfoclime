@@ -1,6 +1,6 @@
 {
   "name": "ComfoClime Development",
-  "image": "ghcr.io/home-assistant/devcontainer:latest",
+  "image": "ghcr.io/home-assistant/devcontainer:2-supervisor",
   "forwardPorts": [8123],
   "portsAttributes": {
     "8123": {
@@ -9,7 +9,7 @@
     }
   },
   "postCreateCommand": "bash .devcontainer/setup.sh",
-  "postStartCommand": "container start",
+  "postStartCommand": "bash .devcontainer/start-ha.sh",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -22,7 +22,7 @@
         "python.defaultInterpreterPath": "/usr/local/bin/python",
         "python.linting.enabled": true,
         "python.linting.pylintEnabled": true,
-        "python.formatting.provider": "black",
+        "python.formatting.provider": "ruff",
         "editor.formatOnPaste": false,
         "editor.formatOnSave": true,
         "editor.formatOnType": true,
