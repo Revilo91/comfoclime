@@ -311,15 +311,25 @@ async def test_async_setup_entry(
     """Test async_setup_entry for sensors."""
     # Setup mock data
     mock_api.uuid = "test-device-uuid"
+    
+    # Create a mock monitoring coordinator
+    mock_monitoring_coordinator = MagicMock()
+    mock_monitoring_coordinator.data = {"uptime": 123456, "uuid": "test-uuid"}
+    
+    # Create a mock access tracker
+    mock_access_tracker = MagicMock()
+    
     mock_hass.data = {
         "comfoclime": {
             "test_entry_id": {
                 "api": mock_api,
                 "coordinator": mock_coordinator,
                 "tpcoordinator": mock_thermalprofile_coordinator,
+                "monitoringcoordinator": mock_monitoring_coordinator,
                 "tlcoordinator": mock_telemetry_coordinator,
                 "propcoordinator": mock_property_coordinator,
                 "definitioncoordinator": mock_definition_coordinator,
+                "access_tracker": mock_access_tracker,
                 "devices": [mock_device],
                 "main_device": mock_device,
             }

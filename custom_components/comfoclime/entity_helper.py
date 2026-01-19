@@ -9,6 +9,7 @@ from .entities.sensor_definitions import (
     CONNECTED_DEVICE_PROPERTIES,
     CONNECTED_DEVICE_SENSORS,
     DASHBOARD_SENSORS,
+    MONITORING_SENSORS,
     THERMALPROFILE_SENSORS,
 )
 from .entities.switch_definitions import SWITCHES
@@ -50,6 +51,7 @@ def get_all_entity_categories() -> Dict[str, Dict[str, List]]:
         "sensors": {
             "dashboard": DASHBOARD_SENSORS,
             "thermalprofile": THERMALPROFILE_SENSORS,
+            "monitoring": MONITORING_SENSORS,
             "connected_device_telemetry": CONNECTED_DEVICE_SENSORS,
             "connected_device_properties": CONNECTED_DEVICE_PROPERTIES,
             "connected_device_definition": CONNECTED_DEVICE_DEFINITION_SENSORS,
@@ -89,7 +91,7 @@ def _make_sensor_id(category: str, subcategory: str, sensor_def: dict) -> str:
     elif "property" in sensor_def:
         identifier = f"prop_{sensor_def['property'].replace('/', '_')}"
     elif "metric" in sensor_def:
-        coord = sensor_def.get("coordinator", "total").lower()
+        coord = (sensor_def.get("coordinator") or "total").lower()
         identifier = f"{coord}_{sensor_def['metric']}"
     else:
         # Fallback to name-based ID
@@ -117,6 +119,12 @@ def get_individual_entity_options() -> List[Dict[str, str]]:
     for sensor_def in THERMALPROFILE_SENSORS:
         sensor_id = _make_sensor_id("sensors", "thermalprofile", sensor_def)
         label = f"🌡️ Thermal: {sensor_def['name']}"
+        options.append({"value": sensor_id, "label": label})
+    
+    # Monitoring sensors
+    for sensor_def in MONITORING_SENSORS:
+        sensor_id = _make_sensor_id("sensors", "monitoring", sensor_def)
+        label = f"⏱️ Monitoring: {sensor_def['name']}"
         options.append({"value": sensor_id, "label": label})
     
     # Connected device telemetry sensors (modelTypeId-based)
@@ -192,6 +200,7 @@ def get_entity_selection_options() -> List[Dict[str, str]]:
         # Sensors
         {"value": "sensors_dashboard", "label": "Dashboard Sensors"},
         {"value": "sensors_thermalprofile", "label": "Thermal Profile Sensors"},
+        {"value": "sensors_monitoring", "label": "Monitoring Sensors"},
         {"value": "sensors_connected_device_telemetry", "label": "Connected Device Telemetry Sensors"},
         {"value": "sensors_connected_device_properties", "label": "Connected Device Property Sensors"},
         {"value": "sensors_connected_device_definition", "label": "Connected Device Definition Sensors"},
@@ -217,6 +226,7 @@ def get_default_enabled_entities() -> Set[str]:
     return {
         "sensors_dashboard",
         "sensors_thermalprofile",
+        "sensors_monitoring",
         "sensors_connected_device_telemetry",
         "sensors_connected_device_properties",
         "sensors_connected_device_definition",
@@ -245,6 +255,10 @@ def get_default_enabled_individual_entities() -> Set[str]:
     # Thermal profile sensors - all by default
     for sensor_def in THERMALPROFILE_SENSORS:
         enabled.add(_make_sensor_id("sensors", "thermalprofile", sensor_def))
+    
+    # Monitoring sensors - all by default
+    for sensor_def in MONITORING_SENSORS:
+        enabled.add(_make_sensor_id("sensors", "monitoring", sensor_def))
     
     # Connected device telemetry - all non-diagnostic by default
     for model_id, sensor_list in CONNECTED_DEVICE_SENSORS.items():
