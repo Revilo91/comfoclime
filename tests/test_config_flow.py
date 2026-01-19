@@ -278,10 +278,10 @@ async def test_options_flow_validates_timeout_ranges():
     assert result["type"] == FlowResultType.FORM
     schema = result["data_schema"].schema
 
-    # Find the read_timeout field and verify it has range validation
+    # Find the read_timeout field and verify it has a default value
     for key in schema.keys():
         if key.schema == "read_timeout":
-            # The validator should have default value
+            # Check that the field has a default value set
             assert hasattr(key, "default")
             assert key.default() == DEFAULT_READ_TIMEOUT
             break
