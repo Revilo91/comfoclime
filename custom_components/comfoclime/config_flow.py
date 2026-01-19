@@ -13,6 +13,7 @@ from .entity_helper import (
     get_connected_device_properties_sensors,
     get_connected_device_telemetry_sensors,
     get_dashboard_sensors,
+    get_monitoring_sensors,
     get_sensors,
     get_switches,
     get_numbers,
@@ -270,6 +271,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
             menu_options={
                 "entities_sensors_dashboard": "📈 Dashboard Sensors",
                 "entities_sensors_thermalprofile": "🌡️ Thermal Profile Sensors",
+                "entities_sensors_monitoring": "⏱️ Monitoring Sensors",
                 "entities_sensors_connected_telemetry": "📡 Connected Device Telemetry",
                 "entities_sensors_connected_properties": "🔧 Connected Device Properties",
                 "entities_sensors_connected_definition": "📋 Connected Device Definition",
@@ -368,6 +370,54 @@ class ComfoClimeOptionsFlow(OptionsFlow):
             errors["base"] = "entity_options_error"
             return self.async_show_form(
                 step_id="entities_sensors_thermalprofile",
+                data_schema=vol.Schema({}),
+                last_step=False,
+                errors=errors,
+            )
+
+    async def async_step_entities_sensors_monitoring(self, user_input=None):
+        """Handle monitoring sensor entity selection."""
+        _LOGGER.debug(f"===== async_step_entities_sensors_monitoring CALLED =====")
+
+        if user_input is not None:
+            _LOGGER.info(f"User submitted monitoring sensor selection: {len(user_input.get('enabled_monitoring', []))} selected")
+            self._data.update(user_input)
+            return self.async_create_entry(title="", data={**self.entry.options, **self._data})
+
+        errors = {}
+        try:
+            monitoring_options = get_monitoring_sensors()
+            monitoring_enabled = self.entry.options.get("enabled_monitoring", [opt['value'] for opt in monitoring_options])
+
+            _LOGGER.info(f"✓ Retrieved {len(monitoring_options)} monitoring sensor options")
+
+            return self.async_show_form(
+                step_id="entities_sensors_monitoring",
+                data_schema=vol.Schema(
+                    {
+                        vol.Optional(
+                            "enabled_monitoring",
+                            default=monitoring_enabled,
+                        ): selector.SelectSelector(
+                            selector.SelectSelectorConfig(
+                                options=monitoring_options,
+                                multiple=True,
+                                mode=selector.SelectSelectorMode.DROPDOWN,
+                            )
+                        ),
+                    }
+                ),
+                description_placeholders={
+                    "info": "Select monitoring sensors to enable."
+                },
+                last_step=False,
+                errors=errors,
+            )
+        except Exception as e:
+            _LOGGER.error(f"✗ ERROR in async_step_entities_sensors_monitoring: {e}", exc_info=True)
+            errors["base"] = "entity_options_error"
+            return self.async_show_form(
+                step_id="entities_sensors_monitoring",
                 data_schema=vol.Schema({}),
                 last_step=False,
                 errors=errors,
