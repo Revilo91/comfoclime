@@ -168,7 +168,7 @@ class TestAccessTrackerIntegration:
         tracker = AccessTracker()
         
         # These are the names used in the coordinators
-        expected_names = ["Dashboard", "Thermalprofile", "Telemetry", "Property", "Definition"]
+        expected_names = ["Dashboard", "Thermalprofile", "Monitoring", "Telemetry", "Property", "Definition"]
         
         for name in expected_names:
             tracker.record_access(name)
