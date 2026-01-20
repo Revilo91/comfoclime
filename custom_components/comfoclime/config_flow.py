@@ -38,6 +38,28 @@ DEFAULT_WRITE_COOLDOWN = 2.0
 DEFAULT_REQUEST_DEBOUNCE = 0.3
 
 
+def _get_default_entity_options() -> dict[str, Any]:
+    """Get default entity options for initial setup."""
+    return {
+        "enabled_dashboard": [opt["value"] for opt in get_dashboard_sensors()],
+        "enabled_thermalprofile": [opt["value"] for opt in get_thermalprofile_sensors()],
+        "enabled_monitoring": [opt["value"] for opt in get_monitoring_sensors()],
+        "enabled_connected_device_telemetry": [
+            opt["value"] for opt in get_connected_device_telemetry_sensors()
+        ],
+        "enabled_connected_device_properties": [
+            opt["value"] for opt in get_connected_device_properties_sensors()
+        ],
+        "enabled_connected_device_definition": [
+            opt["value"] for opt in get_connected_device_definition_sensors()
+        ],
+        "enabled_access_tracking": [opt["value"] for opt in get_access_tracking_sensors()],
+        "enabled_switches": [opt["value"] for opt in get_switches()],
+        "enabled_numbers": [opt["value"] for opt in get_numbers()],
+        "enabled_selects": [opt["value"] for opt in get_selects()],
+    }
+
+
 class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
@@ -56,9 +78,23 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
                     if resp.status == 200:
                         data = await resp.json()
                         if "uuid" in data:
+                            # Get default entity options for initial setup
+                            default_options = _get_default_entity_options()
+                            # Add default general settings
+                            default_options.update({
+                                "read_timeout": DEFAULT_READ_TIMEOUT,
+                                "write_timeout": DEFAULT_WRITE_TIMEOUT,
+                                "polling_interval": DEFAULT_POLLING_INTERVAL,
+                                "cache_ttl": DEFAULT_CACHE_TTL,
+                                "max_retries": DEFAULT_MAX_RETRIES,
+                                "min_request_interval": DEFAULT_MIN_REQUEST_INTERVAL,
+                                "write_cooldown": DEFAULT_WRITE_COOLDOWN,
+                                "request_debounce": DEFAULT_REQUEST_DEBOUNCE,
+                            })
                             return self.async_create_entry(
                                 title=f"ComfoClime @ {host}",
                                 data={"host": host},
+                                options=default_options,
                             )
                         errors["host"] = "no_uuid"
                     else:
@@ -108,23 +144,175 @@ class ComfoClimeOptionsFlow(OptionsFlow):
             step_id="init",
             menu_options={
                 "general": "⚙️ Allgemeine Einstellungen",
-                "entities_menu": "📦 Entity Einstellungen",
+                "entities": "📦 Entity Einstellungen",
                 "save_and_exit": "💾 Speichern & Beenden",
             },
         )
 
-    async def async_step_entities_menu(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Show menu to select which entity category to configure."""
-        return self.async_show_menu(
-            step_id="entities_menu",
-            menu_options={
-                "entities_sensors": "📊 Sensors",
-                "entities_switches": "🔌 Switches",
-                "entities_numbers": "🔢 Numbers",
-                "entities_selects": "📝 Selects",
-                "init": "⬅️ Zurück zum Hauptmenü",
-            },
-        )
+    async def async_step_entities(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Handle all entity selection in one page with multiple selectors."""
+        _LOGGER.debug("===== async_step_entities CALLED =====")
+
+        if user_input is not None:
+            _LOGGER.info("User submitted entity selection")
+            self._update_pending(user_input)
+            return await self.async_step_init()
+
+        errors: dict[str, str] = {}
+        try:
+            # Get all sensor options
+            dashboard_options = get_dashboard_sensors()
+            thermalprofile_options = get_thermalprofile_sensors()
+            monitoring_options = get_monitoring_sensors()
+            connected_telemetry_options = get_connected_device_telemetry_sensors()
+            connected_properties_options = get_connected_device_properties_sensors()
+            connected_definition_options = get_connected_device_definition_sensors()
+            access_tracking_options = get_access_tracking_sensors()
+
+            # Get switch, number, select options
+            all_switch_options = get_switches()
+            switch_options = [opt for opt in all_switch_options if opt['value'].startswith('switches_')]
+
+            all_number_options = get_numbers()
+            number_options = [opt for opt in all_number_options if opt['value'].startswith('numbers_')]
+
+            all_select_options = get_selects()
+            select_options = [opt for opt in all_select_options if opt['value'].startswith('selects_')]
+
+            # Get current enabled values - Sensors
+            dashboard_enabled = self._get_current_value("enabled_dashboard", [opt['value'] for opt in dashboard_options])
+            thermalprofile_enabled = self._get_current_value("enabled_thermalprofile", [opt['value'] for opt in thermalprofile_options])
+            monitoring_enabled = self._get_current_value("enabled_monitoring", [opt['value'] for opt in monitoring_options])
+            connected_telemetry_enabled = self._get_current_value("enabled_connected_device_telemetry", [opt['value'] for opt in connected_telemetry_options])
+            connected_properties_enabled = self._get_current_value("enabled_connected_device_properties", [opt['value'] for opt in connected_properties_options])
+            connected_definition_enabled = self._get_current_value("enabled_connected_device_definition", [opt['value'] for opt in connected_definition_options])
+            access_tracking_enabled = self._get_current_value("enabled_access_tracking", [])  # Diagnostic, empty by default
+
+            # Get current enabled values - Other entities
+            switches_enabled = self._get_current_value("enabled_switches", [opt['value'] for opt in switch_options])
+            numbers_enabled = self._get_current_value("enabled_numbers", [opt['value'] for opt in number_options])
+            selects_enabled = self._get_current_value("enabled_selects", [opt['value'] for opt in select_options])
+
+            _LOGGER.info(
+                f"✓ Retrieved entity options: dashboard={len(dashboard_options)}, thermal={len(thermalprofile_options)}, "
+                f"monitoring={len(monitoring_options)}, telemetry={len(connected_telemetry_options)}, "
+                f"properties={len(connected_properties_options)}, definition={len(connected_definition_options)}, "
+                f"access={len(access_tracking_options)}, switches={len(switch_options)}, "
+                f"numbers={len(number_options)}, selects={len(select_options)}")
+
+            # Build schema with all entity categories
+            schema_dict = {}
+
+            # Sensors
+            if dashboard_options:
+                schema_dict[vol.Optional("enabled_dashboard", default=dashboard_enabled)] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=dashboard_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+
+            if thermalprofile_options:
+                schema_dict[vol.Optional("enabled_thermalprofile", default=thermalprofile_enabled)] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=thermalprofile_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+
+            if monitoring_options:
+                schema_dict[vol.Optional("enabled_monitoring", default=monitoring_enabled)] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=monitoring_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+
+            if connected_telemetry_options:
+                schema_dict[vol.Optional("enabled_connected_device_telemetry", default=connected_telemetry_enabled)] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=connected_telemetry_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+
+            if connected_properties_options:
+                schema_dict[vol.Optional("enabled_connected_device_properties", default=connected_properties_enabled)] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=connected_properties_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+
+            if connected_definition_options:
+                schema_dict[vol.Optional("enabled_connected_device_definition", default=connected_definition_enabled)] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=connected_definition_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+
+            if access_tracking_options:
+                schema_dict[vol.Optional("enabled_access_tracking", default=access_tracking_enabled)] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=access_tracking_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+
+            # Switches
+            if switch_options:
+                schema_dict[vol.Optional("enabled_switches", default=switches_enabled)] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=switch_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+
+            # Numbers
+            if number_options:
+                schema_dict[vol.Optional("enabled_numbers", default=numbers_enabled)] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=number_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+
+            # Selects
+            if select_options:
+                schema_dict[vol.Optional("enabled_selects", default=selects_enabled)] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=select_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+
+            return self.async_show_form(
+                step_id="entities",
+                data_schema=vol.Schema(schema_dict),
+                description_placeholders={
+                    "info": "Wähle die Entities aus, die aktiviert werden sollen. Jede Kategorie kann separat konfiguriert werden."
+                },
+                errors=errors,
+            )
+        except Exception as e:
+            _LOGGER.error(f"✗ ERROR in async_step_entities: {e}", exc_info=True)
+            errors["base"] = "entity_options_error"
+            return self.async_show_form(
+                step_id="entities",
+                data_schema=vol.Schema({}),
+                errors=errors,
+            )
 
     async def async_step_general(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Handle general configuration options - show menu."""
@@ -281,488 +469,3 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 "info": "Configure request rate limiting and debouncing."
             },
         )
-
-    async def async_step_entities_sensors(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Show menu to select which sensor category to configure."""
-        return self.async_show_menu(
-            step_id="entities_sensors",
-            menu_options={
-                "entities_sensors_dashboard": "📈 Dashboard Sensors",
-                "entities_sensors_thermalprofile": "🌡️ Thermal Profile Sensors",
-                "entities_sensors_monitoring": "⏱️ Monitoring Sensors",
-                "entities_sensors_connected_telemetry": "📡 Connected Device Telemetry",
-                "entities_sensors_connected_properties": "🔧 Connected Device Properties",
-                "entities_sensors_connected_definition": "📋 Connected Device Definition",
-                "entities_sensors_access_tracking": "🔍 Access Tracking (Diagnostic)",
-                "entities_menu": "⬅️ Zurück zu Entity Settings",
-            },
-        )
-
-    async def async_step_entities_sensors_dashboard(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Handle dashboard sensor entity selection."""
-        _LOGGER.debug(f"===== async_step_entities_sensors_dashboard CALLED =====")
-
-        if user_input is not None:
-            _LOGGER.info(f"User submitted dashboard sensor selection: {len(user_input.get('enabled_dashboard', []))} selected")
-            self._update_pending(user_input)
-            return await self.async_step_entities_sensors()
-
-        errors: dict[str, str] = {}
-        try:
-            dashboard_options = get_dashboard_sensors()
-            dashboard_enabled = self._get_current_value("enabled_dashboard", [opt['value'] for opt in dashboard_options])
-
-            _LOGGER.info(f"✓ Retrieved {len(dashboard_options)} dashboard sensor options")
-
-            return self.async_show_form(
-                step_id="entities_sensors_dashboard",
-                data_schema=vol.Schema(
-                    {
-                        vol.Optional(
-                            "enabled_dashboard",
-                            default=dashboard_enabled,
-                        ): selector.SelectSelector(
-                            selector.SelectSelectorConfig(
-                                options=dashboard_options,
-                                multiple=True,
-                                mode=selector.SelectSelectorMode.DROPDOWN,
-                            )
-                        ),
-                    }
-                ),
-                description_placeholders={
-                    "info": "Select dashboard sensors to enable."
-                },
-                errors=errors,
-            )
-        except Exception as e:
-            _LOGGER.error(f"✗ ERROR in async_step_entities_sensors_dashboard: {e}", exc_info=True)
-            errors["base"] = "entity_options_error"
-            return self.async_show_form(
-                step_id="entities_sensors_dashboard",
-                data_schema=vol.Schema({}),
-                errors=errors,
-            )
-
-    async def async_step_entities_sensors_thermalprofile(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Handle thermal profile sensor entity selection."""
-        _LOGGER.debug(f"===== async_step_entities_sensors_thermalprofile CALLED =====")
-
-        if user_input is not None:
-            _LOGGER.info(f"User submitted thermal profile sensor selection: {len(user_input.get('enabled_thermalprofile', []))} selected")
-            self._update_pending(user_input)
-            return await self.async_step_entities_sensors()
-
-        errors: dict[str, str] = {}
-        try:
-            thermalprofile_options = get_thermalprofile_sensors()
-            thermalprofile_enabled = self._get_current_value("enabled_thermalprofile", [opt['value'] for opt in thermalprofile_options])
-
-            _LOGGER.info(f"✓ Retrieved {len(thermalprofile_options)} thermal profile sensor options")
-
-            return self.async_show_form(
-                step_id="entities_sensors_thermalprofile",
-                data_schema=vol.Schema(
-                    {
-                        vol.Optional(
-                            "enabled_thermalprofile",
-                            default=thermalprofile_enabled,
-                        ): selector.SelectSelector(
-                            selector.SelectSelectorConfig(
-                                options=thermalprofile_options,
-                                multiple=True,
-                                mode=selector.SelectSelectorMode.DROPDOWN,
-                            )
-                        ),
-                    }
-                ),
-                description_placeholders={
-                    "info": "Select thermal profile sensors to enable."
-                },
-                errors=errors,
-            )
-        except Exception as e:
-            _LOGGER.error(f"✗ ERROR in async_step_entities_sensors_thermalprofile: {e}", exc_info=True)
-            errors["base"] = "entity_options_error"
-            return self.async_show_form(
-                step_id="entities_sensors_thermalprofile",
-                data_schema=vol.Schema({}),
-                errors=errors,
-            )
-
-    async def async_step_entities_sensors_monitoring(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Handle monitoring sensor entity selection."""
-        _LOGGER.debug(f"===== async_step_entities_sensors_monitoring CALLED =====")
-
-        if user_input is not None:
-            _LOGGER.info(f"User submitted monitoring sensor selection: {len(user_input.get('enabled_monitoring', []))} selected")
-            self._update_pending(user_input)
-            return await self.async_step_entities_sensors()
-
-        errors: dict[str, str] = {}
-        try:
-            monitoring_options = get_monitoring_sensors()
-            monitoring_enabled = self._get_current_value("enabled_monitoring", [opt['value'] for opt in monitoring_options])
-
-            _LOGGER.info(f"✓ Retrieved {len(monitoring_options)} monitoring sensor options")
-
-            return self.async_show_form(
-                step_id="entities_sensors_monitoring",
-                data_schema=vol.Schema(
-                    {
-                        vol.Optional(
-                            "enabled_monitoring",
-                            default=monitoring_enabled,
-                        ): selector.SelectSelector(
-                            selector.SelectSelectorConfig(
-                                options=monitoring_options,
-                                multiple=True,
-                                mode=selector.SelectSelectorMode.DROPDOWN,
-                            )
-                        ),
-                    }
-                ),
-                description_placeholders={
-                    "info": "Select monitoring sensors to enable."
-                },
-                errors=errors,
-            )
-        except Exception as e:
-            _LOGGER.error(f"✗ ERROR in async_step_entities_sensors_monitoring: {e}", exc_info=True)
-            errors["base"] = "entity_options_error"
-            return self.async_show_form(
-                step_id="entities_sensors_monitoring",
-                data_schema=vol.Schema({}),
-                errors=errors,
-            )
-
-    async def async_step_entities_sensors_connected_telemetry(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Handle connected device telemetry sensor entity selection."""
-        _LOGGER.debug(f"===== async_step_entities_sensors_connected_telemetry CALLED =====")
-
-        if user_input is not None:
-            _LOGGER.info(f"User submitted connected device telemetry sensor selection: {len(user_input.get('enabled_connected_device_telemetry', []))} selected")
-            self._update_pending(user_input)
-            return await self.async_step_entities_sensors()
-
-        errors: dict[str, str] = {}
-        try:
-            connected_device_telemetry_options = get_connected_device_telemetry_sensors()
-            connected_device_telemetry_enabled = self._get_current_value("enabled_connected_device_telemetry", [opt['value'] for opt in connected_device_telemetry_options])
-
-            _LOGGER.info(f"✓ Retrieved {len(connected_device_telemetry_options)} connected device telemetry sensor options")
-
-            return self.async_show_form(
-                step_id="entities_sensors_connected_telemetry",
-                data_schema=vol.Schema(
-                    {
-                        vol.Optional(
-                            "enabled_connected_device_telemetry",
-                            default=connected_device_telemetry_enabled,
-                        ): selector.SelectSelector(
-                            selector.SelectSelectorConfig(
-                                options=connected_device_telemetry_options,
-                                multiple=True,
-                                mode=selector.SelectSelectorMode.DROPDOWN,
-                            )
-                        ),
-                    }
-                ),
-                description_placeholders={
-                    "info": "Select connected device telemetry sensors to enable."
-                },
-                errors=errors,
-            )
-        except Exception as e:
-            _LOGGER.error(f"✗ ERROR in async_step_entities_sensors_connected_telemetry: {e}", exc_info=True)
-            errors["base"] = "entity_options_error"
-            return self.async_show_form(
-                step_id="entities_sensors_connected_telemetry",
-                data_schema=vol.Schema({}),
-                errors=errors,
-            )
-
-    async def async_step_entities_sensors_connected_properties(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Handle connected device properties sensor entity selection."""
-        _LOGGER.debug(f"===== async_step_entities_sensors_connected_properties CALLED =====")
-
-        if user_input is not None:
-            _LOGGER.info(f"User submitted connected device properties sensor selection: {len(user_input.get('enabled_connected_device_properties', []))} selected")
-            self._update_pending(user_input)
-            return await self.async_step_entities_sensors()
-
-        errors: dict[str, str] = {}
-        try:
-            connected_device_properties_options = get_connected_device_properties_sensors()
-            connected_device_properties_enabled = self._get_current_value("enabled_connected_device_properties", [opt['value'] for opt in connected_device_properties_options])
-
-            _LOGGER.info(f"✓ Retrieved {len(connected_device_properties_options)} connected device properties sensor options")
-
-            return self.async_show_form(
-                step_id="entities_sensors_connected_properties",
-                data_schema=vol.Schema(
-                    {
-                        vol.Optional(
-                            "enabled_connected_device_properties",
-                            default=connected_device_properties_enabled,
-                        ): selector.SelectSelector(
-                            selector.SelectSelectorConfig(
-                                options=connected_device_properties_options,
-                                multiple=True,
-                                mode=selector.SelectSelectorMode.DROPDOWN,
-                            )
-                        ),
-                    }
-                ),
-                description_placeholders={
-                    "info": "Select connected device properties sensors to enable."
-                },
-                errors=errors,
-            )
-        except Exception as e:
-            _LOGGER.error(f"✗ ERROR in async_step_entities_sensors_connected_properties: {e}", exc_info=True)
-            errors["base"] = "entity_options_error"
-            return self.async_show_form(
-                step_id="entities_sensors_connected_properties",
-                data_schema=vol.Schema({}),
-                errors=errors,
-            )
-
-    async def async_step_entities_sensors_connected_definition(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Handle connected device definition sensor entity selection."""
-        _LOGGER.debug(f"===== async_step_entities_sensors_connected_definition CALLED =====")
-
-        if user_input is not None:
-            _LOGGER.info(f"User submitted connected device definition sensor selection: {len(user_input.get('enabled_connected_device_definition', []))} selected")
-            self._update_pending(user_input)
-            return await self.async_step_entities_sensors()
-
-        errors: dict[str, str] = {}
-        try:
-            connected_device_definition_options = get_connected_device_definition_sensors()
-            connected_device_definition_enabled = self._get_current_value("enabled_connected_device_definition", [opt['value'] for opt in connected_device_definition_options])
-
-            _LOGGER.info(f"✓ Retrieved {len(connected_device_definition_options)} connected device definition sensor options")
-
-            return self.async_show_form(
-                step_id="entities_sensors_connected_definition",
-                data_schema=vol.Schema(
-                    {
-                        vol.Optional(
-                            "enabled_connected_device_definition",
-                            default=connected_device_definition_enabled,
-                        ): selector.SelectSelector(
-                            selector.SelectSelectorConfig(
-                                options=connected_device_definition_options,
-                                multiple=True,
-                                mode=selector.SelectSelectorMode.DROPDOWN,
-                            )
-                        ),
-                    }
-                ),
-                description_placeholders={
-                    "info": "Select connected device definition sensors to enable."
-                },
-                errors=errors,
-            )
-        except Exception as e:
-            _LOGGER.error(f"✗ ERROR in async_step_entities_sensors_connected_definition: {e}", exc_info=True)
-            errors["base"] = "entity_options_error"
-            return self.async_show_form(
-                step_id="entities_sensors_connected_definition",
-                data_schema=vol.Schema({}),
-                errors=errors,
-            )
-
-    async def async_step_entities_sensors_access_tracking(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Handle access tracking sensor entity selection."""
-        _LOGGER.debug(f"===== async_step_entities_sensors_access_tracking CALLED =====")
-
-        if user_input is not None:
-            _LOGGER.info(f"User submitted access tracking sensor selection: {len(user_input.get('enabled_access_tracking', []))} selected")
-            self._update_pending(user_input)
-            return await self.async_step_entities_sensors()
-
-        errors: dict[str, str] = {}
-        try:
-            access_tracking_options = get_access_tracking_sensors()
-            access_tracking_enabled = self._get_current_value("enabled_access_tracking", [opt['value'] for opt in access_tracking_options])
-
-            _LOGGER.info(f"✓ Retrieved {len(access_tracking_options)} access tracking sensor options")
-
-            return self.async_show_form(
-                step_id="entities_sensors_access_tracking",
-                data_schema=vol.Schema(
-                    {
-                        vol.Optional(
-                            "enabled_access_tracking",
-                            default=access_tracking_enabled,
-                        ): selector.SelectSelector(
-                            selector.SelectSelectorConfig(
-                                options=access_tracking_options,
-                                multiple=True,
-                                mode=selector.SelectSelectorMode.DROPDOWN,
-                            )
-                        ),
-                    }
-                ),
-                description_placeholders={
-                    "info": "Select access tracking sensors to enable (diagnostic only)."
-                },
-                errors=errors,
-            )
-        except Exception as e:
-            _LOGGER.error(f"✗ ERROR in async_step_entities_sensors_access_tracking: {e}", exc_info=True)
-            errors["base"] = "entity_options_error"
-            return self.async_show_form(
-                step_id="entities_sensors_access_tracking",
-                data_schema=vol.Schema({}),
-                errors=errors,
-            )
-
-    async def async_step_entities_switches(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Handle switch entity selection."""
-        _LOGGER.debug(f"===== async_step_entities_switches CALLED =====")
-
-        if user_input is not None:
-            _LOGGER.info(f"User submitted switch selection: {len(user_input.get('enabled_switches', []))} switches selected")
-            self._update_pending(user_input)
-            return await self.async_step_entities_menu()
-
-        errors: dict[str, str] = {}
-        try:
-            all_options = get_switches()
-            # Filter only switch options (start with "switches_")
-            switch_options = [opt for opt in all_options if opt['value'].startswith('switches_')]
-
-            current_enabled = self._get_current_value("enabled_switches", [opt['value'] for opt in switch_options])
-
-            _LOGGER.info(f"✓ Retrieved {len(switch_options)} switch options")
-
-            return self.async_show_form(
-                step_id="entities_switches",
-                data_schema=vol.Schema(
-                    {
-                        vol.Optional(
-                            "enabled_switches",
-                            default=current_enabled,
-                        ): selector.SelectSelector(
-                            selector.SelectSelectorConfig(
-                                options=switch_options,
-                                multiple=True,
-                                mode=selector.SelectSelectorMode.DROPDOWN,
-                            )
-                        ),
-                    }
-                ),
-                description_placeholders={
-                    "info": "Select switches to enable."
-                },
-                errors=errors,
-            )
-        except Exception as e:
-            _LOGGER.error(f"✗ ERROR in async_step_entities_switches: {e}", exc_info=True)
-            errors["base"] = "entity_options_error"
-            return self.async_show_form(
-                step_id="entities_switches",
-                data_schema=vol.Schema({}),
-                errors=errors,
-            )
-
-    async def async_step_entities_numbers(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Handle number entity selection."""
-        _LOGGER.debug(f"===== async_step_entities_numbers CALLED =====")
-
-        if user_input is not None:
-            _LOGGER.info(f"User submitted number selection: {len(user_input.get('enabled_numbers', []))} numbers selected")
-            self._update_pending(user_input)
-            return await self.async_step_entities_menu()
-
-        errors: dict[str, str] = {}
-        try:
-            all_options = get_numbers()
-            # Filter only number options (start with "numbers_")
-            number_options = [opt for opt in all_options if opt['value'].startswith('numbers_')]
-
-            current_enabled = self._get_current_value("enabled_numbers", [opt['value'] for opt in number_options])
-
-            _LOGGER.info(f"✓ Retrieved {len(number_options)} number options")
-
-            return self.async_show_form(
-                step_id="entities_numbers",
-                data_schema=vol.Schema(
-                    {
-                        vol.Optional(
-                            "enabled_numbers",
-                            default=current_enabled,
-                        ): selector.SelectSelector(
-                            selector.SelectSelectorConfig(
-                                options=number_options,
-                                multiple=True,
-                                mode=selector.SelectSelectorMode.DROPDOWN,
-                            )
-                        ),
-                    }
-                ),
-                description_placeholders={
-                    "info": "Select number controls to enable."
-                },
-                errors=errors,
-            )
-        except Exception as e:
-            _LOGGER.error(f"✗ ERROR in async_step_entities_numbers: {e}", exc_info=True)
-            errors["base"] = "entity_options_error"
-            return self.async_show_form(
-                step_id="entities_numbers",
-                data_schema=vol.Schema({}),
-                errors=errors,
-            )
-
-    async def async_step_entities_selects(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Handle select entity selection."""
-        _LOGGER.debug(f"===== async_step_entities_selects CALLED =====")
-
-        if user_input is not None:
-            _LOGGER.info(f"User submitted select selection: {len(user_input.get('enabled_selects', []))} selects selected")
-            self._update_pending(user_input)
-            return await self.async_step_entities_menu()
-
-        errors: dict[str, str] = {}
-        try:
-            all_options = get_selects()
-            # Filter only select options (start with "selects_")
-            select_options = [opt for opt in all_options if opt['value'].startswith('selects_')]
-
-            current_enabled = self._get_current_value("enabled_selects", [opt['value'] for opt in select_options])
-
-            _LOGGER.info(f"✓ Retrieved {len(select_options)} select options")
-
-            return self.async_show_form(
-                step_id="entities_selects",
-                data_schema=vol.Schema(
-                    {
-                        vol.Optional(
-                            "enabled_selects",
-                            default=current_enabled,
-                        ): selector.SelectSelector(
-                            selector.SelectSelectorConfig(
-                                options=select_options,
-                                multiple=True,
-                                mode=selector.SelectSelectorMode.DROPDOWN,
-                            )
-                        ),
-                    }
-                ),
-                description_placeholders={
-                    "info": "Select list controls to enable."
-                },
-                errors=errors,
-            )
-        except Exception as e:
-            _LOGGER.error(f"✗ ERROR in async_step_entities_selects: {e}", exc_info=True)
-            errors["base"] = "entity_options_error"
-            return self.async_show_form(
-                step_id="entities_selects",
-                data_schema=vol.Schema({}),
-                errors=errors,
-            )

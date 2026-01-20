@@ -186,14 +186,14 @@ async def async_setup_entry(
                 # Check if this individual sensor is enabled
                 if not is_entity_enabled(entry.options, "sensors", "connected_telemetry", sensor_def):
                     continue
-                
+
                 # Always create entities, but diagnostic ones are disabled by default
                 # unless enable_diagnostics is True
                 is_diagnose = sensor_def.get("diagnose", False)
                 enabled_default = not is_diagnose or entry.options.get(
                     "enable_diagnostics", False
                 )
-                
+
                 # Register telemetry with coordinator for batched fetching
                 await tlcoordinator.register_telemetry(
                     device_uuid=dev_uuid,
@@ -227,7 +227,7 @@ async def async_setup_entry(
                 # Check if this individual property sensor is enabled
                 if not is_entity_enabled(entry.options, "sensors", "connected_properties", prop_def):
                     continue
-                
+
                 # Register property with coordinator for batched fetching
                 await propcoordinator.register_property(
                     device_uuid=dev_uuid,
@@ -263,7 +263,7 @@ async def async_setup_entry(
                 # Check if this individual definition sensor is enabled
                 if not is_entity_enabled(entry.options, "sensors", "connected_definition", def_sensor_def):
                     continue
-                
+
                 sensors.append(
                     ComfoClimeDefinitionSensor(
                         hass=hass,
@@ -288,7 +288,7 @@ async def async_setup_entry(
             # Check if this individual access tracking sensor is enabled
             if not is_entity_enabled(entry.options, "sensors", "access_tracking", sensor_def):
                 continue
-            
+
             sensors.append(
                 ComfoClimeAccessTrackingSensor(
                     hass=hass,
@@ -308,7 +308,7 @@ async def async_setup_entry(
     # Coordinators will fetch data on their regular update interval
     # This prevents timeout issues during setup with many devices
     async_add_entities(sensors, True)
-    
+
     # Schedule background refresh of coordinators after entities are added
     # This avoids blocking the setup process
     async def _refresh_coordinators():
@@ -317,12 +317,12 @@ async def async_setup_entry(
             await tlcoordinator.async_config_entry_first_refresh()
         except Exception as e:
             _LOGGER.debug(f"Telemetrie-Daten konnten nicht geladen werden: {e}")
-        
+
         try:
             await propcoordinator.async_config_entry_first_refresh()
         except Exception as e:
             _LOGGER.debug(f"Property-Daten konnten nicht geladen werden: {e}")
-    
+
     # Run coordinator refresh in background
     hass.async_create_task(_refresh_coordinators())
 
@@ -362,11 +362,13 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
         self._device = device
         self._entry = entry
         self._attr_config_entry_id = entry.entry_id
-        # Determine if this is a thermal profile sensor based on coordinator type
-        is_thermal_profile = isinstance(
-            coordinator, ComfoClimeThermalprofileCoordinator
-        )
-        prefix = "thermalprofile" if is_thermal_profile else "dashboard"
+        # Determine prefix based on coordinator type
+        if isinstance(coordinator, ComfoClimeThermalprofileCoordinator):
+            prefix = "thermalprofile"
+        elif isinstance(coordinator, ComfoClimeMonitoringCoordinator):
+            prefix = "monitoring"
+        else:
+            prefix = "dashboard"
         self._attr_unique_id = (
             f"{entry.entry_id}_{prefix}_{sensor_type.replace('.', '_')}"
         )

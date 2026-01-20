@@ -364,45 +364,23 @@
                 "description": "Select which settings you want to configure",
                 "menu_options": {
                     "general": "General Settings",
-                    "entities_menu": "Entity Selection"
+                    "entities": "Entity Selection"
                 }
             },
-            "entities_menu": {
+            "entities": {
                 "title": "Entity Selection",
-                "description": "Select which entity category you want to configure",
-                "menu_options": {
-                    "entities_sensors": "Sensors",
-                    "entities_switches": "Switches",
-                    "entities_numbers": "Numbers",
-                    "entities_selects": "Selects"
-                }
-            },
-            "entities_sensors": {
-                "title": "Sensor Selection",
-                "description": "Select which sensors should be enabled",
+                "description": "Select which entities should be enabled in each category",
                 "data": {
-                    "enabled_sensors": "Enabled Sensors"
-                }
-            },
-            "entities_switches": {
-                "title": "Switch Selection",
-                "description": "Select which switches should be enabled",
-                "data": {
-                    "enabled_switches": "Enabled Switches"
-                }
-            },
-            "entities_numbers": {
-                "title": "Number Selection",
-                "description": "Select which number entities should be enabled",
-                "data": {
-                    "enabled_numbers": "Enabled Numbers"
-                }
-            },
-            "entities_selects": {
-                "title": "Select Selection",
-                "description": "Select which select entities should be enabled",
-                "data": {
-                    "enabled_selects": "Enabled Selects"
+                    "enabled_dashboard": "📈 Dashboard Sensors",
+                    "enabled_thermalprofile": "🌡️ Thermal Profile Sensors",
+                    "enabled_monitoring": "⏱️ Monitoring Sensors",
+                    "enabled_connected_device_telemetry": "📡 Connected Device Telemetry",
+                    "enabled_connected_device_properties": "🔧 Connected Device Properties",
+                    "enabled_connected_device_definition": "📋 Connected Device Definition",
+                    "enabled_access_tracking": "🔍 Access Tracking (Diagnostic)",
+                    "enabled_switches": "🔌 Switches",
+                    "enabled_numbers": "🔢 Number Controls",
+                    "enabled_selects": "📝 Select Controls"
                 }
             }
         }

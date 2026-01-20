@@ -168,37 +168,27 @@ def test_make_sensor_id_with_metric():
 
 
 def test_get_individual_entity_options():
-    """Test that individual entity options are properly formatted with optgroups."""
+    """Test that individual entity options are properly formatted as flat list."""
     options = get_individual_entity_options()
 
     assert isinstance(options, list)
     assert len(options) > 0
 
-    # Check that each option group has required keys
-    for option_group in options:
-        assert "label" in option_group, "Option group should have 'label' key"
-        assert "options" in option_group, "Option group should have 'options' key"
-        assert isinstance(option_group["label"], str), "Group label should be string"
-        assert isinstance(option_group["options"], list), "Options should be a list"
+    # Check that each option has required keys (flat list format)
+    for option in options:
+        assert "value" in option, "Option should have 'value' key"
+        assert "label" in option, "Option should have 'label' key"
+        assert isinstance(option["value"], str), "Option value should be string"
+        assert isinstance(option["label"], str), "Option label should be string"
 
-        # Check that group label has emoji prefix (verifies user-friendly formatting)
-        # Note: Emojis are: 📊 Dashboard, 🌡️ Thermal, 📡 Device telemetry, 🔧 Device property,
-        # 📋 Device definition, 🔍 Access tracking, 🔌 Switch, 🔢 Number, 📝 Select
-        has_emoji = any(char in option_group["label"] for char in "📊🌡️📡🔧📋🔍🔌🔢📝")
-        assert has_emoji, f"Group label '{option_group['label']}' should have emoji prefix"
+        # Check that label has emoji prefix (verifies user-friendly formatting)
+        # Note: Emojis are: 📊 Dashboard, 🌡️ Thermal, ⏱️ Monitoring, 📡 Device telemetry,
+        # 🔧 Device property, 📋 Device definition, 🔍 Access tracking, 🔌 Switch, 🔢 Number, 📝 Select
+        has_emoji = any(char in option["label"] for char in "📊🌡️⏱️📡🔧📋🔍🔌🔢📝")
+        assert has_emoji, f"Option label '{option['label']}' should have emoji prefix"
 
-        # Check that each item in the group has required keys
-        for item in option_group["options"]:
-            assert "value" in item, "Each option should have 'value' key"
-            assert "label" in item, "Each option should have 'label' key"
-            assert isinstance(item["value"], str), "Option value should be string"
-            assert isinstance(item["label"], str), "Option label should be string"
-
-    # Check that some specific entities are present by flattening and checking values
-    all_values = []
-    for group in options:
-        for item in group["options"]:
-            all_values.append(item["value"])
+    # Check that some specific entities are present
+    all_values = [opt["value"] for opt in options]
 
     assert any("sensors_dashboard_indoorTemperature" in v for v in all_values), \
         "Should contain indoor temperature sensor"

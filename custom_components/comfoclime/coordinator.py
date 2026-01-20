@@ -26,12 +26,14 @@ class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
         api,
         polling_interval=DEFAULT_POLLING_INTERVAL_SECONDS,
         access_tracker: "AccessTracker | None" = None,
+        config_entry=None,
     ):
         super().__init__(
             hass,
             _LOGGER,
             name="ComfoClime Dashboard",
             update_interval=timedelta(seconds=polling_interval),
+            config_entry=config_entry,
         )
         self.api = api
         self._access_tracker = access_tracker
@@ -60,12 +62,14 @@ class ComfoClimeMonitoringCoordinator(DataUpdateCoordinator):
         api,
         polling_interval=DEFAULT_POLLING_INTERVAL_SECONDS,
         access_tracker: "AccessTracker | None" = None,
+        config_entry=None,
     ):
         super().__init__(
             hass,
             _LOGGER,
             name="ComfoClime Monitoring",
             update_interval=timedelta(seconds=polling_interval),
+            config_entry=config_entry,
         )
         self.api = api
         self._access_tracker = access_tracker
@@ -95,12 +99,14 @@ class ComfoClimeThermalprofileCoordinator(DataUpdateCoordinator):
         api,
         polling_interval=DEFAULT_POLLING_INTERVAL_SECONDS,
         access_tracker: "AccessTracker | None" = None,
+        config_entry=None,
     ):
         super().__init__(
             hass,
             _LOGGER,
             name="ComfoClime Thermalprofile",
             update_interval=timedelta(seconds=polling_interval),
+            config_entry=config_entry,
         )
         self.api = api
         self._access_tracker = access_tracker
@@ -132,12 +138,14 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
         devices=None,
         polling_interval=DEFAULT_POLLING_INTERVAL_SECONDS,
         access_tracker: "AccessTracker | None" = None,
+        config_entry=None,
     ):
         super().__init__(
             hass,
             _LOGGER,
             name="ComfoClime Telemetry",
             update_interval=timedelta(seconds=polling_interval),
+            config_entry=config_entry,
         )
         self.api = api
         self.devices = devices or []
@@ -243,12 +251,14 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
         devices=None,
         polling_interval=DEFAULT_POLLING_INTERVAL_SECONDS,
         access_tracker: "AccessTracker | None" = None,
+        config_entry=None,
     ):
         super().__init__(
             hass,
             _LOGGER,
             name="ComfoClime Properties",
             update_interval=timedelta(seconds=polling_interval),
+            config_entry=config_entry,
         )
         self.api = api
         self.devices = devices or []
@@ -353,12 +363,14 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
         devices=None,
         polling_interval=DEFAULT_POLLING_INTERVAL_SECONDS,
         access_tracker: "AccessTracker | None" = None,
+        config_entry=None,
     ):
         super().__init__(
             hass,
             _LOGGER,
             name="ComfoClime Device Definition",
             update_interval=timedelta(seconds=polling_interval),
+            config_entry=config_entry,
         )
         self.api = api
         self.devices = devices or []

@@ -33,6 +33,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     host = entry.data["host"]
 
+    # Migration: Add missing default entity options for existing setups
+    # This ensures that existing configurations have all entity options
+    needs_update = False
+    new_options = dict(entry.options)
+
+    if "enabled_dashboard" not in entry.options:
+        from .config_flow import _get_default_entity_options
+        default_options = _get_default_entity_options()
+        new_options = {**entry.options, **default_options}
+        needs_update = True
+
+    # Also migrate if enabled_monitoring is missing (older configs may have other keys but not this one)
+    if "enabled_monitoring" not in new_options:
+        from .config_flow import _get_default_entity_options
+        from .entity_helper import get_monitoring_sensors
+        new_options["enabled_monitoring"] = [opt["value"] for opt in get_monitoring_sensors()]
+        needs_update = True
+
+    if needs_update:
+        hass.config_entries.async_update_entry(entry, options=new_options)
+        entry.options = new_options
+
     # Get configuration options with defaults
     read_timeout = entry.options.get("read_timeout", 10)
     write_timeout = entry.options.get("write_timeout", 30)
@@ -64,34 +86,34 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     # Create Dashboard-Coordinator
     dashboard_coordinator = ComfoClimeDashboardCoordinator(
-        hass, api, polling_interval, access_tracker=access_tracker
+        hass, api, polling_interval, access_tracker=access_tracker, config_entry=entry
     )
     await dashboard_coordinator.async_config_entry_first_refresh()
 
     # Create Thermalprofile-Coordinator
     thermalprofile_coordinator = ComfoClimeThermalprofileCoordinator(
-        hass, api, polling_interval, access_tracker=access_tracker
+        hass, api, polling_interval, access_tracker=access_tracker, config_entry=entry
     )
     await thermalprofile_coordinator.async_config_entry_first_refresh()
 
     # Create Monitoring-Coordinator
     monitoring_coordinator = ComfoClimeMonitoringCoordinator(
-        hass, api, polling_interval, access_tracker=access_tracker
+        hass, api, polling_interval, access_tracker=access_tracker, config_entry=entry
     )
     await monitoring_coordinator.async_config_entry_first_refresh()
 
     # Create definition coordinator for device definition data (mainly for ComfoAirQ)
     definitioncoordinator = ComfoClimeDefinitionCoordinator(
-        hass, api, devices, polling_interval, access_tracker=access_tracker
+        hass, api, devices, polling_interval, access_tracker=access_tracker, config_entry=entry
     )
     await definitioncoordinator.async_config_entry_first_refresh()
 
     # Create telemetry and property coordinators with device list
     tlcoordinator = ComfoClimeTelemetryCoordinator(
-        hass, api, devices, polling_interval, access_tracker=access_tracker
+        hass, api, devices, polling_interval, access_tracker=access_tracker, config_entry=entry
     )
     propcoordinator = ComfoClimePropertyCoordinator(
-        hass, api, devices, polling_interval, access_tracker=access_tracker
+        hass, api, devices, polling_interval, access_tracker=access_tracker, config_entry=entry
     )
 
     hass.data[DOMAIN][entry.entry_id] = {
@@ -106,6 +128,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         "devices": devices,
         "main_device": next((d for d in devices if d.get("modelTypeId") == 20), None),
     }
+
+    # Register update listener to reload integration when options change
+    entry.async_on_unload(entry.add_update_listener(async_reload_entry))
 
     await hass.config_entries.async_forward_entry_setups(
         entry, ["sensor", "switch", "number", "select", "fan", "climate"]
