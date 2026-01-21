@@ -190,9 +190,9 @@ class ComfoClimeSwitch(CoordinatorEntity, SwitchEntity):
                 await self._set_thermal_profile_status(value)
             else:  # dashboard
                 await self._set_dashboard_status(value)
-        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+        except (aiohttp.ClientError, asyncio.TimeoutError):
             _LOGGER.exception("Error setting switch %s", self._name)
-            raise HomeAssistantError(f"Fehler beim Setzen von {self._name}") from e
+            raise HomeAssistantError(f"Error setting {self._name}") from None
 
     async def _set_thermal_profile_status(self, value: int) -> None:
         """Set thermal profile switch status via API."""
@@ -204,18 +204,18 @@ class ComfoClimeSwitch(CoordinatorEntity, SwitchEntity):
 
         key_str = ".".join(self._key_path)
         if key_str not in param_mapping:
-            _LOGGER.warning(f"Unbekannter switch key: {key_str}")
+                _LOGGER.warning("Unknown switch key: %s", key_str)
             return
 
         param_name = param_mapping[key_str]
-        _LOGGER.debug(f"Setting {self._name}: value={value}")
+        _LOGGER.debug("Setting %s: value=%s", self._name, value)
         await self._api.async_update_thermal_profile(**{param_name: value})
         self._state = value == 1
         await self.coordinator.async_request_refresh()
 
     async def _set_dashboard_status(self, value: int) -> None:
         """Set dashboard switch status via API."""
-        _LOGGER.debug(f"Setting {self._name}: {self._key}={value}")
+        _LOGGER.debug("Setting %s: %s=%s", self._name, self._key, value)
         await self._api.async_update_dashboard(**{self._key: value})
         # Update state based on inverted logic
         if self._invert:

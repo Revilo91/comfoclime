@@ -197,7 +197,7 @@ class ComfoClimeClimate(
         # This ensures the entity reflects the latest data from ComfoClime
         try:
             if self.coordinator.data:
-                _LOGGER.debug(f"Coordinator update received: {self.coordinator.data}")
+                _LOGGER.debug("Coordinator update received: %s", self.coordinator.data)
         except (KeyError, TypeError, ValueError) as e:
             _LOGGER.warning("Error processing coordinator data: %s", e)
 
@@ -414,7 +414,7 @@ class ComfoClimeClimate(
 
         try:
             _LOGGER.debug(
-                f"Setting manual temperature to {temperature}°C via dashboard API"
+                "Setting manual temperature to %s°C via dashboard API", temperature
             )
 
             # Setting setPointTemperature should explicitly switch to manual mode (status=0)
@@ -430,13 +430,14 @@ class ComfoClimeClimate(
 
         except (asyncio.TimeoutError, asyncio.CancelledError):
             _LOGGER.exception(
-                f"Timeout setting temperature to {temperature}°C. "
-                f"This may indizcate network connectivity issues with the device. "
-                f"The temperature may still be set successfully."
+                "Timeout setting temperature to %s°C. "
+                "This may indicate network connectivity issues with the device. "
+                "The temperature may still be set successfully.",
+                temperature,
             )
         except aiohttp.ClientError:
-            _LOGGER.exception(f"Network error setting temperature to {temperature}°C")
-        except (ValueError, KeyError, TypeError) as e:
+            _LOGGER.exception("Network error setting temperature to %s°C", temperature)
+        except (ValueError, KeyError, TypeError):
             _LOGGER.exception(
                 "Invalid data while setting temperature to %s°C", temperature
             )
@@ -466,7 +467,7 @@ class ComfoClimeClimate(
         try:
             # Use HVAC_MODE_REVERSE_MAPPING to get season value
             if hvac_mode not in HVAC_MODE_REVERSE_MAPPING:
-                _LOGGER.error(f"Unsupported HVAC mode: {hvac_mode}")
+                _LOGGER.error("Unsupported HVAC mode: %s", hvac_mode)
                 return
 
             season_value = HVAC_MODE_REVERSE_MAPPING[hvac_mode]
@@ -479,8 +480,10 @@ class ComfoClimeClimate(
                 # Active modes: Use atomic operation to set both season and hpStandby
                 # This prevents race conditions between thermal profile and dashboard updates
                 _LOGGER.debug(
-                    f"Setting HVAC mode to {hvac_mode} - "
-                    f"atomically setting season={season_value} and hpStandby=False"
+                    "Setting HVAC mode to %s - "
+                    "atomically setting season=%s and hpStandby=False",
+                    hvac_mode,
+                    season_value,
                 )
                 await self._api.async_set_hvac_season(
                     season=season_value, hpStandby=False
@@ -491,12 +494,13 @@ class ComfoClimeClimate(
 
         except (asyncio.TimeoutError, asyncio.CancelledError):
             _LOGGER.exception(
-                f"Timeout setting HVAC mode to {hvac_mode}. "
-                f"This may indicate network connectivity issues with the device."
+                "Timeout setting HVAC mode to %s. "
+                "This may indicate network connectivity issues with the device.",
+                hvac_mode,
             )
         except aiohttp.ClientError:
-            _LOGGER.exception(f"Network error setting HVAC mode to {hvac_mode}")
-        except (ValueError, KeyError, TypeError) as e:
+            _LOGGER.exception("Network error setting HVAC mode to %s", hvac_mode)
+        except (ValueError, KeyError, TypeError):
             _LOGGER.exception("Invalid data while setting HVAC mode to %s", hvac_mode)
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
@@ -526,15 +530,17 @@ class ComfoClimeClimate(
 
             # Automatic mode with preset profile
             if preset_mode not in PRESET_REVERSE_MAPPING:
-                _LOGGER.error(f"Unknown preset mode: {preset_mode}")
+                _LOGGER.error("Unknown preset mode: %s", preset_mode)
                 return
 
             # Map preset mode to profile value (0=comfort, 1=boost, 2=eco)
             profile_value = PRESET_REVERSE_MAPPING[preset_mode]
 
             _LOGGER.debug(
-                f"Setting preset mode to {preset_mode} (profile={profile_value}) "
-                f"via dashboard API - activates automatic mode"
+                "Setting preset mode to %s (profile=%s) "
+                "via dashboard API - activates automatic mode",
+                preset_mode,
+                profile_value,
             )
 
             # Set both temperatureProfile and seasonProfile to the preset value
@@ -551,12 +557,13 @@ class ComfoClimeClimate(
 
         except (asyncio.TimeoutError, asyncio.CancelledError):
             _LOGGER.exception(
-                f"Timeout setting preset mode to {preset_mode}. "
-                f"This may indicate network connectivity issues with the device."
+                "Timeout setting preset mode to %s. "
+                "This may indicate network connectivity issues with the device.",
+                preset_mode,
             )
         except aiohttp.ClientError:
-            _LOGGER.exception(f"Network error setting preset mode to {preset_mode}")
-        except (ValueError, KeyError, TypeError) as e:
+            _LOGGER.exception("Network error setting preset mode to %s", preset_mode)
+        except (ValueError, KeyError, TypeError):
             _LOGGER.exception("Invalid data while setting preset mode to %s", preset_mode)
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
@@ -569,7 +576,7 @@ class ComfoClimeClimate(
         - high: 3
         """
         if fan_mode not in FAN_MODE_REVERSE_MAPPING:
-            _LOGGER.error(f"Unknown fan mode: {fan_mode}")
+            _LOGGER.error("Unknown fan mode: %s", fan_mode)
             return
 
         try:
@@ -584,12 +591,13 @@ class ComfoClimeClimate(
 
         except (asyncio.TimeoutError, asyncio.CancelledError):
             _LOGGER.exception(
-                f"Timeout setting fan mode to {fan_mode}. "
-                f"This may indicate network connectivity issues with the device."
+                "Timeout setting fan mode to %s. "
+                "This may indicate network connectivity issues with the device.",
+                fan_mode,
             )
         except aiohttp.ClientError:
-            _LOGGER.exception(f"Network error setting fan mode to {fan_mode}")
-        except (ValueError, KeyError, TypeError) as e:
+            _LOGGER.exception("Network error setting fan mode to %s", fan_mode)
+        except (ValueError, KeyError, TypeError):
             _LOGGER.exception("Invalid data while setting fan mode to %s", fan_mode)
 
     async def async_set_scenario_mode(
@@ -614,7 +622,7 @@ class ComfoClimeClimate(
             start_delay: Optional start delay as datetime string (YYYY-MM-DD HH:MM:SS)
         """
         if scenario_mode not in SCENARIO_REVERSE_MAPPING:
-            _LOGGER.error(f"Unknown scenario mode: {scenario_mode}")
+            _LOGGER.error("Unknown scenario mode: %s", scenario_mode)
             return
 
         try:
@@ -649,15 +657,20 @@ class ComfoClimeClimate(
                         scenario_start_delay = delay_seconds
                     else:
                         _LOGGER.warning(
-                            f"Start delay {start_delay} is in the past, starting immediately"
+                            "Start delay %s is in the past, starting immediately",
+                            start_delay,
                         )
                 except ValueError:
-                    _LOGGER.exception(f"Invalid start_delay format '{start_delay}'")
+                    _LOGGER.exception("Invalid start_delay format '%s'", start_delay)
                     raise
 
             _LOGGER.debug(
-                f"Setting scenario mode to {scenario_mode} (value={scenario_value}) "
-                f"with duration={scenario_time_left}s, start_delay={scenario_start_delay}s"
+                "Setting scenario mode to %s (value=%s) "
+                "with duration=%ss, start_delay=%ss",
+                scenario_mode,
+                scenario_value,
+                scenario_time_left,
+                scenario_start_delay,
             )
 
             # Update scenario via dashboard API
@@ -670,7 +683,7 @@ class ComfoClimeClimate(
             # Schedule non-blocking refresh of coordinators
             await self._async_refresh_coordinators()
 
-        except (aiohttp.ClientError, asyncio.TimeoutError, ValueError, KeyError, TypeError) as e:
+        except (aiohttp.ClientError, asyncio.TimeoutError, ValueError, KeyError, TypeError):
             _LOGGER.exception("Failed to set scenario mode %s", scenario_mode)
             raise
 
@@ -734,7 +747,7 @@ class ComfoClimeClimate(
             )
         except aiohttp.ClientError:
             _LOGGER.exception("Network error turning off climate device")
-        except (ValueError, KeyError, TypeError) as e:
+        except (ValueError, KeyError, TypeError):
             _LOGGER.exception("Invalid data while turning off climate device")
 
     async def async_turn_on(self) -> None:
@@ -757,6 +770,6 @@ class ComfoClimeClimate(
             )
         except aiohttp.ClientError:
             _LOGGER.exception("Network error turning on climate device")
-        except (ValueError, KeyError, TypeError) as e:
+        except (ValueError, KeyError, TypeError):
             _LOGGER.exception("Invalid data while turning on climate device")
 

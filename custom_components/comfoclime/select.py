@@ -54,7 +54,7 @@ async def async_setup_entry(
     try:
         devices = hass.data[DOMAIN][entry.entry_id]["devices"]
     except KeyError as e:
-        _LOGGER.warning(f"Verbundene Geräte konnten nicht geladen werden: {e}")
+        _LOGGER.warning("Could not load connected devices: %s", e)
         devices = []
 
     if is_entity_category_enabled(entry.options, "selects", "connected_properties"):
@@ -161,7 +161,7 @@ class ComfoClimeSelect(
             return
 
         try:
-            _LOGGER.debug(f"Setting {self._name}: {option} (value={value})")
+            _LOGGER.debug("Setting %s: %s (value=%s)", self._name, option, value)
 
             # Mapping aller SELECT_ENTITIES Keys zu thermal_profile Parametern
             # Basierend auf dem thermalprofile JSON Schema
@@ -179,7 +179,7 @@ class ComfoClimeSelect(
             }
 
             if self._key not in param_mapping:
-                _LOGGER.warning(f"Unbekannter select key: {self._key}")
+                _LOGGER.warning("Unknown select key: %s", self._key)
                 return
 
             param_name = param_mapping[self._key]
@@ -187,9 +187,9 @@ class ComfoClimeSelect(
 
             self._current = option
             self._hass.add_job(self.coordinator.async_request_refresh)
-        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+        except (aiohttp.ClientError, asyncio.TimeoutError):
             _LOGGER.exception("Error setting select %s", self._name)
-            raise HomeAssistantError(f"Fehler beim Setzen von {self._name}") from e
+            raise HomeAssistantError(f"Error setting {self._name}") from None
 
 
 class ComfoClimePropertySelect(
@@ -251,7 +251,7 @@ class ComfoClimePropertySelect(
             val = self.coordinator.get_property_value(self._device["uuid"], self._path)
             self._current = self._options_map.get(val)
         except (KeyError, TypeError, ValueError) as e:
-            _LOGGER.debug(f"Fehler beim Laden von {self._name}: {e}")
+            _LOGGER.debug("Error loading %s: %s", self._name, e)
         self.async_write_ha_state()
 
     async def async_select_option(self, option: str) -> None:
@@ -271,6 +271,6 @@ class ComfoClimePropertySelect(
             self._current = option
             # Trigger coordinator refresh to update all entities
             await self.coordinator.async_request_refresh()
-        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+        except (aiohttp.ClientError, asyncio.TimeoutError):
             _LOGGER.exception("Error setting select %s", self._name)
-            raise HomeAssistantError(f"Fehler beim Setzen von {self._name}") from e
+            raise HomeAssistantError(f"Error setting {self._name}") from None

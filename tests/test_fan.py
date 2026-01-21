@@ -60,10 +60,20 @@ class TestComfoClimeFan:
 
         assert fan.is_on is False
 
+    @pytest.mark.parametrize(
+        "speed,expected_percentage",
+        [
+            (0, 0),
+            (1, 33),
+            (2, 66),
+            (3, 100),
+        ],
+        ids=["speed_0", "speed_1", "speed_2", "speed_3"],
+    )
     def test_fan_percentage_calculation(
-        self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry
+        self, speed, expected_percentage, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry
     ):
-        """Test fan percentage calculation."""
+        """Test fan percentage calculation for various speeds."""
         fan = ComfoClimeFan(
             hass=mock_hass,
             coordinator=mock_coordinator,
@@ -72,27 +82,25 @@ class TestComfoClimeFan:
             entry=mock_config_entry,
         )
 
-        # Speed 0 -> 0%
-        fan._current_speed = 0
-        assert fan.percentage == 0
-
-        # Speed 1 -> 33%
-        fan._current_speed = 1
-        assert fan.percentage == 33
-
-        # Speed 2 -> 66%
-        fan._current_speed = 2
-        assert fan.percentage == 66
-
-        # Speed 3 -> 100%
-        fan._current_speed = 3
-        assert fan.percentage == 100
+        fan._current_speed = speed
+        assert fan.percentage == expected_percentage
 
     @pytest.mark.asyncio
-    async def test_fan_set_percentage(
-        self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry
+    @pytest.mark.parametrize(
+        "percentage,expected_step",
+        [
+            (0, 0),
+            (33, 1),
+            (50, 2),  # Rounds to nearest
+            (66, 2),
+            (100, 3),
+        ],
+        ids=["0%", "33%", "50%", "66%", "100%"],
+    )
+    async def test_fan_percentage_to_step_conversion(
+        self, percentage, expected_step, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry
     ):
-        """Test setting fan percentage."""
+        """Test percentage to step conversion for various inputs."""
         mock_hass.add_job = MagicMock()
 
         fan = ComfoClimeFan(
@@ -103,17 +111,20 @@ class TestComfoClimeFan:
             entry=mock_config_entry,
         )
 
-        await fan.async_set_percentage(66)
+        await fan.async_set_percentage(percentage)
 
-        # 66% should map to speed 2
-        mock_api.async_update_dashboard.assert_called_once_with(fan_speed=2)
-        assert fan._current_speed == 2
+        # Verify API was called with correct step
+        calls = mock_api.get_calls("async_update_dashboard")
+        assert len(calls) == 1
+        _, kwargs = calls[0]
+        assert kwargs["fan_speed"] == expected_step
+        assert fan._current_speed == expected_step
 
     @pytest.mark.asyncio
-    async def test_fan_set_percentage_boundaries(
+    async def test_fan_set_percentage_edge_cases(
         self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry
     ):
-        """Test setting fan percentage at boundaries."""
+        """Test setting fan percentage at edge cases."""
         mock_hass.add_job = MagicMock()
 
         fan = ComfoClimeFan(
@@ -124,22 +135,17 @@ class TestComfoClimeFan:
             entry=mock_config_entry,
         )
 
-        # Test 0%
+        # Test setting speed and clearing call history
         await fan.async_set_percentage(0)
         assert fan._current_speed == 0
+        mock_api._call_history.clear()  # Clear for next test
 
-        # Test 100%
-        mock_api.async_update_dashboard.reset_mock()
-        await fan.async_set_percentage(100)
-        call_args = mock_api.async_update_dashboard.call_args
-        assert call_args[1]["fan_speed"] == 3
-
-        # Test mid-range values
-        mock_api.async_update_dashboard.reset_mock()
-        await fan.async_set_percentage(50)
-        call_args = mock_api.async_update_dashboard.call_args
-        # 50 / 33 = 1.5, rounded = 2
-        assert call_args[1]["fan_speed"] in [1, 2]
+        # Test another value
+        await fan.async_set_percentage(40)
+        calls = mock_api.get_calls("async_update_dashboard")
+        assert len(calls) == 1
+        _, kwargs = calls[0]
+        assert kwargs["fan_speed"] in [1, 2]  # 40/33 ≈ 1.2, could round to 1 or 2
 
     def test_fan_coordinator_update(
         self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry

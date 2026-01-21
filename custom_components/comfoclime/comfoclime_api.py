@@ -19,6 +19,7 @@ from .rate_limiter_cache import (
     DEFAULT_WRITE_COOLDOWN,
     RateLimiterCache,
 )
+from .validators import validate_property_path, validate_byte_value
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -328,7 +329,7 @@ class ComfoClimeAPI:
         """
         data = response_data.get("data")
         if not isinstance(data, list) or len(data) == 0:
-            _LOGGER.debug(f"Ungültiges Telemetrie-Format für {telemetry_id}")
+            _LOGGER.debug("Invalid telemetry format for %s", telemetry_id)
             return None
         return data
 
@@ -443,7 +444,7 @@ class ComfoClimeAPI:
         """
         data = response_data.get("data")
         if not isinstance(data, list) or not data:
-            _LOGGER.debug(f"Ungültiges Datenformat für Property {property_path}")
+            _LOGGER.debug("Invalid data format for property %s", property_path)
             return None
         return data
 
@@ -766,12 +767,23 @@ class ComfoClimeAPI:
             faktor: Factor to divide the value by before encoding
 
         Raises:
-            ValueError: If byte_count is not 1 or 2
+            ValueError: If parameters are invalid
         """
+        # Validate property path format
+        is_valid, error_message = validate_property_path(property_path)
+        if not is_valid:
+            raise ValueError(f"Invalid property path: {error_message}")
+        
+        # Validate byte count
         if byte_count not in (1, 2):
             raise ValueError("Nur 1 oder 2 Byte unterstützt")
 
+        # Calculate raw value and validate it fits in byte count
         raw_value = int(round(value / faktor))
+        is_valid, error_message = validate_byte_value(raw_value, byte_count, signed)
+        if not is_valid:
+            raise ValueError(f"Invalid value for byte_count={byte_count}, signed={signed}: {error_message}")
+        
         data = self.signed_int_to_bytes(raw_value, byte_count, signed)
 
         x, y, z = map(int, property_path.split("/"))
