@@ -179,7 +179,7 @@ async def async_setup_entry(
     try:
         devices = hass.data[DOMAIN][entry.entry_id]["devices"]
     except KeyError as e:
-        _LOGGER.warning(f"Verbundene Geräte konnten nicht geladen werden: {e}")
+        _LOGGER.warning("Could not load connected devices: %s", e)
         devices = []
 
     for device in devices:
@@ -324,12 +324,12 @@ async def async_setup_entry(
         try:
             await tlcoordinator.async_config_entry_first_refresh()
         except (aiohttp.ClientError, asyncio.TimeoutError) as e:
-            _LOGGER.debug(f"Telemetrie-Daten konnten nicht geladen werden: {e}")
+            _LOGGER.debug("Telemetry data could not be loaded: %s", e)
         
         try:
             await propcoordinator.async_config_entry_first_refresh()
         except (aiohttp.ClientError, asyncio.TimeoutError) as e:
-            _LOGGER.debug(f"Property-Daten konnten nicht geladen werden: {e}")
+            _LOGGER.debug("Property data could not be loaded: %s", e)
     
     # Run coordinator refresh in background
     hass.async_create_task(_refresh_coordinators())
@@ -433,7 +433,7 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
                 self._state = raw_value
 
         except (KeyError, TypeError, ValueError) as e:
-            _LOGGER.warning(f"Fehler beim Aktualisieren der Sensorwerte: {e}")
+            _LOGGER.warning("Error updating sensor values: %s", e)
             self._state = None
 
         self.async_write_ha_state()
@@ -516,7 +516,7 @@ class ComfoClimeTelemetrySensor(
             self._state = value
         except (KeyError, TypeError, ValueError):
             _LOGGER.debug(
-                "Fehler beim Aktualisieren von Telemetrie %s", self._id, exc_info=True
+                "Error updating telemetry %s", self._id, exc_info=True
             )
             self._state = None
         self.async_write_ha_state()
@@ -600,9 +600,7 @@ class ComfoClimePropertySensor(
             else:
                 self._state = value
         except (KeyError, TypeError, ValueError):
-            _LOGGER.debug(
-                "Fehler beim Abrufen von Property %s", self._path, exc_info=True
-            )
+            _LOGGER.debug("Error fetching property %s", self._path, exc_info=True)
             self._state = None
         self.async_write_ha_state()
 

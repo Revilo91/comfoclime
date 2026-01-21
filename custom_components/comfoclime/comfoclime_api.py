@@ -335,7 +335,7 @@ class ComfoClimeAPI:
         """
         data = response_data.get("data")
         if not isinstance(data, list) or len(data) == 0:
-            _LOGGER.debug(f"Ungültiges Telemetrie-Format für {telemetry_id}")
+            _LOGGER.debug("Invalid telemetry format for %s", telemetry_id)
             return None
         return data
 
@@ -450,7 +450,7 @@ class ComfoClimeAPI:
         """
         data = response_data.get("data")
         if not isinstance(data, list) or not data:
-            _LOGGER.debug(f"Ungültiges Datenformat für Property {property_path}")
+            _LOGGER.debug("Invalid data format for property %s", property_path)
             return None
         return data
 
