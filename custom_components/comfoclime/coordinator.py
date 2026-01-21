@@ -14,10 +14,12 @@ if TYPE_CHECKING:
     from .access_tracker import AccessTracker
     from .comfoclime_api import ComfoClimeAPI
 
+from .constants import API_DEFAULTS
+
 _LOGGER = logging.getLogger(__name__)
 
 # Default polling interval to reduce API load on the Airduino board
-DEFAULT_POLLING_INTERVAL_SECONDS = 60
+DEFAULT_POLLING_INTERVAL_SECONDS = API_DEFAULTS.POLLING_INTERVAL
 
 
 class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
