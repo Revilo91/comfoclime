@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 """Switch platform for ComfoClime integration."""
 
 import asyncio
 import logging
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 from homeassistant.components.switch import SwitchEntity
@@ -12,6 +15,13 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+if TYPE_CHECKING:
+    from .comfoclime_api import ComfoClimeAPI
+    from .coordinator import (
+        ComfoClimeDashboardCoordinator,
+        ComfoClimeThermalprofileCoordinator,
+    )
+
 from . import DOMAIN
 from .entities.switch_definitions import SWITCHES
 from .entity_helper import is_entity_category_enabled, is_entity_enabled
@@ -21,7 +31,7 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
-):
+) -> None:
     data = hass.data[DOMAIN][entry.entry_id]
     api = data["api"]
     tpcoordinator = data["tpcoordinator"]
@@ -72,16 +82,16 @@ class ComfoClimeSwitch(CoordinatorEntity, SwitchEntity):
     def __init__(
         self,
         hass: HomeAssistant,
-        coordinator,
-        api,
+        coordinator: ComfoClimeDashboardCoordinator | ComfoClimeThermalprofileCoordinator,
+        api: ComfoClimeAPI,
         key: str,
         translation_key: str,
         name: str,
         invert: bool = False,
         endpoint: str = "thermal_profile",
-        device=None,
-        entry=None,
-    ):
+        device: dict[str, Any] | None = None,
+        entry: ConfigEntry | None = None,
+    ) -> None:
         """Initialize the switch entity.
 
         Args:
@@ -132,7 +142,7 @@ class ComfoClimeSwitch(CoordinatorEntity, SwitchEntity):
             sw_version=self._device.get("version", None),
         )
 
-    def _handle_coordinator_update(self):
+    def _handle_coordinator_update(self) -> None:
         """Update the state from coordinator data."""
         data = self.coordinator.data
         try:
@@ -155,21 +165,21 @@ class ComfoClimeSwitch(CoordinatorEntity, SwitchEntity):
             self._state = None
         self.async_write_ha_state()
 
-    async def async_turn_on(self, **kwargs):
+    async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the switch on."""
         if self._invert:
             await self._async_set_status(0)
         else:
             await self._async_set_status(1)
 
-    async def async_turn_off(self, **kwargs):
+    async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the switch off."""
         if self._invert:
             await self._async_set_status(1)
         else:
             await self._async_set_status(0)
 
-    async def _async_set_status(self, value: int):
+    async def _async_set_status(self, value: int) -> None:
         """Set the switch status.
 
         Args:
@@ -184,7 +194,7 @@ class ComfoClimeSwitch(CoordinatorEntity, SwitchEntity):
             _LOGGER.exception("Error setting switch %s", self._name)
             raise HomeAssistantError(f"Fehler beim Setzen von {self._name}") from e
 
-    async def _set_thermal_profile_status(self, value: int):
+    async def _set_thermal_profile_status(self, value: int) -> None:
         """Set thermal profile switch status via API."""
         # Mapping aller SWITCHES Keys zu thermal_profile Parametern
         param_mapping = {
@@ -203,7 +213,7 @@ class ComfoClimeSwitch(CoordinatorEntity, SwitchEntity):
         self._state = value == 1
         await self.coordinator.async_request_refresh()
 
-    async def _set_dashboard_status(self, value: int):
+    async def _set_dashboard_status(self, value: int) -> None:
         """Set dashboard switch status via API."""
         _LOGGER.debug(f"Setting {self._name}: {self._key}={value}")
         await self._api.async_update_dashboard(**{self._key: value})

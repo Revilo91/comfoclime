@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 from datetime import timedelta
@@ -7,7 +9,10 @@ import aiohttp
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
+
     from .access_tracker import AccessTracker
+    from .comfoclime_api import ComfoClimeAPI
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,7 +42,7 @@ class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
         self.api = api
         self._access_tracker = access_tracker
 
-    async def _async_update_data(self):
+    async def _async_update_data(self) -> dict[str, Any]:
         """Fetch dashboard data from the API."""
         try:
             result = await self.api.async_get_dashboard_data()
@@ -57,11 +62,11 @@ class ComfoClimeMonitoringCoordinator(DataUpdateCoordinator):
 
     def __init__(
         self,
-        hass,
-        api,
-        polling_interval=DEFAULT_POLLING_INTERVAL_SECONDS,
-        access_tracker: "AccessTracker | None" = None,
-    ):
+        hass: HomeAssistant,
+        api: ComfoClimeAPI,
+        polling_interval: int = DEFAULT_POLLING_INTERVAL_SECONDS,
+        access_tracker: AccessTracker | None = None,
+    ) -> None:
         super().__init__(
             hass,
             _LOGGER,
@@ -71,7 +76,7 @@ class ComfoClimeMonitoringCoordinator(DataUpdateCoordinator):
         self.api = api
         self._access_tracker = access_tracker
 
-    async def _async_update_data(self):
+    async def _async_update_data(self) -> dict[str, Any]:
         """Fetch monitoring data from the API."""
         try:
             result = await self.api.async_get_monitoring_ping()
@@ -92,11 +97,11 @@ class ComfoClimeThermalprofileCoordinator(DataUpdateCoordinator):
 
     def __init__(
         self,
-        hass,
-        api,
-        polling_interval=DEFAULT_POLLING_INTERVAL_SECONDS,
-        access_tracker: "AccessTracker | None" = None,
-    ):
+        hass: HomeAssistant,
+        api: ComfoClimeAPI,
+        polling_interval: int = DEFAULT_POLLING_INTERVAL_SECONDS,
+        access_tracker: AccessTracker | None = None,
+    ) -> None:
         super().__init__(
             hass,
             _LOGGER,
@@ -106,7 +111,7 @@ class ComfoClimeThermalprofileCoordinator(DataUpdateCoordinator):
         self.api = api
         self._access_tracker = access_tracker
 
-    async def _async_update_data(self):
+    async def _async_update_data(self) -> dict[str, Any]:
         """Fetch thermal profile data from the API."""
         try:
             result = await self.api.async_get_thermal_profile()
@@ -128,12 +133,12 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
 
     def __init__(
         self,
-        hass,
-        api,
-        devices=None,
-        polling_interval=DEFAULT_POLLING_INTERVAL_SECONDS,
-        access_tracker: "AccessTracker | None" = None,
-    ):
+        hass: HomeAssistant,
+        api: ComfoClimeAPI,
+        devices: list[dict[str, Any]] | None = None,
+        polling_interval: int = DEFAULT_POLLING_INTERVAL_SECONDS,
+        access_tracker: AccessTracker | None = None,
+    ) -> None:
         super().__init__(
             hass,
             _LOGGER,
@@ -155,7 +160,7 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
         faktor: float = 1.0,
         signed: bool = True,
         byte_count: int | None = None,
-    ):
+    ) -> None:
         """Register a telemetry value to be fetched during updates.
 
         Args:
@@ -176,7 +181,7 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
             }
             _LOGGER.debug(f"Registered telemetry {telemetry_id} for device {device_uuid}")
 
-    async def _async_update_data(self):
+    async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         """Fetch all registered telemetry data for all devices in batched manner."""
         result: dict[str, dict[str, Any]] = {}
 
@@ -239,12 +244,12 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
 
     def __init__(
         self,
-        hass,
-        api,
-        devices=None,
-        polling_interval=DEFAULT_POLLING_INTERVAL_SECONDS,
-        access_tracker: "AccessTracker | None" = None,
-    ):
+        hass: HomeAssistant,
+        api: ComfoClimeAPI,
+        devices: list[dict[str, Any]] | None = None,
+        polling_interval: int = DEFAULT_POLLING_INTERVAL_SECONDS,
+        access_tracker: AccessTracker | None = None,
+    ) -> None:
         super().__init__(
             hass,
             _LOGGER,
@@ -266,7 +271,7 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
         faktor: float = 1.0,
         signed: bool = True,
         byte_count: int | None = None,
-    ):
+    ) -> None:
         """Register a property value to be fetched during updates.
 
         Args:
@@ -287,7 +292,7 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
             }
             _LOGGER.debug(f"Registered property {property_path} for device {device_uuid}")
 
-    async def _async_update_data(self):
+    async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         """Fetch all registered property data for all devices in batched manner."""
         result: dict[str, dict[str, Any]] = {}
 
@@ -349,12 +354,12 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
 
     def __init__(
         self,
-        hass,
-        api,
-        devices=None,
-        polling_interval=DEFAULT_POLLING_INTERVAL_SECONDS,
-        access_tracker: "AccessTracker | None" = None,
-    ):
+        hass: HomeAssistant,
+        api: ComfoClimeAPI,
+        devices: list[dict[str, Any]] | None = None,
+        polling_interval: int = DEFAULT_POLLING_INTERVAL_SECONDS,
+        access_tracker: AccessTracker | None = None,
+    ) -> None:
         super().__init__(
             hass,
             _LOGGER,
@@ -365,7 +370,7 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
         self.devices = devices or []
         self._access_tracker = access_tracker
 
-    async def _async_update_data(self):
+    async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         """Fetch definition data for all devices."""
         result: dict[str, dict] = {}
 
