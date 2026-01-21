@@ -110,7 +110,7 @@ def validate_property_path(path: str) -> tuple[bool, str | None]:
     for part in parts:
         if not part.isdigit():
             return False, "Path components must be numeric"
-        if int(part) < 0 or int(part) > 255:
+        if int(part) > 255:
             return False, "Path components must be 0-255"
 
     return True, None
