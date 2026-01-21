@@ -444,7 +444,7 @@ class ComfoClimeClimate(
         except (asyncio.TimeoutError, asyncio.CancelledError):
             _LOGGER.exception(
                 f"Timeout setting temperature to {temperature}°C. "
-                f"This may indizcate network connectivity issues with the device. "
+                f"This may indicate network connectivity issues with the device. "
                 f"The temperature may still be set successfully."
             )
         except aiohttp.ClientError:
