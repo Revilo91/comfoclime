@@ -1,6 +1,33 @@
-from __future__ import annotations
+"""ComfoClime Climate Platform.
 
-"""Climate platform for ComfoClime integration."""
+This module provides the Home Assistant climate entity for ComfoClime
+integration. The climate entity controls HVAC operation including
+temperature, fan speed, season mode, and presets.
+
+The climate entity supports:
+    - HVAC Modes: Off, Fan Only, Heat, Cool
+    - Preset Modes: Manual, Comfort, Boost, Eco, Cooking, Party, Away, Scenario Boost
+    - Fan Modes: Off, Low, Medium, High
+    - Target Temperature Control
+    - Current Temperature Display
+    - HVAC Action (Idle, Heating, Cooling, Fan)
+
+Scenario modes (Cooking, Party, Away, Scenario Boost) are special operating
+modes with predefined durations. See SCENARIO_MODES.md for details.
+
+Example:
+    >>> # In Home Assistant
+    >>> climate.set_temperature(entity_id="climate.comfoclime", temperature=22)
+    >>> climate.set_hvac_mode(entity_id="climate.comfoclime", hvac_mode="heat")
+    >>> climate.set_preset_mode(entity_id="climate.comfoclime", preset_mode="comfort")
+
+Note:
+    The climate entity uses two coordinators:
+    - DashboardCoordinator: Real-time temp, fan, season data
+    - ThermalprofileCoordinator: Thermal profile settings
+"""
+
+from __future__ import annotations
 
 import asyncio
 import logging
@@ -118,7 +145,21 @@ async def async_setup_entry(
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up ComfoClime climate entities."""
+    """Set up ComfoClime climate entity from a config entry.
+    
+    Creates the climate entity for the main ComfoClime device.
+    The climate entity controls HVAC operation, temperature, fan speed,
+    and preset modes.
+    
+    Args:
+        hass: Home Assistant instance
+        config_entry: Config entry for this integration
+        async_add_entities: Callback to add entities
+        
+    Note:
+        Only one climate entity is created per integration instance,
+        representing the main ComfoClime device.
+    """
     data = hass.data[DOMAIN][config_entry.entry_id]
     api: ComfoClimeAPI = data["api"]
     dashboard_coordinator: ComfoClimeDashboardCoordinator = data["coordinator"]
@@ -145,7 +186,31 @@ async def async_setup_entry(
 class ComfoClimeClimate(
     CoordinatorEntity[ComfoClimeDashboardCoordinator], ClimateEntity
 ):
-    """ComfoClime Climate entity."""
+    """ComfoClime Climate entity for HVAC control.
+    
+    Provides climate control for the ComfoClime ventilation and heat pump
+    system. Supports temperature control, HVAC modes (heating/cooling/fan),
+    preset modes (comfort/power/eco/manual), fan speed control, and
+    special scenario modes (cooking/party/away/boost).
+    
+    The entity monitors two coordinators:
+        - DashboardCoordinator: Real-time temperature, fan, and season data
+        - ThermalprofileCoordinator: Thermal profile and preset settings
+    
+    Attributes:
+        hvac_mode: Current HVAC mode (off/fan_only/heat/cool)
+        current_temperature: Current indoor temperature in °C
+        target_temperature: Target temperature in °C
+        preset_mode: Current preset mode
+        fan_mode: Current fan speed mode
+        hvac_action: Current HVAC action (idle/heating/cooling/fan)
+        
+    Example:
+        >>> # Set heating mode with comfort preset at 22°C
+        >>> await climate.async_set_hvac_mode(HVACMode.HEAT)
+        >>> await climate.async_set_preset_mode(PRESET_COMFORT)
+        >>> await climate.async_set_temperature(temperature=22.0)
+    """
 
     def __init__(
         self,
@@ -155,7 +220,15 @@ class ComfoClimeClimate(
         device: dict[str, Any],
         entry: ConfigEntry,
     ) -> None:
-        """Initialize the climate entity."""
+        """Initialize the ComfoClime climate entity.
+        
+        Args:
+            dashboard_coordinator: Coordinator for dashboard data
+            thermalprofile_coordinator: Coordinator for thermal profile data
+            api: ComfoClime API instance
+            device: Device info dictionary
+            entry: Config entry for this integration
+        """
         super().__init__(dashboard_coordinator)
         self._api = api
         self._thermalprofile_coordinator = thermalprofile_coordinator
