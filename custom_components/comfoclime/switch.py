@@ -1,7 +1,9 @@
 """Switch platform for ComfoClime integration."""
 
+import asyncio
 import logging
 
+import aiohttp
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -148,8 +150,8 @@ class ComfoClimeSwitch(CoordinatorEntity, SwitchEntity):
                     self._state = not val if self._invert else val
                 else:
                     self._state = (val != 1) if self._invert else (val == 1)
-        except Exception:
-            _LOGGER.exception(f"Fehler beim Update von {self._name}")
+        except (KeyError, TypeError, ValueError):
+            _LOGGER.debug("Error updating switch %s", self._name, exc_info=True)
             self._state = None
         self.async_write_ha_state()
 
@@ -178,8 +180,8 @@ class ComfoClimeSwitch(CoordinatorEntity, SwitchEntity):
                 await self._set_thermal_profile_status(value)
             else:  # dashboard
                 await self._set_dashboard_status(value)
-        except Exception as e:
-            _LOGGER.exception(f"Fehler beim Setzen von {self._name}")
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            _LOGGER.error("Error setting switch %s: %s", self._name, e)
             raise HomeAssistantError(f"Fehler beim Setzen von {self._name}") from e
 
     async def _set_thermal_profile_status(self, value: int):

@@ -38,7 +38,7 @@ def _friendly_model_name(model_id) -> str:
         return "Unknown Model"
     try:
         mid = int(model_id)
-    except Exception:
+    except (ValueError, TypeError):
         return f"Model {model_id}"
     return MODEL_TYPE_NAMES.get(mid, f"Model {mid}")
 

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Any
 
@@ -335,7 +336,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 },
                 errors=errors,
             )
-        except Exception as e:
+        except (KeyError, TypeError, ValueError) as e:
             _LOGGER.error(f"✗ ERROR in async_step_entities_sensors_dashboard: {e}", exc_info=True)
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -381,7 +382,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 },
                 errors=errors,
             )
-        except Exception as e:
+        except (KeyError, TypeError, ValueError) as e:
             _LOGGER.error(f"✗ ERROR in async_step_entities_sensors_thermalprofile: {e}", exc_info=True)
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -427,7 +428,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 },
                 errors=errors,
             )
-        except Exception as e:
+        except (KeyError, TypeError, ValueError) as e:
             _LOGGER.error(f"✗ ERROR in async_step_entities_sensors_monitoring: {e}", exc_info=True)
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -473,7 +474,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 },
                 errors=errors,
             )
-        except Exception as e:
+        except (KeyError, TypeError, ValueError) as e:
             _LOGGER.error(f"✗ ERROR in async_step_entities_sensors_connected_telemetry: {e}", exc_info=True)
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -519,7 +520,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 },
                 errors=errors,
             )
-        except Exception as e:
+        except (KeyError, TypeError, ValueError) as e:
             _LOGGER.error(f"✗ ERROR in async_step_entities_sensors_connected_properties: {e}", exc_info=True)
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -565,7 +566,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 },
                 errors=errors,
             )
-        except Exception as e:
+        except (KeyError, TypeError, ValueError) as e:
             _LOGGER.error(f"✗ ERROR in async_step_entities_sensors_connected_definition: {e}", exc_info=True)
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -611,7 +612,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 },
                 errors=errors,
             )
-        except Exception as e:
+        except (KeyError, TypeError, ValueError) as e:
             _LOGGER.error(f"✗ ERROR in async_step_entities_sensors_access_tracking: {e}", exc_info=True)
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -660,7 +661,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 },
                 errors=errors,
             )
-        except Exception as e:
+        except (KeyError, TypeError, ValueError) as e:
             _LOGGER.error(f"✗ ERROR in async_step_entities_switches: {e}", exc_info=True)
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -709,7 +710,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 },
                 errors=errors,
             )
-        except Exception as e:
+        except (KeyError, TypeError, ValueError) as e:
             _LOGGER.error(f"✗ ERROR in async_step_entities_numbers: {e}", exc_info=True)
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -758,7 +759,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 },
                 errors=errors,
             )
-        except Exception as e:
+        except (KeyError, TypeError, ValueError) as e:
             _LOGGER.error(f"✗ ERROR in async_step_entities_selects: {e}", exc_info=True)
             errors["base"] = "entity_options_error"
             return self.async_show_form(

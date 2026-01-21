@@ -1,5 +1,7 @@
+import asyncio
 import logging
 
+import aiohttp
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
@@ -133,7 +135,7 @@ class ComfoClimeTemperatureNumber(
 
                 # Only available if automatic mode is disabled (status = 0)
                 return automatic_temperature_status == 0
-            except Exception as e:
+            except (KeyError, TypeError, ValueError) as e:
                 _LOGGER.debug(
                     f"Could not check automatic temperature status for availability: {e}"
                 )
@@ -187,8 +189,8 @@ class ComfoClimeTemperatureNumber(
             for k in self._key_path:
                 val = val.get(k)
             self._value = val
-        except Exception:
-            _LOGGER.exception("Fehler beim Update")
+        except (KeyError, TypeError, ValueError):
+            _LOGGER.debug("Error updating number entity %s", self._name, exc_info=True)
             self._value = None  # besser als Absturz
         self.async_write_ha_state()
 
@@ -211,7 +213,7 @@ class ComfoClimeTemperatureNumber(
                     )
                     # Don't proceed with setting the temperature
                     return
-            except Exception as e:
+            except (KeyError, TypeError, ValueError) as e:
                 _LOGGER.warning(f"Could not check automatic temperature status: {e}")
                 # Proceed anyway if we can't determine the status
 
@@ -246,8 +248,8 @@ class ComfoClimeTemperatureNumber(
             await self._api.async_update_thermal_profile(**{param_name: value})
             self._value = value
             await self.coordinator.async_request_refresh()
-        except Exception as e:
-            _LOGGER.exception(f"Fehler beim Setzen von {self._name}")
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            _LOGGER.error("Error setting number entity %s: %s", self._name, e)
             raise HomeAssistantError(f"Fehler beim Setzen von {self._name}") from e
 
 
@@ -329,7 +331,7 @@ class ComfoClimePropertyNumber(
                 f"Property {self._property_path} updated from coordinator: {value}"
             )
             self._value = value
-        except Exception as e:
+        except (KeyError, TypeError, ValueError) as e:
             _LOGGER.debug(
                 f"Fehler beim Abrufen von Property {self._property_path}: {e}"
             )
@@ -348,9 +350,9 @@ class ComfoClimePropertyNumber(
             self._value = value
             # Trigger coordinator refresh to update all entities
             await self.coordinator.async_request_refresh()
-        except Exception as e:
-            _LOGGER.exception(
-                f"Fehler beim Schreiben von Property {self._property_path}"
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            _LOGGER.error(
+                "Error writing property %s: %s", self._property_path, e
             )
             raise HomeAssistantError(
                 f"Fehler beim Schreiben von Property {self._property_path}"
