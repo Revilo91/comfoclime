@@ -16,12 +16,19 @@ from .entities.sensor_definitions import (
     PropertySensorDefinition,
     AccessTrackingSensorDefinition,
 )
-from .entities.switch_definitions import SWITCHES
+from .entities.switch_definitions import SWITCHES, SwitchDefinition
 from .entities.number_definitions import (
     CONNECTED_DEVICE_NUMBER_PROPERTIES,
     NUMBER_ENTITIES,
+    NumberDefinition,
+    PropertyNumberDefinition,
 )
-from .entities.select_definitions import PROPERTY_SELECT_ENTITIES, SELECT_ENTITIES
+from .entities.select_definitions import (
+    PROPERTY_SELECT_ENTITIES,
+    SELECT_ENTITIES,
+    SelectDefinition,
+    PropertySelectDefinition,
+)
 
 _LOGGER = logging.getLogger(__name__)
 

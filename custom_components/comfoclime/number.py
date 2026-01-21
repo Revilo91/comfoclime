@@ -76,10 +76,10 @@ async def async_setup_entry(
                 # Register property with coordinator for batched fetching
                 await propcoordinator.register_property(
                     device_uuid=dev_uuid,
-                    property_path=number_def["property"],
-                    faktor=number_def.get("faktor", 1.0),
-                    signed=number_def.get("signed", True),
-                    byte_count=number_def.get("byte_count"),
+                    property_path=number_def.property,
+                    faktor=number_def.faktor,
+                    signed=False,
+                    byte_count=number_def.byte_count,
                 )
                 entities.append(
                     ComfoClimePropertyNumber(
@@ -112,18 +112,16 @@ class ComfoClimeTemperatureNumber(
         self._hass = hass
         self._api = api
         self._conf = conf
-        self._key_path = conf["key"].split(".")
-        self._name = conf["name"]
+        self._key_path = conf.key.split(".")
+        self._name = conf.name
         self._value = None
         self._device = device
         self._entry = entry
-        self._attr_mode = (
-            NumberMode.SLIDER if conf.get("mode", "box") == "slider" else NumberMode.BOX
-        )
+        self._attr_mode = NumberMode.BOX
         self._attr_config_entry_id = entry.entry_id
-        self._attr_unique_id = f"{entry.entry_id}_{conf['key']}"
-        # self._attr_name = conf["name"]
-        self._attr_translation_key = conf["translation_key"]
+        self._attr_unique_id = f"{entry.entry_id}_{conf.key}"
+        # self._attr_name = conf.name
+        self._attr_translation_key = conf.translation_key
         self._attr_has_entity_name = True
 
     @property
@@ -170,14 +168,15 @@ class ComfoClimeTemperatureNumber(
 
     @property
     def native_min_value(self):
-        return self._conf["min"]
+        return self._conf.min
 
     @property
     def native_max_value(self):
-        return self._conf["max"]
+        return self._conf.max
 
     @property
     def native_step(self):
+        return self._conf.step
         return self._conf["step"]
 
     @property
@@ -290,25 +289,21 @@ class ComfoClimePropertyNumber(
         self._entry = entry
         self._value = None
 
-        self._property_path = config["property"]
-        self._attr_translation_key = config.get("translation_key")
+        self._property_path = config.property
+        self._attr_translation_key = config.translation_key
         self._attr_unique_id = (
             f"{entry.entry_id}_property_number_{self._property_path.replace('/', '_')}"
         )
         self._attr_config_entry_id = entry.entry_id
         self._attr_has_entity_name = True
-        self._attr_mode = (
-            NumberMode.SLIDER
-            if config.get("mode", "box") == "slider"
-            else NumberMode.BOX
-        )
-        self._attr_native_min_value = config.get("min", 0)
-        self._attr_native_max_value = config.get("max", 100)
-        self._attr_native_step = config.get("step", 1)
-        self._attr_native_unit_of_measurement = config.get("unit")
-        self._faktor = config.get("faktor", 1.0)
-        self._byte_count = config.get("byte_count", 2)
-        self._signed = config.get("signed", True)  # Default to signed values
+        self._attr_mode = NumberMode.BOX
+        self._attr_native_min_value = config.min
+        self._attr_native_max_value = config.max
+        self._attr_native_step = config.step
+        self._attr_native_unit_of_measurement = config.unit
+        self._faktor = config.faktor
+        self._byte_count = config.byte_count
+        self._signed = False  # PropertyNumberDefinition always uses unsigned
 
         _LOGGER.debug(
             f"ComfoClimePropertyNumber initialized: path={self._property_path}, "
@@ -317,7 +312,7 @@ class ComfoClimePropertyNumber(
 
     @property
     def name(self):
-        return self._config.get("name", "Property Number")
+        return self._config.name
 
     @property
     def native_value(self):
