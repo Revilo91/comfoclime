@@ -77,7 +77,16 @@ class ComfoClimeFan(CoordinatorEntity[ComfoClimeDashboardCoordinator], FanEntity
             )
             self._current_speed = step
             self.async_write_ha_state()
-            self._hass.add_job(self.coordinator.async_request_refresh)
+            
+            # Schedule background refresh without blocking
+            async def safe_refresh() -> None:
+                """Safely refresh coordinator with error handling."""
+                try:
+                    await self.coordinator.async_request_refresh()
+                except Exception:
+                    _LOGGER.exception("Background refresh failed after fan speed update")
+            
+            self._hass.async_create_task(safe_refresh())
         except (aiohttp.ClientError, asyncio.TimeoutError):
             _LOGGER.exception("Error setting fanSpeed")
 

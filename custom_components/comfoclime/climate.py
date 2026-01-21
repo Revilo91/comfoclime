@@ -409,9 +409,16 @@ class ComfoClimeClimate(
         """
         # Schedule non-blocking refresh for both coordinators
         # This prevents the UI from becoming unresponsive while waiting for updates
-        self.hass.async_create_task(self.coordinator.async_request_refresh())
+        async def safe_refresh(coordinator, name: str) -> None:
+            """Safely refresh coordinator with error handling."""
+            try:
+                await coordinator.async_request_refresh()
+            except Exception:
+                _LOGGER.exception("Background refresh failed for %s", name)
+
+        self.hass.async_create_task(safe_refresh(self.coordinator, "dashboard"))
         self.hass.async_create_task(
-            self._thermalprofile_coordinator.async_request_refresh()
+            safe_refresh(self._thermalprofile_coordinator, "thermal_profile")
         )
 
     async def async_set_temperature(self, **kwargs: Any) -> None:

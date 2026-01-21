@@ -68,25 +68,30 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     dashboard_coordinator = ComfoClimeDashboardCoordinator(
         hass, api, polling_interval, access_tracker=access_tracker
     )
-    await dashboard_coordinator.async_config_entry_first_refresh()
 
     # Create Thermalprofile-Coordinator
     thermalprofile_coordinator = ComfoClimeThermalprofileCoordinator(
         hass, api, polling_interval, access_tracker=access_tracker
     )
-    await thermalprofile_coordinator.async_config_entry_first_refresh()
 
     # Create Monitoring-Coordinator
     monitoring_coordinator = ComfoClimeMonitoringCoordinator(
         hass, api, polling_interval, access_tracker=access_tracker
     )
-    await monitoring_coordinator.async_config_entry_first_refresh()
 
     # Create definition coordinator for device definition data (mainly for ComfoAirQ)
     definitioncoordinator = ComfoClimeDefinitionCoordinator(
         hass, api, devices, polling_interval, access_tracker=access_tracker
     )
-    await definitioncoordinator.async_config_entry_first_refresh()
+
+    # Parallel initialization of all coordinators for faster startup
+    await asyncio.gather(
+        dashboard_coordinator.async_config_entry_first_refresh(),
+        thermalprofile_coordinator.async_config_entry_first_refresh(),
+        monitoring_coordinator.async_config_entry_first_refresh(),
+        definitioncoordinator.async_config_entry_first_refresh(),
+        return_exceptions=True,
+    )
 
     # Create telemetry and property coordinators with device list
     tlcoordinator = ComfoClimeTelemetryCoordinator(
