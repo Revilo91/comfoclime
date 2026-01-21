@@ -11,15 +11,15 @@ This module provides the RateLimiterCache class that handles:
 import asyncio
 import logging
 
+from .constants import API_DEFAULTS
+
 _LOGGER = logging.getLogger(__name__)
 
-# Default configuration values
-DEFAULT_MIN_REQUEST_INTERVAL = 0.1  # Minimum seconds between any requests
-DEFAULT_WRITE_COOLDOWN = (
-    2.0  # Seconds to wait after a write operation before allowing reads
-)
-DEFAULT_REQUEST_DEBOUNCE = 0.3  # Debounce time for rapid successive requests
-DEFAULT_CACHE_TTL = 30.0  # Cache time-to-live in seconds
+# Default configuration values (using APIDefaults for consistency)
+DEFAULT_MIN_REQUEST_INTERVAL = API_DEFAULTS.MIN_REQUEST_INTERVAL
+DEFAULT_WRITE_COOLDOWN = API_DEFAULTS.WRITE_COOLDOWN
+DEFAULT_REQUEST_DEBOUNCE = API_DEFAULTS.REQUEST_DEBOUNCE
+DEFAULT_CACHE_TTL = API_DEFAULTS.CACHE_TTL
 
 
 class RateLimiterCache:

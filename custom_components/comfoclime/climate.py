@@ -37,6 +37,7 @@ if TYPE_CHECKING:
     )
 
 from . import DOMAIN
+from .constants import FanSpeed, ScenarioMode, Season, TemperatureProfile
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -44,9 +45,9 @@ _LOGGER = logging.getLogger(__name__)
 # status=0 (manual mode) maps to PRESET_NONE (Manual)
 # status=1 (automatic mode) uses temperatureProfile values:
 PRESET_MAPPING = {
-    0: PRESET_COMFORT,
-    1: PRESET_BOOST,
-    2: PRESET_ECO,
+    TemperatureProfile.COMFORT: PRESET_COMFORT,
+    TemperatureProfile.POWER: PRESET_BOOST,
+    TemperatureProfile.ECO: PRESET_ECO,
 }
 
 PRESET_REVERSE_MAPPING = {v: k for k, v in PRESET_MAPPING.items()}
@@ -54,42 +55,28 @@ PRESET_REVERSE_MAPPING = {v: k for k, v in PRESET_MAPPING.items()}
 # Add manual preset mode (status=0)
 PRESET_MANUAL = PRESET_NONE  # "none" preset means manual temperature control
 
-# Scenario Modes - special operating modes
-SCENARIO_COOKING = 4  # Kochen - 30 minutes high ventilation
-SCENARIO_PARTY = 5  # Party - 30 minutes high ventilation
-SCENARIO_HOLIDAY = 7  # Urlaub - 24 hours reduced mode
-SCENARIO_BOOST_MODE = 8  # Boost - 30 minutes maximum power
-
-PRESET_SCENARIO_COOKING = "cooking"
-PRESET_SCENARIO_PARTY = "party"
-PRESET_SCENARIO_AWAY = "away"
-PRESET_SCENARIO_BOOST = "scenario_boost"
-
 # Scenario mapping - uses unique preset names to avoid conflicts with PRESET_MAPPING
 SCENARIO_MAPPING = {
-    SCENARIO_COOKING: PRESET_SCENARIO_COOKING,
-    SCENARIO_PARTY: PRESET_SCENARIO_PARTY,
-    SCENARIO_HOLIDAY: PRESET_SCENARIO_AWAY,
-    SCENARIO_BOOST_MODE: PRESET_SCENARIO_BOOST,
+    ScenarioMode.COOKING: ScenarioMode.COOKING.preset_name,
+    ScenarioMode.PARTY: ScenarioMode.PARTY.preset_name,
+    ScenarioMode.HOLIDAY: ScenarioMode.HOLIDAY.preset_name,
+    ScenarioMode.BOOST: ScenarioMode.BOOST.preset_name,
 }
 
 SCENARIO_REVERSE_MAPPING = {v: k for k, v in SCENARIO_MAPPING.items()}
 
 # Default durations for scenarios in minutes
 SCENARIO_DEFAULT_DURATIONS = {
-    SCENARIO_COOKING: 30,
-    SCENARIO_PARTY: 30,
-    SCENARIO_HOLIDAY: 1440,  # 24 hours
-    SCENARIO_BOOST_MODE: 30,
+    mode: mode.default_duration_minutes for mode in ScenarioMode
 }
 
 # Fan Mode Mapping (based on fan.py implementation)
 # fanSpeed from dashboard: 0, 1, 2, 3
 FAN_MODE_MAPPING = {
-    0: FAN_OFF,  # Speed 0
-    1: FAN_LOW,  # Speed 1
-    2: FAN_MEDIUM,  # Speed 2
-    3: FAN_HIGH,  # Speed 3
+    FanSpeed.OFF: FAN_OFF,
+    FanSpeed.LOW: FAN_LOW,
+    FanSpeed.MEDIUM: FAN_MEDIUM,
+    FanSpeed.HIGH: FAN_HIGH,
 }
 
 FAN_MODE_REVERSE_MAPPING = {v: k for k, v in FAN_MODE_MAPPING.items()}
@@ -97,9 +84,9 @@ FAN_MODE_REVERSE_MAPPING = {v: k for k, v in FAN_MODE_MAPPING.items()}
 # HVAC Mode Mapping (season values to HVAC modes)
 # Season from dashboard: 0 (transition), 1 (heating), 2 (cooling)
 HVAC_MODE_MAPPING = {
-    0: HVACMode.FAN_ONLY,  # transition
-    1: HVACMode.HEAT,  # heating
-    2: HVACMode.COOL,  # cooling
+    Season.TRANSITIONAL: HVACMode.FAN_ONLY,
+    Season.HEATING: HVACMode.HEAT,
+    Season.COOLING: HVACMode.COOL,
 }
 
 # Reverse mapping for setting HVAC modes
@@ -107,9 +94,9 @@ HVAC_MODE_MAPPING = {
 # OFF mode is handled separately via hpStandby field
 HVAC_MODE_REVERSE_MAPPING = {
     HVACMode.OFF: None,  # Turn off device via hpStandby=True
-    HVACMode.FAN_ONLY: 0,  # Transitional season (fan only)
-    HVACMode.HEAT: 1,  # Heating season
-    HVACMode.COOL: 2,  # Cooling season
+    HVACMode.FAN_ONLY: Season.TRANSITIONAL,
+    HVACMode.HEAT: Season.HEATING,
+    HVACMode.COOL: Season.COOLING,
 }
 
 
@@ -388,17 +375,17 @@ class ComfoClimeClimate(
         """Return the list of available fan modes."""
         return self._attr_fan_modes
 
-    def _get_current_season(self) -> int:
+    def _get_current_season(self) -> Season:
         """Get the current season value from dashboard.
 
         Returns:
-            0 for transition, 1 for heating, 2 for cooling
+            Season enum (TRANSITIONAL, HEATING, or COOLING)
         """
         if self.coordinator.data:
             season = self.coordinator.data.get("season")
-            if isinstance(season, int):
-                return season
-        return 0
+            if isinstance(season, int) and season in Season._value2member_map_:
+                return Season(season)
+        return Season.TRANSITIONAL
 
     async def _async_refresh_coordinators(self) -> None:
         """Refresh both dashboard and thermal profile coordinators.
