@@ -3,6 +3,7 @@ import logging
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
+import aiohttp
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 if TYPE_CHECKING:
@@ -43,8 +44,8 @@ class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
             if self._access_tracker:
                 self._access_tracker.record_access("Dashboard")
             return result
-        except Exception as e:
-            _LOGGER.debug(f"Error fetching dashboard data: {e}")
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            _LOGGER.warning("Error fetching dashboard data: %s", e)
             raise UpdateFailed(f"Error fetching dashboard data: {e}") from e
 
 
@@ -77,8 +78,8 @@ class ComfoClimeMonitoringCoordinator(DataUpdateCoordinator):
             if self._access_tracker:
                 self._access_tracker.record_access("Monitoring")
             return result
-        except Exception as e:
-            _LOGGER.debug(f"Error fetching monitoring data: {e}")
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            _LOGGER.warning("Error fetching monitoring data: %s", e)
             raise UpdateFailed(f"Error fetching monitoring data: {e}") from e
 
 
@@ -112,8 +113,8 @@ class ComfoClimeThermalprofileCoordinator(DataUpdateCoordinator):
             if self._access_tracker:
                 self._access_tracker.record_access("Thermalprofile")
             return result
-        except Exception as e:
-            _LOGGER.debug(f"Error fetching thermal profile data: {e}")
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            _LOGGER.warning("Error fetching thermal profile data: %s", e)
             raise UpdateFailed(f"Error fetching thermal profile data: {e}") from e
 
 
@@ -203,7 +204,7 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
                     # Track each individual API call
                     if self._access_tracker:
                         self._access_tracker.record_access("Telemetry")
-                except Exception as e:  # noqa: PERF203
+                except (aiohttp.ClientError, asyncio.TimeoutError) as e:  # noqa: PERF203
                     _LOGGER.debug(
                         f"Error fetching telemetry {telemetry_id} for device {device_uuid}: {e}"
                     )
@@ -314,7 +315,7 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
                     # Track each individual API call
                     if self._access_tracker:
                         self._access_tracker.record_access("Property")
-                except Exception as e:  # noqa: PERF203
+                except (aiohttp.ClientError, asyncio.TimeoutError) as e:  # noqa: PERF203
                     _LOGGER.debug(
                         f"Error fetching property {property_path} for device {device_uuid}: {e}"
                     )
@@ -391,7 +392,7 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
                 _LOGGER.debug(
                     f"Successfully fetched definition for device {device_uuid}"
                 )
-            except Exception as e:
+            except (aiohttp.ClientError, asyncio.TimeoutError) as e:
                 _LOGGER.debug(
                     f"Error fetching definition for device {device_uuid}: {e}"
                 )

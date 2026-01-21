@@ -1,5 +1,7 @@
+import asyncio
 import logging
 
+import aiohttp
 from homeassistant.components.fan import FanEntity, FanEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -63,15 +65,15 @@ class ComfoClimeFan(CoordinatorEntity[ComfoClimeDashboardCoordinator], FanEntity
             self._current_speed = step
             self.async_write_ha_state()
             self._hass.add_job(self.coordinator.async_request_refresh)
-        except Exception:
-            _LOGGER.exception("Fehler beim Setzen zvon fanSpeed")
+        except (aiohttp.ClientError, asyncio.TimeoutError):
+            _LOGGER.exception("Error setting fanSpeed")
 
     def _handle_coordinator_update(self):
         try:
             data = self.coordinator.data
             speed = data.get("fanSpeed", 0)
             self._current_speed = int(speed)
-        except Exception as e:
+        except (KeyError, TypeError, ValueError) as e:
             _LOGGER.warning(f"Fehler beim Abrufen von fanSpeed via dashboard: {e}")
             self._current_speed = 0
         self.async_write_ha_state()
@@ -94,5 +96,5 @@ async def async_setup_entry(
         fan_entity = ComfoClimeFan(hass, coordinator, api, main_device, entry)
         async_add_entities([fan_entity], True)
 
-    except Exception:
-        _LOGGER.exception("Fehler beim Setup der FanEntity")
+    except KeyError:
+        _LOGGER.exception("Error during fan entity setup")

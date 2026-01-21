@@ -1,5 +1,7 @@
+import asyncio
 import logging
 
+import aiohttp
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
@@ -45,7 +47,7 @@ async def async_setup_entry(
     # Verbundene Geräte abrufen
     try:
         devices = hass.data[DOMAIN][entry.entry_id]["devices"]
-    except Exception as e:
+    except KeyError as e:
         _LOGGER.warning(f"Verbundene Geräte konnten nicht geladen werden: {e}")
         devices = []
 
@@ -135,8 +137,8 @@ class ComfoClimeSelect(
             for k in self._key_path:
                 val = val.get(k)
             self._current = self._options_map.get(val)
-        except Exception:
-            _LOGGER.exception(f"Fehler beim Laden von {self._name}")
+        except (KeyError, TypeError, ValueError):
+            _LOGGER.debug("Error loading select %s", self._name, exc_info=True)
         self.async_write_ha_state()
 
     async def async_select_option(self, option: str):
@@ -171,8 +173,8 @@ class ComfoClimeSelect(
 
             self._current = option
             self._hass.add_job(self.coordinator.async_request_refresh)
-        except Exception as e:
-            _LOGGER.exception(f"Fehler beim Setzen von {self._name}")
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            _LOGGER.exception("Error setting select %s", self._name)
             raise HomeAssistantError(f"Fehler beim Setzen von {self._name}") from e
 
 
@@ -234,7 +236,7 @@ class ComfoClimePropertySelect(
         try:
             val = self.coordinator.get_property_value(self._device["uuid"], self._path)
             self._current = self._options_map.get(val)
-        except Exception as e:
+        except (KeyError, TypeError, ValueError) as e:
             _LOGGER.debug(f"Fehler beim Laden von {self._name}: {e}")
         self.async_write_ha_state()
 
@@ -255,6 +257,6 @@ class ComfoClimePropertySelect(
             self._current = option
             # Trigger coordinator refresh to update all entities
             await self.coordinator.async_request_refresh()
-        except Exception as e:
-            _LOGGER.exception(f"Fehler beim Setzen von {self._name}")
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            _LOGGER.exception("Error setting select %s", self._name)
             raise HomeAssistantError(f"Fehler beim Setzen von {self._name}") from e

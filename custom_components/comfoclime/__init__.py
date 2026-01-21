@@ -1,5 +1,7 @@
 import logging
 
+import asyncio
+import aiohttp
 import homeassistant.helpers.device_registry as dr
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
@@ -137,15 +139,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
                 faktor=faktor,
             )
             _LOGGER.info(f"Property {path} auf {value} gesetzt für {device_uuid}")
-        except Exception as e:
-            _LOGGER.exception(f"Fehler beim Setzen von Property {path}")
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            _LOGGER.exception("Fehler beim Setzen von Property %s", path)
             raise HomeAssistantError(f"Fehler beim Setzen von Property {path}") from e
 
     async def handle_reset_system_service(call: ServiceCall):
         try:
             await api.async_reset_system()
             _LOGGER.info("ComfoClime Neustart ausgelöst")
-        except Exception as e:
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
             _LOGGER.exception("Fehler beim Neustart des Geräts")
             raise HomeAssistantError("Fehler beim Neustart des Geräts") from e
 
@@ -207,9 +209,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
                         duration=duration,
                         start_delay=start_delay,
                     )
-                except Exception as e:
+                except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as e:
                     _LOGGER.exception(
-                        f"Error setting scenario mode '{scenario}' on {entity_id}"
+                        "Error setting scenario mode '%s' on %s", scenario, entity_id
                     )
                     raise HomeAssistantError(
                         f"Failed to set scenario mode '{scenario}'"

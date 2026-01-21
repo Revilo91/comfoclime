@@ -1,5 +1,7 @@
 import logging
 
+import aiohttp
+import asyncio
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -170,7 +172,7 @@ async def async_setup_entry(
     # Verbundene Geräte abrufen
     try:
         devices = hass.data[DOMAIN][entry.entry_id]["devices"]
-    except Exception as e:
+    except KeyError as e:
         _LOGGER.warning(f"Verbundene Geräte konnten nicht geladen werden: {e}")
         devices = []
 
@@ -315,12 +317,12 @@ async def async_setup_entry(
         """Background task to refresh coordinators after entities are added."""
         try:
             await tlcoordinator.async_config_entry_first_refresh()
-        except Exception as e:
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
             _LOGGER.debug(f"Telemetrie-Daten konnten nicht geladen werden: {e}")
         
         try:
             await propcoordinator.async_config_entry_first_refresh()
-        except Exception as e:
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
             _LOGGER.debug(f"Property-Daten konnten nicht geladen werden: {e}")
     
     # Run coordinator refresh in background
@@ -424,7 +426,7 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
             else:
                 self._state = raw_value
 
-        except Exception as e:
+        except (KeyError, TypeError, ValueError) as e:
             _LOGGER.warning(f"Fehler beim Aktualisieren der Sensorwerte: {e}")
             self._state = None
 
@@ -506,7 +508,7 @@ class ComfoClimeTelemetrySensor(
         try:
             value = self.coordinator.get_telemetry_value(self._override_uuid, self._id)
             self._state = value
-        except Exception:
+        except (KeyError, TypeError, ValueError):
             _LOGGER.debug(
                 "Fehler beim Aktualisieren von Telemetrie %s", self._id, exc_info=True
             )
@@ -591,7 +593,7 @@ class ComfoClimePropertySensor(
                 self._state = VALUE_MAPPINGS[self._mapping_key].get(value, value)
             else:
                 self._state = value
-        except Exception:
+        except (KeyError, TypeError, ValueError):
             _LOGGER.debug(
                 "Fehler beim Abrufen von Property %s", self._path, exc_info=True
             )
@@ -670,7 +672,7 @@ class ComfoClimeDefinitionSensor(
                 self._state = definition_data.get(self._key)
             else:
                 self._state = None
-        except Exception:
+        except (KeyError, TypeError, ValueError):
             _LOGGER.debug(
                 "Error retrieving definition %s", self._key, exc_info=True
             )
@@ -785,7 +787,7 @@ class ComfoClimeAccessTrackingSensor(SensorEntity):
                 self._state = self._access_tracker.get_total_accesses_per_hour()
             else:
                 self._state = 0
-        except Exception:
+        except (KeyError, TypeError, ValueError):
             _LOGGER.debug(
                 "Error updating access tracking sensor %s", self._name, exc_info=True
             )
