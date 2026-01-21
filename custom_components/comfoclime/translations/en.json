@@ -350,6 +350,7 @@
             "cannot_connect": "Connection failed, cannot connect.",
             "no_uuid": "Device online, but didn't get a serial number.",
             "no_response": "Device didn't respond with valid data.",
+            "invalid_host": "Invalid hostname or IP address. Please check for dangerous characters or invalid IP ranges.",
             "entity_options_error": "Failed to load entity options. Check the logs for more details.",
             "no_entities_available": "No entities available. This may indicate a configuration error."
         },
