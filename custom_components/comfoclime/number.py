@@ -15,10 +15,11 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 if TYPE_CHECKING:
     from .comfoclime_api import ComfoClimeAPI
-    from .coordinator import (
-        ComfoClimePropertyCoordinator,
-        ComfoClimeThermalprofileCoordinator,
-    )
+
+from .coordinator import (
+    ComfoClimePropertyCoordinator,
+    ComfoClimeThermalprofileCoordinator,
+)
 
 from . import DOMAIN
 from .entities.number_definitions import (

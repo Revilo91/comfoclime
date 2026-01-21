@@ -48,49 +48,97 @@ class SensorDefinition:
 
 
 @dataclass(frozen=True, slots=True)
-class TelemetrySensorDefinition(SensorDefinition):
+class TelemetrySensorDefinition:
     """Definition for telemetry-based sensors.
     
     Attributes:
         telemetry_id: ID for telemetry endpoint.
+        name: Display name for the sensor (fallback if translation missing).
+        translation_key: Key for i18n translations.
         faktor: Multiplication factor for the raw value.
         signed: Whether the value is signed.
         byte_count: Number of bytes to read from telemetry.
+        unit: Unit of measurement (e.g., "°C", "m³/h").
+        device_class: Home Assistant device class.
+        state_class: Home Assistant state class.
+        entity_category: Entity category (None, diagnostic, config).
+        icon: MDI icon name.
+        suggested_display_precision: Decimal places for display.
         diagnose: Whether this is a diagnostic sensor (experimental/unknown).
     """
-    telemetry_id: int = 0
+    telemetry_id: int
+    name: str
+    translation_key: str
     faktor: float = 1.0
     signed: bool = False
     byte_count: int = 1
+    unit: str | None = None
+    device_class: SensorDeviceClass | str | None = None
+    state_class: SensorStateClass | str | None = None
+    entity_category: EntityCategory | str | None = None
+    icon: str | None = None
+    suggested_display_precision: int | None = None
     diagnose: bool = False
 
 
 @dataclass(frozen=True, slots=True)
-class PropertySensorDefinition(SensorDefinition):
+class PropertySensorDefinition:
     """Definition for property-based sensors.
     
     Attributes:
         path: Property path in format "X/Y/Z".
+        name: Display name for the sensor (fallback if translation missing).
+        translation_key: Key for i18n translations.
         faktor: Multiplication factor for the raw value.
         signed: Whether the value is signed.
         byte_count: Number of bytes to read from property.
+        unit: Unit of measurement (e.g., "°C", "m³/h").
+        device_class: Home Assistant device class.
+        state_class: Home Assistant state class.
+        entity_category: Entity category (None, diagnostic, config).
+        icon: MDI icon name.
+        suggested_display_precision: Decimal places for display.
     """
-    path: str = ""
+    path: str
+    name: str
+    translation_key: str
     faktor: float = 1.0
     signed: bool = False
     byte_count: int = 1
+    unit: str | None = None
+    device_class: SensorDeviceClass | str | None = None
+    state_class: SensorStateClass | str | None = None
+    entity_category: EntityCategory | str | None = None
+    icon: str | None = None
+    suggested_display_precision: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
-class AccessTrackingSensorDefinition(SensorDefinition):
+class AccessTrackingSensorDefinition:
     """Definition for access tracking sensors.
     
     Attributes:
         coordinator: Name of the coordinator to track (None for total).
         metric: Metric type (per_minute, per_hour, total_per_minute, total_per_hour).
+        name: Display name for the sensor (fallback if translation missing).
+        translation_key: Key for i18n translations.
+        state_class: Home Assistant state class.
+        entity_category: Entity category (None, diagnostic, config).
+        unit: Unit of measurement (e.g., "°C", "m³/h").
+        device_class: Home Assistant device class.
+        icon: MDI icon name.
+        suggested_display_precision: Decimal places for display.
     """
-    coordinator: str | None = None
-    metric: str = ""
+    coordinator: str | None
+    metric: str
+    name: str
+    translation_key: str
+    state_class: SensorStateClass | str | None = None
+    entity_category: EntityCategory | str | None = None
+    unit: str | None = None
+    device_class: SensorDeviceClass | str | None = None
+    icon: str | None = None
+    suggested_display_precision: int | None = None
 
 
 # Dashboard sensor definitions using dataclasses
@@ -320,290 +368,290 @@ TELEMETRY_SENSORS = []
 
 CONNECTED_DEVICE_SENSORS = {
     20: [
-        {
-            "telemetry_id": 4193,
-            "name": "Supply Air Temperature",
-            "translation_key": "supply_air_temperature",
-            "unit": "°C",
-            "faktor": 0.1,
-            "byte_count": 2,
-            "device_class": "temperature",
-            "state_class": "measurement",
-        },
-        {
-            "telemetry_id": 4145,
-            "name": "TPMA Temperature",
-            "translation_key": "tpma_temperature",
-            "unit": "°C",
-            "faktor": 0.1,
-            "byte_count": 2,
-            "device_class": "temperature",
-            "state_class": "measurement",
-        },
-        {
-            "telemetry_id": 4149,
-            "name": "Device Mode",
-            "translation_key": "device_mode_status",
-            "faktor": 1,
-        },
-        {
-            "telemetry_id": 4151,
-            "name": "Current Comfort Temperature",
-            "translation_key": "current_comfort_temperature",
-            "unit": "°C",
-            "faktor": 0.1,
-            "byte_count": 2,
-            "device_class": "temperature",
-            "state_class": "measurement",
-        },
-        {
-            "telemetry_id": 4194,
-            "name": "Unknown temp 4194",
-            "translation_key": "unknown_temp_4194",
-            "unit": "°C",
-            "faktor": 0.1,
-            "byte_count": 2,
-            "device_class": "temperature",
-            "state_class": "measurement",
-            "diagnose": True,
-        },
-        {
-            "telemetry_id": 4195,
-            "name": "Supply Coil Temperature",
-            "translation_key": "supply_coil_temperature",
-            "unit": "°C",
-            "faktor": 0.1,
-            "byte_count": 2,
-            "device_class": "temperature",
-            "state_class": "measurement",
-            "diagnose": True,
-        },
-        {
-            "telemetry_id": 4196,
-            "name": "Exhaust Coil Temperature",
-            "translation_key": "exhaust_coil_temperature",
-            "unit": "°C",
-            "faktor": 0.1,
-            "byte_count": 2,
-            "device_class": "temperature",
-            "state_class": "measurement",
-            "diagnose": True,
-        },
-        {
-            "telemetry_id": 4197,
-            "name": "Unknown temp 4197",
-            "translation_key": "unknown_temp_4197",
-            "unit": "°C",
-            "faktor": 0.1,
-            "byte_count": 2,
-            "device_class": "temperature",
-            "state_class": "measurement",
-            "diagnose": True,
-        },
-        {
-            "telemetry_id": 4198,
-            "name": "Power Factor Heatpump",
-            "translation_key": "powerfactor_heatpump",
-            "unit": "%",
-            "state_class": "measurement",
-        },
-        {
-            "telemetry_id": 4201,
-            "name": "Power Heatpump",
-            "translation_key": "power_heatpump",
-            "unit": "W",
-            "device_class": "power",
-            "state_class": "measurement",
-        },
-        {
-            "telemetry_id": 4202,
-            "name": "Unknown temp 4202",
-            "translation_key": "unknown_temp_4202",
-            "unit": "°C",
-            "faktor": 0.1,
-            "byte_count": 2,
-            "device_class": "temperature",
-            "state_class": "measurement",
-            "diagnose": True,
-        },
-        {
-            "telemetry_id": 4203,
-            "name": "Unknown value 4203",
-            "translation_key": "unknown_value_4203",
-            "state_class": "measurement",
-            "diagnose": True,
-        },
-        {
-            "telemetry_id": 4204,
-            "name": "Unknown value 4204",
-            "translation_key": "unknown_value_4204",
-            "state_class": "measurement",
-            "diagnose": True,
-        },
-        {
-            "telemetry_id": 4205,
-            "name": "Unknown value 4205",
-            "translation_key": "unknown_value_4205",
-            "state_class": "measurement",
-            "diagnose": True,
-        },
-        {
-            "telemetry_id": 4206,
-            "name": "Unknown value 4206",
-            "translation_key": "unknown_value_4206",
-            "state_class": "measurement",
-            "diagnose": True,
-        },
-        {
-            "telemetry_id": 4207,
-            "name": "Unknown value 4207",
-            "translation_key": "unknown_value_4207",
-            "state_class": "measurement",
-            "diagnose": True,
-        },
-        {
-            "telemetry_id": 4208,
-            "name": "Unknown value 4208",
-            "translation_key": "unknown_value_4208",
-            "state_class": "measurement",
-            "diagnose": True,
-        },
+        TelemetrySensorDefinition(
+            name="Supply Air Temperature",
+            translation_key="supply_air_temperature",
+            unit="°C",
+            device_class="temperature",
+            state_class="measurement",
+            telemetry_id=4193,
+            faktor=0.1,
+            byte_count=2,
+        ),
+        TelemetrySensorDefinition(
+            name="TPMA Temperature",
+            translation_key="tpma_temperature",
+            unit="°C",
+            device_class="temperature",
+            state_class="measurement",
+            telemetry_id=4145,
+            faktor=0.1,
+            byte_count=2,
+        ),
+        TelemetrySensorDefinition(
+            name="Device Mode",
+            translation_key="device_mode_status",
+            telemetry_id=4149,
+            faktor=1.0,
+        ),
+        TelemetrySensorDefinition(
+            name="Current Comfort Temperature",
+            translation_key="current_comfort_temperature",
+            unit="°C",
+            device_class="temperature",
+            state_class="measurement",
+            telemetry_id=4151,
+            faktor=0.1,
+            byte_count=2,
+        ),
+        TelemetrySensorDefinition(
+            name="Unknown temp 4194",
+            translation_key="unknown_temp_4194",
+            unit="°C",
+            device_class="temperature",
+            state_class="measurement",
+            telemetry_id=4194,
+            faktor=0.1,
+            byte_count=2,
+            diagnose=True,
+        ),
+        TelemetrySensorDefinition(
+            name="Supply Coil Temperature",
+            translation_key="supply_coil_temperature",
+            unit="°C",
+            device_class="temperature",
+            state_class="measurement",
+            telemetry_id=4195,
+            faktor=0.1,
+            byte_count=2,
+            diagnose=True,
+        ),
+        TelemetrySensorDefinition(
+            name="Exhaust Coil Temperature",
+            translation_key="exhaust_coil_temperature",
+            unit="°C",
+            device_class="temperature",
+            state_class="measurement",
+            telemetry_id=4196,
+            faktor=0.1,
+            byte_count=2,
+            diagnose=True,
+        ),
+        TelemetrySensorDefinition(
+            name="Unknown temp 4197",
+            translation_key="unknown_temp_4197",
+            unit="°C",
+            device_class="temperature",
+            state_class="measurement",
+            telemetry_id=4197,
+            faktor=0.1,
+            byte_count=2,
+            diagnose=True,
+        ),
+        TelemetrySensorDefinition(
+            name="Power Factor Heatpump",
+            translation_key="powerfactor_heatpump",
+            unit="%",
+            state_class="measurement",
+            telemetry_id=4198,
+        ),
+        TelemetrySensorDefinition(
+            name="Power Heatpump",
+            translation_key="power_heatpump",
+            unit="W",
+            device_class="power",
+            state_class="measurement",
+            telemetry_id=4201,
+        ),
+        TelemetrySensorDefinition(
+            name="Unknown temp 4202",
+            translation_key="unknown_temp_4202",
+            unit="°C",
+            device_class="temperature",
+            state_class="measurement",
+            telemetry_id=4202,
+            faktor=0.1,
+            byte_count=2,
+            diagnose=True,
+        ),
+        TelemetrySensorDefinition(
+            name="Unknown value 4203",
+            translation_key="unknown_value_4203",
+            state_class="measurement",
+            telemetry_id=4203,
+            diagnose=True,
+        ),
+        TelemetrySensorDefinition(
+            name="Unknown value 4204",
+            translation_key="unknown_value_4204",
+            state_class="measurement",
+            telemetry_id=4204,
+            diagnose=True,
+        ),
+        TelemetrySensorDefinition(
+            name="Unknown value 4205",
+            translation_key="unknown_value_4205",
+            state_class="measurement",
+            telemetry_id=4205,
+            diagnose=True,
+        ),
+        TelemetrySensorDefinition(
+            name="Unknown value 4206",
+            translation_key="unknown_value_4206",
+            state_class="measurement",
+            telemetry_id=4206,
+            diagnose=True,
+        ),
+        TelemetrySensorDefinition(
+            name="Unknown value 4207",
+            translation_key="unknown_value_4207",
+            state_class="measurement",
+            telemetry_id=4207,
+            diagnose=True,
+        ),
+        TelemetrySensorDefinition(
+            name="Unknown value 4208",
+            translation_key="unknown_value_4208",
+            state_class="measurement",
+            telemetry_id=4208,
+            diagnose=True,
+        ),
     ],
     1: [
-        {
-            "telemetry_id": 117,
-            "name": "Exhaust Fan Duty",
-            "translation_key": "exhaust_fan_duty",
-            "unit": "%",
-            "state_class": "measurement",
-        },
-        {
-            "telemetry_id": 118,
-            "name": "Supply Fan Duty",
-            "translation_key": "supply_fan_duty",
-            "unit": "%",
-            "state_class": "measurement",
-        },
-        {
-            "telemetry_id": 121,
-            "name": "Exhaust Fan Speed",
-            "translation_key": "exhaust_fan_speed",
-            "unit": "rpm",
-            "state_class": "measurement",
-        },
-        {
-            "telemetry_id": 122,
-            "name": "Supply Fan Speed",
-            "translation_key": "supply_fan_speed",
-            "unit": "rpm",
-            "state_class": "measurement",
-        },
-        {
-            "telemetry_id": 128,
-            "name": "Power Ventilation",
-            "translation_key": "power_ventilation",
-            "unit": "W",
-            "device_class": "power",
-            "state_class": "measurement",
-        },
-        {
-            "telemetry_id": 129,
-            "name": "Energy YTD",
-            "translation_key": "energy_ytd",
-            "unit": "kWh",
-            "device_class": "energy",
-            "state_class": "total_increasing",
-        },
-        {
-            "telemetry_id": 130,
-            "name": "Energy Total",
-            "translation_key": "energy_total",
-            "unit": "kWh",
-            "device_class": "energy",
-            "state_class": "total_increasing",
-        },
-        {
-            "telemetry_id": 209,
-            "name": "Mean outdoor temperature (RMOT)",
-            "translation_key": "temp_rmot",
-            "unit": "°C",
-            "faktor": 0.1,
-            "byte_count": 2,
-            "device_class": "temperature",
-            "state_class": "measurement",
-        },
-        {
-            "telemetry_id": 227,
-            "name": "Bypass State",
-            "translation_key": "bypass_state",
-            "unit": "%",
-            "state_class": "measurement",
-        },
-        {
-            "telemetry_id": 275,
-            "name": "Exhaust Temperature",
-            "translation_key": "exhaust_temperature",
-            "unit": "°C",
-            "faktor": 0.1,
-            "byte_count": 2,
-            "device_class": "temperature",
-            "state_class": "measurement",
-        },
-        {
-            "telemetry_id": 278,
-            "name": "Supply Temperature",
-            "translation_key": "supply_air_temperature",
-            "unit": "°C",
-            "faktor": 0.1,
-            "byte_count": 2,
-            "device_class": "temperature",
-            "state_class": "measurement",
-        },
-        {
-            "telemetry_id": 290,
-            "name": "Extract Humidity",
-            "translation_key": "extract_humidity",
-            "unit": "%",
-            "device_class": "humidity",
-            "state_class": "measurement",
-        },
-        {
-            "telemetry_id": 291,
-            "name": "Exhaust Humidity",
-            "translation_key": "exhaust_humidity",
-            "unit": "%",
-            "device_class": "humidity",
-            "state_class": "measurement",
-        },
-        {
-            "telemetry_id": 292,
-            "name": "Outdoor Humidity",
-            "translation_key": "outdoor_humidity",
-            "unit": "%",
-            "device_class": "humidity",
-            "state_class": "measurement",
-        },
-        {
-            "telemetry_id": 294,
-            "name": "Supply Humidity",
-            "translation_key": "supply_humidity",
-            "unit": "%",
-            "device_class": "humidity",
-            "state_class": "measurement",
-        },
+        TelemetrySensorDefinition(
+            name="Exhaust Fan Duty",
+            translation_key="exhaust_fan_duty",
+            unit="%",
+            state_class="measurement",
+            telemetry_id=117,
+        ),
+        TelemetrySensorDefinition(
+            name="Supply Fan Duty",
+            translation_key="supply_fan_duty",
+            unit="%",
+            state_class="measurement",
+            telemetry_id=118,
+        ),
+        TelemetrySensorDefinition(
+            name="Exhaust Fan Speed",
+            translation_key="exhaust_fan_speed",
+            unit="rpm",
+            state_class="measurement",
+            telemetry_id=121,
+        ),
+        TelemetrySensorDefinition(
+            name="Supply Fan Speed",
+            translation_key="supply_fan_speed",
+            unit="rpm",
+            state_class="measurement",
+            telemetry_id=122,
+        ),
+        TelemetrySensorDefinition(
+            name="Power Ventilation",
+            translation_key="power_ventilation",
+            unit="W",
+            device_class="power",
+            state_class="measurement",
+            telemetry_id=128,
+        ),
+        TelemetrySensorDefinition(
+            name="Energy YTD",
+            translation_key="energy_ytd",
+            unit="kWh",
+            device_class="energy",
+            state_class="total_increasing",
+            telemetry_id=129,
+        ),
+        TelemetrySensorDefinition(
+            name="Energy Total",
+            translation_key="energy_total",
+            unit="kWh",
+            device_class="energy",
+            state_class="total_increasing",
+            telemetry_id=130,
+        ),
+        TelemetrySensorDefinition(
+            name="Mean outdoor temperature (RMOT)",
+            translation_key="temp_rmot",
+            unit="°C",
+            device_class="temperature",
+            state_class="measurement",
+            telemetry_id=209,
+            faktor=0.1,
+            byte_count=2,
+        ),
+        TelemetrySensorDefinition(
+            name="Bypass State",
+            translation_key="bypass_state",
+            unit="%",
+            state_class="measurement",
+            telemetry_id=227,
+        ),
+        TelemetrySensorDefinition(
+            name="Exhaust Temperature",
+            translation_key="exhaust_temperature",
+            unit="°C",
+            device_class="temperature",
+            state_class="measurement",
+            telemetry_id=275,
+            faktor=0.1,
+            byte_count=2,
+        ),
+        TelemetrySensorDefinition(
+            name="Supply Temperature",
+            translation_key="supply_air_temperature",
+            unit="°C",
+            device_class="temperature",
+            state_class="measurement",
+            telemetry_id=278,
+            faktor=0.1,
+            byte_count=2,
+        ),
+        TelemetrySensorDefinition(
+            name="Extract Humidity",
+            translation_key="extract_humidity",
+            unit="%",
+            device_class="humidity",
+            state_class="measurement",
+            telemetry_id=290,
+        ),
+        TelemetrySensorDefinition(
+            name="Exhaust Humidity",
+            translation_key="exhaust_humidity",
+            unit="%",
+            device_class="humidity",
+            state_class="measurement",
+            telemetry_id=291,
+        ),
+        TelemetrySensorDefinition(
+            name="Outdoor Humidity",
+            translation_key="outdoor_humidity",
+            unit="%",
+            device_class="humidity",
+            state_class="measurement",
+            telemetry_id=292,
+        ),
+        TelemetrySensorDefinition(
+            name="Supply Humidity",
+            translation_key="supply_humidity",
+            unit="%",
+            device_class="humidity",
+            state_class="measurement",
+            telemetry_id=294,
+        ),
     ],
 }
 
 CONNECTED_DEVICE_PROPERTIES = {
     1: [
-        {
-            "path": "30/1/18",  # X/Y/Z
-            "name": "Ventilation Disbalance",
-            "translation_key": "ventilation_disbalance",
-            "unit": "%",
-            "faktor": 0.1,
-            "byte_count": 2,
-        },
+        PropertySensorDefinition(
+            name="Ventilation Disbalance",
+            translation_key="ventilation_disbalance",
+            unit="%",
+            path="30/1/18",
+            faktor=0.1,
+            byte_count=2,
+        ),
     ],
 }
 
@@ -611,46 +659,46 @@ CONNECTED_DEVICE_PROPERTIES = {
 # These are fetched from /device/{UUID}/definition endpoint
 CONNECTED_DEVICE_DEFINITION_SENSORS = {
     1: [
-        {
-            "key": "indoorTemperature",
-            "name": "Indoor Temperature",
-            "translation_key": "indoor_temperature",
-            "unit": "°C",
-            "device_class": "temperature",
-            "state_class": "measurement",
-        },
-        {
-            "key": "outdoorTemperature",
-            "name": "Outdoor Temperature",
-            "translation_key": "outdoor_temperature",
-            "unit": "°C",
-            "device_class": "temperature",
-            "state_class": "measurement",
-        },
-        {
-            "key": "extractTemperature",
-            "name": "Extract Temperature",
-            "translation_key": "extract_temperature",
-            "unit": "°C",
-            "device_class": "temperature",
-            "state_class": "measurement",
-        },
-        {
-            "key": "supplyTemperature",
-            "name": "Supply Temperature",
-            "translation_key": "supply_temperature",
-            "unit": "°C",
-            "device_class": "temperature",
-            "state_class": "measurement",
-        },
-        {
-            "key": "exhaustTemperature",
-            "name": "Exhaust Temperature",
-            "translation_key": "exhaust_temperature",
-            "unit": "°C",
-            "device_class": "temperature",
-            "state_class": "measurement",
-        },
+        SensorDefinition(
+            key="indoorTemperature",
+            name="Indoor Temperature",
+            translation_key="indoor_temperature",
+            unit="°C",
+            device_class="temperature",
+            state_class="measurement",
+        ),
+        SensorDefinition(
+            key="outdoorTemperature",
+            name="Outdoor Temperature",
+            translation_key="outdoor_temperature",
+            unit="°C",
+            device_class="temperature",
+            state_class="measurement",
+        ),
+        SensorDefinition(
+            key="extractTemperature",
+            name="Extract Temperature",
+            translation_key="extract_temperature",
+            unit="°C",
+            device_class="temperature",
+            state_class="measurement",
+        ),
+        SensorDefinition(
+            key="supplyTemperature",
+            name="Supply Temperature",
+            translation_key="supply_temperature",
+            unit="°C",
+            device_class="temperature",
+            state_class="measurement",
+        ),
+        SensorDefinition(
+            key="exhaustTemperature",
+            name="Exhaust Temperature",
+            translation_key="exhaust_temperature",
+            unit="°C",
+            device_class="temperature",
+            state_class="measurement",
+        ),
     ],
 }
 
@@ -658,118 +706,118 @@ CONNECTED_DEVICE_DEFINITION_SENSORS = {
 # These sensors expose per-coordinator access counts
 ACCESS_TRACKING_SENSORS = [
     # Per-coordinator per-minute sensors
-    {
-        "coordinator": "Dashboard",
-        "metric": "per_minute",
-        "name": "Dashboard Accesses per Minute",
-        "translation_key": "dashboard_accesses_per_minute",
-        "state_class": "measurement",
-        "entity_category": "diagnostic",
-    },
-    {
-        "coordinator": "Thermalprofile",
-        "metric": "per_minute",
-        "name": "Thermalprofile Accesses per Minute",
-        "translation_key": "thermalprofile_accesses_per_minute",
-        "state_class": "measurement",
-        "entity_category": "diagnostic",
-    },
-    {
-        "coordinator": "Telemetry",
-        "metric": "per_minute",
-        "name": "Telemetry Accesses per Minute",
-        "translation_key": "telemetry_accesses_per_minute",
-        "state_class": "measurement",
-        "entity_category": "diagnostic",
-    },
-    {
-        "coordinator": "Property",
-        "metric": "per_minute",
-        "name": "Property Accesses per Minute",
-        "translation_key": "property_accesses_per_minute",
-        "state_class": "measurement",
-        "entity_category": "diagnostic",
-    },
-    {
-        "coordinator": "Definition",
-        "metric": "per_minute",
-        "name": "Definition Accesses per Minute",
-        "translation_key": "definition_accesses_per_minute",
-        "state_class": "measurement",
-        "entity_category": "diagnostic",
-    },
-    {
-        "coordinator": "Monitoring",
-        "metric": "per_minute",
-        "name": "Monitoring Accesses per Minute",
-        "translation_key": "monitoring_accesses_per_minute",
-        "state_class": "measurement",
-        "entity_category": "diagnostic",
-    },
+    AccessTrackingSensorDefinition(
+        name="Dashboard Accesses per Minute",
+        translation_key="dashboard_accesses_per_minute",
+        state_class="measurement",
+        entity_category="diagnostic",
+        coordinator="Dashboard",
+        metric="per_minute",
+    ),
+    AccessTrackingSensorDefinition(
+        name="Thermalprofile Accesses per Minute",
+        translation_key="thermalprofile_accesses_per_minute",
+        state_class="measurement",
+        entity_category="diagnostic",
+        coordinator="Thermalprofile",
+        metric="per_minute",
+    ),
+    AccessTrackingSensorDefinition(
+        name="Telemetry Accesses per Minute",
+        translation_key="telemetry_accesses_per_minute",
+        state_class="measurement",
+        entity_category="diagnostic",
+        coordinator="Telemetry",
+        metric="per_minute",
+    ),
+    AccessTrackingSensorDefinition(
+        name="Property Accesses per Minute",
+        translation_key="property_accesses_per_minute",
+        state_class="measurement",
+        entity_category="diagnostic",
+        coordinator="Property",
+        metric="per_minute",
+    ),
+    AccessTrackingSensorDefinition(
+        name="Definition Accesses per Minute",
+        translation_key="definition_accesses_per_minute",
+        state_class="measurement",
+        entity_category="diagnostic",
+        coordinator="Definition",
+        metric="per_minute",
+    ),
+    AccessTrackingSensorDefinition(
+        name="Monitoring Accesses per Minute",
+        translation_key="monitoring_accesses_per_minute",
+        state_class="measurement",
+        entity_category="diagnostic",
+        coordinator="Monitoring",
+        metric="per_minute",
+    ),
     # Per-coordinator per-hour sensors
-    {
-        "coordinator": "Dashboard",
-        "metric": "per_hour",
-        "name": "Dashboard Accesses per Hour",
-        "translation_key": "dashboard_accesses_per_hour",
-        "state_class": "measurement",
-        "entity_category": "diagnostic",
-    },
-    {
-        "coordinator": "Thermalprofile",
-        "metric": "per_hour",
-        "name": "Thermalprofile Accesses per Hour",
-        "translation_key": "thermalprofile_accesses_per_hour",
-        "state_class": "measurement",
-        "entity_category": "diagnostic",
-    },
-    {
-        "coordinator": "Telemetry",
-        "metric": "per_hour",
-        "name": "Telemetry Accesses per Hour",
-        "translation_key": "telemetry_accesses_per_hour",
-        "state_class": "measurement",
-        "entity_category": "diagnostic",
-    },
-    {
-        "coordinator": "Property",
-        "metric": "per_hour",
-        "name": "Property Accesses per Hour",
-        "translation_key": "property_accesses_per_hour",
-        "state_class": "measurement",
-        "entity_category": "diagnostic",
-    },
-    {
-        "coordinator": "Definition",
-        "metric": "per_hour",
-        "name": "Definition Accesses per Hour",
-        "translation_key": "definition_accesses_per_hour",
-        "state_class": "measurement",
-        "entity_category": "diagnostic",
-    },
-    {
-        "coordinator": "Monitoring",
-        "metric": "per_hour",
-        "name": "Monitoring Accesses per Hour",
-        "translation_key": "monitoring_accesses_per_hour",
-        "state_class": "measurement",
-        "entity_category": "diagnostic",
-    },
+    AccessTrackingSensorDefinition(
+        name="Dashboard Accesses per Hour",
+        translation_key="dashboard_accesses_per_hour",
+        state_class="measurement",
+        entity_category="diagnostic",
+        coordinator="Dashboard",
+        metric="per_hour",
+    ),
+    AccessTrackingSensorDefinition(
+        name="Thermalprofile Accesses per Hour",
+        translation_key="thermalprofile_accesses_per_hour",
+        state_class="measurement",
+        entity_category="diagnostic",
+        coordinator="Thermalprofile",
+        metric="per_hour",
+    ),
+    AccessTrackingSensorDefinition(
+        name="Telemetry Accesses per Hour",
+        translation_key="telemetry_accesses_per_hour",
+        state_class="measurement",
+        entity_category="diagnostic",
+        coordinator="Telemetry",
+        metric="per_hour",
+    ),
+    AccessTrackingSensorDefinition(
+        name="Property Accesses per Hour",
+        translation_key="property_accesses_per_hour",
+        state_class="measurement",
+        entity_category="diagnostic",
+        coordinator="Property",
+        metric="per_hour",
+    ),
+    AccessTrackingSensorDefinition(
+        name="Definition Accesses per Hour",
+        translation_key="definition_accesses_per_hour",
+        state_class="measurement",
+        entity_category="diagnostic",
+        coordinator="Definition",
+        metric="per_hour",
+    ),
+    AccessTrackingSensorDefinition(
+        name="Monitoring Accesses per Hour",
+        translation_key="monitoring_accesses_per_hour",
+        state_class="measurement",
+        entity_category="diagnostic",
+        coordinator="Monitoring",
+        metric="per_hour",
+    ),
     # Total access sensors
-    {
-        "coordinator": None,  # Total across all coordinators
-        "metric": "total_per_minute",
-        "name": "Total API Accesses per Minute",
-        "translation_key": "total_api_accesses_per_minute",
-        "state_class": "measurement",
-        "entity_category": "diagnostic",
-    },
-    {
-        "coordinator": None,  # Total across all coordinators
-        "metric": "total_per_hour",
-        "name": "Total API Accesses per Hour",
-        "translation_key": "total_api_accesses_per_hour",
-        "state_class": "measurement",
-        "entity_category": "diagnostic",
-    },
+    AccessTrackingSensorDefinition(
+        name="Total API Accesses per Minute",
+        translation_key="total_api_accesses_per_minute",
+        state_class="measurement",
+        entity_category="diagnostic",
+        coordinator=None,
+        metric="total_per_minute",
+    ),
+    AccessTrackingSensorDefinition(
+        name="Total API Accesses per Hour",
+        translation_key="total_api_accesses_per_hour",
+        state_class="measurement",
+        entity_category="diagnostic",
+        coordinator=None,
+        metric="total_per_hour",
+    ),
 ]

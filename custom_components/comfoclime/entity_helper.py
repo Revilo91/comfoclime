@@ -123,20 +123,38 @@ def _make_sensor_id(category: str, subcategory: str, sensor_def: Union[dict, obj
     """
     # Get identifier from sensor definition
     # Different sensor types use different keys for identification
-    if "key" in sensor_def or hasattr(sensor_def, "key"):
-        identifier = _get_attr(sensor_def, "key", "").replace(".", "_")
-    elif "telemetry_id" in sensor_def or hasattr(sensor_def, "telemetry_id"):
-        identifier = f"telem_{_get_attr(sensor_def, 'telemetry_id', '')}"
-    elif "path" in sensor_def or hasattr(sensor_def, "path"):
-        identifier = f"prop_{_get_attr(sensor_def, 'path', '').replace('/', '_')}"
-    elif "property" in sensor_def or hasattr(sensor_def, "property"):
-        identifier = f"prop_{_get_attr(sensor_def, 'property', '').replace('/', '_')}"
-    elif "metric" in sensor_def or hasattr(sensor_def, "metric"):
-        coord = (_get_attr(sensor_def, "coordinator") or "total").lower()
-        identifier = f"{coord}_{_get_attr(sensor_def, 'metric', '')}"
+    # Check for dict first, then for dataclass attributes
+    if isinstance(sensor_def, dict):
+        if "key" in sensor_def:
+            identifier = sensor_def["key"].replace(".", "_")
+        elif "telemetry_id" in sensor_def:
+            identifier = f"telem_{sensor_def['telemetry_id']}"
+        elif "path" in sensor_def:
+            identifier = f"prop_{sensor_def['path'].replace('/', '_')}"
+        elif "property" in sensor_def:
+            identifier = f"prop_{sensor_def['property'].replace('/', '_')}"
+        elif "metric" in sensor_def:
+            coord = (sensor_def.get("coordinator") or "total").lower()
+            identifier = f"{coord}_{sensor_def['metric']}"
+        else:
+            # Fallback to name-based ID
+            identifier = sensor_def.get("name", "unknown").lower().replace(" ", "_")
     else:
-        # Fallback to name-based ID
-        identifier = _get_attr(sensor_def, "name", "unknown").lower().replace(" ", "_")
+        # Dataclass instance
+        if hasattr(sensor_def, "key"):
+            identifier = _get_attr(sensor_def, "key", "").replace(".", "_")
+        elif hasattr(sensor_def, "telemetry_id"):
+            identifier = f"telem_{_get_attr(sensor_def, 'telemetry_id', '')}"
+        elif hasattr(sensor_def, "path"):
+            identifier = f"prop_{_get_attr(sensor_def, 'path', '').replace('/', '_')}"
+        elif hasattr(sensor_def, "property"):
+            identifier = f"prop_{_get_attr(sensor_def, 'property', '').replace('/', '_')}"
+        elif hasattr(sensor_def, "metric"):
+            coord = (_get_attr(sensor_def, "coordinator") or "total").lower()
+            identifier = f"{coord}_{_get_attr(sensor_def, 'metric', '')}"
+        else:
+            # Fallback to name-based ID
+            identifier = _get_attr(sensor_def, "name", "unknown").lower().replace(" ", "_")
 
     return f"{category}_{subcategory}_{identifier}"
 
