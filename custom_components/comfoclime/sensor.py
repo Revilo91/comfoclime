@@ -787,7 +787,7 @@ class ComfoClimeAccessTrackingSensor(SensorEntity):
                 self._state = self._access_tracker.get_total_accesses_per_hour()
             else:
                 self._state = 0
-        except (KeyError, TypeError, ValueError, AttributeError):
+        except (KeyError, TypeError, ValueError):
             _LOGGER.debug(
                 "Error updating access tracking sensor %s", self._name, exc_info=True
             )
