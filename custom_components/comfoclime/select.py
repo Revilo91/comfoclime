@@ -174,7 +174,7 @@ class ComfoClimeSelect(
             self._current = option
             self._hass.add_job(self.coordinator.async_request_refresh)
         except (aiohttp.ClientError, asyncio.TimeoutError) as e:
-            _LOGGER.error("Error setting select %s: %s", self._name, e)
+            _LOGGER.exception("Error setting select %s", self._name)
             raise HomeAssistantError(f"Fehler beim Setzen von {self._name}") from e
 
 
@@ -258,5 +258,5 @@ class ComfoClimePropertySelect(
             # Trigger coordinator refresh to update all entities
             await self.coordinator.async_request_refresh()
         except (aiohttp.ClientError, asyncio.TimeoutError) as e:
-            _LOGGER.error("Error setting select %s: %s", self._name, e)
+            _LOGGER.exception("Error setting select %s", self._name)
             raise HomeAssistantError(f"Fehler beim Setzen von {self._name}") from e

@@ -181,7 +181,7 @@ class ComfoClimeSwitch(CoordinatorEntity, SwitchEntity):
             else:  # dashboard
                 await self._set_dashboard_status(value)
         except (aiohttp.ClientError, asyncio.TimeoutError) as e:
-            _LOGGER.error("Error setting switch %s: %s", self._name, e)
+            _LOGGER.exception("Error setting switch %s", self._name)
             raise HomeAssistantError(f"Fehler beim Setzen von {self._name}") from e
 
     async def _set_thermal_profile_status(self, value: int):

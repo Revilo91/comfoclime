@@ -337,7 +337,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 errors=errors,
             )
         except (KeyError, TypeError, ValueError) as e:
-            _LOGGER.error(f"✗ ERROR in async_step_entities_sensors_dashboard: {e}", exc_info=True)
+            _LOGGER.exception("✗ ERROR in async_step_entities_sensors_dashboard")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
                 step_id="entities_sensors_dashboard",
@@ -383,7 +383,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 errors=errors,
             )
         except (KeyError, TypeError, ValueError) as e:
-            _LOGGER.error(f"✗ ERROR in async_step_entities_sensors_thermalprofile: {e}", exc_info=True)
+            _LOGGER.exception("✗ ERROR in async_step_entities_sensors_thermalprofile")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
                 step_id="entities_sensors_thermalprofile",
@@ -429,7 +429,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 errors=errors,
             )
         except (KeyError, TypeError, ValueError) as e:
-            _LOGGER.error(f"✗ ERROR in async_step_entities_sensors_monitoring: {e}", exc_info=True)
+            _LOGGER.exception("✗ ERROR in async_step_entities_sensors_monitoring")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
                 step_id="entities_sensors_monitoring",
@@ -475,7 +475,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 errors=errors,
             )
         except (KeyError, TypeError, ValueError) as e:
-            _LOGGER.error(f"✗ ERROR in async_step_entities_sensors_connected_telemetry: {e}", exc_info=True)
+            _LOGGER.exception("✗ ERROR in async_step_entities_sensors_connected_telemetry")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
                 step_id="entities_sensors_connected_telemetry",
@@ -521,7 +521,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 errors=errors,
             )
         except (KeyError, TypeError, ValueError) as e:
-            _LOGGER.error(f"✗ ERROR in async_step_entities_sensors_connected_properties: {e}", exc_info=True)
+            _LOGGER.exception("✗ ERROR in async_step_entities_sensors_connected_properties")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
                 step_id="entities_sensors_connected_properties",
@@ -567,7 +567,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 errors=errors,
             )
         except (KeyError, TypeError, ValueError) as e:
-            _LOGGER.error(f"✗ ERROR in async_step_entities_sensors_connected_definition: {e}", exc_info=True)
+            _LOGGER.exception("✗ ERROR in async_step_entities_sensors_connected_definition")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
                 step_id="entities_sensors_connected_definition",
@@ -613,7 +613,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 errors=errors,
             )
         except (KeyError, TypeError, ValueError) as e:
-            _LOGGER.error(f"✗ ERROR in async_step_entities_sensors_access_tracking: {e}", exc_info=True)
+            _LOGGER.exception("✗ ERROR in async_step_entities_sensors_access_tracking")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
                 step_id="entities_sensors_access_tracking",
@@ -662,7 +662,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 errors=errors,
             )
         except (KeyError, TypeError, ValueError) as e:
-            _LOGGER.error(f"✗ ERROR in async_step_entities_switches: {e}", exc_info=True)
+            _LOGGER.exception("✗ ERROR in async_step_entities_switches")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
                 step_id="entities_switches",
@@ -711,7 +711,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 errors=errors,
             )
         except (KeyError, TypeError, ValueError) as e:
-            _LOGGER.error(f"✗ ERROR in async_step_entities_numbers: {e}", exc_info=True)
+            _LOGGER.exception("✗ ERROR in async_step_entities_numbers")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
                 step_id="entities_numbers",
@@ -760,7 +760,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 errors=errors,
             )
         except (KeyError, TypeError, ValueError) as e:
-            _LOGGER.error(f"✗ ERROR in async_step_entities_selects: {e}", exc_info=True)
+            _LOGGER.exception("✗ ERROR in async_step_entities_selects")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
                 step_id="entities_selects",

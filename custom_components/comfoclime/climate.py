@@ -446,8 +446,8 @@ class ComfoClimeClimate(
         except aiohttp.ClientError:
             _LOGGER.exception(f"Network error setting temperature to {temperature}°C")
         except (ValueError, KeyError, TypeError) as e:
-            _LOGGER.error(
-                "Invalid data while setting temperature to %s°C: %s", temperature, e
+            _LOGGER.exception(
+                "Invalid data while setting temperature to %s°C", temperature
             )
 
     async def async_update_dashboard(self, **kwargs) -> None:
@@ -506,7 +506,7 @@ class ComfoClimeClimate(
         except aiohttp.ClientError:
             _LOGGER.exception(f"Network error setting HVAC mode to {hvac_mode}")
         except (ValueError, KeyError, TypeError) as e:
-            _LOGGER.error("Invalid data while setting HVAC mode to %s: %s", hvac_mode, e)
+            _LOGGER.exception("Invalid data while setting HVAC mode to %s", hvac_mode)
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set preset mode via dashboard API.
@@ -566,7 +566,7 @@ class ComfoClimeClimate(
         except aiohttp.ClientError:
             _LOGGER.exception(f"Network error setting preset mode to {preset_mode}")
         except (ValueError, KeyError, TypeError) as e:
-            _LOGGER.error("Invalid data while setting preset mode to %s: %s", preset_mode, e)
+            _LOGGER.exception("Invalid data while setting preset mode to %s", preset_mode)
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         """Set fan mode by updating fan speed via dashboard API.
@@ -599,7 +599,7 @@ class ComfoClimeClimate(
         except aiohttp.ClientError:
             _LOGGER.exception(f"Network error setting fan mode to {fan_mode}")
         except (ValueError, KeyError, TypeError) as e:
-            _LOGGER.error("Invalid data while setting fan mode to %s: %s", fan_mode, e)
+            _LOGGER.exception("Invalid data while setting fan mode to %s", fan_mode)
 
     async def async_set_scenario_mode(
         self,
@@ -680,7 +680,7 @@ class ComfoClimeClimate(
             await self._async_refresh_coordinators()
 
         except (aiohttp.ClientError, asyncio.TimeoutError, ValueError, KeyError, TypeError) as e:
-            _LOGGER.error("Failed to set scenario mode %s: %s", scenario_mode, e)
+            _LOGGER.exception("Failed to set scenario mode %s", scenario_mode)
             raise
 
     @property
@@ -744,7 +744,7 @@ class ComfoClimeClimate(
         except aiohttp.ClientError:
             _LOGGER.exception("Network error turning off climate device")
         except (ValueError, KeyError, TypeError) as e:
-            _LOGGER.error("Invalid data while turning off climate device: %s", e)
+            _LOGGER.exception("Invalid data while turning off climate device")
 
     async def async_turn_on(self) -> None:
         """Turn the climate device on.
@@ -767,5 +767,5 @@ class ComfoClimeClimate(
         except aiohttp.ClientError:
             _LOGGER.exception("Network error turning on climate device")
         except (ValueError, KeyError, TypeError) as e:
-            _LOGGER.error("Invalid data while turning on climate device: %s", e)
+            _LOGGER.exception("Invalid data while turning on climate device")
 

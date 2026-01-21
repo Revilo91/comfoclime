@@ -249,7 +249,7 @@ class ComfoClimeTemperatureNumber(
             self._value = value
             await self.coordinator.async_request_refresh()
         except (aiohttp.ClientError, asyncio.TimeoutError) as e:
-            _LOGGER.error("Error setting number entity %s: %s", self._name, e)
+            _LOGGER.exception("Error setting number entity %s", self._name)
             raise HomeAssistantError(f"Fehler beim Setzen von {self._name}") from e
 
 
@@ -351,8 +351,8 @@ class ComfoClimePropertyNumber(
             # Trigger coordinator refresh to update all entities
             await self.coordinator.async_request_refresh()
         except (aiohttp.ClientError, asyncio.TimeoutError) as e:
-            _LOGGER.error(
-                "Error writing property %s: %s", self._property_path, e
+            _LOGGER.exception(
+                "Error writing property %s", self._property_path
             )
             raise HomeAssistantError(
                 f"Fehler beim Schreiben von Property {self._property_path}"
