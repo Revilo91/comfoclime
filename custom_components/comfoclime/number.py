@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import asyncio
 import logging
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 from homeassistant.components.number import NumberEntity, NumberMode
@@ -10,11 +13,14 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+if TYPE_CHECKING:
+    from .comfoclime_api import ComfoClimeAPI
+    from .coordinator import (
+        ComfoClimePropertyCoordinator,
+        ComfoClimeThermalprofileCoordinator,
+    )
+
 from . import DOMAIN
-from .coordinator import (
-    ComfoClimePropertyCoordinator,
-    ComfoClimeThermalprofileCoordinator,
-)
 from .entities.number_definitions import (
     CONNECTED_DEVICE_NUMBER_PROPERTIES,
     NUMBER_ENTITIES,
@@ -26,7 +32,7 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
-):
+) -> None:
     data = hass.data[DOMAIN][entry.entry_id]
     api = data["api"]
     main_device = data["main_device"]
@@ -92,7 +98,15 @@ async def async_setup_entry(
 class ComfoClimeTemperatureNumber(
     CoordinatorEntity[ComfoClimeThermalprofileCoordinator], NumberEntity
 ):
-    def __init__(self, hass, coordinator, api, conf, device=None, entry=None):
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        coordinator: ComfoClimeThermalprofileCoordinator,
+        api: ComfoClimeAPI,
+        conf: dict[str, Any],
+        device: dict[str, Any] | None = None,
+        entry: ConfigEntry | None = None,
+    ) -> None:
         super().__init__(coordinator)
         self._hass = hass
         self._api = api
@@ -182,7 +196,7 @@ class ComfoClimeTemperatureNumber(
             sw_version=self._device.get("version", None),
         )
 
-    def _handle_coordinator_update(self):
+    def _handle_coordinator_update(self) -> None:
         try:
             data = self.coordinator.data
             val = data
@@ -194,7 +208,7 @@ class ComfoClimeTemperatureNumber(
             self._value = None  # besser als Absturz
         self.async_write_ha_state()
 
-    async def async_set_native_value(self, value: float):
+    async def async_set_native_value(self, value: float) -> None:
         # Check if this is a manual temperature setting
         if (
             self._key_path[0] == "temperature"
@@ -260,13 +274,13 @@ class ComfoClimePropertyNumber(
 
     def __init__(
         self,
-        hass,
+        hass: HomeAssistant,
         coordinator: ComfoClimePropertyCoordinator,
-        api,
-        config,
-        device,
-        entry,
-    ):
+        api: ComfoClimeAPI,
+        config: dict[str, Any],
+        device: dict[str, Any],
+        entry: ConfigEntry,
+    ) -> None:
         super().__init__(coordinator)
         self._hass = hass
         self._api = api
@@ -338,7 +352,7 @@ class ComfoClimePropertyNumber(
             self._value = None
         self.async_write_ha_state()
 
-    async def async_set_native_value(self, value):
+    async def async_set_native_value(self, value: float) -> None:
         try:
             await self._api.async_set_property_for_device(
                 device_uuid=self._device["uuid"],

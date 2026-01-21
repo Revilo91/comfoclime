@@ -1,8 +1,14 @@
+from __future__ import annotations
+
 # comfoclime_api.py
 import asyncio
 import logging
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
+
+if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
 
 from .api_decorators import api_get, api_put
 from .rate_limiter_cache import (
@@ -66,16 +72,16 @@ class ComfoClimeAPI:
 
     def __init__(
         self,
-        base_url,
-        hass=None,
-        read_timeout=DEFAULT_READ_TIMEOUT,
-        write_timeout=DEFAULT_WRITE_TIMEOUT,
-        cache_ttl=DEFAULT_CACHE_TTL,
-        max_retries=DEFAULT_MAX_RETRIES,
-        min_request_interval=DEFAULT_MIN_REQUEST_INTERVAL,
-        write_cooldown=DEFAULT_WRITE_COOLDOWN,
-        request_debounce=DEFAULT_REQUEST_DEBOUNCE,
-    ):
+        base_url: str,
+        hass: HomeAssistant | None = None,
+        read_timeout: int = DEFAULT_READ_TIMEOUT,
+        write_timeout: int = DEFAULT_WRITE_TIMEOUT,
+        cache_ttl: int = DEFAULT_CACHE_TTL,
+        max_retries: int = DEFAULT_MAX_RETRIES,
+        min_request_interval: float = DEFAULT_MIN_REQUEST_INTERVAL,
+        write_cooldown: float = DEFAULT_WRITE_COOLDOWN,
+        request_debounce: float = DEFAULT_REQUEST_DEBOUNCE,
+    ) -> None:
         self.base_url = base_url.rstrip("/")
         self.hass = hass
         self.uuid = None
@@ -107,7 +113,7 @@ class ComfoClimeAPI:
     # Session management
     # -------------------------------------------------------------------------
 
-    async def _get_session(self):
+    async def _get_session(self) -> aiohttp.ClientSession:
         """Get or create aiohttp session.
 
         Note: Timeouts are set per-request, not on the session level,
@@ -118,7 +124,7 @@ class ComfoClimeAPI:
             self._session = aiohttp.ClientSession()
         return self._session
 
-    async def close(self):
+    async def close(self) -> None:
         """Close the aiohttp session."""
         if self._session and not self._session.closed:
             await self._session.close()
@@ -232,7 +238,7 @@ class ComfoClimeAPI:
         self.uuid = response_data.get("uuid")
         return self.uuid
 
-    async def async_get_uuid(self):
+    async def async_get_uuid(self) -> str | None:
         """Get UUID with lock protection.
 
         Public method to fetch the system UUID.
@@ -339,7 +345,7 @@ class ComfoClimeAPI:
         faktor: float = 1.0,
         signed: bool = True,
         byte_count: int | None = None,
-    ):
+    ) -> float | None:
         """Read telemetry for a device with caching.
 
         Args:
@@ -379,7 +385,7 @@ class ComfoClimeAPI:
         faktor: float = 1.0,
         signed: bool = True,
         byte_count: int | None = None,
-    ):
+    ) -> float | str | None:
         """Read property for a device with caching.
 
         Args:
@@ -627,7 +633,7 @@ class ComfoClimeAPI:
 
         return payload
 
-    async def async_update_thermal_profile(self, updates: dict | None = None, **kwargs):
+    async def async_update_thermal_profile(self, updates: dict[str, Any] | None = None, **kwargs) -> dict[str, Any]:
         """Public async wrapper supporting both legacy dict and modern kwargs styles.
 
         This method provides backward compatibility with legacy dict-based calls
@@ -643,7 +649,7 @@ class ComfoClimeAPI:
             return await self._convert_dict_to_kwargs_and_update(updates)
         return await self._async_update_thermal_profile(**kwargs)
 
-    async def _convert_dict_to_kwargs_and_update(self, updates: dict):
+    async def _convert_dict_to_kwargs_and_update(self, updates: dict[str, Any]) -> dict[str, Any]:
         """Convert legacy dict-based updates to kwargs and call _async_update_thermal_profile."""
         # Mapping von nested dict-Struktur zu kwargs
         conversion_map = {
@@ -697,7 +703,7 @@ class ComfoClimeAPI:
 
         return await self._async_update_thermal_profile(**kwargs)
 
-    async def async_set_hvac_season(self, season: int, hpStandby: bool = False):
+    async def async_set_hvac_season(self, season: int, hpStandby: bool = False) -> None:
         """Set HVAC season and standby state in a single atomic operation.
 
         This method updates both the season (via thermal profile) and hpStandby
@@ -752,7 +758,7 @@ class ComfoClimeAPI:
         byte_count: int,
         signed: bool = True,
         faktor: float = 1.0,
-    ):
+    ) -> dict[str, Any]:
         """Set property for a device.
 
         The decorator handles all locking, rate limiting, and retry logic.

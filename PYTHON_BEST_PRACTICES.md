@@ -1,23 +1,28 @@
 # 🐍 Python Best Practices für ComfoClime
 
 > **Analyse aus der Perspektive eines Senior Python-Entwicklers**
-> 
+>
 > Dieses Dokument zeigt Verbesserungspotenziale im ComfoClime-Projekt auf und erklärt die empfohlenen Python-Patterns.
 
 ---
 
-## Inhaltsverzeichnis
+## Inhaltsverzeichnis (nach Priorität sortiert)
 
-1. [Type Hints & Typing](#1-type-hints--typing)
-2. [Exception Handling](#2-exception-handling)
-3. [Logging Best Practices](#3-logging-best-practices)
-4. [Code Organization & Architecture](#4-code-organization--architecture)
-5. [Dataclasses & Pydantic](#5-dataclasses--pydantic)
-6. [Async/Await Patterns](#6-asyncawait-patterns)
-7. [Constants & Enums](#7-constants--enums)
-8. [Testing Patterns](#8-testing-patterns)
-9. [Documentation](#9-documentation)
-10. [Sicherheit & Validierung](#10-sicherheit--validierung)
+### 🔴 Hohe Priorität
+1. [Type Hints & Typing](#1-type-hints--typing) — Aufwand: Medium, Impact: Hoch
+2. [Exception Handling](#2-exception-handling) — Aufwand: Niedrig, Impact: Hoch
+3. [Testing Patterns](#8-testing-patterns) — Aufwand: Hoch, Impact: Sehr Hoch
+4. [Sicherheit & Validierung](#10-sicherheit--validierung) — Aufwand: Medium, Impact: Hoch
+
+### 🟡 Mittlere Priorität
+5. [Logging Best Practices](#3-logging-best-practices) — Aufwand: Niedrig, Impact: Mittel
+6. [Dataclasses & Pydantic](#5-dataclasses--pydantic) — Aufwand: Medium, Impact: Hoch
+7. [Code Organization & Architecture](#4-code-organization--architecture) — Aufwand: Medium, Impact: Hoch
+8. [Documentation](#9-documentation) — Aufwand: Medium, Impact: Mittel
+
+### 🟢 Niedrige Priorität
+9. [Constants & Enums](#7-constants--enums) — Aufwand: Niedrig, Impact: Mittel
+10. [Async/Await Patterns](#6-asyncawait-patterns) — Aufwand: Medium, Impact: Mittel
 
 ---
 
@@ -98,7 +103,7 @@ async def _async_update_data(self):
     try:
         result = await self.api.async_get_dashboard_data()
         return result
-    except Exception as e: 
+    except Exception as e:
         _LOGGER.debug(f"Error fetching dashboard data: {e}")
         raise UpdateFailed(f"Error fetching dashboard data: {e}") from e
 ```
@@ -108,8 +113,8 @@ async def _async_update_data(self):
 async def async_set_percentage(self, percentage: int) -> None:
     try:
         await self._api.async_update_dashboard(fan_speed=step)
-        # ... 
-    except Exception: 
+        # ...
+    except Exception:
         _LOGGER.exception("Fehler beim Setzen zvon fanSpeed")  # Typo:  "zvon"
 ```
 
@@ -129,12 +134,12 @@ class ComfoClimeTimeoutError(Exception):
     """Raised when request times out."""
 
 
-async def _async_update_data(self) -> dict[str, Any]: 
-    """Fetch dashboard data from the API. 
-    
+async def _async_update_data(self) -> dict[str, Any]:
+    """Fetch dashboard data from the API.
+
     Returns:
         Dictionary containing dashboard data.
-        
+
     Raises:
         UpdateFailed: When data fetch fails after retries.
     """
@@ -145,17 +150,17 @@ async def _async_update_data(self) -> dict[str, Any]:
         return result
     except (ClientError, AsyncTimeoutError) as err:
         _LOGGER.warning(
-            "Connection error fetching dashboard data: %s", 
+            "Connection error fetching dashboard data: %s",
             err,
             exc_info=_LOGGER.isEnabledFor(logging.DEBUG)
         )
         raise UpdateFailed(f"Connection error:  {err}") from err
-    except ComfoClimeAPIError as err: 
+    except ComfoClimeAPIError as err:
         _LOGGER.error("API error fetching dashboard data: %s", err)
         raise UpdateFailed(f"API error: {err}") from err
 ```
 
-### 🎓 Warum ist das besser? 
+### 🎓 Warum ist das besser?
 
 1. **Spezifische Exceptions**: Unterschiedliche Fehlertypen werden unterschiedlich behandelt
 2. **Keine blanken `except Exception`**: Versteckt keine unerwarteten Bugs
@@ -187,7 +192,7 @@ _LOGGER = logging.getLogger(__name__)
 
 class ComfoClimeLogger:
     """Structured logging helper for ComfoClime."""
-    
+
     @staticmethod
     def api_request(method: str, url: str, **context: Any) -> None:
         """Log API request."""
@@ -197,7 +202,7 @@ class ComfoClimeLogger:
             url,
             extra={"comfoclime_context": context}
         )
-    
+
     @staticmethod
     def api_response(url: str, status:  int, duration_ms: float) -> None:
         """Log API response."""
@@ -207,11 +212,11 @@ class ComfoClimeLogger:
             status,
             duration_ms
         )
-    
+
     @staticmethod
     def entity_update(entity_id: str, old_value: Any, new_value: Any) -> None:
         """Log entity state update."""
-        if old_value != new_value: 
+        if old_value != new_value:
             _LOGGER.debug(
                 "Entity %s updated:  %s -> %s",
                 entity_id,
@@ -220,7 +225,7 @@ class ComfoClimeLogger:
             )
 
 
-# Verwendung: 
+# Verwendung:
 ComfoClimeLogger.api_request("GET", url, device_uuid=device_uuid)
 ComfoClimeLogger.api_response(url, response. status, duration)
 ```
@@ -239,7 +244,7 @@ except Exception as e:
     _LOGGER.error(f"Error:  {e}")
 
 # ✅ RICHTIG: exception() für automatischen Traceback
-except Exception: 
+except Exception:
     _LOGGER.exception("Unexpected error during processing")
 
 # ✅ RICHTIG: Konditionaler Traceback für niedrigere Level
@@ -296,8 +301,8 @@ class SensorCategory(Enum):
 
 @dataclass(frozen=True, slots=True)
 class SensorDefinition:
-    """Definition of a sensor entity. 
-    
+    """Definition of a sensor entity.
+
     Attributes:
         key:  Unique identifier for the sensor in API responses.
         translation_key: Key for i18n translations.
@@ -316,7 +321,7 @@ class SensorDefinition:
     entity_category: EntityCategory | None = None
     icon: str | None = None
     suggested_display_precision: int | None = None
-    
+
     @property
     def name(self) -> str:
         """Generate display name from translation key."""
@@ -335,7 +340,7 @@ class TelemetrySensorDefinition(SensorDefinition):
 # Sensor Registry
 class SensorRegistry:
     """Central registry for all sensor definitions."""
-    
+
     _dashboard_sensors: list[SensorDefinition] = [
         SensorDefinition(
             key="indoorTemperature",
@@ -354,7 +359,7 @@ class SensorRegistry:
             suggested_display_precision=1,
         ),
     ]
-    
+
     @classmethod
     def get_sensors(cls, category: SensorCategory) -> list[SensorDefinition]:
         """Get sensor definitions by category."""
@@ -363,7 +368,7 @@ class SensorRegistry:
             # ... weitere Kategorien
         }
         return mapping.get(category, [])
-    
+
     @classmethod
     def get_sensor_by_key(cls, key: str) -> SensorDefinition | None:
         """Find a sensor definition by its key."""
@@ -413,16 +418,16 @@ from typing import Deque
 
 @dataclass(slots=True)
 class CoordinatorStats:
-    """Statistics for a single coordinator's API accesses. 
-    
+    """Statistics for a single coordinator's API accesses.
+
     Tracks access timestamps, counts, and timing for monitoring
     API usage patterns.
-    
+
     Attributes:
         access_timestamps:  FIFO queue of access timestamps (monotonic time).
         total_count: Total number of accesses since creation.
         last_access_time:  Timestamp of most recent access.
-        
+
     Example:
         >>> stats = CoordinatorStats()
         >>> stats.record_access(time. monotonic())
@@ -432,32 +437,32 @@ class CoordinatorStats:
     access_timestamps: Deque[float] = field(default_factory=deque)
     total_count: int = field(default=0)
     last_access_time: float = field(default=0.0)
-    
+
     def __post_init__(self) -> None:
         """Validate initial state."""
         if self.total_count < 0:
             raise ValueError("total_count cannot be negative")
         if self.last_access_time < 0:
             raise ValueError("last_access_time cannot be negative")
-    
+
     def record_access(self, timestamp: float) -> None:
-        """Record a new API access. 
-        
+        """Record a new API access.
+
         Args:
             timestamp: Monotonic timestamp of the access.
         """
         self.access_timestamps.append(timestamp)
         self.total_count += 1
         self.last_access_time = timestamp
-    
+
     def cleanup_old_entries(self, cutoff:  float) -> int:
-        """Remove entries older than cutoff. 
-        
+        """Remove entries older than cutoff.
+
         Args:
             cutoff: Timestamp threshold; entries before this are removed.
-            
+
         Returns:
-            Number of entries removed. 
+            Number of entries removed.
         """
         removed = 0
         while self.access_timestamps and self.access_timestamps[0] < cutoff:
@@ -474,19 +479,19 @@ from typing import Literal
 
 
 class DeviceConfig(BaseModel):
-    """Configuration for a connected device. 
-    
+    """Configuration for a connected device.
+
     Validates device configuration from API responses.
     """
     uuid: str = Field(..., min_length=1, description="Device unique identifier")
     model_type_id: int = Field(..., ge=0, alias="modelTypeId")
     display_name: str = Field(default="Unknown Device", alias="displayName")
     version: str | None = None
-    
+
     class Config:
         populate_by_name = True  # Erlaubt sowohl alias als auch Feldname
         frozen = True  # Immutable nach Erstellung
-    
+
     @validator("uuid")
     def uuid_not_null(cls, v:  str) -> str:
         """Ensure UUID is not the literal 'NULL' string."""
@@ -503,7 +508,7 @@ class TelemetryReading(BaseModel):
     faktor: float = Field(default=1.0, gt=0)
     signed: bool = False
     byte_count:  Literal[1, 2] = 1
-    
+
     @property
     def scaled_value(self) -> float:
         """Calculate the scaled value."""
@@ -544,12 +549,12 @@ from typing import Any
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up ComfoClime from a config entry. 
-    
+    """Set up ComfoClime from a config entry.
+
     Uses asyncio. gather for parallel initialization where possible.
     """
-    # ... API und Coordinator Erstellung ... 
-    
+    # ... API und Coordinator Erstellung ...
+
     # Parallele Initialisierung unabhängiger Coordinators
     await asyncio.gather(
         dashboard_coordinator.async_config_entry_first_refresh(),
@@ -558,47 +563,47 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         definitioncoordinator. async_config_entry_first_refresh(),
         return_exceptions=True,  # Fehler nicht die anderen abbrechen lassen
     )
-    
+
     # Abhängige Coordinators danach
     await asyncio.gather(
         tlcoordinator.async_config_entry_first_refresh(),
         propcoordinator.async_config_entry_first_refresh(),
     )
-    
+
     return True
 
 
 class ComfoClimeFan(CoordinatorEntity[ComfoClimeDashboardCoordinator], FanEntity):
     """Fan entity with proper async handling."""
-    
+
     async def async_set_percentage(self, percentage: int) -> None:
-        """Set fan speed percentage. 
-        
+        """Set fan speed percentage.
+
         Args:
             percentage: Target percentage (0-100).
         """
         step = self._percentage_to_step(percentage)
-        
+
         try:
             await self._api.async_update_dashboard(fan_speed=step)
         except (ClientError, AsyncTimeoutError) as err:
             raise HomeAssistantError(f"Failed to set fan speed: {err}") from err
-        
+
         self._current_speed = step
         self.async_write_ha_state()
-        
+
         # Proper async refresh scheduling
         await self. coordinator.async_request_refresh()
-    
+
     @staticmethod
     def _percentage_to_step(percentage: int) -> int:
-        """Convert percentage to discrete step. 
-        
+        """Convert percentage to discrete step.
+
         Args:
             percentage: Value 0-100.
-            
+
         Returns:
-            Step value 0-3. 
+            Step value 0-3.
         """
         return max(0, min(3, round(percentage / 33)))
 ```
@@ -609,7 +614,7 @@ class ComfoClimeFan(CoordinatorEntity[ComfoClimeDashboardCoordinator], FanEntity
 # ❌ FALSCH:  Blocking call in async context
 import requests
 async def fetch_data():
-    response = requests.get(url)  # BLOCKING! 
+    response = requests.get(url)  # BLOCKING!
 
 # ✅ RICHTIG: Async HTTP client
 async def fetch_data():
@@ -626,7 +631,7 @@ async def safe_background_task():
     """Background task with error handling."""
     try:
         await some_async_func()
-    except Exception: 
+    except Exception:
         _LOGGER.exception("Background task failed")
 
 hass.async_create_task(safe_background_task())
@@ -672,7 +677,7 @@ PRESET_SCENARIO_BOOST = "scenario_boost"
 SCENARIO_DEFAULT_DURATIONS = {
     SCENARIO_COOKING: 30,
     SCENARIO_PARTY:  30,
-    SCENARIO_HOLIDAY: 1440,  # Was bedeutet 1440? 
+    SCENARIO_HOLIDAY: 1440,  # Was bedeutet 1440?
     SCENARIO_BOOST_MODE: 30,
 }
 ```
@@ -688,15 +693,15 @@ from typing import Final
 
 
 class ScenarioMode(IntEnum):
-    """Scenario modes supported by ComfoClime. 
-    
+    """Scenario modes supported by ComfoClime.
+
     These modes temporarily override normal operation.
     """
     COOKING = 4
     PARTY = 5
     HOLIDAY = 7
     BOOST = 8
-    
+
     @property
     def default_duration_minutes(self) -> int:
         """Get default duration in minutes for this scenario."""
@@ -707,7 +712,7 @@ class ScenarioMode(IntEnum):
             ScenarioMode.BOOST: 30,
         }
         return durations[self]
-    
+
     @property
     def preset_name(self) -> str:
         """Get Home Assistant preset name for this scenario."""
@@ -718,7 +723,7 @@ class ScenarioMode(IntEnum):
             ScenarioMode. BOOST: "scenario_boost",
         }
         return names[self]
-    
+
     @classmethod
     def from_preset_name(cls, name: str) -> ScenarioMode | None:
         """Get ScenarioMode from preset name."""
@@ -748,7 +753,7 @@ class FanSpeed(IntEnum):
     LOW = 1
     MEDIUM = 2
     HIGH = 3
-    
+
     def to_percentage(self) -> int:
         """Convert to percentage (0-100)."""
         if self == FanSpeed.HIGH:
@@ -830,41 +835,41 @@ class MockAPIResponses:
 
 
 class MockComfoClimeAPI:
-    """Realistic mock of ComfoClimeAPI for testing. 
-    
+    """Realistic mock of ComfoClimeAPI for testing.
+
     Provides configurable responses and tracks calls.
     """
-    
+
     def __init__(self, responses: MockAPIResponses | None = None) -> None:
         self.responses = responses or MockAPIResponses()
         self.uuid = self.responses.uuid
         self._call_history:  list[tuple[str, tuple, dict]] = []
-    
+
     def _record_call(self, method: str, *args:  Any, **kwargs: Any) -> None:
         """Record a method call for verification."""
         self._call_history.append((method, args, kwargs))
-    
+
     async def async_get_uuid(self) -> str:
         self._record_call("async_get_uuid")
         return self. responses.uuid
-    
+
     async def async_get_dashboard_data(self) -> dict[str, Any]:
         self._record_call("async_get_dashboard_data")
         return self.responses.dashboard_data. copy()
-    
-    async def async_get_connected_devices(self) -> list[dict[str, Any]]: 
+
+    async def async_get_connected_devices(self) -> list[dict[str, Any]]:
         self._record_call("async_get_connected_devices")
         return self.responses.devices. copy()
-    
+
     async def async_update_dashboard(self, **kwargs:  Any) -> None:
         self._record_call("async_update_dashboard", **kwargs)
         # Simulate updating the state
         self.responses.dashboard_data. update(kwargs)
-    
+
     def get_calls(self, method: str) -> list[tuple[tuple, dict]]:
         """Get all calls to a specific method."""
         return [(args, kwargs) for m, args, kwargs in self._call_history if m == method]
-    
+
     def assert_called_once(self, method: str) -> None:
         """Assert a method was called exactly once."""
         calls = self.get_calls(method)
@@ -884,7 +889,7 @@ def mock_api(mock_api_responses:  MockAPIResponses) -> MockComfoClimeAPI:
 
 
 @pytest.fixture
-def mock_api_with_devices() -> MockComfoClimeAPI: 
+def mock_api_with_devices() -> MockComfoClimeAPI:
     """Create mock API with sample devices."""
     responses = MockAPIResponses(
         devices=[
@@ -895,7 +900,7 @@ def mock_api_with_devices() -> MockComfoClimeAPI:
                 "@modelType": "ComfoAirQ",
             },
             {
-                "uuid": "device-2-uuid", 
+                "uuid": "device-2-uuid",
                 "modelTypeId":  20,
                 "displayName": "ComfoClime",
                 "@modelType": "ComfoClime",
@@ -907,7 +912,7 @@ def mock_api_with_devices() -> MockComfoClimeAPI:
 
 class TestComfoClimeFan:
     """Tests for ComfoClimeFan entity."""
-    
+
     @pytest.mark.asyncio
     async def test_set_percentage_updates_api(
         self,
@@ -925,14 +930,14 @@ class TestComfoClimeFan:
             device=mock_device,
             entry=mock_config_entry,
         )
-        
+
         await fan.async_set_percentage(66)
-        
+
         # Verify API was called correctly
         mock_api.assert_called_once("async_update_dashboard")
         calls = mock_api.get_calls("async_update_dashboard")
         assert calls[0][1] == {"fan_speed": 2}
-    
+
     @pytest. mark.asyncio
     @pytest.mark.parametrize(
         "percentage,expected_step",
@@ -962,9 +967,9 @@ class TestComfoClimeFan:
             device=mock_device,
             entry=mock_config_entry,
         )
-        
+
         await fan.async_set_percentage(percentage)
-        
+
         calls = mock_api.get_calls("async_update_dashboard")
         assert calls[0][1]["fan_speed"] == expected_step
 ```
@@ -1020,29 +1025,29 @@ async def _get_session(self):
 ```python
 # Inkonsistente Docstrings
 def _friendly_model_name(model_id) -> str:
-    """Return a human-friendly model name for a model_id, safe for strings/ints. 
+    """Return a human-friendly model name for a model_id, safe for strings/ints.
 
     If the model_id exists in MODEL_TYPE_NAMES, return that.  Otherwise return
-    a fallback 'Model {model_id}'. 
+    a fallback 'Model {model_id}'.
     """
 ```
 
 ### ✅ Verbesserter Code
 
 ```python
-"""ComfoClime API Client. 
+"""ComfoClime API Client.
 
 This module provides the async API client for communicating with
-ComfoClime devices over the local network. 
+ComfoClime devices over the local network.
 
-Example: 
+Example:
     >>> api = ComfoClimeAPI("http://192.168.1.100")
-    >>> async with api: 
+    >>> async with api:
     ...     data = await api.async_get_dashboard_data()
     ...     print(f"Indoor temp: {data['indoorTemperature']}°C")
 
 Note:
-    The API is local and unauthenticated.  Ensure your network is secure. 
+    The API is local and unauthenticated.  Ensure your network is secure.
 """
 
 from __future__ import annotations
@@ -1060,33 +1065,33 @@ _LOGGER: Final = logging.getLogger(__name__)
 
 
 class ComfoClimeAPI:
-    """Async API client for ComfoClime devices. 
-    
+    """Async API client for ComfoClime devices.
+
     Handles all communication with the ComfoClime Airduino board,
     including rate limiting, caching, and retry logic.
-    
+
     Attributes:
-        base_url: Base URL of the ComfoClime device. 
+        base_url: Base URL of the ComfoClime device.
         uuid: Device UUID, fetched on first request.
         read_timeout:  Timeout for GET requests in seconds.
         write_timeout: Timeout for PUT requests in seconds.
-        
+
     Example:
         >>> api = ComfoClimeAPI("http://comfoclime.local")
         >>> await api.async_get_dashboard_data()
         {'indoorTemperature': 22.5, 'outdoorTemperature': 15.0, ... }
     """
-    
+
     async def _get_session(self) -> aiohttp.ClientSession:
-        """Get or create the aiohttp session. 
-        
+        """Get or create the aiohttp session.
+
         Creates a new session if one doesn't exist, using the configured
         timeouts.  The session is reused for all requests to enable
         connection pooling.
-        
+
         Returns:
             The aiohttp ClientSession instance.
-            
+
         Note:
             The session must be closed by calling : meth:`close` when done.
         """
@@ -1097,39 +1102,39 @@ class ComfoClimeAPI:
             )
             self._session = aiohttp.ClientSession(timeout=timeout)
         return self._session
-    
+
     async def async_get_dashboard_data(self) -> dict[str, Any]:
         """Fetch current dashboard data from the device.
-        
+
         Returns real-time status including temperatures, fan speed,
         and operating mode.
-        
+
         Returns:
-            Dictionary containing: 
-                - indoorTemperature (float): Current indoor temperature in °C. 
+            Dictionary containing:
+                - indoorTemperature (float): Current indoor temperature in °C.
                 - outdoorTemperature (float): Current outdoor temperature in °C.
                 - fanSpeed (int): Current fan speed level (0-3).
                 - season (int): Current season mode (0=transitional, 1=heating, 2=cooling).
                 - temperatureProfile (int): Active profile (0=comfort, 1=power, 2=eco).
-                - hpStandby (bool): Whether heat pump is in standby. 
-                
+                - hpStandby (bool): Whether heat pump is in standby.
+
         Raises:
             ComfoClimeConnectionError: If connection to device fails.
             ComfoClimeAPIError: If device returns an error response.
-            
+
         Example:
             >>> data = await api.async_get_dashboard_data()
             >>> if data['season'] == 1:
             ...     print("Heating mode active")
         """
-        ... 
-    
+        ...
+
     async def close(self) -> None:
         """Close the API session and release resources.
-        
+
         Should be called when the API client is no longer needed,
-        typically in async_unload_entry. 
-        
+        typically in async_unload_entry.
+
         Example:
             >>> api = ComfoClimeAPI("http://192.168.1.100")
             >>> try:
@@ -1154,7 +1159,7 @@ async def async_step_user(self, user_input=None):
     if user_input is not None:
         host = user_input["host"]
         url = f"http://{host}/monitoring/ping"
-        # Keine Validierung des Hosts! 
+        # Keine Validierung des Hosts!
 ```
 
 ```python
@@ -1170,16 +1175,16 @@ import re
 from urllib.parse import urlparse
 
 
-def validate_host(host: str) -> tuple[bool, str | None]: 
+def validate_host(host: str) -> tuple[bool, str | None]:
     """Validate a host string for safety and correctness.
-    
+
     Args:
-        host:  Hostname or IP address to validate. 
-        
+        host:  Hostname or IP address to validate.
+
     Returns:
         Tuple of (is_valid, error_message).
         error_message is None if valid.
-        
+
     Example:
         >>> validate_host("192.168.1.100")
         (True, None)
@@ -1188,48 +1193,48 @@ def validate_host(host: str) -> tuple[bool, str | None]:
     """
     # Remove any whitespace
     host = host.strip()
-    
+
     # Check for empty
     if not host:
         return False, "Host cannot be empty"
-    
+
     # Check for dangerous characters (command injection prevention)
     if re.search(r'[;&|`$]', host):
         return False, "Invalid characters in hostname"
-    
+
     # Check for URL scheme (should be just host)
     if "://" in host:
         return False, "Host should not include URL scheme"
-    
+
     # Try to parse as IP address
     try:
         ip = ipaddress.ip_address(host)
         # Reject dangerous IP ranges
-        if ip. is_loopback or ip.is_link_local or ip.is_multicast: 
+        if ip. is_loopback or ip.is_link_local or ip.is_multicast:
             return False, "Invalid IP address range"
         return True, None
     except ValueError:
         pass
-    
+
     # Validate as hostname
     hostname_pattern = re.compile(
         r'^(? ! -)[A-Za-z0-9-]{1,63}(?<!-)(\.[A-Za-z0-9-]{1,63})*\. ?$'
     )
     if not hostname_pattern.match(host):
         return False, "Invalid hostname format"
-    
+
     return True, None
 
 
 def validate_property_path(path: str) -> tuple[bool, str | None]:
     """Validate a property path format (X/Y/Z).
-    
+
     Args:
         path: Property path string.
-        
+
     Returns:
         Tuple of (is_valid, error_message).
-        
+
     Example:
         >>> validate_property_path("29/1/10")
         (True, None)
@@ -1238,17 +1243,17 @@ def validate_property_path(path: str) -> tuple[bool, str | None]:
     """
     if not path:
         return False, "Path cannot be empty"
-    
+
     parts = path.split("/")
     if len(parts) != 3:
         return False, "Path must be in format X/Y/Z"
-    
+
     for part in parts:
         if not part. isdigit():
             return False, "Path components must be numeric"
         if int(part) < 0 or int(part) > 255:
             return False, "Path components must be 0-255"
-    
+
     return True, None
 
 
@@ -1258,38 +1263,38 @@ def validate_byte_value(
     signed: bool = False,
 ) -> tuple[bool, str | None]:
     """Validate a value fits in the specified byte count.
-    
+
     Args:
         value: The integer value to validate.
         byte_count: Number of bytes (1 or 2).
-        signed: Whether the value is signed. 
-        
+        signed: Whether the value is signed.
+
     Returns:
         Tuple of (is_valid, error_message).
     """
     if byte_count not in (1, 2):
         return False, "byte_count must be 1 or 2"
-    
+
     if signed:
         min_val = -(2 ** (byte_count * 8 - 1))
         max_val = 2 ** (byte_count * 8 - 1) - 1
     else:
         min_val = 0
         max_val = 2 ** (byte_count * 8) - 1
-    
+
     if not min_val <= value <= max_val:
         return False, f"Value must be between {min_val} and {max_val}"
-    
+
     return True, None
 
 
 # Verwendung in config_flow.py
 async def async_step_user(self, user_input:  dict[str, Any] | None = None):
     errors:  dict[str, str] = {}
-    
+
     if user_input is not None:
         host = user_input["host"]
-        
+
         # Validate host first
         is_valid, error = validate_host(host)
         if not is_valid:
@@ -1314,7 +1319,7 @@ async def async_step_user(self, user_input:  dict[str, Any] | None = None):
                 errors["host"] = "timeout"
             except aiohttp.ClientError:
                 errors["host"] = "cannot_connect"
-    
+
     return self.async_show_form(
         step_id="user",
         data_schema=vol.Schema({

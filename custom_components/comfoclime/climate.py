@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 """Climate platform for ComfoClime integration."""
 
 import asyncio
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 from homeassistant.components.climate import (
@@ -27,12 +29,14 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+if TYPE_CHECKING:
+    from .comfoclime_api import ComfoClimeAPI
+    from .coordinator import (
+        ComfoClimeDashboardCoordinator,
+        ComfoClimeThermalprofileCoordinator,
+    )
+
 from . import DOMAIN
-from .comfoclime_api import ComfoClimeAPI
-from .coordinator import (
-    ComfoClimeDashboardCoordinator,
-    ComfoClimeThermalprofileCoordinator,
-)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -450,7 +454,7 @@ class ComfoClimeClimate(
                 "Invalid data while setting temperature to %s°C", temperature
             )
 
-    async def async_update_dashboard(self, **kwargs) -> None:
+    async def async_update_dashboard(self, **kwargs: Any) -> None:
         """Update dashboard settings via API.
 
         Wrapper method that delegates to the API's async_update_dashboard method.
