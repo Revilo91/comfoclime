@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 import asyncio
@@ -16,16 +19,19 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+if TYPE_CHECKING:
+    from .access_tracker import AccessTracker
+    from .comfoclime_api import ComfoClimeAPI
+    from .coordinator import (
+        ComfoClimeDashboardCoordinator,
+        ComfoClimeDefinitionCoordinator,
+        ComfoClimeMonitoringCoordinator,
+        ComfoClimePropertyCoordinator,
+        ComfoClimeTelemetryCoordinator,
+        ComfoClimeThermalprofileCoordinator,
+    )
+
 from . import DOMAIN
-from .access_tracker import AccessTracker
-from .coordinator import (
-    ComfoClimeDashboardCoordinator,
-    ComfoClimeDefinitionCoordinator,
-    ComfoClimeMonitoringCoordinator,
-    ComfoClimePropertyCoordinator,
-    ComfoClimeTelemetryCoordinator,
-    ComfoClimeThermalprofileCoordinator,
-)
 from .entities.sensor_definitions import (
     ACCESS_TRACKING_SENSORS,
     CONNECTED_DEVICE_DEFINITION_SENSORS,
@@ -52,7 +58,7 @@ VALUE_MAPPINGS = {
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
-):
+) -> None:
     data = hass.data[DOMAIN][entry.entry_id]
     api = data["api"]
 
@@ -332,19 +338,19 @@ async def async_setup_entry(
 class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], SensorEntity):
     def __init__(
         self,
-        hass,
-        coordinator,
-        api,
-        sensor_type,
-        name,
-        translation_key,
-        unit=None,
-        device_class=None,
-        state_class=None,
-        entity_category=None,
-        device=None,
-        entry=None,
-    ):
+        hass: HomeAssistant,
+        coordinator: ComfoClimeDashboardCoordinator | ComfoClimeThermalprofileCoordinator | ComfoClimeMonitoringCoordinator,
+        api: ComfoClimeAPI,
+        sensor_type: str,
+        name: str,
+        translation_key: str | bool,
+        unit: str | None = None,
+        device_class: str | None = None,
+        state_class: str | None = None,
+        entity_category: str | None = None,
+        device: dict[str, Any] | None = None,
+        entry: ConfigEntry | None = None,
+    ) -> None:
         super().__init__(coordinator)
         self._hass = hass
         self._api = api
@@ -440,23 +446,23 @@ class ComfoClimeTelemetrySensor(
 
     def __init__(
         self,
-        hass,
+        hass: HomeAssistant,
         coordinator: ComfoClimeTelemetryCoordinator,
-        telemetry_id,
-        name,
-        translation_key,
-        unit,
-        faktor=1.0,
-        signed=True,
-        byte_count=None,
-        device_class=None,
-        state_class=None,
-        entity_category=None,
-        device=None,
-        override_device_uuid=None,
-        entry=None,
-        entity_registry_enabled_default=True,
-    ):
+        telemetry_id: str | int,
+        name: str,
+        translation_key: str | bool,
+        unit: str | None,
+        faktor: float = 1.0,
+        signed: bool = True,
+        byte_count: int | None = None,
+        device_class: str | None = None,
+        state_class: str | None = None,
+        entity_category: str | None = None,
+        device: dict[str, Any] | None = None,
+        override_device_uuid: str | None = None,
+        entry: ConfigEntry | None = None,
+        entity_registry_enabled_default: bool = True,
+    ) -> None:
         super().__init__(coordinator)
         self._hass = hass
         self._id = str(telemetry_id)
@@ -523,11 +529,11 @@ class ComfoClimePropertySensor(
 
     def __init__(
         self,
-        hass,
+        hass: HomeAssistant,
         coordinator: ComfoClimePropertyCoordinator,
         path: str,
         name: str,
-        translation_key: str,
+        translation_key: str | bool,
         *,
         unit: str | None = None,
         faktor: float = 1.0,
@@ -537,10 +543,10 @@ class ComfoClimePropertySensor(
         state_class: str | None = None,
         entity_category: str | None = None,
         mapping_key: str | None = None,
-        device: dict | None = None,
+        device: dict[str, Any] | None = None,
         override_device_uuid: str | None = None,
         entry: ConfigEntry,
-    ):
+    ) -> None:
         super().__init__(coordinator)
         self._hass = hass
         self._path = path
@@ -606,20 +612,20 @@ class ComfoClimeDefinitionSensor(
 
     def __init__(
         self,
-        hass,
+        hass: HomeAssistant,
         coordinator: ComfoClimeDefinitionCoordinator,
         key: str,
         name: str,
-        translation_key: str,
+        translation_key: str | bool,
         *,
         unit: str | None = None,
         device_class: str | None = None,
         state_class: str | None = None,
         entity_category: str | None = None,
-        device: dict | None = None,
+        device: dict[str, Any] | None = None,
         override_device_uuid: str | None = None,
         entry: ConfigEntry,
-    ):
+    ) -> None:
         super().__init__(coordinator)
         self._hass = hass
         self._key = key
@@ -687,18 +693,18 @@ class ComfoClimeAccessTrackingSensor(SensorEntity):
 
     def __init__(
         self,
-        hass,
+        hass: HomeAssistant,
         access_tracker: AccessTracker,
         coordinator_name: str | None,
         metric: str,
         name: str,
-        translation_key: str,
+        translation_key: str | bool,
         *,
         state_class: str | None = None,
         entity_category: str | None = None,
-        device: dict | None = None,
+        device: dict[str, Any] | None = None,
         entry: ConfigEntry,
-    ):
+    ) -> None:
         """Initialize the access tracking sensor.
 
         Args:

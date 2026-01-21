@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import asyncio
 import logging
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 from homeassistant.components.fan import FanEntity, FanEntityFeature
@@ -9,14 +12,24 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+if TYPE_CHECKING:
+    from .comfoclime_api import ComfoClimeAPI
+    from .coordinator import ComfoClimeDashboardCoordinator
+
 from . import DOMAIN
-from .coordinator import ComfoClimeDashboardCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class ComfoClimeFan(CoordinatorEntity[ComfoClimeDashboardCoordinator], FanEntity):
-    def __init__(self, hass, coordinator, api, device, entry):
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        coordinator: ComfoClimeDashboardCoordinator,
+        api: ComfoClimeAPI,
+        device: dict[str, Any],
+        entry: ConfigEntry,
+    ) -> None:
         super().__init__(coordinator)
         self._hass = hass
         self._api = api
@@ -68,7 +81,7 @@ class ComfoClimeFan(CoordinatorEntity[ComfoClimeDashboardCoordinator], FanEntity
         except (aiohttp.ClientError, asyncio.TimeoutError):
             _LOGGER.exception("Error setting fan speed")
 
-    def _handle_coordinator_update(self):
+    def _handle_coordinator_update(self) -> None:
         try:
             data = self.coordinator.data
             speed = data.get("fanSpeed", 0)
@@ -81,7 +94,7 @@ class ComfoClimeFan(CoordinatorEntity[ComfoClimeDashboardCoordinator], FanEntity
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
-):
+) -> None:
     try:
         data = hass.data[DOMAIN][entry.entry_id]
         api = data["api"]

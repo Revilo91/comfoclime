@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import asyncio
 import logging
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 from homeassistant.components.select import SelectEntity
@@ -10,11 +13,14 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+if TYPE_CHECKING:
+    from .comfoclime_api import ComfoClimeAPI
+    from .coordinator import (
+        ComfoClimePropertyCoordinator,
+        ComfoClimeThermalprofileCoordinator,
+    )
+
 from . import DOMAIN
-from .coordinator import (
-    ComfoClimePropertyCoordinator,
-    ComfoClimeThermalprofileCoordinator,
-)
 from .entities.select_definitions import PROPERTY_SELECT_ENTITIES, SELECT_ENTITIES
 from .entity_helper import is_entity_category_enabled, is_entity_enabled
 
@@ -23,7 +29,7 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
-):
+) -> None:
     data = hass.data[DOMAIN][entry.entry_id]
     api = data["api"]
     main_device = data["main_device"]
@@ -91,7 +97,15 @@ async def async_setup_entry(
 class ComfoClimeSelect(
     CoordinatorEntity[ComfoClimeThermalprofileCoordinator], SelectEntity
 ):
-    def __init__(self, hass, coordinator, api, conf, device=None, entry=None):
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        coordinator: ComfoClimeThermalprofileCoordinator,
+        api: ComfoClimeAPI,
+        conf: dict[str, Any],
+        device: dict[str, Any] | None = None,
+        entry: ConfigEntry | None = None,
+    ) -> None:
         super().__init__(coordinator)
         self._hass = hass
         self._api = api
@@ -130,7 +144,7 @@ class ComfoClimeSelect(
             sw_version=self._device.get("version", None),
         )
 
-    def _handle_coordinator_update(self):
+    def _handle_coordinator_update(self) -> None:
         try:
             data = self.coordinator.data
             val = data
@@ -185,13 +199,13 @@ class ComfoClimePropertySelect(
 
     def __init__(
         self,
-        hass,
+        hass: HomeAssistant,
         coordinator: ComfoClimePropertyCoordinator,
-        api,
-        conf,
-        device=None,
-        entry=None,
-    ):
+        api: ComfoClimeAPI,
+        conf: dict[str, Any],
+        device: dict[str, Any] | None = None,
+        entry: ConfigEntry | None = None,
+    ) -> None:
         super().__init__(coordinator)
         self._hass = hass
         self._api = api
@@ -240,7 +254,7 @@ class ComfoClimePropertySelect(
             _LOGGER.debug("Error loading %s: %s", self._name, e)
         self.async_write_ha_state()
 
-    async def async_select_option(self, option: str):
+    async def async_select_option(self, option: str) -> None:
         """Select an option via the API."""
         value = self._options_reverse.get(option)
         if value is None:
