@@ -1,7 +1,5 @@
 """Tests for validators module."""
 
-import pytest
-
 from custom_components.comfoclime.validators import (
     validate_host,
     validate_property_path,
