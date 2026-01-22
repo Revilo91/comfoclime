@@ -1,125 +1,180 @@
+"""Entity definitions for ComfoClime number controls using dataclasses."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True, slots=True)
+class NumberDefinition:
+    """Definition of a number entity.
+    
+    Attributes:
+        key: Unique identifier for the number in API responses.
+        name: Display name for the number control.
+        translation_key: Key for i18n translations.
+        min: Minimum value.
+        max: Maximum value.
+        step: Step increment.
+        unit: Optional unit of measurement.
+    """
+    key: str
+    name: str
+    translation_key: str
+    min: float
+    max: float
+    step: float
+    unit: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class PropertyNumberDefinition:
+    """Definition of a property-based number entity.
+    
+    Attributes:
+        property: Property path in format "X/Y/Z".
+        name: Display name for the number control.
+        translation_key: Key for i18n translations.
+        min: Minimum value.
+        max: Maximum value.
+        step: Step increment.
+        unit: Optional unit of measurement.
+        faktor: Multiplication factor for the raw value.
+        byte_count: Number of bytes to read/write.
+    """
+    property: str
+    name: str
+    translation_key: str
+    min: float
+    max: float
+    step: float
+    unit: str | None = None
+    faktor: float = 1.0
+    byte_count: int = 1
+
+
 NUMBER_ENTITIES = [
-    {
-        "key": "heatingThermalProfileSeasonData.comfortTemperature",
-        "name": "Heating Comfort Temperature",
-        "translation_key": "heating_comfort_temperature",
-        "min": 15,
-        "max": 25,
-        "step": 0.5,
-    },
-    {
-        "key": "heatingThermalProfileSeasonData.kneePointTemperature",
-        "name": "Heating Knee Point",
-        "translation_key": "heating_knee_point",
-        "min": 5,
-        "max": 15,
-        "step": 0.5,
-    },
-    {
-        "key": "heatingThermalProfileSeasonData.reductionDeltaTemperature",
-        "name": "Heating Reduction Delta",
-        "translation_key": "heating_reduction_delta",
-        "min": 0,
-        "max": 5,
-        "step": 0.5,
-    },
-    {
-        "key": "coolingThermalProfileSeasonData.comfortTemperature",
-        "name": "Cooling Comfort Temperature",
-        "translation_key": "cooling_comfort_temperature",
-        "min": 20,
-        "max": 28,
-        "step": 0.5,
-    },
-    {
-        "key": "coolingThermalProfileSeasonData.kneePointTemperature",
-        "name": "Cooling Knee Point",
-        "translation_key": "cooling_knee_point",
-        "min": 15,
-        "max": 25,
-        "step": 0.5,
-    },
-    {
-        "key": "coolingThermalProfileSeasonData.temperatureLimit",
-        "name": "Cooling Temperature Limit",
-        "translation_key": "cooling_temperature_limit",
-        "min": 20,
-        "max": 28,
-        "step": 0.5,
-    },
-    {
-        "key": "temperature.manualTemperature",
-        "name": "Manual Comfort Temperature",
-        "translation_key": "manual_comfort_temperature",
-        "min": 18,
-        "max": 28,
-        "step": 0.5,
-    },
-    {
-        "key": "season.heatingThresholdTemperature",
-        "name": "Heating Threshold",
-        "translation_key": "heating_threshold",
-        "min": 5,
-        "max": 15,
-        "step": 0.5,
-    },
-    {
-        "key": "season.coolingThresholdTemperature",
-        "name": "Cooling Threshold",
-        "translation_key": "cooling_threshold",
-        "min": 16,
-        "max": 25,
-        "step": 0.5,
-    },
+    NumberDefinition(
+        key="heatingThermalProfileSeasonData.comfortTemperature",
+        name="Heating Comfort Temperature",
+        translation_key="heating_comfort_temperature",
+        min=15,
+        max=25,
+        step=0.5,
+    ),
+    NumberDefinition(
+        key="heatingThermalProfileSeasonData.kneePointTemperature",
+        name="Heating Knee Point",
+        translation_key="heating_knee_point",
+        min=5,
+        max=15,
+        step=0.5,
+    ),
+    NumberDefinition(
+        key="heatingThermalProfileSeasonData.reductionDeltaTemperature",
+        name="Heating Reduction Delta",
+        translation_key="heating_reduction_delta",
+        min=0,
+        max=5,
+        step=0.5,
+    ),
+    NumberDefinition(
+        key="coolingThermalProfileSeasonData.comfortTemperature",
+        name="Cooling Comfort Temperature",
+        translation_key="cooling_comfort_temperature",
+        min=20,
+        max=28,
+        step=0.5,
+    ),
+    NumberDefinition(
+        key="coolingThermalProfileSeasonData.kneePointTemperature",
+        name="Cooling Knee Point",
+        translation_key="cooling_knee_point",
+        min=15,
+        max=25,
+        step=0.5,
+    ),
+    NumberDefinition(
+        key="coolingThermalProfileSeasonData.temperatureLimit",
+        name="Cooling Temperature Limit",
+        translation_key="cooling_temperature_limit",
+        min=20,
+        max=28,
+        step=0.5,
+    ),
+    NumberDefinition(
+        key="temperature.manualTemperature",
+        name="Manual Comfort Temperature",
+        translation_key="manual_comfort_temperature",
+        min=18,
+        max=28,
+        step=0.5,
+    ),
+    NumberDefinition(
+        key="season.heatingThresholdTemperature",
+        name="Heating Threshold",
+        translation_key="heating_threshold",
+        min=5,
+        max=15,
+        step=0.5,
+    ),
+    NumberDefinition(
+        key="season.coolingThresholdTemperature",
+        name="Cooling Threshold",
+        translation_key="cooling_threshold",
+        min=16,
+        max=25,
+        step=0.5,
+    ),
 ]
 
 CONNECTED_DEVICE_NUMBER_PROPERTIES = {
     1: [
-        {
-            "property": "29/1/2",
-            "name": "RMOT Heating Threshold",
-            "translation_key": "rmot_heating_threshold",
-            "min": 5,
-            "max": 20,
-            "step": 0.5,
-            "unit": "°C",
-            "faktor": 0.1,
-            "byte_count": 2,
-        },
-        {
-            "property": "29/1/3",
-            "name": "RMOT Cooling Threshold",
-            "translation_key": "rmot_cooling_threshold",
-            "min": 5,
-            "max": 35,
-            "step": 0.5,
-            "unit": "°C",
-            "faktor": 0.1,
-            "byte_count": 2,
-        },
+        PropertyNumberDefinition(
+            property="29/1/2",
+            name="RMOT Heating Threshold",
+            translation_key="rmot_heating_threshold",
+            min=5,
+            max=20,
+            step=0.5,
+            unit="°C",
+            faktor=0.1,
+            byte_count=2,
+        ),
+        PropertyNumberDefinition(
+            property="29/1/3",
+            name="RMOT Cooling Threshold",
+            translation_key="rmot_cooling_threshold",
+            min=5,
+            max=35,
+            step=0.5,
+            unit="°C",
+            faktor=0.1,
+            byte_count=2,
+        ),
     ],
     20: [
-        {
-            "property": "23/1/4",
-            "name": "Heatpump minimum temperature",
-            "translation_key": "heatpump_min_temp",
-            "min": 10,
-            "max": 17,
-            "step": 1,
-            "unit": "°C",
-            "faktor": 0.1,
-            "byte_count": 2,
-        },
-        {
-            "property": "23/1/3",
-            "name": "Heatpump maximum temperature",
-            "translation_key": "heatpump_max_temp",
-            "min": 40,
-            "max": 60,
-            "step": 1,
-            "unit": "°C",
-            "faktor": 0.1,
-            "byte_count": 2,
-        },
+        PropertyNumberDefinition(
+            property="23/1/4",
+            name="Heatpump minimum temperature",
+            translation_key="heatpump_min_temp",
+            min=10,
+            max=17,
+            step=1,
+            unit="°C",
+            faktor=0.1,
+            byte_count=2,
+        ),
+        PropertyNumberDefinition(
+            property="23/1/3",
+            name="Heatpump maximum temperature",
+            translation_key="heatpump_max_temp",
+            min=40,
+            max=60,
+            step=1,
+            unit="°C",
+            faktor=0.1,
+            byte_count=2,
+        ),
     ],
 }

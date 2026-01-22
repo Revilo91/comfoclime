@@ -19,6 +19,8 @@ if TYPE_CHECKING:
 from . import DOMAIN
 from .constants import FanSpeed
 
+from . import DOMAIN
+
 _LOGGER = logging.getLogger(__name__)
 
 

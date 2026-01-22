@@ -39,6 +39,8 @@ if TYPE_CHECKING:
 from . import DOMAIN
 from .constants import FanSpeed, ScenarioMode, Season, TemperatureProfile
 
+from . import DOMAIN
+
 _LOGGER = logging.getLogger(__name__)
 
 # Temperature Profile Presets

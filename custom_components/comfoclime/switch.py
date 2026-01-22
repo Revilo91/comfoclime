@@ -51,7 +51,7 @@ async def async_setup_entry(
             
             # Determine which coordinator to use based on endpoint
             coordinator = (
-                tpcoordinator if s["endpoint"] == "thermal_profile" else dbcoordinator
+                tpcoordinator if s.endpoint == "thermal_profile" else dbcoordinator
             )
 
             switches.append(
@@ -59,11 +59,11 @@ async def async_setup_entry(
                     hass,
                     coordinator,
                     api,
-                    s["key"],
-                    s["translation_key"],
-                    s["name"],
-                    invert=s.get("invert", False),
-                    endpoint=s["endpoint"],
+                    s.key,
+                    s.translation_key,
+                    s.name,
+                    invert=s.invert,
+                    endpoint=s.endpoint,
                     device=main_device,
                     entry=entry,
                 )

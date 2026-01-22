@@ -76,7 +76,7 @@ async def async_setup_entry(
                 # Register property with coordinator for batched fetching
                 await propcoordinator.register_property(
                     device_uuid=dev_uuid,
-                    property_path=select_def["path"],
+                    property_path=select_def.path,
                     faktor=1.0,
                     signed=False,
                     byte_count=1,
@@ -109,14 +109,18 @@ class ComfoClimeSelect(
         super().__init__(coordinator)
         self._hass = hass
         self._api = api
-        self._key = conf["key"]
-        self._name = conf["name"]
+        self._key = conf.key
+        self._name = conf.name
         self._key_path = self._key.split(".")
-        self._options_map = conf["options"]
+        self._options_map = conf.options
         self._options_reverse = {v: k for k, v in self._options_map.items()}
         self._current = None
         self._device = device
         self._entry = entry
+        self._attr_config_entry_id = entry.entry_id
+        self._attr_unique_id = f"{entry.entry_id}_{conf.key}"
+        self._attr_translation_key = conf.translation_key
+        self._attr_has_entity_name = True
         self._attr_config_entry_id = entry.entry_id
         self._attr_unique_id = f"{entry.entry_id}_select_{conf['key']}"
         # self._attr_name = conf["name"]
@@ -209,18 +213,18 @@ class ComfoClimePropertySelect(
         super().__init__(coordinator)
         self._hass = hass
         self._api = api
-        self._name = conf["name"]
-        self._options_map = conf["options"]
+        self._name = conf.name
+        self._options_map = conf.options
         self._options_reverse = {v: k for k, v in self._options_map.items()}
         self._current = None
         self._device = device
         self._entry = entry
-        self._path = conf["path"]
+        self._path = conf.path
         self._attr_config_entry_id = entry.entry_id
         self._attr_unique_id = (
-            f"{entry.entry_id}_select_{conf['path'].replace('/', '_')}"
+            f"{entry.entry_id}_select_{conf.path.replace('/', '_')}"
         )
-        self._attr_translation_key = conf["translation_key"]
+        self._attr_translation_key = conf.translation_key
         self._attr_has_entity_name = True
 
     @property
