@@ -175,7 +175,9 @@ class ComfoClimeMonitoringCoordinator(DataUpdateCoordinator):
             UpdateFailed: If API call fails or times out.
         """
         try:
+            _LOGGER.debug("MonitoringCoordinator: Fetching monitoring data from API")
             result = await self.api.async_get_monitoring_ping()
+            _LOGGER.debug("MonitoringCoordinator: Received data: %s", result)
             if self._access_tracker:
                 self._access_tracker.record_access("Monitoring")
             return result
