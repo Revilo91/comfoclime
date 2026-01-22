@@ -95,7 +95,7 @@ async def async_setup_entry(
 
 
 class ComfoClimeSelect(
-    CoordinatorEntity[ComfoClimeThermalprofileCoordinator], SelectEntity
+    CoordinatorEntity, SelectEntity
 ):
     def __init__(
         self,
@@ -197,7 +197,7 @@ class ComfoClimeSelect(
 
 
 class ComfoClimePropertySelect(
-    CoordinatorEntity[ComfoClimePropertyCoordinator], SelectEntity
+    CoordinatorEntity, SelectEntity
 ):
     """Select entity for property values using coordinator for batched fetching."""
 

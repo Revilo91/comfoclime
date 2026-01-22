@@ -1,3 +1,32 @@
+"""ComfoClime Configuration Flow.
+
+This module provides the Home Assistant configuration flow and options
+flow for the ComfoClime integration. It handles:
+
+    - Initial setup: Device discovery and connection validation
+    - Options flow: Configuration of entities, polling intervals, timeouts, etc.
+
+The configuration flow validates the device connection by attempting to
+fetch the UUID from the monitoring endpoint. The options flow provides
+a multi-step wizard for configuring:
+    - Performance settings (polling intervals, timeouts, cache TTL)
+    - Entity selection (sensors, switches, numbers, selects)
+    - Individual entity enable/disable
+
+Configuration data is stored in the config entry and can be modified
+later through the integration options.
+
+Example:
+    >>> # User provides hostname during initial setup
+    >>> host = "comfoclime.local"  # or IP address like "192.168.1.100"
+    >>> # System validates connection and creates entry
+    >>> # User can later configure options through Integration UI
+
+Note:
+    The configuration flow uses a stateful approach with _pending_changes
+    to track modifications across multiple option steps before saving.
+"""
+
 import asyncio
 import logging
 from typing import Any
@@ -41,9 +70,26 @@ DEFAULT_REQUEST_DEBOUNCE = 0.3
 
 
 class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
+    """Handle a config flow for ComfoClime integration.
+    
+    Validates device connection by attempting to fetch the UUID from
+    the monitoring/ping endpoint. If successful, creates a config entry.
+    """
+    
     VERSION = 1
 
     async def async_step_user(self, user_input=None):
+        """Handle the initial step where user provides device hostname.
+        
+        Validates that the device is reachable and responds with a valid
+        UUID. If validation succeeds, creates the config entry.
+        
+        Args:
+            user_input: Dictionary with 'host' key containing hostname or IP
+        
+        Returns:
+            FlowResult: Either shows form or creates entry
+        """
         errors = {}
 
         if user_input is not None:
@@ -89,20 +135,48 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class ComfoClimeOptionsFlow(OptionsFlow):
+    """Handle options flow for ComfoClime integration.
+    
+    Provides a multi-step wizard for configuring integration options including:
+        - Performance settings (polling intervals, timeouts)
+        - Entity categories (sensors, switches, numbers, selects)
+        - Individual entity enable/disable
+    
+    Changes are tracked in _pending_changes and only saved when the user
+    completes the flow or explicitly saves.
+    """
+    
     def __init__(self, entry: ConfigEntry) -> None:
+        """Initialize the options flow.
+        
+        Args:
+            entry: Config entry being configured
+        """
         self.entry = entry
         self._data = {}
         self._pending_changes: dict[str, Any] = {}
         self._has_changes: bool = False
 
     def _get_current_value(self, key: str, default: Any) -> Any:
-        """Get current value from pending changes first, then from saved options."""
+        """Get current value from pending changes first, then from saved options.
+        
+        Args:
+            key: Option key to retrieve
+            default: Default value if not found
+            
+        Returns:
+            Current value for the option
+        """
         if key in self._pending_changes:
             return self._pending_changes[key]
         return self.entry.options.get(key, default)
 
     def _update_pending(self, data: dict[str, Any]) -> None:
-        """Update pending changes without saving."""
+        """Update pending changes without saving.
+        
+        Args:
+            data: Dictionary of changes to merge into pending changes
+        """
         self._pending_changes.update(data)
         self._has_changes = True
 

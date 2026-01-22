@@ -1,3 +1,35 @@
+"""ComfoClime Sensor Platform.
+
+This module provides Home Assistant sensor entities for ComfoClime
+integration. Sensors display various device data including temperatures,
+telemetry values, properties, and system status.
+
+The sensor platform supports multiple sensor types:
+    - Dashboard Sensors: Real-time data (temperature, fan speed, etc.)
+    - Thermalprofile Sensors: Thermal profile settings
+    - Monitoring Sensors: Device uptime and health
+    - Telemetry Sensors: Device-specific telemetry data
+    - Property Sensors: Device-specific property values
+    - Definition Sensors: Device definition data
+    - Access Tracking Sensors: API call statistics
+
+Sensors are organized by category and can be enabled/disabled individually
+through the integration options. The batched coordinators (Telemetry and
+Property) automatically collect data for all registered sensors to minimize
+API load.
+
+Example:
+    >>> # Dashboard sensor values
+    >>> indoor_temp = hass.states.get("sensor.comfoclime_indoor_temperature").state
+    >>> # Telemetry sensor for connected device
+    >>> device_temp = hass.states.get("sensor.device_temperature").state
+
+Note:
+    Sensors use multiple coordinators depending on their data source:
+    - Dashboard, Monitoring, Thermalprofile coordinators for system data
+    - Telemetry and Property coordinators for batched device data
+"""
+
 from __future__ import annotations
 
 import logging
@@ -59,6 +91,27 @@ VALUE_MAPPINGS = {
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
+    """Set up ComfoClime sensor entities from a config entry.
+    
+    Creates sensor entities based on configuration options and detected
+    devices. Sensors are organized into categories:
+        - Dashboard: System temperatures, fan speed, season, etc.
+        - Thermalprofile: Thermal profile settings
+        - Monitoring: Device uptime and health
+        - Telemetry: Device-specific telemetry data (batched)
+        - Property: Device-specific property values (batched)
+        - Definition: Device definition data
+        - Access Tracking: API call statistics
+    
+    Sensors can be enabled/disabled individually through integration options.
+    Telemetry and property sensors are automatically registered with their
+    respective coordinators for batched data collection.
+    
+    Args:
+        hass: Home Assistant instance
+        entry: Config entry for this integration
+        async_add_entities: Callback to add entities
+    """
     data = hass.data[DOMAIN][entry.entry_id]
     api = data["api"]
 
@@ -335,7 +388,7 @@ async def async_setup_entry(
     hass.async_create_task(_refresh_coordinators())
 
 
-class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], SensorEntity):
+class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
     def __init__(
         self,
         hass: HomeAssistant,
@@ -440,7 +493,7 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
 
 
 class ComfoClimeTelemetrySensor(
-    CoordinatorEntity[ComfoClimeTelemetryCoordinator], SensorEntity
+    CoordinatorEntity, SensorEntity
 ):
     """Sensor for telemetry data using coordinator for batched fetching."""
 
@@ -523,7 +576,7 @@ class ComfoClimeTelemetrySensor(
 
 
 class ComfoClimePropertySensor(
-    CoordinatorEntity[ComfoClimePropertyCoordinator], SensorEntity
+    CoordinatorEntity, SensorEntity
 ):
     """Sensor for property data using coordinator for batched fetching."""
 
@@ -606,7 +659,7 @@ class ComfoClimePropertySensor(
 
 
 class ComfoClimeDefinitionSensor(
-    CoordinatorEntity[ComfoClimeDefinitionCoordinator], SensorEntity
+    CoordinatorEntity, SensorEntity
 ):
     """Sensor for definition data using coordinator for batched fetching."""
 
