@@ -21,7 +21,12 @@ if TYPE_CHECKING:
     )
 
 from . import DOMAIN
-from .entities.select_definitions import PROPERTY_SELECT_ENTITIES, SELECT_ENTITIES
+from .entities.select_definitions import (
+    PROPERTY_SELECT_ENTITIES,
+    PropertySelectDefinition,
+    SELECT_ENTITIES,
+    SelectDefinition,
+)
 from .entity_helper import is_entity_category_enabled, is_entity_enabled
 
 _LOGGER = logging.getLogger(__name__)
@@ -102,7 +107,7 @@ class ComfoClimeSelect(
         hass: HomeAssistant,
         coordinator: ComfoClimeThermalprofileCoordinator,
         api: ComfoClimeAPI,
-        conf: dict[str, Any],
+        conf: SelectDefinition,
         device: dict[str, Any] | None = None,
         entry: ConfigEntry | None = None,
     ) -> None:
@@ -118,13 +123,8 @@ class ComfoClimeSelect(
         self._device = device
         self._entry = entry
         self._attr_config_entry_id = entry.entry_id
-        self._attr_unique_id = f"{entry.entry_id}_{conf.key}"
+        self._attr_unique_id = f"{entry.entry_id}_select_{conf.key}"
         self._attr_translation_key = conf.translation_key
-        self._attr_has_entity_name = True
-        self._attr_config_entry_id = entry.entry_id
-        self._attr_unique_id = f"{entry.entry_id}_select_{conf['key']}"
-        # self._attr_name = conf["name"]
-        self._attr_translation_key = conf["translation_key"]
         self._attr_has_entity_name = True
 
     @property
@@ -215,7 +215,7 @@ class ComfoClimePropertySelect(
         hass: HomeAssistant,
         coordinator: ComfoClimePropertyCoordinator,
         api: ComfoClimeAPI,
-        conf: dict[str, Any],
+        conf: PropertySelectDefinition,
         device: dict[str, Any] | None = None,
         entry: ConfigEntry | None = None,
     ) -> None:

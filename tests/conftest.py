@@ -127,18 +127,18 @@ class MockComfoClimeAPI:
         return self.responses.property_data.get(device_uuid, {}).get(path, 0)
 
     async def async_set_property_for_device(
-        self, device_uuid: str, path: str, value: int, **kwargs: Any
+        self, device_uuid: str, property_path: str, value: int, **kwargs: Any
     ) -> None:
         self._record_call(
             "async_set_property_for_device",
             device_uuid=device_uuid,
-            path=path,
+            property_path=property_path,
             value=value,
             **kwargs,
         )
         if device_uuid not in self.responses.property_data:
             self.responses.property_data[device_uuid] = {}
-        self.responses.property_data[device_uuid][path] = value
+        self.responses.property_data[device_uuid][property_path] = value
 
     async def async_reset_system(self) -> None:
         self._record_call("async_reset_system")

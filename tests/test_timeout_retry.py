@@ -99,8 +99,8 @@ class TestDashboardUpdateRetry:
             with pytest.raises(asyncio.TimeoutError):
                 await api.async_update_dashboard(set_point_temperature=22.0)
 
-        # Should be called DEFAULT_MAX_RETRIES + 1 times (4 total: initial + 3 retries)
-        assert mock_session.put.call_count == DEFAULT_MAX_RETRIES + 1
+        # Should be called API_DEFAULTS.MAX_RETRIES + 1 times (4 total: initial + 3 retries)
+        assert mock_session.put.call_count == API_DEFAULTS.MAX_RETRIES + 1
 
     @pytest.mark.asyncio
     async def test_dashboard_update_retries_on_client_error(self):
@@ -257,5 +257,5 @@ class TestPropertySetRetry:
                     signed=False,
                 )
 
-        # Should be called DEFAULT_MAX_RETRIES + 1 times (4 total: initial + 3 retries)
-        assert mock_session.put.call_count == DEFAULT_MAX_RETRIES + 1
+        # Should be called API_DEFAULTS.MAX_RETRIES + 1 times (4 total: initial + 3 retries)
+        assert mock_session.put.call_count == API_DEFAULTS.MAX_RETRIES + 1

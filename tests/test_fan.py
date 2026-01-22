@@ -6,6 +6,7 @@ from custom_components.comfoclime.fan import (
     ComfoClimeFan,
     async_setup_entry,
 )
+from custom_components.comfoclime.constants import FanSpeed
 
 
 class TestComfoClimeFan:
@@ -63,10 +64,10 @@ class TestComfoClimeFan:
     @pytest.mark.parametrize(
         "speed,expected_percentage",
         [
-            (0, 0),
-            (1, 33),
-            (2, 66),
-            (3, 100),
+            (FanSpeed.OFF, 0),
+            (FanSpeed.LOW, 33),
+            (FanSpeed.MEDIUM, 66),
+            (FanSpeed.HIGH, 100),
         ],
         ids=["speed_0", "speed_1", "speed_2", "speed_3"],
     )
