@@ -176,11 +176,22 @@ async def async_setup_entry(
     monitoring_coordinator: ComfoClimeMonitoringCoordinator = data.get(
         "monitoringcoordinator"
     )
+    _LOGGER.debug(
+        "Setting up monitoring sensors. Coordinator available: %s, Category enabled: %s",
+        monitoring_coordinator is not None,
+        is_entity_category_enabled(entry.options, "sensors", "monitoring") if monitoring_coordinator else False
+    )
+    
     if monitoring_coordinator and is_entity_category_enabled(
         entry.options, "sensors", "monitoring"
     ):
         for sensor_def in MONITORING_SENSORS:
-            if is_entity_enabled(entry.options, "sensors", "monitoring", sensor_def):
+            entity_enabled = is_entity_enabled(entry.options, "sensors", "monitoring", sensor_def)
+            _LOGGER.debug(
+                "Monitoring sensor '%s' (key=%s): enabled=%s",
+                sensor_def.name, sensor_def.key, entity_enabled
+            )
+            if entity_enabled:
                 sensors.append(
                     ComfoClimeSensor(
                         hass=hass,
@@ -197,6 +208,11 @@ async def async_setup_entry(
                         entry=entry,
                     )
                 )
+                _LOGGER.debug("Created monitoring sensor: %s", sensor_def.name)
+    else:
+        _LOGGER.debug("Monitoring sensors NOT created - coordinator=%s, category_enabled=%s",
+                      monitoring_coordinator is not None,
+                      is_entity_category_enabled(entry.options, "sensors", "monitoring") if monitoring_coordinator else False)
 
     # Feste Telemetrie-Sensoren für das ComfoClime-Gerät (from TELEMETRY_SENSORS)
     for sensor_def in TELEMETRY_SENSORS:
@@ -367,6 +383,7 @@ async def async_setup_entry(
     # Add entities immediately without waiting for data
     # Coordinators will fetch data on their regular update interval
     # This prevents timeout issues during setup with many devices
+    _LOGGER.debug("Adding %s sensor entities to Home Assistant", len(sensors))
     async_add_entities(sensors, True)
     
     # Schedule background refresh of coordinators after entities are added
@@ -461,6 +478,11 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
     def _handle_coordinator_update(self) -> None:
         try:
             data = self.coordinator.data
+            
+            _LOGGER.debug(
+                "Sensor '%s' (type=%s) handling coordinator update. Data keys: %s",
+                self._name, self._type, list(data.keys()) if data else "None"
+            )
 
             # Handle nested keys (e.g., "season.status" or "heatingThermalProfileSeasonData.comfortTemperature")
             if "." in self._type:
@@ -474,6 +496,11 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
                         break
             else:
                 raw_value = data.get(self._type)
+            
+            _LOGGER.debug(
+                "Sensor '%s' (type=%s): raw_value=%s",
+                self._name, self._type, raw_value
+            )
 
             # raw_value wurde ermittelt
             self._raw_value = raw_value
@@ -483,9 +510,14 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
                 self._state = VALUE_MAPPINGS[self._type].get(raw_value, raw_value)
             else:
                 self._state = raw_value
+            
+            _LOGGER.debug(
+                "Sensor '%s' (type=%s): state set to %s",
+                self._name, self._type, self._state
+            )
 
         except (KeyError, TypeError, ValueError) as e:
-            _LOGGER.warning("Error updating sensor values: %s", e)
+            _LOGGER.warning("Error updating sensor '%s' values: %s", self._name, e)
             self._state = None
 
         self.async_write_ha_state()

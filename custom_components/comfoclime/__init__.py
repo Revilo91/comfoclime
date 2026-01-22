@@ -35,6 +35,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     hass.data.setdefault(DOMAIN, {})
 
     host = entry.data["host"]
+    _LOGGER.debug("Setting up ComfoClime integration for host: %s", host)
 
     # Get configuration options with defaults
     read_timeout = entry.options.get("read_timeout", 10)
@@ -45,6 +46,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     min_request_interval = entry.options.get("min_request_interval", 0.1)
     write_cooldown = entry.options.get("write_cooldown", 2.0)
     request_debounce = entry.options.get("request_debounce", 0.3)
+    
+    _LOGGER.debug(
+        "Configuration loaded: read_timeout=%s, write_timeout=%s, polling_interval=%s, "
+        "cache_ttl=%s, max_retries=%s, min_request_interval=%s, write_cooldown=%s, request_debounce=%s",
+        read_timeout, write_timeout, polling_interval, cache_ttl, max_retries, 
+        min_request_interval, write_cooldown, request_debounce
+    )
 
     # Create access tracker for monitoring API access patterns
     access_tracker = AccessTracker()
@@ -61,46 +69,58 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         write_cooldown=write_cooldown,
         request_debounce=request_debounce,
     )
+    _LOGGER.debug("ComfoClimeAPI instance created with base_url: http://%s", host)
 
     # Get connected devices before creating coordinators
     devices = await api.async_get_connected_devices()
+    _LOGGER.debug("Connected devices retrieved: %s devices found", len(devices))
 
     # Create Dashboard-Coordinator
     dashboard_coordinator = ComfoClimeDashboardCoordinator(
         hass, api, polling_interval, access_tracker=access_tracker
     )
+    _LOGGER.debug("Created ComfoClimeDashboardCoordinator with polling_interval=%s", polling_interval)
 
     # Create Thermalprofile-Coordinator
     thermalprofile_coordinator = ComfoClimeThermalprofileCoordinator(
         hass, api, polling_interval, access_tracker=access_tracker
     )
+    _LOGGER.debug("Created ComfoClimeThermalprofileCoordinator with polling_interval=%s", polling_interval)
 
     # Create Monitoring-Coordinator
     monitoring_coordinator = ComfoClimeMonitoringCoordinator(
         hass, api, polling_interval, access_tracker=access_tracker
     )
+    _LOGGER.debug("Created ComfoClimeMonitoringCoordinator with polling_interval=%s", polling_interval)
 
     # Create definition coordinator for device definition data (mainly for ComfoAirQ)
     definitioncoordinator = ComfoClimeDefinitionCoordinator(
         hass, api, devices, polling_interval, access_tracker=access_tracker
     )
+    _LOGGER.debug("Created ComfoClimeDefinitionCoordinator with polling_interval=%s", polling_interval)
 
     # Parallel initialization of all coordinators for faster startup
-    await asyncio.gather(
+    _LOGGER.debug("Starting parallel first refresh of all coordinators")
+    results = await asyncio.gather(
         dashboard_coordinator.async_config_entry_first_refresh(),
         thermalprofile_coordinator.async_config_entry_first_refresh(),
         monitoring_coordinator.async_config_entry_first_refresh(),
         definitioncoordinator.async_config_entry_first_refresh(),
         return_exceptions=True,
     )
+    _LOGGER.debug("Coordinator first refresh completed. Results: %s", 
+                  ["Success" if not isinstance(r, Exception) else f"Error: {r}" for r in results])
 
     # Create telemetry and property coordinators with device list
     tlcoordinator = ComfoClimeTelemetryCoordinator(
         hass, api, devices, polling_interval, access_tracker=access_tracker
     )
+    _LOGGER.debug("Created ComfoClimeTelemetryCoordinator with polling_interval=%s", polling_interval)
+    
     propcoordinator = ComfoClimePropertyCoordinator(
         hass, api, devices, polling_interval, access_tracker=access_tracker
     )
+    _LOGGER.debug("Created ComfoClimePropertyCoordinator with polling_interval=%s", polling_interval)
 
     hass.data[DOMAIN][entry.entry_id] = {
         "api": api,

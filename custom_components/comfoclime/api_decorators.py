@@ -98,6 +98,8 @@ def api_get(
                 async with session.get(url, timeout=timeout) as response:
                     response.raise_for_status()
                     data = await response.json()
+                
+                _LOGGER.debug("API GET %s returned data: %s", url, data)
 
                 # Extract specific key if specified
                 if response_key:

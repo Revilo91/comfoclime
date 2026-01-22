@@ -544,6 +544,11 @@ def is_entity_enabled(
     # Build the individual entity ID
     entity_id = _make_sensor_id(category, subcategory, entity_def)
     
+    _LOGGER.debug(
+        "Checking if entity '%s' is enabled (category=%s, subcategory=%s)",
+        entity_id, category, subcategory
+    )
+    
     # Check new config flow format first (enabled_dashboard, enabled_thermalprofile, etc.)
     if subcategory:
         specific_key = f"enabled_{subcategory}"
@@ -551,9 +556,12 @@ def is_entity_enabled(
             enabled_list = options.get(specific_key, [])
             # If list is empty, nothing is enabled
             if not enabled_list:
+                _LOGGER.debug("Entity '%s': %s list is empty, returning False", entity_id, specific_key)
                 return False
             # Check if this entity is in the enabled list
-            return entity_id in enabled_list
+            result = entity_id in enabled_list
+            _LOGGER.debug("Entity '%s': checked in %s list, result=%s", entity_id, specific_key, result)
+            return result
     
     # Check for enabled_switches, enabled_numbers, enabled_selects (no subcategory)
     if not subcategory:
@@ -561,18 +569,23 @@ def is_entity_enabled(
         if specific_key in options:
             enabled_list = options.get(specific_key, [])
             if not enabled_list:
+                _LOGGER.debug("Entity '%s': %s list is empty, returning False", entity_id, specific_key)
                 return False
-            return entity_id in enabled_list
+            result = entity_id in enabled_list
+            _LOGGER.debug("Entity '%s': checked in %s list, result=%s", entity_id, specific_key, result)
+            return result
     
     # Check old format (enabled_entities)
     enabled_entities = options.get("enabled_entities", None)
 
     # If no selection has been made yet, enable everything by default
     if enabled_entities is None:
+        _LOGGER.debug("Entity '%s': no enabled_entities key, enabling by default", entity_id)
         return True
 
     # Check if this specific entity is enabled
     if entity_id in enabled_entities:
+        _LOGGER.debug("Entity '%s': found in enabled_entities list", entity_id)
         return True
 
     # Fall back to category-level check for backward compatibility
@@ -592,8 +605,11 @@ def is_entity_enabled(
         )
         if not any_individual_in_category:
             # Old-style category selection - enable all in category
+            _LOGGER.debug("Entity '%s': category '%s' enabled with no individual selections, enabling all", 
+                          entity_id, category_key)
             return True
 
+    _LOGGER.debug("Entity '%s': not enabled, returning False", entity_id)
     return False
 
 
@@ -613,26 +629,42 @@ def is_entity_category_enabled(
     Returns:
         True if enabled, False otherwise
     """
+    _LOGGER.debug(
+        "Checking if entity category is enabled (category=%s, subcategory=%s)",
+        category, subcategory
+    )
+    
     # Check new config flow format first (enabled_dashboard, enabled_thermalprofile, etc.)
     if subcategory:
         specific_key = f"enabled_{subcategory}"
         if specific_key in options:
             # If the key exists, check if it has any values
             enabled_list = options.get(specific_key, [])
-            return len(enabled_list) > 0
+            result = len(enabled_list) > 0
+            _LOGGER.debug(
+                "Category check: %s has %d enabled entities, returning %s",
+                specific_key, len(enabled_list), result
+            )
+            return result
     
     # Check for enabled_switches, enabled_numbers, enabled_selects (no subcategory)
     if not subcategory:
         specific_key = f"enabled_{category}"
         if specific_key in options:
             enabled_list = options.get(specific_key, [])
-            return len(enabled_list) > 0
+            result = len(enabled_list) > 0
+            _LOGGER.debug(
+                "Category check: %s has %d enabled entities, returning %s",
+                specific_key, len(enabled_list), result
+            )
+            return result
     
     # Check old format (enabled_entities)
     enabled_entities = options.get("enabled_entities", None)
 
     # If no selection has been made yet, enable everything by default
     if enabled_entities is None:
+        _LOGGER.debug("Category check: no enabled_entities key, enabling by default")
         return True
 
     # Build the key to check
@@ -643,6 +675,7 @@ def is_entity_category_enabled(
 
     # Check if category itself is enabled
     if key in enabled_entities:
+        _LOGGER.debug("Category check: '%s' found in enabled_entities", key)
         return True
 
     # Check if any individual entities from this category are enabled
