@@ -27,7 +27,6 @@ Note:
     to track modifications across multiple option steps before saving.
 """
 
-import asyncio
 import logging
 from typing import Any
 
