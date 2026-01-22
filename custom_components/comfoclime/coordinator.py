@@ -14,10 +14,12 @@ if TYPE_CHECKING:
     from .access_tracker import AccessTracker
     from .comfoclime_api import ComfoClimeAPI
 
+from .constants import API_DEFAULTS
+
 _LOGGER = logging.getLogger(__name__)
 
 # Default polling interval to reduce API load on the Airduino board
-DEFAULT_POLLING_INTERVAL_SECONDS = 60
+DEFAULT_POLLING_INTERVAL_SECONDS = API_DEFAULTS.POLLING_INTERVAL
 
 
 class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
@@ -179,7 +181,9 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
                 "signed": signed,
                 "byte_count": byte_count,
             }
-            _LOGGER.debug(f"Registered telemetry {telemetry_id} for device {device_uuid}")
+            _LOGGER.debug(
+                "Registered telemetry %s for device %s", telemetry_id, device_uuid
+            )
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         """Fetch all registered telemetry data for all devices in batched manner."""
@@ -211,7 +215,10 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
                         self._access_tracker.record_access("Telemetry")
                 except (aiohttp.ClientError, asyncio.TimeoutError) as e:  # noqa: PERF203
                     _LOGGER.debug(
-                        f"Error fetching telemetry {telemetry_id} for device {device_uuid}: {e}"
+                        "Error fetching telemetry %s for device %s: %s",
+                        telemetry_id,
+                        device_uuid,
+                        e,
                     )
                     result[device_uuid][telemetry_id] = None
 
@@ -290,7 +297,9 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
                 "signed": signed,
                 "byte_count": byte_count,
             }
-            _LOGGER.debug(f"Registered property {property_path} for device {device_uuid}")
+            _LOGGER.debug(
+                "Registered property %s for device %s", property_path, device_uuid
+            )
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         """Fetch all registered property data for all devices in batched manner."""
@@ -322,7 +331,10 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
                         self._access_tracker.record_access("Property")
                 except (aiohttp.ClientError, asyncio.TimeoutError) as e:  # noqa: PERF203
                     _LOGGER.debug(
-                        f"Error fetching property {property_path} for device {device_uuid}: {e}"
+                        "Error fetching property %s for device %s: %s",
+                        property_path,
+                        device_uuid,
+                        e,
                     )
                     result[device_uuid][property_path] = None
 
@@ -382,7 +394,9 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
             # ComfoClime devices don't provide much useful info
             if model_type_id != 1:
                 _LOGGER.debug(
-                    f"Skipping definition fetch for device {device_uuid} with modelTypeId {model_type_id} (not ComfoAirQ)"
+                    "Skipping definition fetch for device %s with modelTypeId %s (not ComfoAirQ)",
+                    device_uuid,
+                    model_type_id,
                 )
                 continue
 
@@ -394,13 +408,9 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
                 # Track each individual API call
                 if self._access_tracker:
                     self._access_tracker.record_access("Definition")
-                _LOGGER.debug(
-                    f"Successfully fetched definition for device {device_uuid}"
-                )
+                _LOGGER.debug("Successfully fetched definition for device %s", device_uuid)
             except (aiohttp.ClientError, asyncio.TimeoutError) as e:
-                _LOGGER.debug(
-                    f"Error fetching definition for device {device_uuid}: {e}"
-                )
+                _LOGGER.debug("Error fetching definition for device %s: %s", device_uuid, e)
                 result[device_uuid] = None
 
         return result

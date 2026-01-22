@@ -14,8 +14,10 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 if TYPE_CHECKING:
     from .comfoclime_api import ComfoClimeAPI
+    from .coordinator import ComfoClimeDashboardCoordinator
 
-from .coordinator import ComfoClimeDashboardCoordinator
+from . import DOMAIN
+from .constants import FanSpeed
 
 from . import DOMAIN
 
@@ -36,7 +38,7 @@ class ComfoClimeFan(CoordinatorEntity[ComfoClimeDashboardCoordinator], FanEntity
         self._api = api
         self._device = device
         self._entry = entry
-        self._current_speed = 0
+        self._current_speed = FanSpeed.OFF
 
         self._attr_has_entity_name = True
         self._attr_translation_key = "fan_speed"
@@ -60,36 +62,36 @@ class ComfoClimeFan(CoordinatorEntity[ComfoClimeDashboardCoordinator], FanEntity
 
     @property
     def is_on(self) -> bool:
-        return self._current_speed > 0
+        return self._current_speed > FanSpeed.OFF
 
     @property
     def percentage(self) -> int | None:
-        value = self._current_speed * 33
-        if value == 99:
-            value = 100
-        return value  # 0, 33, 66, 99 ≈ 0%, 33%, 66%, 100%
+        return self._current_speed.to_percentage()
 
     async def async_set_percentage(self, percentage: int) -> None:
-        step = round(percentage / 33)
-        step = max(0, min(step, 3))  # Clamp to 0–3
+        fan_speed = FanSpeed.from_percentage(percentage)
         try:
             await self._api.async_update_dashboard(
-                fan_speed=step,
+                fan_speed=fan_speed,
             )
-            self._current_speed = step
+            self._current_speed = fan_speed
             self.async_write_ha_state()
             self._hass.add_job(self.coordinator.async_request_refresh)
         except (aiohttp.ClientError, asyncio.TimeoutError):
-            _LOGGER.exception("Error setting fanSpeed")
+            _LOGGER.exception("Error setting fan speed")
 
     def _handle_coordinator_update(self) -> None:
         try:
             data = self.coordinator.data
             speed = data.get("fanSpeed", 0)
-            self._current_speed = int(speed)
+            speed_int = int(speed)
+            if speed_int in FanSpeed._value2member_map_:
+                self._current_speed = FanSpeed(speed_int)
+            else:
+                self._current_speed = FanSpeed.OFF
         except (KeyError, TypeError, ValueError) as e:
-            _LOGGER.warning(f"Fehler beim Abrufen von fanSpeed via dashboard: {e}")
-            self._current_speed = 0
+            _LOGGER.warning("Error fetching fan speed from dashboard: %s", e)
+            self._current_speed = FanSpeed.OFF
         self.async_write_ha_state()
 
 
@@ -102,7 +104,7 @@ async def async_setup_entry(
         main_device = data["main_device"]
         coordinator = data["coordinator"]
         if not main_device:
-            _LOGGER.warning("Kein Hauptgerät mit modelTypeId 20 gefunden.")
+            _LOGGER.warning("No main device with modelTypeId 20 found")
             return
         
         # Note: Coordinator first refresh is already done in __init__.py
