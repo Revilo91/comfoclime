@@ -206,6 +206,47 @@ class TestComfoClimeTelemetrySensor:
             override_uuid, "456"
         )
 
+    def test_telemetry_sensor_negative_temperature(
+        self, mock_hass, mock_telemetry_coordinator, mock_device, mock_config_entry
+    ):
+        """Test telemetry sensor with negative temperature value."""
+        # Simulate a negative temperature value (-5.5°C)
+        mock_telemetry_coordinator.get_telemetry_value.return_value = -5.5
+
+        sensor = ComfoClimeTelemetrySensor(
+            hass=mock_hass,
+            coordinator=mock_telemetry_coordinator,
+            telemetry_id=4145,  # tpma_temperature
+            name="TPMA Temperature",
+            translation_key="tpma_temperature",
+            unit="°C",
+            device_class="temperature",
+            faktor=0.1,
+            signed=True,  # Important: must be signed for negative values
+            byte_count=2,
+            device=mock_device,
+            override_device_uuid="test-device-uuid",
+            entry=mock_config_entry,
+        )
+
+        # Verify sensor is correctly configured for signed values
+        assert sensor._signed is True
+        assert sensor._faktor == 0.1
+        assert sensor._byte_count == 2
+
+        # Mock async_write_ha_state
+        sensor.hass = mock_hass
+        sensor.async_write_ha_state = MagicMock()
+
+        # Trigger coordinator update
+        sensor._handle_coordinator_update()
+
+        # Verify negative temperature is correctly read
+        assert sensor._state == -5.5
+        mock_telemetry_coordinator.get_telemetry_value.assert_called_once_with(
+            "test-device-uuid", "4145"
+        )
+
 
 class TestComfoClimePropertySensor:
     """Test ComfoClimePropertySensor class."""

@@ -110,6 +110,35 @@ class TestTelemetryReading:
 
         assert reading.scaled_value == -1.0
 
+    def test_telemetry_reading_signed_negative_temperature(self):
+        """Test signed negative temperature value (like tpma_temperature)."""
+        # Test realistic negative temperature scenario
+        # Raw value 65481 represents -5.5°C when interpreted as signed 16-bit with faktor 0.1
+        # 65481 in signed 16-bit = -55, scaled by 0.1 = -5.5
+        reading = TelemetryReading(
+            device_uuid="abc123",
+            telemetry_id="4145",  # tpma_temperature
+            raw_value=65481,  # -55 in signed 16-bit
+            faktor=0.1,
+            signed=True,
+            byte_count=2,
+        )
+
+        assert reading.scaled_value == -5.5
+
+        # Test another negative temperature: -10.0°C
+        # Raw value 65436 = -100 in signed 16-bit, scaled by 0.1 = -10.0
+        reading = TelemetryReading(
+            device_uuid="abc123",
+            telemetry_id="4145",
+            raw_value=65436,  # -100 in signed 16-bit
+            faktor=0.1,
+            signed=True,
+            byte_count=2,
+        )
+
+        assert reading.scaled_value == -10.0
+
     def test_telemetry_reading_empty_device_uuid(self):
         """Test that empty device_uuid raises ValueError."""
         with pytest.raises(ValueError, match="device_uuid cannot be empty"):

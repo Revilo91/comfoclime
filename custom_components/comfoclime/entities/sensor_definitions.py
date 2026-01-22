@@ -375,6 +375,7 @@ CONNECTED_DEVICE_SENSORS = {
             state_class="measurement",
             telemetry_id=4193,
             faktor=0.1,
+            signed=True,
             byte_count=2,
         ),
         TelemetrySensorDefinition(
@@ -385,6 +386,7 @@ CONNECTED_DEVICE_SENSORS = {
             state_class="measurement",
             telemetry_id=4145,
             faktor=0.1,
+            signed=True,
             byte_count=2,
         ),
         TelemetrySensorDefinition(
@@ -401,6 +403,7 @@ CONNECTED_DEVICE_SENSORS = {
             state_class="measurement",
             telemetry_id=4151,
             faktor=0.1,
+            signed=True,
             byte_count=2,
         ),
         TelemetrySensorDefinition(
@@ -411,6 +414,7 @@ CONNECTED_DEVICE_SENSORS = {
             state_class="measurement",
             telemetry_id=4194,
             faktor=0.1,
+            signed=True,
             byte_count=2,
             diagnose=True,
         ),
@@ -422,6 +426,7 @@ CONNECTED_DEVICE_SENSORS = {
             state_class="measurement",
             telemetry_id=4195,
             faktor=0.1,
+            signed=True,
             byte_count=2,
             diagnose=True,
         ),
@@ -433,6 +438,7 @@ CONNECTED_DEVICE_SENSORS = {
             state_class="measurement",
             telemetry_id=4196,
             faktor=0.1,
+            signed=True,
             byte_count=2,
             diagnose=True,
         ),
@@ -444,6 +450,7 @@ CONNECTED_DEVICE_SENSORS = {
             state_class="measurement",
             telemetry_id=4197,
             faktor=0.1,
+            signed=True,
             byte_count=2,
             diagnose=True,
         ),
@@ -470,6 +477,7 @@ CONNECTED_DEVICE_SENSORS = {
             state_class="measurement",
             telemetry_id=4202,
             faktor=0.1,
+            signed=True,
             byte_count=2,
             diagnose=True,
         ),
@@ -577,6 +585,7 @@ CONNECTED_DEVICE_SENSORS = {
             state_class="measurement",
             telemetry_id=209,
             faktor=0.1,
+            signed=True,
             byte_count=2,
         ),
         TelemetrySensorDefinition(
@@ -594,6 +603,7 @@ CONNECTED_DEVICE_SENSORS = {
             state_class="measurement",
             telemetry_id=275,
             faktor=0.1,
+            signed=True,
             byte_count=2,
         ),
         TelemetrySensorDefinition(
@@ -604,6 +614,7 @@ CONNECTED_DEVICE_SENSORS = {
             state_class="measurement",
             telemetry_id=278,
             faktor=0.1,
+            signed=True,
             byte_count=2,
         ),
         TelemetrySensorDefinition(
