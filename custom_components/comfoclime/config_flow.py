@@ -1,3 +1,32 @@
+"""ComfoClime Configuration Flow.
+
+This module provides the Home Assistant configuration flow and options
+flow for the ComfoClime integration. It handles:
+
+    - Initial setup: Device discovery and connection validation
+    - Options flow: Configuration of entities, polling intervals, timeouts, etc.
+
+The configuration flow validates the device connection by attempting to
+fetch the UUID from the monitoring endpoint. The options flow provides
+a multi-step wizard for configuring:
+    - Performance settings (polling intervals, timeouts, cache TTL)
+    - Entity selection (sensors, switches, numbers, selects)
+    - Individual entity enable/disable
+
+Configuration data is stored in the config entry and can be modified
+later through the integration options.
+
+Example:
+    >>> # User provides hostname during initial setup
+    >>> host = "comfoclime.local"  # or IP address like "192.168.1.100"
+    >>> # System validates connection and creates entry
+    >>> # User can later configure options through Integration UI
+
+Note:
+    The configuration flow uses a stateful approach with _pending_changes
+    to track modifications across multiple option steps before saving.
+"""
+
 import logging
 from typing import Any
 
@@ -22,6 +51,7 @@ from .entity_helper import (
     get_selects,
     get_thermalprofile_sensors,
 )
+from .validators import validate_host
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,32 +69,56 @@ DEFAULT_REQUEST_DEBOUNCE = 0.3
 
 
 class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
+    """Handle a config flow for ComfoClime integration.
+    
+    Validates device connection by attempting to fetch the UUID from
+    the monitoring/ping endpoint. If successful, creates a config entry.
+    """
+    
     VERSION = 1
 
     async def async_step_user(self, user_input=None):
+        """Handle the initial step where user provides device hostname.
+        
+        Validates that the device is reachable and responds with a valid
+        UUID. If validation succeeds, creates the config entry.
+        
+        Args:
+            user_input: Dictionary with 'host' key containing hostname or IP
+        
+        Returns:
+            FlowResult: Either shows form or creates entry
+        """
         errors = {}
 
         if user_input is not None:
             host = user_input["host"]
-            url = f"http://{host}/monitoring/ping"
+            
+            # Validate host first for security
+            is_valid, error_message = validate_host(host)
+            if not is_valid:
+                errors["host"] = "invalid_host"
+                _LOGGER.warning("Invalid host provided: %s - %s", host, error_message)
+            else:
+                url = f"http://{host}/monitoring/ping"
 
-            try:
-                async with (
-                    aiohttp.ClientSession() as session,
-                    session.get(url, timeout=5) as resp,
-                ):
-                    if resp.status == 200:
-                        data = await resp.json()
-                        if "uuid" in data:
-                            return self.async_create_entry(
-                                title=f"ComfoClime @ {host}",
-                                data={"host": host},
-                            )
-                        errors["host"] = "no_uuid"
-                    else:
-                        errors["host"] = "no_response"
-            except (TimeoutError, aiohttp.ClientError):
-                errors["host"] = "cannot_connect"
+                try:
+                    async with (
+                        aiohttp.ClientSession() as session,
+                        session.get(url, timeout=5) as resp,
+                    ):
+                        if resp.status == 200:
+                            data = await resp.json()
+                            if "uuid" in data:
+                                return self.async_create_entry(
+                                    title=f"ComfoClime @ {host}",
+                                    data={"host": host},
+                                )
+                            errors["host"] = "no_uuid"
+                        else:
+                            errors["host"] = "no_response"
+                except (TimeoutError, aiohttp.ClientError):
+                    errors["host"] = "cannot_connect"
 
         return self.async_show_form(
             step_id="user",
@@ -80,20 +134,48 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class ComfoClimeOptionsFlow(OptionsFlow):
+    """Handle options flow for ComfoClime integration.
+    
+    Provides a multi-step wizard for configuring integration options including:
+        - Performance settings (polling intervals, timeouts)
+        - Entity categories (sensors, switches, numbers, selects)
+        - Individual entity enable/disable
+    
+    Changes are tracked in _pending_changes and only saved when the user
+    completes the flow or explicitly saves.
+    """
+    
     def __init__(self, entry: ConfigEntry) -> None:
+        """Initialize the options flow.
+        
+        Args:
+            entry: Config entry being configured
+        """
         self.entry = entry
         self._data = {}
         self._pending_changes: dict[str, Any] = {}
         self._has_changes: bool = False
 
     def _get_current_value(self, key: str, default: Any) -> Any:
-        """Get current value from pending changes first, then from saved options."""
+        """Get current value from pending changes first, then from saved options.
+        
+        Args:
+            key: Option key to retrieve
+            default: Default value if not found
+            
+        Returns:
+            Current value for the option
+        """
         if key in self._pending_changes:
             return self._pending_changes[key]
         return self.entry.options.get(key, default)
 
     def _update_pending(self, data: dict[str, Any]) -> None:
-        """Update pending changes without saving."""
+        """Update pending changes without saving.
+        
+        Args:
+            data: Dictionary of changes to merge into pending changes
+        """
         self._pending_changes.update(data)
         self._has_changes = True
 
@@ -335,8 +417,8 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 },
                 errors=errors,
             )
-        except Exception as e:
-            _LOGGER.error(f"✗ ERROR in async_step_entities_sensors_dashboard: {e}", exc_info=True)
+        except (KeyError, TypeError, ValueError) as e:
+            _LOGGER.exception("✗ ERROR in async_step_entities_sensors_dashboard")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
                 step_id="entities_sensors_dashboard",
@@ -381,8 +463,8 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 },
                 errors=errors,
             )
-        except Exception as e:
-            _LOGGER.error(f"✗ ERROR in async_step_entities_sensors_thermalprofile: {e}", exc_info=True)
+        except (KeyError, TypeError, ValueError) as e:
+            _LOGGER.exception("✗ ERROR in async_step_entities_sensors_thermalprofile")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
                 step_id="entities_sensors_thermalprofile",
@@ -427,8 +509,8 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 },
                 errors=errors,
             )
-        except Exception as e:
-            _LOGGER.error(f"✗ ERROR in async_step_entities_sensors_monitoring: {e}", exc_info=True)
+        except (KeyError, TypeError, ValueError) as e:
+            _LOGGER.exception("✗ ERROR in async_step_entities_sensors_monitoring")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
                 step_id="entities_sensors_monitoring",
@@ -473,8 +555,8 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 },
                 errors=errors,
             )
-        except Exception as e:
-            _LOGGER.error(f"✗ ERROR in async_step_entities_sensors_connected_telemetry: {e}", exc_info=True)
+        except (KeyError, TypeError, ValueError) as e:
+            _LOGGER.exception("✗ ERROR in async_step_entities_sensors_connected_telemetry")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
                 step_id="entities_sensors_connected_telemetry",
@@ -519,8 +601,8 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 },
                 errors=errors,
             )
-        except Exception as e:
-            _LOGGER.error(f"✗ ERROR in async_step_entities_sensors_connected_properties: {e}", exc_info=True)
+        except (KeyError, TypeError, ValueError) as e:
+            _LOGGER.exception("✗ ERROR in async_step_entities_sensors_connected_properties")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
                 step_id="entities_sensors_connected_properties",
@@ -565,8 +647,8 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 },
                 errors=errors,
             )
-        except Exception as e:
-            _LOGGER.error(f"✗ ERROR in async_step_entities_sensors_connected_definition: {e}", exc_info=True)
+        except (KeyError, TypeError, ValueError) as e:
+            _LOGGER.exception("✗ ERROR in async_step_entities_sensors_connected_definition")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
                 step_id="entities_sensors_connected_definition",
@@ -611,8 +693,8 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 },
                 errors=errors,
             )
-        except Exception as e:
-            _LOGGER.error(f"✗ ERROR in async_step_entities_sensors_access_tracking: {e}", exc_info=True)
+        except (KeyError, TypeError, ValueError) as e:
+            _LOGGER.exception("✗ ERROR in async_step_entities_sensors_access_tracking")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
                 step_id="entities_sensors_access_tracking",
@@ -660,8 +742,8 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 },
                 errors=errors,
             )
-        except Exception as e:
-            _LOGGER.error(f"✗ ERROR in async_step_entities_switches: {e}", exc_info=True)
+        except (KeyError, TypeError, ValueError) as e:
+            _LOGGER.exception("✗ ERROR in async_step_entities_switches")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
                 step_id="entities_switches",
@@ -709,8 +791,8 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 },
                 errors=errors,
             )
-        except Exception as e:
-            _LOGGER.error(f"✗ ERROR in async_step_entities_numbers: {e}", exc_info=True)
+        except (KeyError, TypeError, ValueError) as e:
+            _LOGGER.exception("✗ ERROR in async_step_entities_numbers")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
                 step_id="entities_numbers",
@@ -758,8 +840,8 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 },
                 errors=errors,
             )
-        except Exception as e:
-            _LOGGER.error(f"✗ ERROR in async_step_entities_selects: {e}", exc_info=True)
+        except (KeyError, TypeError, ValueError) as e:
+            _LOGGER.exception("✗ ERROR in async_step_entities_selects")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
                 step_id="entities_selects",
