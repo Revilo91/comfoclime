@@ -2,6 +2,7 @@
 
 from unittest.mock import AsyncMock
 
+import aiohttp
 import pytest
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
@@ -166,7 +167,7 @@ async def test_telemetry_coordinator_error_handling(hass_with_frame_helper, mock
     # Mock API to fail for specific telemetry
     async def mock_read_telemetry(device_uuid, telemetry_id, **kwargs):
         if telemetry_id == "456":
-            raise Exception("Test error")
+            raise aiohttp.ClientError("Test error")
         return 25.5
 
     mock_api.async_read_telemetry_for_device = AsyncMock(side_effect=mock_read_telemetry)
@@ -194,7 +195,7 @@ async def test_property_coordinator_error_handling(hass_with_frame_helper, mock_
     # Mock API to fail for specific property
     async def mock_read_property(device_uuid, property_path, **kwargs):
         if property_path == "29/1/6":
-            raise Exception("Test error")
+            raise aiohttp.ClientError("Test error")
         return 100
 
     mock_api.async_read_property_for_device = AsyncMock(side_effect=mock_read_property)
@@ -274,7 +275,7 @@ async def test_dashboard_coordinator_error(hass_with_frame_helper, mock_api):
     """Test DashboardCoordinator error handling."""
     coordinator = ComfoClimeDashboardCoordinator(hass_with_frame_helper, mock_api)
 
-    mock_api.async_get_dashboard_data = AsyncMock(side_effect=Exception("Test error"))
+    mock_api.async_get_dashboard_data = AsyncMock(side_effect=aiohttp.ClientError("Test error"))
 
     with pytest.raises(UpdateFailed):
         await coordinator._async_update_data()
@@ -302,7 +303,7 @@ async def test_thermalprofile_coordinator_error(hass_with_frame_helper, mock_api
     """Test ThermalprofileCoordinator error handling."""
     coordinator = ComfoClimeThermalprofileCoordinator(hass_with_frame_helper, mock_api)
 
-    mock_api.async_get_thermal_profile = AsyncMock(side_effect=Exception("Test error"))
+    mock_api.async_get_thermal_profile = AsyncMock(side_effect=aiohttp.ClientError("Test error"))
 
     with pytest.raises(UpdateFailed):
         await coordinator._async_update_data()
@@ -424,7 +425,7 @@ async def test_monitoring_coordinator_success(hass_with_frame_helper, mock_api):
 @pytest.mark.asyncio
 async def test_monitoring_coordinator_failure(hass_with_frame_helper, mock_api):
     """Test monitoring coordinator handles API errors."""
-    mock_api.async_get_monitoring_ping = AsyncMock(side_effect=Exception("Connection error"))
+    mock_api.async_get_monitoring_ping = AsyncMock(side_effect=aiohttp.ClientError("Connection error"))
     
     coordinator = ComfoClimeMonitoringCoordinator(hass_with_frame_helper, mock_api)
     
