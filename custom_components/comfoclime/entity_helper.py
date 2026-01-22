@@ -26,8 +26,6 @@ from .entities.number_definitions import (
 from .entities.select_definitions import (
     PROPERTY_SELECT_ENTITIES,
     SELECT_ENTITIES,
-    SelectDefinition,
-    PropertySelectDefinition,
 )
 
 _LOGGER = logging.getLogger(__name__)
