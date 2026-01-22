@@ -16,7 +16,7 @@ from .entities.sensor_definitions import (
     PropertySensorDefinition,
     AccessTrackingSensorDefinition,
 )
-from .entities.switch_definitions import SWITCHES, SwitchDefinition
+from .entities.switch_definitions import SWITCHES
 from .entities.number_definitions import (
     CONNECTED_DEVICE_NUMBER_PROPERTIES,
     NUMBER_ENTITIES,
