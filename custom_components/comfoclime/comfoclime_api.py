@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
 from .api_decorators import api_get, api_put
+from .constants import API_DEFAULTS
 from .rate_limiter_cache import (
     DEFAULT_CACHE_TTL,
     DEFAULT_MIN_REQUEST_INTERVAL,
@@ -45,15 +46,9 @@ from .rate_limiter_cache import (
     DEFAULT_WRITE_COOLDOWN,
     RateLimiterCache,
 )
+from .validators import validate_property_path, validate_byte_value
 
 _LOGGER = logging.getLogger(__name__)
-
-# Default timeout configuration (can be overridden via constructor)
-DEFAULT_READ_TIMEOUT = 10  # Timeout for read operations (GET)
-DEFAULT_WRITE_TIMEOUT = (
-    30  # Timeout for write operations (PUT) - longer for dashboard updates
-)
-DEFAULT_MAX_RETRIES = 3  # Number of retries for transient failures
 
 
 class ComfoClimeAPI:
@@ -115,13 +110,13 @@ class ComfoClimeAPI:
         self,
         base_url: str,
         hass: HomeAssistant | None = None,
-        read_timeout: int = DEFAULT_READ_TIMEOUT,
-        write_timeout: int = DEFAULT_WRITE_TIMEOUT,
-        cache_ttl: int = DEFAULT_CACHE_TTL,
-        max_retries: int = DEFAULT_MAX_RETRIES,
-        min_request_interval: float = DEFAULT_MIN_REQUEST_INTERVAL,
-        write_cooldown: float = DEFAULT_WRITE_COOLDOWN,
-        request_debounce: float = DEFAULT_REQUEST_DEBOUNCE,
+        read_timeout: int = API_DEFAULTS.READ_TIMEOUT,
+        write_timeout: int = API_DEFAULTS.WRITE_TIMEOUT,
+        cache_ttl: int = int(API_DEFAULTS.CACHE_TTL),
+        max_retries: int = API_DEFAULTS.MAX_RETRIES,
+        min_request_interval: float = API_DEFAULTS.MIN_REQUEST_INTERVAL,
+        write_cooldown: float = API_DEFAULTS.WRITE_COOLDOWN,
+        request_debounce: float = API_DEFAULTS.REQUEST_DEBOUNCE,
     ) -> None:
         """Initialize ComfoClime API client.
         
@@ -136,6 +131,7 @@ class ComfoClimeAPI:
             write_cooldown: Cooldown period after write operations in seconds
             request_debounce: Debounce time for rapid requests in seconds
         """
+    ) -> None:
         self.base_url = base_url.rstrip("/")
         self.hass = hass
         self.uuid = None
@@ -520,7 +516,7 @@ class ComfoClimeAPI:
         """
         data = response_data.get("data")
         if not isinstance(data, list) or len(data) == 0:
-            _LOGGER.debug(f"Ungültiges Telemetrie-Format für {telemetry_id}")
+            _LOGGER.debug("Invalid telemetry format for %s", telemetry_id)
             return None
         return data
 
@@ -678,7 +674,7 @@ class ComfoClimeAPI:
         """
         data = response_data.get("data")
         if not isinstance(data, list) or not data:
-            _LOGGER.debug(f"Ungültiges Datenformat für Property {property_path}")
+            _LOGGER.debug("Invalid data format for property %s", property_path)
             return None
         return data
 
@@ -1094,10 +1090,21 @@ class ComfoClimeAPI:
             ...     faktor=0.1
             ... )
         """
+        # Validate property path format
+        is_valid, error_message = validate_property_path(property_path)
+        if not is_valid:
+            raise ValueError(f"Invalid property path: {error_message}")
+        
+        # Validate byte count
         if byte_count not in (1, 2):
             raise ValueError("Nur 1 oder 2 Byte unterstützt")
 
+        # Calculate raw value and validate it fits in byte count
         raw_value = int(round(value / faktor))
+        is_valid, error_message = validate_byte_value(raw_value, byte_count, signed)
+        if not is_valid:
+            raise ValueError(f"Invalid value for byte_count={byte_count}, signed={signed}: {error_message}")
+        
         data = self.signed_int_to_bytes(raw_value, byte_count, signed)
 
         x, y, z = map(int, property_path.split("/"))

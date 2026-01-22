@@ -18,6 +18,7 @@ from .coordinator import (
     ComfoClimeTelemetryCoordinator,
     ComfoClimeThermalprofileCoordinator,
 )
+from .validators import validate_property_path, validate_byte_value, validate_duration
 
 DOMAIN = "comfoclime"
 
@@ -120,15 +121,36 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         byte_count = call.data["byte_count"]
         signed = call.data.get("signed", True)
         faktor = call.data.get("faktor", 1.0)
+        
+        # Validate property path format
+        is_valid, error_message = validate_property_path(path)
+        if not is_valid:
+            _LOGGER.error("Ungültiger Property-Pfad: %s - %s", path, error_message)
+            raise HomeAssistantError(f"Ungültiger Property-Pfad: {error_message}")
+        
+        # Validate byte count
+        if byte_count not in (1, 2):
+            _LOGGER.error("Ungültige byte_count: %s (muss 1 oder 2 sein)", byte_count)
+            raise HomeAssistantError("byte_count muss 1 oder 2 sein")
+        
+        # Validate value fits in byte count
+        # Convert value with factor before validation
+        actual_value = int(value / faktor)
+        is_valid, error_message = validate_byte_value(actual_value, byte_count, signed)
+        if not is_valid:
+            _LOGGER.error("Ungültiger Wert %s für byte_count=%s, signed=%s: %s", 
+                         actual_value, byte_count, signed, error_message)
+            raise HomeAssistantError(f"Ungültiger Wert: {error_message}")
+        
         dev_reg = dr.async_get(hass)
         device = dev_reg.async_get(device_id)
         if not device or not device.identifiers:
             _LOGGER.error("Gerät nicht gefunden oder ungültig")
-            return
+            raise HomeAssistantError("Gerät nicht gefunden oder ungültig")
         domain, device_uuid = list(device.identifiers)[0]
         if domain != DOMAIN:
             _LOGGER.error(f"Gerät gehört nicht zur Integration {DOMAIN}")
-            return
+            raise HomeAssistantError(f"Gerät gehört nicht zur Integration {DOMAIN}")
         try:
             await api.async_set_property_for_device(
                 device_uuid=device_uuid,
@@ -179,9 +201,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
         # Validate duration if provided
         if duration is not None:
-            if not isinstance(duration, (int, float)) or duration <= 0:
+            is_valid, error_message = validate_duration(duration)
+            if not is_valid:
+                _LOGGER.error("Ungültige Dauer: %s - %s", duration, error_message)
                 raise HomeAssistantError(
-                    f"Duration must be a positive number, got: {duration}"
+                    f"Ungültige Dauer: {error_message}"
                 )
 
         # Validate start_delay format if provided

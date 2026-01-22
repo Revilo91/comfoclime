@@ -52,6 +52,7 @@ from .entity_helper import (
     get_selects,
     get_thermalprofile_sensors,
 )
+from .validators import validate_host
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -93,25 +94,32 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             host = user_input["host"]
-            url = f"http://{host}/monitoring/ping"
+            
+            # Validate host first for security
+            is_valid, error_message = validate_host(host)
+            if not is_valid:
+                errors["host"] = "invalid_host"
+                _LOGGER.warning("Invalid host provided: %s - %s", host, error_message)
+            else:
+                url = f"http://{host}/monitoring/ping"
 
-            try:
-                async with (
-                    aiohttp.ClientSession() as session,
-                    session.get(url, timeout=5) as resp,
-                ):
-                    if resp.status == 200:
-                        data = await resp.json()
-                        if "uuid" in data:
-                            return self.async_create_entry(
-                                title=f"ComfoClime @ {host}",
-                                data={"host": host},
-                            )
-                        errors["host"] = "no_uuid"
-                    else:
-                        errors["host"] = "no_response"
-            except (TimeoutError, aiohttp.ClientError):
-                errors["host"] = "cannot_connect"
+                try:
+                    async with (
+                        aiohttp.ClientSession() as session,
+                        session.get(url, timeout=5) as resp,
+                    ):
+                        if resp.status == 200:
+                            data = await resp.json()
+                            if "uuid" in data:
+                                return self.async_create_entry(
+                                    title=f"ComfoClime @ {host}",
+                                    data={"host": host},
+                                )
+                            errors["host"] = "no_uuid"
+                        else:
+                            errors["host"] = "no_response"
+                except (TimeoutError, aiohttp.ClientError):
+                    errors["host"] = "cannot_connect"
 
         return self.async_show_form(
             step_id="user",
