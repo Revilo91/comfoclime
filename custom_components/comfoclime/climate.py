@@ -184,7 +184,7 @@ async def async_setup_entry(
 
 
 class ComfoClimeClimate(
-    CoordinatorEntity[ComfoClimeDashboardCoordinator], ClimateEntity
+    CoordinatorEntity, ClimateEntity
 ):
     """ComfoClime Climate entity for HVAC control.
     

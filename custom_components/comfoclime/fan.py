@@ -47,7 +47,7 @@ from . import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 
-class ComfoClimeFan(CoordinatorEntity[ComfoClimeDashboardCoordinator], FanEntity):
+class ComfoClimeFan(CoordinatorEntity, FanEntity):
     """ComfoClime Fan entity for ventilation fan speed control.
     
     Provides control over the ComfoClime ventilation fan speed with

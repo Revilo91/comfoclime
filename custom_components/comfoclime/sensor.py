@@ -51,17 +51,18 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .coordinator import (
+    ComfoClimeDashboardCoordinator,
+    ComfoClimeDefinitionCoordinator,
+    ComfoClimeMonitoringCoordinator,
+    ComfoClimePropertyCoordinator,
+    ComfoClimeTelemetryCoordinator,
+    ComfoClimeThermalprofileCoordinator,
+)
+
 if TYPE_CHECKING:
     from .access_tracker import AccessTracker
     from .comfoclime_api import ComfoClimeAPI
-    from .coordinator import (
-        ComfoClimeDashboardCoordinator,
-        ComfoClimeDefinitionCoordinator,
-        ComfoClimeMonitoringCoordinator,
-        ComfoClimePropertyCoordinator,
-        ComfoClimeTelemetryCoordinator,
-        ComfoClimeThermalprofileCoordinator,
-    )
 
 from . import DOMAIN
 from .entities.sensor_definitions import (
@@ -388,7 +389,7 @@ async def async_setup_entry(
     hass.async_create_task(_refresh_coordinators())
 
 
-class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], SensorEntity):
+class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
     def __init__(
         self,
         hass: HomeAssistant,
@@ -493,7 +494,7 @@ class ComfoClimeSensor(CoordinatorEntity[ComfoClimeDashboardCoordinator], Sensor
 
 
 class ComfoClimeTelemetrySensor(
-    CoordinatorEntity[ComfoClimeTelemetryCoordinator], SensorEntity
+    CoordinatorEntity, SensorEntity
 ):
     """Sensor for telemetry data using coordinator for batched fetching."""
 
@@ -576,7 +577,7 @@ class ComfoClimeTelemetrySensor(
 
 
 class ComfoClimePropertySensor(
-    CoordinatorEntity[ComfoClimePropertyCoordinator], SensorEntity
+    CoordinatorEntity, SensorEntity
 ):
     """Sensor for property data using coordinator for batched fetching."""
 
@@ -661,7 +662,7 @@ class ComfoClimePropertySensor(
 
 
 class ComfoClimeDefinitionSensor(
-    CoordinatorEntity[ComfoClimeDefinitionCoordinator], SensorEntity
+    CoordinatorEntity, SensorEntity
 ):
     """Sensor for definition data using coordinator for batched fetching."""
 

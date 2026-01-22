@@ -96,7 +96,7 @@ async def async_setup_entry(
 
 
 class ComfoClimeTemperatureNumber(
-    CoordinatorEntity[ComfoClimeThermalprofileCoordinator], NumberEntity
+    CoordinatorEntity, NumberEntity
 ):
     def __init__(
         self,
@@ -268,7 +268,7 @@ class ComfoClimeTemperatureNumber(
 
 
 class ComfoClimePropertyNumber(
-    CoordinatorEntity[ComfoClimePropertyCoordinator], NumberEntity
+    CoordinatorEntity, NumberEntity
 ):
     """Number entity for property values using coordinator for batched fetching."""
 
