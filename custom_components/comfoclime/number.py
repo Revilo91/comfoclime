@@ -58,7 +58,7 @@ async def async_setup_entry(
             model_id = device.get("modelTypeId")
             dev_uuid = device.get("uuid")
             if dev_uuid == "NULL":
-            _LOGGER.debug("Skipping device with NULL uuid (model_id: %s)", model_id)
+                _LOGGER.debug("Skipping device with NULL uuid (model_id: %s)", model_id)
                 continue
 
             number_properties = CONNECTED_DEVICE_NUMBER_PROPERTIES.get(model_id, [])

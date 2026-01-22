@@ -6,12 +6,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import aiohttp
 import pytest
 
-from custom_components.comfoclime.comfoclime_api import (
-    ComfoClimeAPI,
-    DEFAULT_READ_TIMEOUT,
-    DEFAULT_WRITE_TIMEOUT,
-    DEFAULT_MAX_RETRIES,
-)
+from custom_components.comfoclime.comfoclime_api import ComfoClimeAPI
+from custom_components.comfoclime.constants import API_DEFAULTS
 
 
 class TestTimeoutConfiguration:
@@ -19,9 +15,9 @@ class TestTimeoutConfiguration:
 
     def test_timeout_constants_defined(self):
         """Test that timeout constants are properly defined."""
-        assert DEFAULT_READ_TIMEOUT == 10
-        assert DEFAULT_WRITE_TIMEOUT == 30
-        assert DEFAULT_MAX_RETRIES == 3
+        assert API_DEFAULTS.READ_TIMEOUT == 10
+        assert API_DEFAULTS.WRITE_TIMEOUT == 30
+        assert API_DEFAULTS.MAX_RETRIES == 3
 
 
 
