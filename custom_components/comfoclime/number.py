@@ -58,12 +58,14 @@ async def async_setup_entry(
             model_id = device.get("modelTypeId")
             dev_uuid = device.get("uuid")
             if dev_uuid == "NULL":
-                _LOGGER.debug(f"Skipping device with NULL uuid (model_id: {model_id})")
+            _LOGGER.debug("Skipping device with NULL uuid (model_id: %s)", model_id)
                 continue
 
             number_properties = CONNECTED_DEVICE_NUMBER_PROPERTIES.get(model_id, [])
             _LOGGER.debug(
-                f"Found {len(number_properties)} number properties for model_id {model_id}"
+                "Found %s number properties for model_id %s",
+                len(number_properties),
+                model_id,
             )
 
             for number_def in number_properties:
@@ -71,14 +73,14 @@ async def async_setup_entry(
                 if not is_entity_enabled(entry.options, "numbers", "connected_properties", number_def):
                     continue
                 
-                _LOGGER.debug(f"Creating number entity for property: {number_def}")
+                _LOGGER.debug("Creating number entity for property: %s", number_def)
                 # Register property with coordinator for batched fetching
                 await propcoordinator.register_property(
                     device_uuid=dev_uuid,
-                    property_path=number_def["property"],
-                    faktor=number_def.get("faktor", 1.0),
-                    signed=number_def.get("signed", True),
-                    byte_count=number_def.get("byte_count"),
+                    property_path=number_def.property,
+                    faktor=number_def.faktor,
+                    signed=False,
+                    byte_count=number_def.byte_count,
                 )
                 entities.append(
                     ComfoClimePropertyNumber(
@@ -91,12 +93,12 @@ async def async_setup_entry(
                     )
                 )
 
-    _LOGGER.debug(f"Adding {len(entities)} number entities to Home Assistant")
+    _LOGGER.debug("Adding %s number entities to Home Assistant", len(entities))
     async_add_entities(entities, True)
 
 
 class ComfoClimeTemperatureNumber(
-    CoordinatorEntity[ComfoClimeThermalprofileCoordinator], NumberEntity
+    CoordinatorEntity, NumberEntity
 ):
     def __init__(
         self,
@@ -111,18 +113,16 @@ class ComfoClimeTemperatureNumber(
         self._hass = hass
         self._api = api
         self._conf = conf
-        self._key_path = conf["key"].split(".")
-        self._name = conf["name"]
+        self._key_path = conf.key.split(".")
+        self._name = conf.name
         self._value = None
         self._device = device
         self._entry = entry
-        self._attr_mode = (
-            NumberMode.SLIDER if conf.get("mode", "box") == "slider" else NumberMode.BOX
-        )
+        self._attr_mode = NumberMode.BOX
         self._attr_config_entry_id = entry.entry_id
-        self._attr_unique_id = f"{entry.entry_id}_{conf['key']}"
-        # self._attr_name = conf["name"]
-        self._attr_translation_key = conf["translation_key"]
+        self._attr_unique_id = f"{entry.entry_id}_{conf.key}"
+        # self._attr_name = conf.name
+        self._attr_translation_key = conf.translation_key
         self._attr_has_entity_name = True
 
     @property
@@ -151,7 +151,7 @@ class ComfoClimeTemperatureNumber(
                 return automatic_temperature_status == 0
             except (KeyError, TypeError, ValueError) as e:
                 _LOGGER.debug(
-                    f"Could not check automatic temperature status for availability: {e}"
+                    "Could not check automatic temperature status for availability: %s", e
                 )
                 # Return True if we can't determine the status to avoid breaking functionality
                 return True
@@ -169,14 +169,15 @@ class ComfoClimeTemperatureNumber(
 
     @property
     def native_min_value(self):
-        return self._conf["min"]
+        return self._conf.min
 
     @property
     def native_max_value(self):
-        return self._conf["max"]
+        return self._conf.max
 
     @property
     def native_step(self):
+        return self._conf.step
         return self._conf["step"]
 
     @property
@@ -228,7 +229,7 @@ class ComfoClimeTemperatureNumber(
                     # Don't proceed with setting the temperature
                     return
             except (KeyError, TypeError, ValueError) as e:
-                _LOGGER.warning(f"Could not check automatic temperature status: {e}")
+                _LOGGER.warning("Could not check automatic temperature status: %s", e)
                 # Proceed anyway if we can't determine the status
 
         # Mapping aller NUMBER_ENTITIES Keys zu thermal_profile Parametern
@@ -254,7 +255,7 @@ class ComfoClimeTemperatureNumber(
 
         key_str = ".".join(self._key_path)
         if key_str not in param_mapping:
-            _LOGGER.warning(f"Unbekannter number key: {key_str}")
+            _LOGGER.warning("Unknown number key: %s", key_str)
             return
 
         param_name = param_mapping[key_str]
@@ -262,13 +263,13 @@ class ComfoClimeTemperatureNumber(
             await self._api.async_update_thermal_profile(**{param_name: value})
             self._value = value
             await self.coordinator.async_request_refresh()
-        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+        except (aiohttp.ClientError, asyncio.TimeoutError):
             _LOGGER.exception("Error setting number entity %s", self._name)
-            raise HomeAssistantError(f"Fehler beim Setzen von {self._name}") from e
+            raise HomeAssistantError(f"Error setting {self._name}") from None
 
 
 class ComfoClimePropertyNumber(
-    CoordinatorEntity[ComfoClimePropertyCoordinator], NumberEntity
+    CoordinatorEntity, NumberEntity
 ):
     """Number entity for property values using coordinator for batched fetching."""
 
@@ -289,34 +290,33 @@ class ComfoClimePropertyNumber(
         self._entry = entry
         self._value = None
 
-        self._property_path = config["property"]
-        self._attr_translation_key = config.get("translation_key")
+        self._property_path = config.property
+        self._attr_translation_key = config.translation_key
         self._attr_unique_id = (
             f"{entry.entry_id}_property_number_{self._property_path.replace('/', '_')}"
         )
         self._attr_config_entry_id = entry.entry_id
         self._attr_has_entity_name = True
-        self._attr_mode = (
-            NumberMode.SLIDER
-            if config.get("mode", "box") == "slider"
-            else NumberMode.BOX
-        )
-        self._attr_native_min_value = config.get("min", 0)
-        self._attr_native_max_value = config.get("max", 100)
-        self._attr_native_step = config.get("step", 1)
-        self._attr_native_unit_of_measurement = config.get("unit")
-        self._faktor = config.get("faktor", 1.0)
-        self._byte_count = config.get("byte_count", 2)
-        self._signed = config.get("signed", True)  # Default to signed values
+        self._attr_mode = NumberMode.BOX
+        self._attr_native_min_value = config.min
+        self._attr_native_max_value = config.max
+        self._attr_native_step = config.step
+        self._attr_native_unit_of_measurement = config.unit
+        self._faktor = config.faktor
+        self._byte_count = config.byte_count
+        self._signed = False  # PropertyNumberDefinition always uses unsigned
 
         _LOGGER.debug(
-            f"ComfoClimePropertyNumber initialized: path={self._property_path}, "
-            f"device={device.get('uuid')}, unique_id={self._attr_unique_id}"
+            "ComfoClimePropertyNumber initialized: path=%s, "
+            "device=%s, unique_id=%s",
+            self._property_path,
+            device.get("uuid"),
+            self._attr_unique_id,
         )
 
     @property
     def name(self):
-        return self._config.get("name", "Property Number")
+        return self._config.name
 
     @property
     def native_value(self):
@@ -342,13 +342,11 @@ class ComfoClimePropertyNumber(
                 self._device["uuid"], self._property_path
             )
             _LOGGER.debug(
-                f"Property {self._property_path} updated from coordinator: {value}"
+                "Property %s updated from coordinator: %s", self._property_path, value
             )
             self._value = value
         except (KeyError, TypeError, ValueError) as e:
-            _LOGGER.debug(
-                f"Fehler beim Abrufen von Property {self._property_path}: {e}"
-            )
+            _LOGGER.debug("Error fetching property %s: %s", self._property_path, e)
             self._value = None
         self.async_write_ha_state()
 
@@ -364,10 +362,8 @@ class ComfoClimePropertyNumber(
             self._value = value
             # Trigger coordinator refresh to update all entities
             await self.coordinator.async_request_refresh()
-        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
-            _LOGGER.exception(
-                "Error writing property %s", self._property_path
-            )
+        except (aiohttp.ClientError, asyncio.TimeoutError):
+            _LOGGER.exception("Error writing property %s", self._property_path)
             raise HomeAssistantError(
-                f"Fehler beim Schreiben von Property {self._property_path}"
-            ) from e
+                f"Error writing property {self._property_path}"
+            ) from None
