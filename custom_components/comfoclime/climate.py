@@ -608,6 +608,11 @@ class ComfoClimeClimate(
                 await self._async_refresh_coordinators()
                 return
 
+            # Check if this is a scenario mode
+            if preset_mode in SCENARIO_REVERSE_MAPPING:
+                await self.async_set_scenario_mode(preset_mode)
+                return
+
             # Automatic mode with preset profile
             if preset_mode not in PRESET_REVERSE_MAPPING:
                 _LOGGER.error("Unknown preset mode: %s", preset_mode)

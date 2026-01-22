@@ -6,12 +6,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import aiohttp
 import pytest
 
-from custom_components.comfoclime.comfoclime_api import (
-    ComfoClimeAPI,
-    DEFAULT_READ_TIMEOUT,
-    DEFAULT_WRITE_TIMEOUT,
-    DEFAULT_MAX_RETRIES,
-)
+from custom_components.comfoclime.comfoclime_api import ComfoClimeAPI
+from custom_components.comfoclime.constants import API_DEFAULTS
 
 
 class TestTimeoutConfiguration:
@@ -19,9 +15,9 @@ class TestTimeoutConfiguration:
 
     def test_timeout_constants_defined(self):
         """Test that timeout constants are properly defined."""
-        assert DEFAULT_READ_TIMEOUT == 10
-        assert DEFAULT_WRITE_TIMEOUT == 30
-        assert DEFAULT_MAX_RETRIES == 3
+        assert API_DEFAULTS.READ_TIMEOUT == 10
+        assert API_DEFAULTS.WRITE_TIMEOUT == 30
+        assert API_DEFAULTS.MAX_RETRIES == 3
 
 
 
@@ -103,8 +99,8 @@ class TestDashboardUpdateRetry:
             with pytest.raises(asyncio.TimeoutError):
                 await api.async_update_dashboard(set_point_temperature=22.0)
 
-        # Should be called DEFAULT_MAX_RETRIES + 1 times (4 total: initial + 3 retries)
-        assert mock_session.put.call_count == DEFAULT_MAX_RETRIES + 1
+        # Should be called API_DEFAULTS.MAX_RETRIES + 1 times (4 total: initial + 3 retries)
+        assert mock_session.put.call_count == API_DEFAULTS.MAX_RETRIES + 1
 
     @pytest.mark.asyncio
     async def test_dashboard_update_retries_on_client_error(self):
@@ -261,5 +257,5 @@ class TestPropertySetRetry:
                     signed=False,
                 )
 
-        # Should be called DEFAULT_MAX_RETRIES + 1 times (4 total: initial + 3 retries)
-        assert mock_session.put.call_count == DEFAULT_MAX_RETRIES + 1
+        # Should be called API_DEFAULTS.MAX_RETRIES + 1 times (4 total: initial + 3 retries)
+        assert mock_session.put.call_count == API_DEFAULTS.MAX_RETRIES + 1

@@ -24,6 +24,8 @@ from . import DOMAIN
 from .entities.number_definitions import (
     CONNECTED_DEVICE_NUMBER_PROPERTIES,
     NUMBER_ENTITIES,
+    NumberDefinition,
+    PropertyNumberDefinition,
 )
 from .entity_helper import is_entity_category_enabled, is_entity_enabled
 
@@ -58,7 +60,7 @@ async def async_setup_entry(
             model_id = device.get("modelTypeId")
             dev_uuid = device.get("uuid")
             if dev_uuid == "NULL":
-            _LOGGER.debug("Skipping device with NULL uuid (model_id: %s)", model_id)
+                _LOGGER.debug("Skipping device with NULL uuid (model_id: %s)", model_id)
                 continue
 
             number_properties = CONNECTED_DEVICE_NUMBER_PROPERTIES.get(model_id, [])
@@ -105,7 +107,7 @@ class ComfoClimeTemperatureNumber(
         hass: HomeAssistant,
         coordinator: ComfoClimeThermalprofileCoordinator,
         api: ComfoClimeAPI,
-        conf: dict[str, Any],
+        conf: NumberDefinition,
         device: dict[str, Any] | None = None,
         entry: ConfigEntry | None = None,
     ) -> None:
@@ -278,7 +280,7 @@ class ComfoClimePropertyNumber(
         hass: HomeAssistant,
         coordinator: ComfoClimePropertyCoordinator,
         api: ComfoClimeAPI,
-        config: dict[str, Any],
+        config: PropertyNumberDefinition,
         device: dict[str, Any],
         entry: ConfigEntry,
     ) -> None:

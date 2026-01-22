@@ -204,7 +204,7 @@ class ComfoClimeSwitch(CoordinatorEntity, SwitchEntity):
 
         key_str = ".".join(self._key_path)
         if key_str not in param_mapping:
-                _LOGGER.warning("Unknown switch key: %s", key_str)
+            _LOGGER.warning("Unknown switch key: %s", key_str)
             return
 
         param_name = param_mapping[key_str]

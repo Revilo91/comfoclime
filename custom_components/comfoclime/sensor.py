@@ -51,17 +51,16 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-if TYPE_CHECKING:
-    from .access_tracker import AccessTracker
-    from .comfoclime_api import ComfoClimeAPI
-    from .coordinator import (
-        ComfoClimeDashboardCoordinator,
-        ComfoClimeDefinitionCoordinator,
-        ComfoClimeMonitoringCoordinator,
-        ComfoClimePropertyCoordinator,
-        ComfoClimeTelemetryCoordinator,
-        ComfoClimeThermalprofileCoordinator,
-    )
+from .access_tracker import AccessTracker
+from .comfoclime_api import ComfoClimeAPI
+from .coordinator import (
+    ComfoClimeDashboardCoordinator,
+    ComfoClimeDefinitionCoordinator,
+    ComfoClimeMonitoringCoordinator,
+    ComfoClimePropertyCoordinator,
+    ComfoClimeTelemetryCoordinator,
+    ComfoClimeThermalprofileCoordinator,
+)
 
 from . import DOMAIN
 from .entities.sensor_definitions import (

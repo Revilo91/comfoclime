@@ -7,6 +7,10 @@ from custom_components.comfoclime.number import (
     ComfoClimePropertyNumber,
     async_setup_entry,
 )
+from custom_components.comfoclime.entities.number_definitions import (
+    NumberDefinition,
+    PropertyNumberDefinition,
+)
 
 
 class TestComfoClimeTemperatureNumber:
@@ -21,15 +25,14 @@ class TestComfoClimeTemperatureNumber:
         mock_config_entry,
     ):
         """Test temperature number entity initialization."""
-        config = {
-            "key": "temperature.manualTemperature",
-            "name": "Manual Temperature",
-            "translation_key": "manual_temperature",
-            "min": 10.0,
-            "max": 30.0,
-            "step": 0.5,
-            "mode": "slider",
-        }
+        config = NumberDefinition(
+            key="temperature.manualTemperature",
+            name="Manual Temperature",
+            translation_key="manual_temperature",
+            min=10.0,
+            max=30.0,
+            step=0.5,
+        )
 
         number = ComfoClimeTemperatureNumber(
             hass=mock_hass,
@@ -56,14 +59,14 @@ class TestComfoClimeTemperatureNumber:
         mock_config_entry,
     ):
         """Test temperature number value update from coordinator."""
-        config = {
-            "key": "temperature.manualTemperature",
-            "name": "Manual Temperature",
-            "translation_key": "manual_temperature",
-            "min": 10.0,
-            "max": 30.0,
-            "step": 0.5,
-        }
+        config = NumberDefinition(
+            key="temperature.manualTemperature",
+            name="Manual Temperature",
+            translation_key="manual_temperature",
+            min=10.0,
+            max=30.0,
+            step=0.5,
+        )
 
         mock_thermalprofile_coordinator.data = {
             "temperature": {"manualTemperature": 22.5}
@@ -96,14 +99,14 @@ class TestComfoClimeTemperatureNumber:
         mock_config_entry,
     ):
         """Test setting temperature number value."""
-        config = {
-            "key": "temperature.manualTemperature",
-            "name": "Manual Temperature",
-            "translation_key": "manual_temperature",
-            "min": 10.0,
-            "max": 30.0,
-            "step": 0.5,
-        }
+        config = NumberDefinition(
+            key="temperature.manualTemperature",
+            name="Manual Temperature",
+            translation_key="manual_temperature",
+            min=10.0,
+            max=30.0,
+            step=0.5,
+        )
 
         # Set manual mode (status = 0)
         mock_thermalprofile_coordinator.data = {
@@ -137,14 +140,14 @@ class TestComfoClimeTemperatureNumber:
         mock_config_entry,
     ):
         """Test temperature number availability when automatic mode is enabled."""
-        config = {
-            "key": "temperature.manualTemperature",
-            "name": "Manual Temperature",
-            "translation_key": "manual_temperature",
-            "min": 10.0,
-            "max": 30.0,
-            "step": 0.5,
-        }
+        config = NumberDefinition(
+            key="temperature.manualTemperature",
+            name="Manual Temperature",
+            translation_key="manual_temperature",
+            min=10.0,
+            max=30.0,
+            step=0.5,
+        )
 
         # Set automatic mode (status = 1)
         mock_thermalprofile_coordinator.data = {
@@ -172,14 +175,14 @@ class TestComfoClimeTemperatureNumber:
         mock_config_entry,
     ):
         """Test temperature number availability when manual mode is enabled."""
-        config = {
-            "key": "temperature.manualTemperature",
-            "name": "Manual Temperature",
-            "translation_key": "manual_temperature",
-            "min": 10.0,
-            "max": 30.0,
-            "step": 0.5,
-        }
+        config = NumberDefinition(
+            key="temperature.manualTemperature",
+            name="Manual Temperature",
+            translation_key="manual_temperature",
+            min=10.0,
+            max=30.0,
+            step=0.5,
+        )
 
         # Set manual mode (status = 0)
         mock_thermalprofile_coordinator.data = {
@@ -207,14 +210,14 @@ class TestComfoClimeTemperatureNumber:
         mock_config_entry,
     ):
         """Test temperature number device info."""
-        config = {
-            "key": "temperature.manualTemperature",
-            "name": "Manual Temperature",
-            "translation_key": "manual_temperature",
-            "min": 10.0,
-            "max": 30.0,
-            "step": 0.5,
-        }
+        config = NumberDefinition(
+            key="temperature.manualTemperature",
+            name="Manual Temperature",
+            translation_key="manual_temperature",
+            min=10.0,
+            max=30.0,
+            step=0.5,
+        )
 
         number = ComfoClimeTemperatureNumber(
             hass=mock_hass,
@@ -243,19 +246,17 @@ class TestComfoClimePropertyNumber:
         mock_config_entry,
     ):
         """Test property number entity initialization."""
-        config = {
-            "property": "29/1/20",
-            "name": "Fan Speed Setpoint",
-            "translation_key": "fan_speed_setpoint",
-            "min": 0,
-            "max": 100,
-            "step": 5,
-            "unit": "%",
-            "mode": "slider",
-            "faktor": 1.0,
-            "signed": False,
-            "byte_count": 1,
-        }
+        config = PropertyNumberDefinition(
+            property="29/1/20",
+            name="Fan Speed Setpoint",
+            translation_key="fan_speed_setpoint",
+            min=0,
+            max=100,
+            step=5,
+            unit="%",
+            faktor=1.0,
+            byte_count=1,
+        )
 
         number = ComfoClimePropertyNumber(
             hass=mock_hass,
@@ -282,18 +283,17 @@ class TestComfoClimePropertyNumber:
         mock_config_entry,
     ):
         """Test property number update from coordinator."""
-        config = {
-            "property": "29/1/20",
-            "name": "Fan Speed Setpoint",
-            "translation_key": "fan_speed_setpoint",
-            "min": 0,
-            "max": 100,
-            "step": 5,
-            "unit": "%",
-            "faktor": 1.0,
-            "signed": False,
-            "byte_count": 1,
-        }
+        config = PropertyNumberDefinition(
+            property="29/1/20",
+            name="Fan Speed Setpoint",
+            translation_key="fan_speed_setpoint",
+            min=0,
+            max=100,
+            step=5,
+            unit="%",
+            faktor=1.0,
+            byte_count=1,
+        )
 
         mock_property_coordinator.get_property_value.return_value = 75
 
@@ -328,18 +328,17 @@ class TestComfoClimePropertyNumber:
         mock_config_entry,
     ):
         """Test property number async set value."""
-        config = {
-            "property": "29/1/20",
-            "name": "Fan Speed Setpoint",
-            "translation_key": "fan_speed_setpoint",
-            "min": 0,
-            "max": 100,
-            "step": 5,
-            "unit": "%",
-            "faktor": 1.0,
-            "signed": False,
-            "byte_count": 1,
-        }
+        config = PropertyNumberDefinition(
+            property="29/1/20",
+            name="Fan Speed Setpoint",
+            translation_key="fan_speed_setpoint",
+            min=0,
+            max=100,
+            step=5,
+            unit="%",
+            faktor=1.0,
+            byte_count=1,
+        )
 
         number = ComfoClimePropertyNumber(
             hass=mock_hass,
@@ -370,15 +369,15 @@ class TestComfoClimePropertyNumber:
         mock_config_entry,
     ):
         """Test property number device info."""
-        config = {
-            "property": "29/1/20",
-            "name": "Fan Speed Setpoint",
-            "translation_key": "fan_speed_setpoint",
-            "min": 0,
-            "max": 100,
-            "step": 5,
-            "unit": "%",
-        }
+        config = PropertyNumberDefinition(
+            property="29/1/20",
+            name="Fan Speed Setpoint",
+            translation_key="fan_speed_setpoint",
+            min=0,
+            max=100,
+            step=5,
+            unit="%",
+        )
 
         number = ComfoClimePropertyNumber(
             hass=mock_hass,

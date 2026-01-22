@@ -131,7 +131,6 @@ class ComfoClimeAPI:
             write_cooldown: Cooldown period after write operations in seconds
             request_debounce: Debounce time for rapid requests in seconds
         """
-    ) -> None:
         self.base_url = base_url.rstrip("/")
         self.hass = hass
         self.uuid = None

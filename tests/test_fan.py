@@ -6,6 +6,7 @@ from custom_components.comfoclime.fan import (
     ComfoClimeFan,
     async_setup_entry,
 )
+from custom_components.comfoclime.constants import FanSpeed
 
 
 class TestComfoClimeFan:
@@ -63,10 +64,10 @@ class TestComfoClimeFan:
     @pytest.mark.parametrize(
         "speed,expected_percentage",
         [
-            (0, 0),
-            (1, 33),
-            (2, 66),
-            (3, 100),
+            (FanSpeed.OFF, 0),
+            (FanSpeed.LOW, 33),
+            (FanSpeed.MEDIUM, 66),
+            (FanSpeed.HIGH, 100),
         ],
         ids=["speed_0", "speed_1", "speed_2", "speed_3"],
     )
@@ -110,6 +111,8 @@ class TestComfoClimeFan:
             device=mock_device,
             entry=mock_config_entry,
         )
+        fan.hass = mock_hass
+        fan.async_write_ha_state = MagicMock()
 
         await fan.async_set_percentage(percentage)
 
@@ -134,6 +137,8 @@ class TestComfoClimeFan:
             device=mock_device,
             entry=mock_config_entry,
         )
+        fan.hass = mock_hass
+        fan.async_write_ha_state = MagicMock()
 
         # Test setting speed and clearing call history
         await fan.async_set_percentage(0)
@@ -160,8 +165,6 @@ class TestComfoClimeFan:
             device=mock_device,
             entry=mock_config_entry,
         )
-
-        # Set hass attribute for async_write_ha_state to work
         fan.hass = mock_hass
         fan.async_write_ha_state = MagicMock()
 
@@ -182,8 +185,6 @@ class TestComfoClimeFan:
             device=mock_device,
             entry=mock_config_entry,
         )
-
-        # Set hass attribute for async_write_ha_state to work
         fan.hass = mock_hass
         fan.async_write_ha_state = MagicMock()
 

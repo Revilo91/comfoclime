@@ -54,6 +54,12 @@ class MockComfoClimeAPI:
         self.responses = responses or MockAPIResponses()
         self.uuid = self.responses.uuid
         self._call_history: list[tuple[str, tuple, dict]] = []
+        
+        # Wrap async methods with AsyncMock for assertion support
+        self.async_update_dashboard = AsyncMock(side_effect=self._async_update_dashboard)
+        self.async_set_hvac_season = AsyncMock(side_effect=self._async_set_hvac_season)
+        self.async_update_thermal_profile = AsyncMock(side_effect=self._async_update_thermal_profile)
+        self.async_set_property_for_device = AsyncMock(side_effect=self._async_set_property_for_device)
 
     def _record_call(self, method: str, *args: Any, **kwargs: Any) -> None:
         """Record a method call for verification."""
@@ -83,12 +89,12 @@ class MockComfoClimeAPI:
         self._record_call("async_get_thermal_profile")
         return self.responses.thermal_profile.copy()
 
-    async def async_update_dashboard(self, **kwargs: Any) -> None:
+    async def _async_update_dashboard(self, **kwargs: Any) -> None:
         self._record_call("async_update_dashboard", **kwargs)
         # Simulate updating the state
         self.responses.dashboard_data.update(kwargs)
 
-    async def async_update_thermal_profile(self, **kwargs: Any) -> None:
+    async def _async_update_thermal_profile(self, **kwargs: Any) -> None:
         self._record_call("async_update_thermal_profile", **kwargs)
         # Simulate updating the thermal profile
         for key, value in kwargs.items():
@@ -97,7 +103,7 @@ class MockComfoClimeAPI:
             else:
                 self.responses.thermal_profile[key] = value
 
-    async def async_set_hvac_season(self, season: int, hpStandby: bool) -> None:
+    async def _async_set_hvac_season(self, season: int, hpStandby: bool) -> None:
         self._record_call("async_set_hvac_season", season=season, hpStandby=hpStandby)
         self.responses.dashboard_data["season"] = season
         self.responses.dashboard_data["hpStandby"] = hpStandby
@@ -126,19 +132,19 @@ class MockComfoClimeAPI:
         )
         return self.responses.property_data.get(device_uuid, {}).get(path, 0)
 
-    async def async_set_property_for_device(
-        self, device_uuid: str, path: str, value: int, **kwargs: Any
+    async def _async_set_property_for_device(
+        self, device_uuid: str, property_path: str, value: int, **kwargs: Any
     ) -> None:
         self._record_call(
             "async_set_property_for_device",
             device_uuid=device_uuid,
-            path=path,
+            property_path=property_path,
             value=value,
             **kwargs,
         )
         if device_uuid not in self.responses.property_data:
             self.responses.property_data[device_uuid] = {}
-        self.responses.property_data[device_uuid][path] = value
+        self.responses.property_data[device_uuid][property_path] = value
 
     async def async_reset_system(self) -> None:
         self._record_call("async_reset_system")
