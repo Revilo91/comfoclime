@@ -190,8 +190,17 @@ class ComfoClimeSelect(
             await self._api.async_update_thermal_profile(**{param_name: value})
 
             self._current = option
-            self._hass.add_job(self.coordinator.async_request_refresh)
-        except (aiohttp.ClientError, asyncio.TimeoutError):
+            
+            # Schedule background refresh without blocking
+            async def safe_refresh() -> None:
+                """Safely refresh coordinator with error handling."""
+                try:
+                    await self.coordinator.async_request_refresh()
+                except Exception:
+                    _LOGGER.exception("Background refresh failed after select update")
+            
+            self._hass.async_create_task(safe_refresh())
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
             _LOGGER.exception("Error setting select %s", self._name)
             raise HomeAssistantError(f"Error setting {self._name}") from None
 

@@ -1012,11 +1012,13 @@ class ComfoClimeAPI:
             >>> # Put system in standby
             >>> await api.async_set_hvac_season(season=0, hpStandby=True)
         """
-        # First update dashboard to set hpStandby
-        await self.async_update_dashboard(hpStandby=hpStandby)
-        # Then update thermal profile to set season
-        if not hpStandby:  # Only set season if device is active
-            await self._async_update_thermal_profile(season_value=season)
+        # Wrap in timeout to ensure the entire operation completes within reasonable time
+        async with asyncio.timeout(self.write_timeout * 2):
+            # First update dashboard to set hpStandby
+            await self.async_update_dashboard(hpStandby=hpStandby)
+            # Then update thermal profile to set season
+            if not hpStandby:  # Only set season if device is active
+                await self._async_update_thermal_profile(season_value=season)
 
     @api_put("/device/{device_uuid}/method/{x}/{y}/3")
     async def _set_property_internal(
