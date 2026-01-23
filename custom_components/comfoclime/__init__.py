@@ -1,5 +1,7 @@
 import logging
 
+import asyncio
+import aiohttp
 import homeassistant.helpers.device_registry as dr
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
@@ -16,6 +18,7 @@ from .coordinator import (
     ComfoClimeTelemetryCoordinator,
     ComfoClimeThermalprofileCoordinator,
 )
+from .validators import validate_property_path, validate_byte_value, validate_duration
 
 DOMAIN = "comfoclime"
 
@@ -32,6 +35,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     hass.data.setdefault(DOMAIN, {})
 
     host = entry.data["host"]
+    _LOGGER.debug("Setting up ComfoClime integration for host: %s", host)
 
     # Migration: Add missing default entity options for existing setups
     # This ensures that existing configurations have all entity options
@@ -64,6 +68,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     min_request_interval = entry.options.get("min_request_interval", 0.1)
     write_cooldown = entry.options.get("write_cooldown", 2.0)
     request_debounce = entry.options.get("request_debounce", 0.3)
+    
+    _LOGGER.debug(
+        "Configuration loaded: read_timeout=%s, write_timeout=%s, polling_interval=%s, "
+        "cache_ttl=%s, max_retries=%s, min_request_interval=%s, write_cooldown=%s, request_debounce=%s",
+        read_timeout, write_timeout, polling_interval, cache_ttl, max_retries, 
+        min_request_interval, write_cooldown, request_debounce
+    )
 
     # Create access tracker for monitoring API access patterns
     access_tracker = AccessTracker()
@@ -80,41 +91,58 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         write_cooldown=write_cooldown,
         request_debounce=request_debounce,
     )
+    _LOGGER.debug("ComfoClimeAPI instance created with base_url: http://%s", host)
 
     # Get connected devices before creating coordinators
     devices = await api.async_get_connected_devices()
+    _LOGGER.debug("Connected devices retrieved: %s devices found", len(devices))
 
     # Create Dashboard-Coordinator
     dashboard_coordinator = ComfoClimeDashboardCoordinator(
         hass, api, polling_interval, access_tracker=access_tracker, config_entry=entry
     )
-    await dashboard_coordinator.async_config_entry_first_refresh()
+    _LOGGER.debug("Created ComfoClimeDashboardCoordinator with polling_interval=%s", polling_interval)
 
     # Create Thermalprofile-Coordinator
     thermalprofile_coordinator = ComfoClimeThermalprofileCoordinator(
         hass, api, polling_interval, access_tracker=access_tracker, config_entry=entry
     )
-    await thermalprofile_coordinator.async_config_entry_first_refresh()
+    _LOGGER.debug("Created ComfoClimeThermalprofileCoordinator with polling_interval=%s", polling_interval)
 
     # Create Monitoring-Coordinator
     monitoring_coordinator = ComfoClimeMonitoringCoordinator(
         hass, api, polling_interval, access_tracker=access_tracker, config_entry=entry
     )
-    await monitoring_coordinator.async_config_entry_first_refresh()
+    _LOGGER.debug("Created ComfoClimeMonitoringCoordinator with polling_interval=%s", polling_interval)
 
     # Create definition coordinator for device definition data (mainly for ComfoAirQ)
     definitioncoordinator = ComfoClimeDefinitionCoordinator(
         hass, api, devices, polling_interval, access_tracker=access_tracker, config_entry=entry
     )
-    await definitioncoordinator.async_config_entry_first_refresh()
+    _LOGGER.debug("Created ComfoClimeDefinitionCoordinator with polling_interval=%s", polling_interval)
+
+    # Parallel initialization of all coordinators for faster startup
+    _LOGGER.debug("Starting parallel first refresh of all coordinators")
+    results = await asyncio.gather(
+        dashboard_coordinator.async_config_entry_first_refresh(),
+        thermalprofile_coordinator.async_config_entry_first_refresh(),
+        monitoring_coordinator.async_config_entry_first_refresh(),
+        definitioncoordinator.async_config_entry_first_refresh(),
+        return_exceptions=True,
+    )
+    _LOGGER.debug("Coordinator first refresh completed. Results: %s", 
+                  ["Success" if not isinstance(r, Exception) else f"Error: {r}" for r in results])
 
     # Create telemetry and property coordinators with device list
     tlcoordinator = ComfoClimeTelemetryCoordinator(
         hass, api, devices, polling_interval, access_tracker=access_tracker, config_entry=entry
     )
+    _LOGGER.debug("Created ComfoClimeTelemetryCoordinator with polling_interval=%s", polling_interval)
+    
     propcoordinator = ComfoClimePropertyCoordinator(
         hass, api, devices, polling_interval, access_tracker=access_tracker, config_entry=entry
     )
+    _LOGGER.debug("Created ComfoClimePropertyCoordinator with polling_interval=%s", polling_interval)
 
     hass.data[DOMAIN][entry.entry_id] = {
         "api": api,
@@ -143,15 +171,36 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         byte_count = call.data["byte_count"]
         signed = call.data.get("signed", True)
         faktor = call.data.get("faktor", 1.0)
+        
+        # Validate property path format
+        is_valid, error_message = validate_property_path(path)
+        if not is_valid:
+            _LOGGER.error("Ungültiger Property-Pfad: %s - %s", path, error_message)
+            raise HomeAssistantError(f"Ungültiger Property-Pfad: {error_message}")
+        
+        # Validate byte count
+        if byte_count not in (1, 2):
+            _LOGGER.error("Ungültige byte_count: %s (muss 1 oder 2 sein)", byte_count)
+            raise HomeAssistantError("byte_count muss 1 oder 2 sein")
+        
+        # Validate value fits in byte count
+        # Convert value with factor before validation
+        actual_value = int(value / faktor)
+        is_valid, error_message = validate_byte_value(actual_value, byte_count, signed)
+        if not is_valid:
+            _LOGGER.error("Ungültiger Wert %s für byte_count=%s, signed=%s: %s", 
+                         actual_value, byte_count, signed, error_message)
+            raise HomeAssistantError(f"Ungültiger Wert: {error_message}")
+        
         dev_reg = dr.async_get(hass)
         device = dev_reg.async_get(device_id)
         if not device or not device.identifiers:
             _LOGGER.error("Gerät nicht gefunden oder ungültig")
-            return
+            raise HomeAssistantError("Gerät nicht gefunden oder ungültig")
         domain, device_uuid = list(device.identifiers)[0]
         if domain != DOMAIN:
             _LOGGER.error(f"Gerät gehört nicht zur Integration {DOMAIN}")
-            return
+            raise HomeAssistantError(f"Gerät gehört nicht zur Integration {DOMAIN}")
         try:
             await api.async_set_property_for_device(
                 device_uuid=device_uuid,
@@ -162,15 +211,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
                 faktor=faktor,
             )
             _LOGGER.info(f"Property {path} auf {value} gesetzt für {device_uuid}")
-        except Exception as e:
-            _LOGGER.exception(f"Fehler beim Setzen von Property {path}")
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            _LOGGER.exception("Fehler beim Setzen von Property %s", path)
             raise HomeAssistantError(f"Fehler beim Setzen von Property {path}") from e
 
     async def handle_reset_system_service(call: ServiceCall):
         try:
             await api.async_reset_system()
             _LOGGER.info("ComfoClime Neustart ausgelöst")
-        except Exception as e:
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
             _LOGGER.exception("Fehler beim Neustart des Geräts")
             raise HomeAssistantError("Fehler beim Neustart des Geräts") from e
 
@@ -202,9 +251,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
         # Validate duration if provided
         if duration is not None:
-            if not isinstance(duration, (int, float)) or duration <= 0:
+            is_valid, error_message = validate_duration(duration)
+            if not is_valid:
+                _LOGGER.error("Ungültige Dauer: %s - %s", duration, error_message)
                 raise HomeAssistantError(
-                    f"Duration must be a positive number, got: {duration}"
+                    f"Ungültige Dauer: {error_message}"
                 )
 
         # Validate start_delay format if provided
@@ -232,9 +283,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
                         duration=duration,
                         start_delay=start_delay,
                     )
-                except Exception as e:
+                except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as e:
                     _LOGGER.exception(
-                        f"Error setting scenario mode '{scenario}' on {entity_id}"
+                        "Error setting scenario mode '%s' on %s", scenario, entity_id
                     )
                     raise HomeAssistantError(
                         f"Failed to set scenario mode '{scenario}'"

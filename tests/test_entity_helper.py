@@ -174,20 +174,20 @@ def test_get_individual_entity_options():
     assert isinstance(options, list)
     assert len(options) > 0
 
-    # Check that each option has required keys (flat list format)
+    # Check that each option has required keys (flat structure, not grouped)
     for option in options:
-        assert "value" in option, "Option should have 'value' key"
         assert "label" in option, "Option should have 'label' key"
-        assert isinstance(option["value"], str), "Option value should be string"
+        assert "value" in option, "Option should have 'value' key"
         assert isinstance(option["label"], str), "Option label should be string"
+        assert isinstance(option["value"], str), "Option value should be string"
 
         # Check that label has emoji prefix (verifies user-friendly formatting)
-        # Note: Emojis are: 📊 Dashboard, 🌡️ Thermal, ⏱️ Monitoring, 📡 Device telemetry,
-        # 🔧 Device property, 📋 Device definition, 🔍 Access tracking, 🔌 Switch, 🔢 Number, 📝 Select
-        has_emoji = any(char in option["label"] for char in "📊🌡️⏱️📡🔧📋🔍🔌🔢📝")
+        # Note: Emojis are: 📊 Dashboard, 🌡️ Thermal, 📡 Device telemetry, 🔧 Device property,
+        # 📋 Device definition, 🔍 Access tracking, 🔌 Switch, 🔢 Number, 📝 Select
+        has_emoji = any(char in option["label"] for char in "📊🌡️📡🔧📋🔍🔌🔢📝")
         assert has_emoji, f"Option label '{option['label']}' should have emoji prefix"
 
-    # Check that some specific entities are present
+    # Check that some specific entities are present (flat structure)
     all_values = [opt["value"] for opt in options]
 
     assert any("sensors_dashboard_indoorTemperature" in v for v in all_values), \

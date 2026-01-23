@@ -7,6 +7,10 @@ from custom_components.comfoclime.select import (
     ComfoClimePropertySelect,
     async_setup_entry,
 )
+from custom_components.comfoclime.entities.select_definitions import (
+    SelectDefinition,
+    PropertySelectDefinition,
+)
 
 
 class TestComfoClimeSelect:
@@ -21,12 +25,12 @@ class TestComfoClimeSelect:
         mock_config_entry,
     ):
         """Test select entity initialization."""
-        config = {
-            "key": "temperatureProfile",
-            "name": "Temperature Profile",
-            "translation_key": "temperature_profile",
-            "options": {0: "comfort", 1: "power", 2: "eco"},
-        }
+        config = SelectDefinition(
+            key="temperatureProfile",
+            name="Temperature Profile",
+            translation_key="temperature_profile",
+            options={0: "comfort", 1: "power", 2: "eco"},
+        )
 
         select = ComfoClimeSelect(
             hass=mock_hass,
@@ -51,12 +55,12 @@ class TestComfoClimeSelect:
         mock_config_entry,
     ):
         """Test select entity current option from coordinator."""
-        config = {
-            "key": "temperatureProfile",
-            "name": "Temperature Profile",
-            "translation_key": "temperature_profile",
-            "options": {0: "comfort", 1: "power", 2: "eco"},
-        }
+        config = SelectDefinition(
+            key="temperatureProfile",
+            name="Temperature Profile",
+            translation_key="temperature_profile",
+            options={0: "comfort", 1: "power", 2: "eco"},
+        )
 
         mock_thermalprofile_coordinator.data = {"temperatureProfile": 1}
 
@@ -86,12 +90,12 @@ class TestComfoClimeSelect:
         mock_config_entry,
     ):
         """Test select entity with nested key."""
-        config = {
-            "key": "season.mode",
-            "name": "Season Mode",
-            "translation_key": "season_mode",
-            "options": {0: "auto", 1: "manual"},
-        }
+        config = SelectDefinition(
+            key="season.mode",
+            name="Season Mode",
+            translation_key="season_mode",
+            options={0: "auto", 1: "manual"},
+        )
 
         mock_thermalprofile_coordinator.data = {"season": {"mode": 0}}
 
@@ -122,14 +126,15 @@ class TestComfoClimeSelect:
         mock_config_entry,
     ):
         """Test selecting an option."""
-        config = {
-            "key": "season.status",
-            "name": "Season Status",
-            "translation_key": "season_status",
-            "options": {0: "auto", 1: "manual"},
-        }
+        config = SelectDefinition(
+            key="season.status",
+            name="Season Status",
+            translation_key="season_status",
+            options={0: "auto", 1: "manual"},
+        )
 
         mock_hass.add_job = MagicMock()
+        mock_api.async_update_thermal_profile = AsyncMock()
 
         select = ComfoClimeSelect(
             hass=mock_hass,
@@ -155,14 +160,15 @@ class TestComfoClimeSelect:
         mock_config_entry,
     ):
         """Test selecting temperature profile option uses thermal profile API."""
-        config = {
-            "key": "temperatureProfile",
-            "name": "Temperature Profile",
-            "translation_key": "temperature_profile",
-            "options": {0: "comfort", 1: "power", 2: "eco"},
-        }
+        config = SelectDefinition(
+            key="temperatureProfile",
+            name="Temperature Profile",
+            translation_key="temperature_profile",
+            options={0: "comfort", 1: "power", 2: "eco"},
+        )
 
         mock_hass.add_job = MagicMock()
+        mock_api.async_update_thermal_profile = AsyncMock()
 
         select = ComfoClimeSelect(
             hass=mock_hass,
@@ -189,12 +195,12 @@ class TestComfoClimeSelect:
         mock_config_entry,
     ):
         """Test select entity device info."""
-        config = {
-            "key": "temperatureProfile",
-            "name": "Temperature Profile",
-            "translation_key": "temperature_profile",
-            "options": {0: "comfort", 1: "power", 2: "eco"},
-        }
+        config = SelectDefinition(
+            key="temperatureProfile",
+            name="Temperature Profile",
+            translation_key="temperature_profile",
+            options={0: "comfort", 1: "power", 2: "eco"},
+        )
 
         select = ComfoClimeSelect(
             hass=mock_hass,
@@ -223,12 +229,12 @@ class TestComfoClimePropertySelect:
         mock_config_entry,
     ):
         """Test property select entity initialization."""
-        config = {
-            "path": "29/1/15",
-            "name": "Ventilation Mode",
-            "translation_key": "ventilation_mode",
-            "options": {0: "auto", 1: "manual", 2: "boost"},
-        }
+        config = PropertySelectDefinition(
+            path="29/1/15",
+            name="Ventilation Mode",
+            translation_key="ventilation_mode",
+            options={0: "auto", 1: "manual", 2: "boost"},
+        )
 
         select = ComfoClimePropertySelect(
             hass=mock_hass,
@@ -253,12 +259,12 @@ class TestComfoClimePropertySelect:
         mock_config_entry,
     ):
         """Test property select update from coordinator."""
-        config = {
-            "path": "29/1/15",
-            "name": "Ventilation Mode",
-            "translation_key": "ventilation_mode",
-            "options": {0: "auto", 1: "manual", 2: "boost"},
-        }
+        config = PropertySelectDefinition(
+            path="29/1/15",
+            name="Ventilation Mode",
+            translation_key="ventilation_mode",
+            options={0: "auto", 1: "manual", 2: "boost"},
+        )
 
         mock_property_coordinator.get_property_value.return_value = 1
 
@@ -293,12 +299,14 @@ class TestComfoClimePropertySelect:
         mock_config_entry,
     ):
         """Test selecting a property option."""
-        config = {
-            "path": "29/1/15",
-            "name": "Ventilation Mode",
-            "translation_key": "ventilation_mode",
-            "options": {0: "auto", 1: "manual", 2: "boost"},
-        }
+        config = PropertySelectDefinition(
+            path="29/1/15",
+            name="Ventilation Mode",
+            translation_key="ventilation_mode",
+            options={0: "auto", 1: "manual", 2: "boost"},
+        )
+
+        mock_api.async_set_property_for_device = AsyncMock()
 
         select = ComfoClimePropertySelect(
             hass=mock_hass,

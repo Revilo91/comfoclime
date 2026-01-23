@@ -1,10 +1,175 @@
 """Common fixtures for ComfoClime tests."""
 
+from dataclasses import dataclass, field
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+
+
+@dataclass
+class MockAPIResponses:
+    """Configurable responses for API mock."""
+
+    uuid: str = "test-uuid-12345"
+    dashboard_data: dict[str, Any] = field(
+        default_factory=lambda: {
+            "indoorTemperature": 22.5,
+            "outdoorTemperature": 15.0,
+            "fanSpeed": 2,
+            "season": 1,
+            "temperatureProfile": 0,
+            "heatPumpStatus": 3,
+            "hpStandby": False,
+            "exhaustAirFlow": 200,
+            "supplyAirFlow": 200,
+        }
+    )
+    devices: list[dict[str, Any]] = field(default_factory=list)
+    thermal_profile: dict[str, Any] = field(
+        default_factory=lambda: {
+            "temperature": {
+                "status": 0,
+                "manualTemperature": 22.0,
+                "comfortTemperature": 22.0,
+                "reducedTemperature": 18.0,
+            },
+            "season": {"status": 0},
+            "temperatureProfile": 0,
+        }
+    )
+    telemetry_data: dict[str, dict[str, float]] = field(default_factory=dict)
+    property_data: dict[str, dict[str, int]] = field(default_factory=dict)
+
+
+class MockComfoClimeAPI:
+    """Realistic mock of ComfoClimeAPI for testing.
+
+    Provides configurable responses and tracks calls.
+    """
+
+    def __init__(self, responses: MockAPIResponses | None = None) -> None:
+        self.responses = responses or MockAPIResponses()
+        self.uuid = self.responses.uuid
+        self._call_history: list[tuple[str, tuple, dict]] = []
+        
+        # Wrap async methods with AsyncMock for assertion support
+        self.async_update_dashboard = AsyncMock(side_effect=self._async_update_dashboard)
+        self.async_set_hvac_season = AsyncMock(side_effect=self._async_set_hvac_season)
+        self.async_update_thermal_profile = AsyncMock(side_effect=self._async_update_thermal_profile)
+        self.async_set_property_for_device = AsyncMock(side_effect=self._async_set_property_for_device)
+
+    def _record_call(self, method: str, *args: Any, **kwargs: Any) -> None:
+        """Record a method call for verification."""
+        self._call_history.append((method, args, kwargs))
+
+    async def async_get_uuid(self) -> str:
+        self._record_call("async_get_uuid")
+        return self.responses.uuid
+
+    async def async_get_monitoring_ping(self) -> dict[str, Any]:
+        self._record_call("async_get_monitoring_ping")
+        return {
+            "uuid": self.responses.uuid,
+            "uptime": 123456,
+            "timestamp": "2024-01-15T10:30:00Z",
+        }
+
+    async def async_get_dashboard_data(self) -> dict[str, Any]:
+        self._record_call("async_get_dashboard_data")
+        return self.responses.dashboard_data.copy()
+
+    async def async_get_connected_devices(self) -> list[dict[str, Any]]:
+        self._record_call("async_get_connected_devices")
+        return self.responses.devices.copy()
+
+    async def async_get_thermal_profile(self) -> dict[str, Any]:
+        self._record_call("async_get_thermal_profile")
+        return self.responses.thermal_profile.copy()
+
+    async def _async_update_dashboard(self, **kwargs: Any) -> None:
+        self._record_call("async_update_dashboard", **kwargs)
+        # Simulate updating the state
+        self.responses.dashboard_data.update(kwargs)
+
+    async def _async_update_thermal_profile(self, **kwargs: Any) -> None:
+        self._record_call("async_update_thermal_profile", **kwargs)
+        # Simulate updating the thermal profile
+        for key, value in kwargs.items():
+            if isinstance(value, dict):
+                self.responses.thermal_profile[key] = value
+            else:
+                self.responses.thermal_profile[key] = value
+
+    async def _async_set_hvac_season(self, season: int, hpStandby: bool) -> None:
+        self._record_call("async_set_hvac_season", season=season, hpStandby=hpStandby)
+        self.responses.dashboard_data["season"] = season
+        self.responses.dashboard_data["hpStandby"] = hpStandby
+
+    async def async_read_telemetry_for_device(
+        self, device_uuid: str, telemetry_id: int, **kwargs: Any
+    ) -> float:
+        self._record_call(
+            "async_read_telemetry_for_device",
+            device_uuid=device_uuid,
+            telemetry_id=telemetry_id,
+            **kwargs,
+        )
+        return self.responses.telemetry_data.get(device_uuid, {}).get(
+            str(telemetry_id), 0.0
+        )
+
+    async def async_read_property_for_device(
+        self, device_uuid: str, path: str, **kwargs: Any
+    ) -> int:
+        self._record_call(
+            "async_read_property_for_device",
+            device_uuid=device_uuid,
+            path=path,
+            **kwargs,
+        )
+        return self.responses.property_data.get(device_uuid, {}).get(path, 0)
+
+    async def _async_set_property_for_device(
+        self, device_uuid: str, property_path: str, value: int, **kwargs: Any
+    ) -> None:
+        self._record_call(
+            "async_set_property_for_device",
+            device_uuid=device_uuid,
+            property_path=property_path,
+            value=value,
+            **kwargs,
+        )
+        if device_uuid not in self.responses.property_data:
+            self.responses.property_data[device_uuid] = {}
+        self.responses.property_data[device_uuid][property_path] = value
+
+    async def async_reset_system(self) -> None:
+        self._record_call("async_reset_system")
+
+    def get_calls(self, method: str) -> list[tuple[tuple, dict]]:
+        """Get all calls to a specific method."""
+        return [(args, kwargs) for m, args, kwargs in self._call_history if m == method]
+
+    def assert_called_once(self, method: str) -> None:
+        """Assert a method was called exactly once."""
+        calls = self.get_calls(method)
+        assert len(calls) == 1, f"Expected 1 call to {method}, got {len(calls)}"
+
+    def assert_called_with(self, method: str, **expected_kwargs: Any) -> None:
+        """Assert a method was called with specific kwargs."""
+        calls = self.get_calls(method)
+        assert len(calls) > 0, f"Expected at least 1 call to {method}, got 0"
+        _, kwargs = calls[-1]  # Check last call
+        for key, expected_value in expected_kwargs.items():
+            assert (
+                key in kwargs
+            ), f"Expected kwarg '{key}' not found in call to {method}"
+            assert (
+                kwargs[key] == expected_value
+            ), f"Expected {key}={expected_value}, got {kwargs[key]}"
 
 
 @pytest.fixture
@@ -44,25 +209,39 @@ def mock_config_entry():
 
 
 @pytest.fixture
-def mock_api():
-    """Create a mock ComfoClimeAPI instance."""
-    api = MagicMock()
-    api.uuid = "test-uuid-12345"
-    api.async_get_uuid = AsyncMock(return_value="test-uuid-12345")
-    api.async_get_monitoring_ping = AsyncMock(
-        return_value={"uuid": "test-uuid-12345", "uptime": 123456, "timestamp": "2024-01-15T10:30:00Z"}
+def mock_api_responses() -> MockAPIResponses:
+    """Fixture for configurable API responses."""
+    return MockAPIResponses()
+
+
+@pytest.fixture
+def mock_api(mock_api_responses: MockAPIResponses) -> MockComfoClimeAPI:
+    """Create a realistic mock API with call tracking."""
+    return MockComfoClimeAPI(mock_api_responses)
+
+
+@pytest.fixture
+def mock_api_with_devices() -> MockComfoClimeAPI:
+    """Create mock API with sample devices."""
+    responses = MockAPIResponses(
+        devices=[
+            {
+                "uuid": "device-1-uuid",
+                "displayName": "ComfoAir Q",
+                "@modelType": "ComfoAir Q350",
+                "modelTypeId": 21,
+                "version": "2.0.0",
+            },
+            {
+                "uuid": "device-2-uuid",
+                "displayName": "ComfoClime",
+                "@modelType": "ComfoClime 200",
+                "modelTypeId": 20,
+                "version": "1.2.3",
+            },
+        ]
     )
-    api.async_get_connected_devices = AsyncMock(return_value=[])
-    api.async_read_telemetry_for_device = AsyncMock(return_value=22.5)
-    api.async_read_property_for_device = AsyncMock(return_value=1)
-    api.async_set_property_for_device = AsyncMock()
-    api.async_update_dashboard = AsyncMock()
-    api.async_update_thermal_profile = AsyncMock()
-    api._async_update_thermal_profile = MagicMock()
-    api.set_property_for_device = MagicMock()
-    api.async_set_hvac_season = AsyncMock()
-    api.async_reset_system = AsyncMock()
-    return api
+    return MockComfoClimeAPI(responses)
 
 
 @pytest.fixture

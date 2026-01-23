@@ -98,6 +98,8 @@ def api_get(
                 async with session.get(url, timeout=timeout) as response:
                     response.raise_for_status()
                     data = await response.json()
+                
+                _LOGGER.debug("API GET %s returned data: %s", url, data)
 
                 # Extract specific key if specified
                 if response_key:
@@ -230,7 +232,7 @@ def api_put(
                             if is_dashboard:
                                 try:
                                     resp_json = await response.json()
-                                except Exception:
+                                except (aiohttp.ContentTypeError, ValueError):
                                     resp_json = {"text": await response.text()}
                                 _LOGGER.debug(f"Update OK response={resp_json}")
                                 return resp_json

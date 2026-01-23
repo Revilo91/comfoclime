@@ -351,6 +351,7 @@
             "cannot_connect": "Verbindung fehlgeschlagen.",
             "no_uuid": "Antwort erhalten, aber keine UUID gefunden.",
             "no_response": "Das Gerät hat nicht korrekt geantwortet.",
+            "invalid_host": "Ungültiger Hostname oder IP-Adresse. Bitte überprüfen Sie gefährliche Zeichen oder ungültige IP-Bereiche.",
             "entity_options_error": "Fehler beim Laden der Entity-Optionen. Überprüfen Sie die Logs für weitere Details.",
             "no_entities_available": "Keine Entities verfügbar. Dies kann auf einen Konfigurationsfehler hindeuten."
         },
