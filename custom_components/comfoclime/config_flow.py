@@ -218,6 +218,9 @@ class ComfoClimeOptionsFlow(OptionsFlow):
     async def async_step_save_and_exit(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Save all pending changes and exit."""
         new_options = {**self.entry.options, **self._pending_changes}
+
+        _LOGGER.info("Saving options: %s", new_options)
+
         return self.async_create_entry(title="", data=new_options)
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
@@ -236,6 +239,24 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         _LOGGER.debug("===== async_step_entities CALLED =====")
 
         if user_input is not None:
+            # Multi-select fields that are completely cleared by the user may be
+            # omitted from user_input by the frontend. Ensure all expected
+            # multi-select keys exist so an explicit empty list is saved.
+            expected_keys = [
+                "enabled_dashboard",
+                "enabled_thermalprofile",
+                "enabled_monitoring",
+                "enabled_connected_device_telemetry",
+                "enabled_connected_device_properties",
+                "enabled_connected_device_definition",
+                "enabled_access_tracking",
+                "enabled_switches",
+                "enabled_numbers",
+                "enabled_selects",
+            ]
+            for key in expected_keys:
+                user_input.setdefault(key, [])
+
             _LOGGER.info("User submitted entity selection")
             self._update_pending(user_input)
             return await self.async_step_init()
@@ -573,6 +594,8 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         _LOGGER.debug(f"===== async_step_entities_sensors_dashboard CALLED =====")
 
         if user_input is not None:
+            # Ensure empty selection is preserved when frontend omits the key
+            user_input.setdefault("enabled_dashboard", [])
             _LOGGER.info(f"User submitted dashboard sensor selection: {len(user_input.get('enabled_dashboard', []))} selected")
             self._update_pending(user_input)
             return await self.async_step_entities_sensors()
@@ -619,6 +642,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         _LOGGER.debug(f"===== async_step_entities_sensors_thermalprofile CALLED =====")
 
         if user_input is not None:
+            user_input.setdefault("enabled_thermalprofile", [])
             _LOGGER.info(f"User submitted thermal profile sensor selection: {len(user_input.get('enabled_thermalprofile', []))} selected")
             self._update_pending(user_input)
             return await self.async_step_entities_sensors()
@@ -665,6 +689,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         _LOGGER.debug(f"===== async_step_entities_sensors_monitoring CALLED =====")
 
         if user_input is not None:
+            user_input.setdefault("enabled_monitoring", [])
             _LOGGER.info(f"User submitted monitoring sensor selection: {len(user_input.get('enabled_monitoring', []))} selected")
             self._update_pending(user_input)
             return await self.async_step_entities_sensors()
@@ -711,6 +736,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         _LOGGER.debug(f"===== async_step_entities_sensors_connected_telemetry CALLED =====")
 
         if user_input is not None:
+            user_input.setdefault("enabled_connected_device_telemetry", [])
             _LOGGER.info(f"User submitted connected device telemetry sensor selection: {len(user_input.get('enabled_connected_device_telemetry', []))} selected")
             self._update_pending(user_input)
             return await self.async_step_entities_sensors()
@@ -757,6 +783,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         _LOGGER.debug(f"===== async_step_entities_sensors_connected_properties CALLED =====")
 
         if user_input is not None:
+            user_input.setdefault("enabled_connected_device_properties", [])
             _LOGGER.info(f"User submitted connected device properties sensor selection: {len(user_input.get('enabled_connected_device_properties', []))} selected")
             self._update_pending(user_input)
             return await self.async_step_entities_sensors()
@@ -803,6 +830,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         _LOGGER.debug(f"===== async_step_entities_sensors_connected_definition CALLED =====")
 
         if user_input is not None:
+            user_input.setdefault("enabled_connected_device_definition", [])
             _LOGGER.info(f"User submitted connected device definition sensor selection: {len(user_input.get('enabled_connected_device_definition', []))} selected")
             self._update_pending(user_input)
             return await self.async_step_entities_sensors()
@@ -849,6 +877,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         _LOGGER.debug(f"===== async_step_entities_sensors_access_tracking CALLED =====")
 
         if user_input is not None:
+            user_input.setdefault("enabled_access_tracking", [])
             _LOGGER.info(f"User submitted access tracking sensor selection: {len(user_input.get('enabled_access_tracking', []))} selected")
             self._update_pending(user_input)
             return await self.async_step_entities_sensors()
@@ -895,6 +924,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         _LOGGER.debug(f"===== async_step_entities_switches CALLED =====")
 
         if user_input is not None:
+            user_input.setdefault("enabled_switches", [])
             _LOGGER.info(f"User submitted switch selection: {len(user_input.get('enabled_switches', []))} switches selected")
             self._update_pending(user_input)
             return await self.async_step_entities_menu()
@@ -944,6 +974,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         _LOGGER.debug(f"===== async_step_entities_numbers CALLED =====")
 
         if user_input is not None:
+            user_input.setdefault("enabled_numbers", [])
             _LOGGER.info(f"User submitted number selection: {len(user_input.get('enabled_numbers', []))} numbers selected")
             self._update_pending(user_input)
             return await self.async_step_entities_menu()
@@ -993,6 +1024,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         _LOGGER.debug(f"===== async_step_entities_selects CALLED =====")
 
         if user_input is not None:
+            user_input.setdefault("enabled_selects", [])
             _LOGGER.info(f"User submitted select selection: {len(user_input.get('enabled_selects', []))} selects selected")
             self._update_pending(user_input)
             return await self.async_step_entities_menu()

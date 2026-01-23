@@ -192,8 +192,26 @@
             "dashboard_accesses_per_hour": {
                 "name": "Dashboard Accesses per Hour"
             },
+            "uptime": {
+                "name": "Uptime"
+            },
             "thermalprofile_accesses_per_hour": {
                 "name": "Thermalprofile Accesses per Hour"
+            },
+            "cooling_knee_point_temperature": {
+                "name": "Cooling Knee Point Temperature"
+            },
+            "cooling_threshold_temperature": {
+                "name": "Cooling Threshold Temperature"
+            },
+            "heating_knee_point_temperature": {
+                "name": "Heating Knee Point Temperature"
+            },
+            "heating_reduction_delta_temperature": {
+                "name": "Heating Reduction Delta Temperature"
+            },
+            "heating_threshold_temperature": {
+                "name": "Heating Threshold Temperature"
             },
             "telemetry_accesses_per_hour": {
                 "name": "Telemetry Accesses per Hour"
@@ -203,6 +221,27 @@
             },
             "definition_accesses_per_hour": {
                 "name": "Definition Accesses per Hour"
+            },
+            "monitoring_accesses_per_minute": {
+                "name": "Monitoring Accesses per Minute"
+            },
+            "monitoring_accesses_per_hour": {
+                "name": "Monitoring Accesses per Hour"
+            },
+            "thermal_manual_temperature": {
+                "name": "Thermal Manual Temperature"
+            },
+            "thermal_season_mode": {
+                "name": "Thermal Season Mode"
+            },
+            "thermal_season_status": {
+                "name": "Thermal Season Status"
+            },
+            "thermal_temperature_profile": {
+                "name": "Thermal Temperature Profile"
+            },
+            "thermal_temperature_status": {
+                "name": "Thermal Temperature Status"
             },
             "total_api_accesses_per_minute": {
                 "name": "Total API Accesses per Minute"

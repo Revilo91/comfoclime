@@ -68,11 +68,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     min_request_interval = entry.options.get("min_request_interval", 0.1)
     write_cooldown = entry.options.get("write_cooldown", 2.0)
     request_debounce = entry.options.get("request_debounce", 0.3)
-    
+
     _LOGGER.debug(
         "Configuration loaded: read_timeout=%s, write_timeout=%s, polling_interval=%s, "
         "cache_ttl=%s, max_retries=%s, min_request_interval=%s, write_cooldown=%s, request_debounce=%s",
-        read_timeout, write_timeout, polling_interval, cache_ttl, max_retries, 
+        read_timeout, write_timeout, polling_interval, cache_ttl, max_retries,
         min_request_interval, write_cooldown, request_debounce
     )
 
@@ -130,7 +130,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         definitioncoordinator.async_config_entry_first_refresh(),
         return_exceptions=True,
     )
-    _LOGGER.debug("Coordinator first refresh completed. Results: %s", 
+    _LOGGER.debug("Coordinator first refresh completed. Results: %s",
                   ["Success" if not isinstance(r, Exception) else f"Error: {r}" for r in results])
 
     # Create telemetry and property coordinators with device list
@@ -138,7 +138,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         hass, api, devices, polling_interval, access_tracker=access_tracker, config_entry=entry
     )
     _LOGGER.debug("Created ComfoClimeTelemetryCoordinator with polling_interval=%s", polling_interval)
-    
+
     propcoordinator = ComfoClimePropertyCoordinator(
         hass, api, devices, polling_interval, access_tracker=access_tracker, config_entry=entry
     )
@@ -171,27 +171,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         byte_count = call.data["byte_count"]
         signed = call.data.get("signed", True)
         faktor = call.data.get("faktor", 1.0)
-        
+
         # Validate property path format
         is_valid, error_message = validate_property_path(path)
         if not is_valid:
             _LOGGER.error("Ungültiger Property-Pfad: %s - %s", path, error_message)
             raise HomeAssistantError(f"Ungültiger Property-Pfad: {error_message}")
-        
+
         # Validate byte count
         if byte_count not in (1, 2):
             _LOGGER.error("Ungültige byte_count: %s (muss 1 oder 2 sein)", byte_count)
             raise HomeAssistantError("byte_count muss 1 oder 2 sein")
-        
+
         # Validate value fits in byte count
         # Convert value with factor before validation
         actual_value = int(value / faktor)
         is_valid, error_message = validate_byte_value(actual_value, byte_count, signed)
         if not is_valid:
-            _LOGGER.error("Ungültiger Wert %s für byte_count=%s, signed=%s: %s", 
-                         actual_value, byte_count, signed, error_message)
+            _LOGGER.error("Ungültiger Wert %s für byte_count=%s, signed=%s: %s",
+                          actual_value, byte_count, signed, error_message)
             raise HomeAssistantError(f"Ungültiger Wert: {error_message}")
-        
+
         dev_reg = dr.async_get(hass)
         device = dev_reg.async_get(device_id)
         if not device or not device.identifiers:
