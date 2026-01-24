@@ -481,6 +481,11 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
     def _handle_coordinator_update(self) -> None:
         try:
             data = self.coordinator.data
+            
+            _LOGGER.debug(
+                "Sensor '%s' (type=%s) handling coordinator update. Data keys: %s",
+                self._name, self._type, list(data.keys()) if data else "None"
+            )
 
             _LOGGER.debug(
                 "Sensor '%s' (type=%s) handling coordinator update. Data keys: %s",
@@ -499,6 +504,11 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
                         break
             else:
                 raw_value = data.get(self._type)
+            
+            _LOGGER.debug(
+                "Sensor '%s' (type=%s): raw_value=%s",
+                self._name, self._type, raw_value
+            )
 
             _LOGGER.debug(
                 "Sensor '%s' (type=%s): raw_value=%s",
@@ -513,7 +523,7 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
                 self._state = VALUE_MAPPINGS[self._type].get(raw_value, raw_value)
             else:
                 self._state = raw_value
-
+            
             _LOGGER.debug(
                 "Sensor '%s' (type=%s): state set to %s",
                 self._name, self._type, self._state

@@ -258,7 +258,7 @@ class ComfoClimeThermalprofileCoordinator(DataUpdateCoordinator):
 
 class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
     """Coordinator for batching telemetry requests from all devices.
-
+    
     Instead of each sensor making individual API calls, this coordinator
     collects all telemetry requests and fetches them in a single batched
     update cycle. This significantly reduces API load on the Airduino board.
@@ -438,7 +438,7 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
 
 class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
     """Coordinator for batching property requests from all devices.
-
+    
     Instead of each sensor/number/select making individual API calls,
     this coordinator collects all property requests and fetches them
     in a single batched update cycle. This significantly reduces API
@@ -618,7 +618,7 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
 
 class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
     """Coordinator for fetching device definition data.
-
+    
     Fetches definition data for connected devices, particularly useful
     for ComfoAirQ devices (modelTypeId=1) which provide detailed sensor
     and control point definitions. ComfoClime devices provide less useful
@@ -714,7 +714,7 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
 
         Args:
             device_uuid: UUID of the device
-
+        
         Returns:
             Dictionary containing device definition data, or None if not found.
 

@@ -68,6 +68,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     min_request_interval = entry.options.get("min_request_interval", 0.1)
     write_cooldown = entry.options.get("write_cooldown", 2.0)
     request_debounce = entry.options.get("request_debounce", 0.3)
+    
+    _LOGGER.debug(
+        "Configuration loaded: read_timeout=%s, write_timeout=%s, polling_interval=%s, "
+        "cache_ttl=%s, max_retries=%s, min_request_interval=%s, write_cooldown=%s, request_debounce=%s",
+        read_timeout, write_timeout, polling_interval, cache_ttl, max_retries, 
+        min_request_interval, write_cooldown, request_debounce
+    )
 
     _LOGGER.debug(
         "Configuration loaded: read_timeout=%s, write_timeout=%s, polling_interval=%s, "

@@ -300,14 +300,14 @@ class ComfoClimeAPI:
     @staticmethod
     def fix_signed_temperatures_in_dict(data: dict) -> dict:
         """Recursively fix signed temperature values in a dictionary.
-
+        
         Applies fix_signed_temperature to all keys containing "Temperature"
         in both flat and nested dictionary structures. This is used to
         automatically fix temperature values from API responses.
 
         Args:
             data: Dictionary potentially containing temperature values
-
+        
         Returns:
             Dictionary with fixed temperature values.
 
