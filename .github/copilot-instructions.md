@@ -1,61 +1,113 @@
-## Ziel
+##Ziel
 
-Kurze, präzise Hinweise für KI-Coding-Agenten, damit sie sofort produktiv an der ComfoClime Home‑Assistant‑Integration arbeiten können.
+Kurze, präzise Hinweise für KI-Coding-Agenten, damit sie sofort produktiv an der ComfoClime Home-Assistant-Integration arbeiten können.
 
-## Big picture (Architektur)
+## Großes Bild (Architektur)
 - Integration als Home Assistant custom_component unter `custom_components/comfoclime/`.
-- Data flow: ComfoClimeAPI (async aiohttp‑Client) → 5 Coordinators (`coordinator.py`) → Entities (`climate.py`, `sensor.py`, `switch.py`, `fan.py`, `number.py`, `select.py`).
-- API ist lokal (iot_class: `local_polling`, `manifest.json` requires `aiohttp`).
-- Coordinators pollen alle 60s: Dashboard, Thermalprofile, Telemetry (batched), Property (batched), Definition.
+- Datenfluss: ComfoClimeAPI (asynchroner aiohttp-Client) → 5 Koordinatoren (`coordinator.py`) → Entitäten (`climate.py`, `sensor.py`, `switch.py`, `fan.py`, `number.py`, `select.py`).
+- API ist lokal (iot_class: „local_polling“, „manifest.json“ erfordert „aiohttp“).
+- Koordinatoren aller 60er Jahre: Dashboard, Thermalprofile, Telemetrie (gestapelt), Eigenschaft (gestapelt), Definition.
 
-## Key files to read first
-- `ComfoClimeAPI.md` — ausführliche API‑Dokumentation und decoding/examples (goldmine für protocol details).
-- `custom_components/comfoclime/comfoclime_api.py` — zentrale async API mit aiohttp; rate limiting, caching (30s TTL), retry logic, session management.
-- `custom_components/comfoclime/coordinator.py` — 5 coordinators (Dashboard, Thermalprofile, Telemetry, Property, Definition) mit 60s update interval.
-- `custom_components/comfoclime/climate.py` — climate entity mit HVAC modes, preset modes (inkl. scenario modes: cooking/party/away/boost).
-- `custom_components/comfoclime/entities/*.py` — sensor/switch/number/select definitions (separate definition files).
-- `custom_components/comfoclime/services.yaml` — services: set_property, reset_system, set_scenario_mode.
-- `.devcontainer/README.md` — development workflow (Codespace/Dev Container, Home Assistant on port 8123).
-- `SCENARIO_MODES.md` — documentation for scenario modes feature.
+## Wichtige Dateien zum ersten Lesen
 
-## Important patterns & conventions (project-specific)
-- API is fully async with aiohttp; all methods are async (use `await`). Session managed via `_get_session()` and must be closed in `async_unload_entry`.
-- Rate limiting: MIN_REQUEST_INTERVAL=0.1s, WRITE_COOLDOWN=2.0s, REQUEST_DEBOUNCE=0.3s. API enforces waits via `_request_lock` (asyncio.Lock).
-- Caching: Telemetry/property reads cached 30s (CACHE_TTL). Check `_telemetry_cache` / `_property_cache` before API calls.
-- Property path format: "X/Y/Z" (e.g. `29/1/10`) translates to PUT URL parts. Services expect this exact format.
-- Byte handling: telemetry/property readers accept `byte_count`, `signed`, `faktor` (multiplicative scaling). Set in `entities/*_definitions.py`.
-- Dashboard updates: use `api.async_update_dashboard(**fields)` — dynamically includes only provided fields.
-- Entity unique_id: `f"{entry.entry_id}_<type>_<id>"` for deterministic ids.
-- Batched coordinators: TelemetryCoordinator and PropertyCoordinator batch requests from all entities in single update cycle (reduces API load).
-- Scenario modes: Cooking (4), Party (5), Away (7), Boost (8) — see SCENARIO_MODES.md. Activated via climate presets or `set_scenario_mode` service.
+- `ComfoClimeAPI.md` – Ausführliche API-Dokumentation und Dekodierungsbeispiele (eine wahre Fundgrube für Protokolldetails).
+- `custom_components/comfoclime/comfoclime_api.py` – Zentrale asynchrone API mit aiohttp; Ratenbegrenzung, Caching (30 s TTL), Wiederholungslogik, Sitzungsverwaltung.
+- `custom_components/comfoclime/coordinator.py` – 5 Koordinatoren (Dashboard, Thermalprofil, Telemetrie, Eigenschaft, Definition) mit einem Aktualisierungsintervall von 60 s.
+- `custom_components/comfoclime/climate.py` – Klima-Entität mit HLK-Modi, voreingestellten Modi (inkl. Szenario-Modi: Kochen/Party/Abwesend/Boost).
+- `custom_components/comfoclime/entities/*.py` – Sensor-/Schalter-/Nummern-/Auswahldefinitionen (separate Definitionsdateien).
+- `custom_components/comfoclime/services.yaml` – Dienste: set_property, reset_system, set_scenario_mode.
+- `.devcontainer/README.md` – Entwicklungs-Workflow (Codespace/Dev Container, Home Assistant auf Port 8123).
+- `SCENARIO_MODES.md` – Dokumentation für die Szenario-Modus-Funktion.
 
-## How to add a telemetry or property sensor
-- Telemetry: add entry to `CONNECTED_DEVICE_SENSORS[model_id]` in `entities/sensor_definitions.py` with `telemetry_id`, `faktor`, `signed`, `byte_count`, `unit`, `device_class`, `state_class`.
-- Property: add to `CONNECTED_DEVICE_PROPERTIES[model_id]` with `path: "X/Y/Z"`, `byte_count`, `faktor`, `signed`.
-- Entities auto-register with TelemetryCoordinator/PropertyCoordinator for batched fetching.
-- No manual wiring needed — `sensor.py` instantiates sensors automatically based on detected devices.
+## Wichtige Muster & Konventionen (projektspezifisch)
 
-## Services
-- `comfoclime.set_property` — set device property. Required: `device_id`, `path` (X/Y/Z), `value`, `byte_count` (1 or 2). Optional: `signed`, `faktor`.
-- `comfoclime.reset_system` — reboot ComfoClime device.
-- `comfoclime.set_scenario_mode` — activate scenario mode with custom duration. Required: `entity_id`, `scenario` (cooking/party/away/boost). Optional: `duration` (minutes), `start_delay`.
+- Die API ist vollständig asynchron mit aiohttp; alle Methoden sind asynchron (verwenden Sie `await`). Die Sitzung wird über `_get_session()` verwaltet und muss in `async_unload_entry` geschlossen werden.
+- Ratenbegrenzung: MIN_REQUEST_INTERVAL=0,1s, WRITE_COOLDOWN=2,0s, REQUEST_DEBOUNCE=0,3s. Die API erzwingt Wartezeiten über `_request_lock` (asyncio.Lock).
+- Caching: Telemetrie-/Eigenschaftslesevorgänge werden 30 Sekunden lang zwischengespeichert (CACHE_TTL). Prüfen Sie `_telemetry_cache` / `_property_cache` vor API-Aufrufen.
+- Pfadformat für Eigenschaften: "X/Y/Z" (z. B. `29/1/10`) wird in die entsprechenden Teile der PUT-URL übersetzt. Dienste erwarten dieses Format.
+- Byte-Verarbeitung: Telemetrie-/Eigenschaftslesevorgänge akzeptieren `byte_count`, `signed` und `faktor` (multiplikative Skalierung). Konfiguriert in `entities/*_definitions.py`.
+- Dashboard-Aktualisierungen: Verwenden Sie `api.async_update_dashboard(**fields)` – es werden dynamisch nur die angegebenen Felder aktualisiert.
+- eindeutige Entitäts-ID: `f"{entry.entry_id}_<type>_<id>"` für deterministische IDs.
+- Batch-Koordinatoren: TelemetryCoordinator und PropertyCoordinator bündeln Anfragen aller Entitäten in einem einzigen Aktualisierungszyklus (reduziert die API-Last).
+- Szenario-Modi: Kochen (4), Party (5), Abwesenheit (7), Boost (8) – siehe SCENARIO_MODES.md. Aktivierung über Klimavoreinstellungen oder den Dienst `set_scenario_mode`.
 
-## Development & debugging
-- **Python-Umgebung**: Alle Ausführungen (Tests, Skripte, API-Aufrufe) müssen in der `.venv` virtuellen Umgebung laufen. Vor jedem Projekt-Start aktivieren: `source .venv/bin/activate`.
-- Use provided Codespace/Dev Container — Home Assistant boots automatically on port 8123 (see `.devcontainer/README.md`).
-- Debug logging: `.devcontainer/configuration.yaml` enables debug for `custom_components.comfoclime`.
-- Fast iteration: `container restart` after code changes (not full devcontainer rebuild).
-- Tests: Run with `pytest tests/ -v` (requirements in `requirements_test.txt`). Comprehensive test suite covers all entity types, API, caching, timeout/retry.
+## Hinzufügen eines Telemetrie- oder Eigenschaftssensors
 
-## Pitfalls & gotchas
-- API is local and unauthenticated; tests require on-network device or mocked endpoints (see `tests/conftest.py` for fixtures).
-- aiohttp session must be closed on unload: `api.close()` in `async_unload_entry`.
-- Multi-byte values use little-endian with explicit signed handling (see ComfoClimeAPI.md).
-- Rate limiting enforced — rapid requests may hit waits. Coordinators batch to minimize load.
+- Telemetrie: Fügen Sie einen Eintrag zu `CONNECTED_DEVICE_SENSORS[model_id]` in `entities/sensor_definitions.py` mit `telemetry_id`, `faktor`, `signed`, `byte_count`, `unit`, `device_class` und `state_class` hinzu.
+- Eigenschaft: Fügen Sie einen Eintrag zu `CONNECTED_DEVICE_PROPERTIES[model_id]` mit `path: "X/Y/Z"`, `byte_count`, `faktor` und `signed` hinzu.
+- Entitäten registrieren sich automatisch beim TelemetryCoordinator/PropertyCoordinator für den Batch-Abruf.
+- Keine manuelle Konfiguration erforderlich – `sensor.py` instanziiert Sensoren automatisch basierend auf erkannten Geräten.
 
-## Quick references
-- Add sensors: `entities/sensor_definitions.py` (Telemetry → `CONNECTED_DEVICE_SENSORS`, Properties → `CONNECTED_DEVICE_PROPERTIES`).
-- Add switches/numbers/selects: `entities/switch_definitions.py`, `entities/number_definitions.py`, `entities/select_definitions.py`.
-- API methods: `comfoclime_api.py` (async_get_dashboard_data, async_update_dashboard, async_get_thermal_profile, async_read_telemetry_for_device, async_read_property_for_device, async_set_property_for_device).
-- Coordinators: Dashboard (dashboard data), Thermalprofile (thermal settings), Telemetry (batched telemetry reads), Property (batched property reads), Definition (device definitions).
-- Entity examples: `climate.py` (HVAC/presets/scenario modes), `sensor.py` (coordinator + telemetry/property sensors), `switch.py`, `number.py`, `select.py`, `fan.py`.
+## Dienste
+
+- `comfoclime.set_property` – Geräteeigenschaften festlegen. Erforderlich: `device_id`, `path` (X/Y/Z), `value`, `byte_count` (1 oder 2). Optional: `signed`, `faktor`.
+- `comfoclime.reset_system` – ComfoClime-Gerät neu starten.
+- `comfoclime.set_scenario_mode` – Szenariomodus mit benutzerdefinierter Dauer aktivieren. Erforderlich: `entity_id`, `scenario` (Kochen/Party/Abwesend/Boost). Optional: `duration` (Minuten), `start_delay`.
+
+## Entwicklung & Debugging
+
+- **Python-Umgebung**: Alle Ausführungen (Tests, Skripte, API-Aufrufe) müssen in der virtuellen Umgebung `.venv` laufen. Vor jedem Projektstart aktivieren: `source .venv/bin/activate`.
+- Verwenden Sie den bereitgestellten Codespace/Dev-Container – Home Assistant startet automatisch auf Port 8123 (siehe `.devcontainer/README.md`).
+- Debug-Logging: `.devcontainer/configuration.yaml` aktiviert das Debugging für `custom_components.comfoclime`.
+- Schnelle Iteration: `container restart` nach Codeänderungen (kein vollständiger Neuaufbau des Dev-Containers).
+- Tests: Ausführen mit `pytest tests/ -v` (Anforderungen in `requirements_test.txt`). Die umfassende Testsuite deckt alle Entitätstypen, die API, Caching sowie Timeout/Retry ab.
+
+## Fallstricke & Tücken
+
+- Die API ist lokal und nicht authentifiziert; Die Tests benötigen ein Gerät im Netzwerk oder simulierte Endpunkte (siehe `tests/conftest.py` für Testbeispiele).
+- Die aiohttp-Sitzung muss beim Entladen geschlossen werden: `api.close()` in `async_unload_entry`.
+- Mehrbytewerte werden im Little-Endian-Format mit expliziter Behandlung von Vorzeichen verarbeitet (siehe ComfoClimeAPI.md).
+Die Ratenbegrenzung wird durchgesetzt – schnell aufeinanderfolgende Anfragen können zu Wartezeiten führen. Koordinatoren verarbeiten Anfragen in Batches, um die Last zu minimieren.
+- `custom_components/comfoclime/comfoclime_api.py` – Zentrale asynchrone API mit aiohttp; Ratenbegrenzung, Caching (30 s TTL), Wiederholungslogik, Sitzungsverwaltung.
+- `custom_components/comfoclime/coordinator.py` – 5 Koordinatoren (Dashboard, Thermalprofil, Telemetrie, Eigenschaft, Definition) mit einem Aktualisierungsintervall von 60 s.
+- `custom_components/comfoclime/climate.py` – Klima-Entität mit HLK-Modi, voreingestellten Modi (inkl. Szenario-Modi: Kochen/Party/Abwesend/Boost).
+- `custom_components/comfoclime/entities/*.py` – Sensor-/Schalter-/Nummern-/Auswahldefinitionen (separate Definitionsdateien).
+- `custom_components/comfoclime/services.yaml` – Dienste: set_property, reset_system, set_scenario_mode.
+- `.devcontainer/README.md` – Entwicklungs-Workflow (Codespace/Dev Container, Home Assistant auf Port 8123).
+- `SCENARIO_MODES.md` – Dokumentation für die Szenario-Modus-Funktion.
+
+## Wichtige Muster & Konventionen (projektspezifisch)
+
+- Die API ist vollständig asynchron mit aiohttp; alle Methoden sind asynchron (verwenden Sie `await`). Die Sitzung wird über `_get_session()` verwaltet und muss in `async_unload_entry` geschlossen werden.
+- Ratenbegrenzung: MIN_REQUEST_INTERVAL=0,1s, WRITE_COOLDOWN=2,0s, REQUEST_DEBOUNCE=0,3s. Die API erzwingt Wartezeiten über `_request_lock` (asyncio.Lock).
+- Caching: Telemetrie-/Eigenschaftslesevorgänge werden 30 Sekunden lang zwischengespeichert (CACHE_TTL). Prüfen Sie `_telemetry_cache` / `_property_cache` vor API-Aufrufen.
+- Pfadformat für Eigenschaften: "X/Y/Z" (z. B. `29/1/10`) wird in die entsprechenden Teile der PUT-URL übersetzt. Dienste erwarten dieses Format.
+- Byte-Verarbeitung: Telemetrie-/Eigenschaftslesevorgänge akzeptieren `byte_count`, `signed` und `faktor` (multiplikative Skalierung). Konfiguriert in `entities/*_definitions.py`.
+- Dashboard-Aktualisierungen: Verwenden Sie `api.async_update_dashboard(**fields)` – es werden dynamisch nur die angegebenen Felder aktualisiert.
+- eindeutige Entitäts-ID: `f"{entry.entry_id}_<type>_<id>"` für deterministische IDs.
+- Batch-Koordinatoren: TelemetryCoordinator und PropertyCoordinator bündeln Anfragen aller Entitäten in einem einzigen Aktualisierungszyklus (reduziert die API-Last).
+- Szenario-Modi: Kochen (4), Party (5), Abwesenheit (7), Boost (8) – siehe SCENARIO_MODES.md. Aktivierung über Klimavoreinstellungen oder den Dienst `set_scenario_mode`.
+
+## Hinzufügen eines Telemetrie- oder Eigenschaftssensors
+
+- Telemetrie: Fügen Sie einen Eintrag zu `CONNECTED_DEVICE_SENSORS[model_id]` in `entities/sensor_definitions.py` mit `telemetry_id`, `faktor`, `signed`, `byte_count`, `unit`, `device_class` und `state_class` hinzu.
+- Eigenschaft: Fügen Sie einen Eintrag zu `CONNECTED_DEVICE_PROPERTIES[model_id]` mit `path: "X/Y/Z"`, `byte_count`, `faktor` und `signed` hinzu.
+- Entitäten registrieren sich automatisch beim TelemetryCoordinator/PropertyCoordinator für den Batch-Abruf.
+- Keine manuelle Konfiguration erforderlich – `sensor.py` instanziiert Sensoren automatisch basierend auf erkannten Geräten.
+## Dienste
+
+- `comfoclime.set_property` – Geräteeigenschaften festlegen. Erforderlich: `device_id`, `path` (X/Y/Z), `value`, `byte_count` (1 oder 2). Optional: `signed`, `faktor`.
+- `comfoclime.reset_system` – ComfoClime-Gerät neu starten.
+- `comfoclime.set_scenario_mode` – Szenariomodus mit benutzerdefinierter Dauer aktivieren. Erforderlich: `entity_id`, `scenario` (Kochen/Party/Abwesend/Boost). Optional: `duration` (Minuten), `start_delay`.
+## Entwicklung & Debugging
+
+- **Python-Umgebung**: Alle Ausführungen (Tests, Skripte, API-Aufrufe) müssen in der virtuellen Umgebung `.venv` laufen. Vor jedem Projektstart aktivieren: `source .venv/bin/activate`.
+- Verwenden Sie den bereitgestellten Codespace/Dev-Container – Home Assistant startet automatisch auf Port 8123 (siehe `.devcontainer/README.md`).
+- Debug-Logging: `.devcontainer/configuration.yaml` aktiviert das Debugging für `custom_components.comfoclime`.
+- Schnelle Iteration: `container restart` nach Codeänderungen (kein vollständiger Neuaufbau des Dev-Containers).
+- Tests: Ausführen mit `pytest tests/ -v` (Anforderungen in `requirements_test.txt`). Die umfassende Testsuite deckt alle Entitätstypen, die API, Caching sowie Timeout/Retry ab.
+
+## Fallstricke & Tücken
+
+- Die API ist lokal und nicht authentifiziert; Die Tests benötigen ein Gerät im Netzwerk oder simulierte Endpunkte (siehe `tests/conftest.py` für Testbeispiele).
+- Die aiohttp-Sitzung muss beim Entladen geschlossen werden: `api.close()` in `async_unload_entry`.
+- Mehrbytewerte werden im Little-Endian-Format mit expliziter Behandlung von Vorzeichen verarbeitet (siehe ComfoClimeAPI.md).
+Die Ratenbegrenzung wird durchgesetzt – schnell aufeinanderfolgende Anfragen können zu Wartezeiten führen. Koordinatoren verarbeiten Anfragen in Batches, um die Last zu minimieren.
+
+## Kurzübersicht
+
+- Sensoren hinzufügen: `entities/sensor_definitions.py` (Telemetrie → `CONNECTED_DEVICE_SENSORS`, Eigenschaften → `CONNECTED_DEVICE_PROPERTIES`).
+- Schalter/Nummern/Auswahlfelder hinzufügen: `entities/switch_definitions.py`, `entities/number_definitions.py`, `entities/select_definitions.py`.
+- API-Methoden: `comfoclime_api.py` (async_get_dashboard_data, async_update_dashboard, async_get_thermal_profile, async_read_telemetry_for_device, async_read_property_for_device, async_set_property_for_device).
+- Koordinatoren: Dashboard (Dashboard-Daten), Thermalprofil (Thermoeinstellungen), Telemetrie (gebündelte Telemetrie-Messwerte), Eigenschaften (gebündelte Eigenschaften-Messwerte), Definition (Gerätedefinitionen).
+- Beispiele für Entitäten: `climate.py` (HLK/Voreinstellungen/Szenariomodi), `sensor.py` (Koordinator + Telemetrie-/Eigenschaftssensoren), `switch.py`, `number.py`, `select.py`, `fan.py`.
