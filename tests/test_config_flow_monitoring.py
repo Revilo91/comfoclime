@@ -6,8 +6,6 @@ reloading the platform. Finally it re-enables them and ensures the
 monitoring sensor is back.
 """
 
-import pytest
-
 from custom_components.comfoclime.entity_helper import (
     get_monitoring_sensors,
     is_entity_category_enabled,

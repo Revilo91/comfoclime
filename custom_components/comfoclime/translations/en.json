@@ -38,7 +38,7 @@
                 "name": "Supply Coil Temperature"
             },
             "exhaust_coil_temperature": {
-                "name": "Supply Coil Temperature"
+                "name": "Exhaust Coil Temperature"
             },
             "tpma_temperature": {
                 "name": "Mean Outdoor Temperature"
@@ -301,7 +301,7 @@
                 "name": "Cooling Curve Knee Point"
             },
             "cooling_temperature_limit": {
-                "name": "Cooling Temperaturelimit"
+                "name": "Cooling Temperature Limit"
             },
             "manual_comfort_temperature": {
                 "name": "Manual Comfort Temperature"
@@ -322,7 +322,7 @@
                 "name": "Heatpump minimum cooling temperature"
             },
             "heatpump_max_temp": {
-                "name": "Heatpumpt maximum heating temperature"
+                "name": "Heatpump maximum heating temperature"
             }
         },
         "switch": {
