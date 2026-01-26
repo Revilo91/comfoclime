@@ -146,9 +146,9 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
                                     "request_debounce": DEFAULT_REQUEST_DEBOUNCE,
                                 })
                                 return self.async_create_entry(
-                                        title=f"ComfoClime @ {host}",
-                                        data={"host": host},
-                                        options=default_options,
+                                    title=f"ComfoClime @ {host}",
+                                    data={"host": host},
+                                    options=default_options,
                                 )
                             errors["host"] = "no_uuid"
                         else:
@@ -586,6 +586,19 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 "entities_sensors_connected_definition": "📋 Connected Device Definition",
                 "entities_sensors_access_tracking": "🔍 Access Tracking (Diagnostic)",
                 "entities_menu": "⬅️ Zurück zu Entity Settings",
+            },
+        )
+
+    async def async_step_entities_menu(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Show submenu for entity categories (sensors, switches, numbers, selects)."""
+        return self.async_show_menu(
+            step_id="entities_menu",
+            menu_options={
+                "entities_sensors": "📋 Sensors",
+                "entities_switches": "🔌 Switches",
+                "entities_numbers": "🔢 Numbers",
+                "entities_selects": "📝 Selects",
+                "entities": "⬅️ Back to Entity Settings",
             },
         )
 
