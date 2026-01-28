@@ -77,7 +77,7 @@ def _get_default_entity_options() -> dict[str, Any]:
         "enabled_connected_device_telemetry": [
             opt["value"] for opt in get_connected_device_telemetry_sensors()
         ],
-        "enabled_connected_device_properties": [
+        "enabled_connected_properties": [
             opt["value"] for opt in get_connected_device_properties_sensors()
         ],
         "enabled_connected_device_definition": [
