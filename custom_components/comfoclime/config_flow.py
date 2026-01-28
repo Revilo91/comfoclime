@@ -74,7 +74,7 @@ def _get_default_entity_options() -> dict[str, Any]:
         "enabled_dashboard": [opt["value"] for opt in get_dashboard_sensors()],
         "enabled_thermalprofile": [opt["value"] for opt in get_thermalprofile_sensors()],
         "enabled_monitoring": [opt["value"] for opt in get_monitoring_sensors()],
-        "enabled_connected_device_telemetry": [
+        "enabled_connected_telemetry": [
             opt["value"] for opt in get_connected_device_telemetry_sensors()
         ],
         "enabled_connected_properties": [
