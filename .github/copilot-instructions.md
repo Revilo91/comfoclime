@@ -59,27 +59,6 @@ Kurze, präzise Hinweise für KI-Coding-Agenten, damit sie sofort produktiv an d
 - Mehrbytewerte werden im Little-Endian-Format mit expliziter Behandlung von Vorzeichen verarbeitet (siehe ComfoClimeAPI.md).
 - Die Ratenbegrenzung wird durchgesetzt – schnell aufeinanderfolgende Anfragen können zu Wartezeiten führen. Koordinatoren verarbeiten Anfragen in Batches, um die Last zu minimieren.
 
-## Hinzufügen eines Telemetrie- oder Eigenschaftssensors
-
-- Telemetrie: Fügen Sie einen Eintrag zu `CONNECTED_DEVICE_SENSORS[model_id]` in `entities/sensor_definitions.py` mit `telemetry_id`, `faktor`, `signed`, `byte_count`, `unit`, `device_class` und `state_class` hinzu.
-- Eigenschaft: Fügen Sie einen Eintrag zu `CONNECTED_DEVICE_PROPERTIES[model_id]` mit `path: "X/Y/Z"`, `byte_count`, `faktor` und `signed` hinzu.
-- Entitäten registrieren sich automatisch beim TelemetryCoordinator/PropertyCoordinator für den Batch-Abruf.
-- Keine manuelle Konfiguration erforderlich – `sensor.py` instanziiert Sensoren automatisch basierend auf erkannten Geräten.
-
-## Dienste
-
-- `comfoclime.set_property` – Geräteeigenschaften festlegen. Erforderlich: `device_id`, `path` (X/Y/Z), `value`, `byte_count` (1 oder 2). Optional: `signed`, `faktor`.
-- `comfoclime.reset_system` – ComfoClime-Gerät neu starten.
-- `comfoclime.set_scenario_mode` – Szenariomodus mit benutzerdefinierter Dauer aktivieren. Erforderlich: `entity_id`, `scenario` (Kochen/Party/Abwesend/Boost). Optional: `duration` (Minuten), `start_delay`.
-
-## Entwicklung & Debugging
-
-- **Python-Umgebung**: Alle Ausführungen (Tests, Skripte, API-Aufrufe) müssen in der virtuellen Umgebung `.venv` laufen. Vor jedem Projektstart aktivieren: `source .venv/bin/activate`.
-- Verwenden Sie den bereitgestellten Codespace/Dev-Container – Home Assistant startet automatisch auf Port 8123 (siehe `.devcontainer/README.md`).
-- Debug-Logging: `.devcontainer/configuration.yaml` aktiviert das Debugging für `custom_components.comfoclime`.
-- Schnelle Iteration: `container restart` nach Codeänderungen (kein vollständiger Neuaufbau des Dev-Containers).
-- Tests: Ausführen mit `pytest tests/ -v` (Anforderungen in `requirements_test.txt`). Die umfassende Testsuite deckt alle Entitätstypen, die API, Caching sowie Timeout/Retry ab.
-
 ## Kurzübersicht
 
 - Sensoren hinzufügen: `entities/sensor_definitions.py` (Telemetrie → `CONNECTED_DEVICE_SENSORS`, Eigenschaften → `CONNECTED_DEVICE_PROPERTIES`).
