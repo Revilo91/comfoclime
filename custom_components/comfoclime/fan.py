@@ -34,6 +34,7 @@ import aiohttp
 from homeassistant.components.fan import FanEntity, FanEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -153,8 +154,9 @@ class ComfoClimeFan(CoordinatorEntity, FanEntity):
                     _LOGGER.exception("Background refresh failed after fan speed update")
             
             self._hass.async_create_task(safe_refresh())
-        except (aiohttp.ClientError, asyncio.TimeoutError):
+        except (aiohttp.ClientError, asyncio.TimeoutError) as err:
             _LOGGER.exception("Error setting fan speed")
+            raise HomeAssistantError(f"Failed to set fan speed: {err}") from err
 
     def _handle_coordinator_update(self) -> None:
         try:

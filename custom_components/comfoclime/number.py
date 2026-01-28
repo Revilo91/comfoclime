@@ -180,7 +180,6 @@ class ComfoClimeTemperatureNumber(
     @property
     def native_step(self):
         return self._conf.step
-        return self._conf["step"]
 
     @property
     def device_info(self) -> DeviceInfo:

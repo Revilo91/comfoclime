@@ -219,7 +219,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         """Save all pending changes and exit."""
         new_options = {**self.entry.options, **self._pending_changes}
 
-        _LOGGER.info("Saving options: %s", new_options)
+        _LOGGER.debug("Saving options: %s", new_options)
 
         return self.async_create_entry(title="", data=new_options)
 
