@@ -384,7 +384,8 @@ async def async_setup_entry(
     # Coordinators will fetch data on their regular update interval
     # This prevents timeout issues during setup with many devices
     _LOGGER.debug("Adding %s sensor entities to Home Assistant", len(sensors))
-    _LOGGER.debug("Sensor entities: %s", [sensor._name for sensor in sensors])
+    if _LOGGER.isEnabledFor(logging.DEBUG):
+        _LOGGER.debug("Sensor entities: %s", [sensor._name for sensor in sensors])
     async_add_entities(sensors, True)
 
     # Schedule background refresh of coordinators after entities are added
