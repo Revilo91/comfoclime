@@ -68,24 +68,46 @@ DEFAULT_WRITE_COOLDOWN = 2.0
 DEFAULT_REQUEST_DEBOUNCE = 0.3
 
 
+def _get_default_entity_options() -> dict[str, Any]:
+    """Get default entity options for initial setup."""
+    return {
+        "enabled_dashboard": [opt["value"] for opt in get_dashboard_sensors()],
+        "enabled_thermalprofile": [opt["value"] for opt in get_thermalprofile_sensors()],
+        "enabled_monitoring": [opt["value"] for opt in get_monitoring_sensors()],
+        "enabled_connected_telemetry": [
+            opt["value"] for opt in get_connected_device_telemetry_sensors()
+        ],
+        "enabled_connected_properties": [
+            opt["value"] for opt in get_connected_device_properties_sensors()
+        ],
+        "enabled_connected_device_definition": [
+            opt["value"] for opt in get_connected_device_definition_sensors()
+        ],
+        "enabled_access_tracking": [opt["value"] for opt in get_access_tracking_sensors()],
+        "enabled_switches": [opt["value"] for opt in get_switches()],
+        "enabled_numbers": [opt["value"] for opt in get_numbers()],
+        "enabled_selects": [opt["value"] for opt in get_selects()],
+    }
+
+
 class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for ComfoClime integration.
-    
+
     Validates device connection by attempting to fetch the UUID from
     the monitoring/ping endpoint. If successful, creates a config entry.
     """
-    
+
     VERSION = 1
 
     async def async_step_user(self, user_input=None):
         """Handle the initial step where user provides device hostname.
-        
+
         Validates that the device is reachable and responds with a valid
         UUID. If validation succeeds, creates the config entry.
-        
+
         Args:
             user_input: Dictionary with 'host' key containing hostname or IP
-        
+
         Returns:
             FlowResult: Either shows form or creates entry
         """
@@ -93,7 +115,7 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             host = user_input["host"]
-            
+
             # Validate host first for security
             is_valid, error_message = validate_host(host)
             if not is_valid:
@@ -110,9 +132,23 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
                         if resp.status == 200:
                             data = await resp.json()
                             if "uuid" in data:
+                                # Get default entity options for initial setup
+                                default_options = _get_default_entity_options()
+                                # Add default general settings
+                                default_options.update({
+                                    "read_timeout": DEFAULT_READ_TIMEOUT,
+                                    "write_timeout": DEFAULT_WRITE_TIMEOUT,
+                                    "polling_interval": DEFAULT_POLLING_INTERVAL,
+                                    "cache_ttl": DEFAULT_CACHE_TTL,
+                                    "max_retries": DEFAULT_MAX_RETRIES,
+                                    "min_request_interval": DEFAULT_MIN_REQUEST_INTERVAL,
+                                    "write_cooldown": DEFAULT_WRITE_COOLDOWN,
+                                    "request_debounce": DEFAULT_REQUEST_DEBOUNCE,
+                                })
                                 return self.async_create_entry(
                                     title=f"ComfoClime @ {host}",
                                     data={"host": host},
+                                    options=default_options,
                                 )
                             errors["host"] = "no_uuid"
                         else:
@@ -135,19 +171,19 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
 
 class ComfoClimeOptionsFlow(OptionsFlow):
     """Handle options flow for ComfoClime integration.
-    
+
     Provides a multi-step wizard for configuring integration options including:
         - Performance settings (polling intervals, timeouts)
         - Entity categories (sensors, switches, numbers, selects)
         - Individual entity enable/disable
-    
+
     Changes are tracked in _pending_changes and only saved when the user
     completes the flow or explicitly saves.
     """
-    
+
     def __init__(self, entry: ConfigEntry) -> None:
         """Initialize the options flow.
-        
+
         Args:
             entry: Config entry being configured
         """
@@ -158,11 +194,11 @@ class ComfoClimeOptionsFlow(OptionsFlow):
 
     def _get_current_value(self, key: str, default: Any) -> Any:
         """Get current value from pending changes first, then from saved options.
-        
+
         Args:
             key: Option key to retrieve
             default: Default value if not found
-            
+
         Returns:
             Current value for the option
         """
@@ -172,7 +208,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
 
     def _update_pending(self, data: dict[str, Any]) -> None:
         """Update pending changes without saving.
-        
+
         Args:
             data: Dictionary of changes to merge into pending changes
         """
@@ -182,6 +218,9 @@ class ComfoClimeOptionsFlow(OptionsFlow):
     async def async_step_save_and_exit(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Save all pending changes and exit."""
         new_options = {**self.entry.options, **self._pending_changes}
+
+        _LOGGER.debug("Saving options: %s", new_options)
+
         return self.async_create_entry(title="", data=new_options)
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
@@ -190,23 +229,193 @@ class ComfoClimeOptionsFlow(OptionsFlow):
             step_id="init",
             menu_options={
                 "general": "⚙️ Allgemeine Einstellungen",
-                "entities_menu": "📦 Entity Einstellungen",
+                "entities": "📦 Entity Einstellungen",
                 "save_and_exit": "💾 Speichern & Beenden",
             },
         )
 
-    async def async_step_entities_menu(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Show menu to select which entity category to configure."""
-        return self.async_show_menu(
-            step_id="entities_menu",
-            menu_options={
-                "entities_sensors": "📊 Sensors",
-                "entities_switches": "🔌 Switches",
-                "entities_numbers": "🔢 Numbers",
-                "entities_selects": "📝 Selects",
-                "init": "⬅️ Zurück zum Hauptmenü",
-            },
-        )
+    async def async_step_entities(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Handle all entity selection in one page with multiple selectors."""
+        _LOGGER.debug("===== async_step_entities CALLED =====")
+
+        if user_input is not None:
+            # Multi-select fields that are completely cleared by the user may be
+            # omitted from user_input by the frontend. Ensure all expected
+            # multi-select keys exist so an explicit empty list is saved.
+            expected_keys = [
+                "enabled_dashboard",
+                "enabled_thermalprofile",
+                "enabled_monitoring",
+                "enabled_connected_device_telemetry",
+                "enabled_connected_device_properties",
+                "enabled_connected_device_definition",
+                "enabled_access_tracking",
+                "enabled_switches",
+                "enabled_numbers",
+                "enabled_selects",
+            ]
+            for key in expected_keys:
+                user_input.setdefault(key, [])
+
+            _LOGGER.info("User submitted entity selection")
+            self._update_pending(user_input)
+            return await self.async_step_init()
+
+        errors: dict[str, str] = {}
+        try:
+            # Get all sensor options
+            dashboard_options = get_dashboard_sensors()
+            thermalprofile_options = get_thermalprofile_sensors()
+            monitoring_options = get_monitoring_sensors()
+            connected_telemetry_options = get_connected_device_telemetry_sensors()
+            connected_properties_options = get_connected_device_properties_sensors()
+            connected_definition_options = get_connected_device_definition_sensors()
+            access_tracking_options = get_access_tracking_sensors()
+
+            # Get switch, number, select options
+            all_switch_options = get_switches()
+            switch_options = [opt for opt in all_switch_options if opt['value'].startswith('switches_')]
+
+            all_number_options = get_numbers()
+            number_options = [opt for opt in all_number_options if opt['value'].startswith('numbers_')]
+
+            all_select_options = get_selects()
+            select_options = [opt for opt in all_select_options if opt['value'].startswith('selects_')]
+
+            # Get current enabled values - Sensors
+            dashboard_enabled = self._get_current_value("enabled_dashboard", [opt['value'] for opt in dashboard_options])
+            thermalprofile_enabled = self._get_current_value("enabled_thermalprofile", [opt['value'] for opt in thermalprofile_options])
+            monitoring_enabled = self._get_current_value("enabled_monitoring", [opt['value'] for opt in monitoring_options])
+            connected_telemetry_enabled = self._get_current_value("enabled_connected_device_telemetry", [opt['value'] for opt in connected_telemetry_options])
+            connected_properties_enabled = self._get_current_value("enabled_connected_device_properties", [opt['value'] for opt in connected_properties_options])
+            connected_definition_enabled = self._get_current_value("enabled_connected_device_definition", [opt['value'] for opt in connected_definition_options])
+            access_tracking_enabled = self._get_current_value("enabled_access_tracking", [])  # Diagnostic, empty by default
+
+            # Get current enabled values - Other entities
+            switches_enabled = self._get_current_value("enabled_switches", [opt['value'] for opt in switch_options])
+            numbers_enabled = self._get_current_value("enabled_numbers", [opt['value'] for opt in number_options])
+            selects_enabled = self._get_current_value("enabled_selects", [opt['value'] for opt in select_options])
+
+            _LOGGER.info(
+                f"✓ Retrieved entity options: dashboard={len(dashboard_options)}, thermal={len(thermalprofile_options)}, "
+                f"monitoring={len(monitoring_options)}, telemetry={len(connected_telemetry_options)}, "
+                f"properties={len(connected_properties_options)}, definition={len(connected_definition_options)}, "
+                f"access={len(access_tracking_options)}, switches={len(switch_options)}, "
+                f"numbers={len(number_options)}, selects={len(select_options)}")
+
+            # Build schema with all entity categories
+            schema_dict = {}
+
+            # Sensors
+            if dashboard_options:
+                schema_dict[vol.Optional("enabled_dashboard", default=dashboard_enabled)] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=dashboard_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+
+            if thermalprofile_options:
+                schema_dict[vol.Optional("enabled_thermalprofile", default=thermalprofile_enabled)] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=thermalprofile_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+
+            if monitoring_options:
+                schema_dict[vol.Optional("enabled_monitoring", default=monitoring_enabled)] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=monitoring_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+
+            if connected_telemetry_options:
+                schema_dict[vol.Optional("enabled_connected_device_telemetry", default=connected_telemetry_enabled)] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=connected_telemetry_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+
+            if connected_properties_options:
+                schema_dict[vol.Optional("enabled_connected_device_properties", default=connected_properties_enabled)] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=connected_properties_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+
+            if connected_definition_options:
+                schema_dict[vol.Optional("enabled_connected_device_definition", default=connected_definition_enabled)] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=connected_definition_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+
+            if access_tracking_options:
+                schema_dict[vol.Optional("enabled_access_tracking", default=access_tracking_enabled)] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=access_tracking_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+
+            # Switches
+            if switch_options:
+                schema_dict[vol.Optional("enabled_switches", default=switches_enabled)] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=switch_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+
+            # Numbers
+            if number_options:
+                schema_dict[vol.Optional("enabled_numbers", default=numbers_enabled)] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=number_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+
+            # Selects
+            if select_options:
+                schema_dict[vol.Optional("enabled_selects", default=selects_enabled)] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=select_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+
+            return self.async_show_form(
+                step_id="entities",
+                data_schema=vol.Schema(schema_dict),
+                description_placeholders={
+                    "info": "Wähle die Entities aus, die aktiviert werden sollen. Jede Kategorie kann separat konfiguriert werden."
+                },
+                errors=errors,
+            )
+        except Exception as e:
+            _LOGGER.error(f"✗ ERROR in async_step_entities: {e}", exc_info=True)
+            errors["base"] = "entity_options_error"
+            return self.async_show_form(
+                step_id="entities",
+                data_schema=vol.Schema({}),
+                errors=errors,
+            )
 
     async def async_step_general(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Handle general configuration options - show menu."""
@@ -380,11 +589,26 @@ class ComfoClimeOptionsFlow(OptionsFlow):
             },
         )
 
+    async def async_step_entities_menu(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Show submenu for entity categories (sensors, switches, numbers, selects)."""
+        return self.async_show_menu(
+            step_id="entities_menu",
+            menu_options={
+                "entities_sensors": "📋 Sensors",
+                "entities_switches": "🔌 Switches",
+                "entities_numbers": "🔢 Numbers",
+                "entities_selects": "📝 Selects",
+                "entities": "⬅️ Back to Entity Settings",
+            },
+        )
+
     async def async_step_entities_sensors_dashboard(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Handle dashboard sensor entity selection."""
         _LOGGER.debug(f"===== async_step_entities_sensors_dashboard CALLED =====")
 
         if user_input is not None:
+            # Ensure empty selection is preserved when frontend omits the key
+            user_input.setdefault("enabled_dashboard", [])
             _LOGGER.info(f"User submitted dashboard sensor selection: {len(user_input.get('enabled_dashboard', []))} selected")
             self._update_pending(user_input)
             return await self.async_step_entities_sensors()
@@ -431,6 +655,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         _LOGGER.debug(f"===== async_step_entities_sensors_thermalprofile CALLED =====")
 
         if user_input is not None:
+            user_input.setdefault("enabled_thermalprofile", [])
             _LOGGER.info(f"User submitted thermal profile sensor selection: {len(user_input.get('enabled_thermalprofile', []))} selected")
             self._update_pending(user_input)
             return await self.async_step_entities_sensors()
@@ -477,6 +702,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         _LOGGER.debug(f"===== async_step_entities_sensors_monitoring CALLED =====")
 
         if user_input is not None:
+            user_input.setdefault("enabled_monitoring", [])
             _LOGGER.info(f"User submitted monitoring sensor selection: {len(user_input.get('enabled_monitoring', []))} selected")
             self._update_pending(user_input)
             return await self.async_step_entities_sensors()
@@ -523,6 +749,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         _LOGGER.debug(f"===== async_step_entities_sensors_connected_telemetry CALLED =====")
 
         if user_input is not None:
+            user_input.setdefault("enabled_connected_device_telemetry", [])
             _LOGGER.info(f"User submitted connected device telemetry sensor selection: {len(user_input.get('enabled_connected_device_telemetry', []))} selected")
             self._update_pending(user_input)
             return await self.async_step_entities_sensors()
@@ -569,6 +796,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         _LOGGER.debug(f"===== async_step_entities_sensors_connected_properties CALLED =====")
 
         if user_input is not None:
+            user_input.setdefault("enabled_connected_device_properties", [])
             _LOGGER.info(f"User submitted connected device properties sensor selection: {len(user_input.get('enabled_connected_device_properties', []))} selected")
             self._update_pending(user_input)
             return await self.async_step_entities_sensors()
@@ -615,6 +843,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         _LOGGER.debug(f"===== async_step_entities_sensors_connected_definition CALLED =====")
 
         if user_input is not None:
+            user_input.setdefault("enabled_connected_device_definition", [])
             _LOGGER.info(f"User submitted connected device definition sensor selection: {len(user_input.get('enabled_connected_device_definition', []))} selected")
             self._update_pending(user_input)
             return await self.async_step_entities_sensors()
@@ -661,6 +890,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         _LOGGER.debug(f"===== async_step_entities_sensors_access_tracking CALLED =====")
 
         if user_input is not None:
+            user_input.setdefault("enabled_access_tracking", [])
             _LOGGER.info(f"User submitted access tracking sensor selection: {len(user_input.get('enabled_access_tracking', []))} selected")
             self._update_pending(user_input)
             return await self.async_step_entities_sensors()
@@ -707,6 +937,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         _LOGGER.debug(f"===== async_step_entities_switches CALLED =====")
 
         if user_input is not None:
+            user_input.setdefault("enabled_switches", [])
             _LOGGER.info(f"User submitted switch selection: {len(user_input.get('enabled_switches', []))} switches selected")
             self._update_pending(user_input)
             return await self.async_step_entities_menu()
@@ -756,6 +987,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         _LOGGER.debug(f"===== async_step_entities_numbers CALLED =====")
 
         if user_input is not None:
+            user_input.setdefault("enabled_numbers", [])
             _LOGGER.info(f"User submitted number selection: {len(user_input.get('enabled_numbers', []))} numbers selected")
             self._update_pending(user_input)
             return await self.async_step_entities_menu()
@@ -805,6 +1037,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         _LOGGER.debug(f"===== async_step_entities_selects CALLED =====")
 
         if user_input is not None:
+            user_input.setdefault("enabled_selects", [])
             _LOGGER.info(f"User submitted select selection: {len(user_input.get('enabled_selects', []))} selects selected")
             self._update_pending(user_input)
             return await self.async_step_entities_menu()

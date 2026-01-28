@@ -1,6 +1,5 @@
 """Tests for sensor definitions in entities/sensor_definitions.py"""
 
-import pytest
 from custom_components.comfoclime.entities.sensor_definitions import (
     CONNECTED_DEVICE_SENSORS,
     TelemetrySensorDefinition,

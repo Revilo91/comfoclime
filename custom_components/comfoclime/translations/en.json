@@ -38,7 +38,7 @@
                 "name": "Supply Coil Temperature"
             },
             "exhaust_coil_temperature": {
-                "name": "Supply Coil Temperature"
+                "name": "Exhaust Coil Temperature"
             },
             "tpma_temperature": {
                 "name": "Mean Outdoor Temperature"
@@ -192,8 +192,26 @@
             "dashboard_accesses_per_hour": {
                 "name": "Dashboard Accesses per Hour"
             },
+            "uptime": {
+                "name": "Uptime"
+            },
             "thermalprofile_accesses_per_hour": {
                 "name": "Thermalprofile Accesses per Hour"
+            },
+            "cooling_knee_point_temperature": {
+                "name": "Cooling Knee Point Temperature"
+            },
+            "cooling_threshold_temperature": {
+                "name": "Cooling Threshold Temperature"
+            },
+            "heating_knee_point_temperature": {
+                "name": "Heating Knee Point Temperature"
+            },
+            "heating_reduction_delta_temperature": {
+                "name": "Heating Reduction Delta Temperature"
+            },
+            "heating_threshold_temperature": {
+                "name": "Heating Threshold Temperature"
             },
             "telemetry_accesses_per_hour": {
                 "name": "Telemetry Accesses per Hour"
@@ -203,6 +221,27 @@
             },
             "definition_accesses_per_hour": {
                 "name": "Definition Accesses per Hour"
+            },
+            "monitoring_accesses_per_minute": {
+                "name": "Monitoring Accesses per Minute"
+            },
+            "monitoring_accesses_per_hour": {
+                "name": "Monitoring Accesses per Hour"
+            },
+            "thermal_manual_temperature": {
+                "name": "Thermal Manual Temperature"
+            },
+            "thermal_season_mode": {
+                "name": "Thermal Season Mode"
+            },
+            "thermal_season_status": {
+                "name": "Thermal Season Status"
+            },
+            "thermal_temperature_profile": {
+                "name": "Thermal Temperature Profile"
+            },
+            "thermal_temperature_status": {
+                "name": "Thermal Temperature Status"
             },
             "total_api_accesses_per_minute": {
                 "name": "Total API Accesses per Minute"
@@ -262,7 +301,7 @@
                 "name": "Cooling Curve Knee Point"
             },
             "cooling_temperature_limit": {
-                "name": "Cooling Temperaturelimit"
+                "name": "Cooling Temperature Limit"
             },
             "manual_comfort_temperature": {
                 "name": "Manual Comfort Temperature"
@@ -283,7 +322,7 @@
                 "name": "Heatpump minimum cooling temperature"
             },
             "heatpump_max_temp": {
-                "name": "Heatpumpt maximum heating temperature"
+                "name": "Heatpump maximum heating temperature"
             }
         },
         "switch": {
@@ -365,45 +404,26 @@
                 "description": "Select which settings you want to configure",
                 "menu_options": {
                     "general": "General Settings",
-                    "entities_menu": "Entity Selection"
+                    "entities": "Entity Selection"
                 }
             },
-            "entities_menu": {
+            "entities": {
                 "title": "Entity Selection",
-                "description": "Select which entity category you want to configure",
-                "menu_options": {
-                    "entities_sensors": "Sensors",
-                    "entities_switches": "Switches",
-                    "entities_numbers": "Numbers",
-                    "entities_selects": "Selects"
-                }
-            },
-            "entities_sensors": {
-                "title": "Sensor Selection",
-                "description": "Select which sensors should be enabled",
+                "description": "Select which entities should be enabled in each category",
                 "data": {
-                    "enabled_sensors": "Enabled Sensors"
-                }
-            },
-            "entities_switches": {
-                "title": "Switch Selection",
-                "description": "Select which switches should be enabled",
-                "data": {
-                    "enabled_switches": "Enabled Switches"
-                }
-            },
-            "entities_numbers": {
-                "title": "Number Selection",
-                "description": "Select which number entities should be enabled",
-                "data": {
-                    "enabled_numbers": "Enabled Numbers"
-                }
-            },
-            "entities_selects": {
-                "title": "Select Selection",
-                "description": "Select which select entities should be enabled",
-                "data": {
-                    "enabled_selects": "Enabled Selects"
+                    "enabled_dashboard": "📈 Dashboard Sensors",
+                    "enabled_thermalprofile": "🌡️ Thermal Profile Sensors",
+                    "enabled_monitoring": "⏱️ Monitoring Sensors",
+                    "enabled_connected_device_telemetry": "📡 Connected Device Telemetry",
+                    "enabled_connected_device_properties": "🔧 Connected Device Properties",
+                    "enabled_connected_device_definition": "📋 Connected Device Definition",
+                    "enabled_access_tracking": "🔍 Access Tracking (Diagnostic)",
+                    "enabled_switches": "🔌 Switches",
+                    "enabled_numbers": "🔢 Number Controls",
+                    "enabled_selects": "📝 Select Controls"
+                },
+                "error": {
+                    "entity_options_error": "Failed to load entity options. Check the logs for more details."
                 }
             }
         }

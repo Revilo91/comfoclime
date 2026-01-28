@@ -119,7 +119,7 @@ async def test_options_flow_default_values():
     assert result["type"] == FlowResultType.MENU
     assert result["step_id"] == "init"
     assert "general" in result["menu_options"]
-    assert "entities_menu" in result["menu_options"]
+    assert "entities" in result["menu_options"]
     assert "save_and_exit" in result["menu_options"]
 
 
@@ -164,21 +164,32 @@ async def test_options_flow_general_diagnostics_form():
 
 @pytest.mark.asyncio
 async def test_options_flow_entities_step():
-    """Test entity selection step shows entity categories menu."""
+    """Test entity selection step shows all entity categories in single form."""
     entry = MagicMock()
     entry.options = {}
 
     flow = ComfoClimeOptionsFlow(entry)
 
-    result = await flow.async_step_entities_menu(user_input=None)
+    result = await flow.async_step_entities(user_input=None)
 
-    assert result["type"] == FlowResultType.MENU
-    assert result["step_id"] == "entities_menu"
-    assert "entities_sensors" in result["menu_options"]
-    assert "entities_switches" in result["menu_options"]
-    assert "entities_numbers" in result["menu_options"]
-    assert "entities_selects" in result["menu_options"]
-    assert "init" in result["menu_options"]  # Back button
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "entities"
+
+    # Check that schema has all expected sensor/entity fields
+    schema = result["data_schema"].schema
+    field_names = [key.schema for key in schema.keys()]
+
+    # Verify all 10 entity selection fields exist
+    assert "enabled_dashboard" in field_names
+    assert "enabled_thermal_profile" in field_names
+    assert "enabled_monitoring" in field_names
+    assert "enabled_connected_telemetry" in field_names
+    assert "enabled_connected_properties" in field_names
+    assert "enabled_connected_device_definition" in field_names
+    assert "enabled_access_tracking" in field_names
+    assert "enabled_switches" in field_names
+    assert "enabled_numbers" in field_names
+    assert "enabled_all" in field_names
 
 
 
@@ -299,7 +310,7 @@ async def test_options_flow_menu_navigation():
     result = await flow.async_step_init(user_input=None)
     assert result["type"] == FlowResultType.MENU
     assert "general" in result["menu_options"]
-    assert "entities_menu" in result["menu_options"]
+    assert "entities" in result["menu_options"]
     assert "save_and_exit" in result["menu_options"]
 
 

@@ -192,8 +192,26 @@
             "dashboard_accesses_per_hour": {
                 "name": "Dashboard Zugriffe pro Stunde"
             },
+            "uptime": {
+                "name": "Betriebsdauer"
+            },
             "thermalprofile_accesses_per_hour": {
                 "name": "Wärmeprofil Zugriffe pro Stunde"
+            },
+            "cooling_knee_point_temperature": {
+                "name": "Kühl-Knickpunkt Temperatur"
+            },
+            "cooling_threshold_temperature": {
+                "name": "Kühl-Schwellentemperatur"
+            },
+            "heating_knee_point_temperature": {
+                "name": "Heiz-Knickpunkt Temperatur"
+            },
+            "heating_reduction_delta_temperature": {
+                "name": "Heiz-Reduktions-Delta Temperatur"
+            },
+            "heating_threshold_temperature": {
+                "name": "Heiz-Schwellentemperatur"
             },
             "telemetry_accesses_per_hour": {
                 "name": "Telemetrie Zugriffe pro Stunde"
@@ -203,6 +221,27 @@
             },
             "definition_accesses_per_hour": {
                 "name": "Definition Zugriffe pro Stunde"
+            },
+            "monitoring_accesses_per_minute": {
+                "name": "Monitoring Zugriffe pro Minute"
+            },
+            "monitoring_accesses_per_hour": {
+                "name": "Monitoring Zugriffe pro Stunde"
+            },
+            "thermal_manual_temperature": {
+                "name": "Thermische manuelle Temperatur"
+            },
+            "thermal_season_mode": {
+                "name": "Thermischer Jahreszeitmodus"
+            },
+            "thermal_season_status": {
+                "name": "Thermischer Jahreszeitstatus"
+            },
+            "thermal_temperature_profile": {
+                "name": "Thermisches Temperaturprofil"
+            },
+            "thermal_temperature_status": {
+                "name": "Thermischer Temperaturstatus"
             },
             "total_api_accesses_per_minute": {
                 "name": "Gesamt API Zugriffe pro Minute"
@@ -366,45 +405,26 @@
                 "description": "Wählen Sie aus, welche Einstellungen Sie konfigurieren möchten",
                 "menu_options": {
                     "general": "Allgemeine Einstellungen",
-                    "entities_menu": "Entity-Auswahl"
+                    "entities": "Entity-Auswahl"
                 }
             },
-            "entities_menu": {
+            "entities": {
                 "title": "Entity-Auswahl",
-                "description": "Wählen Sie die Entity-Kategorie aus, die Sie konfigurieren möchten",
-                "menu_options": {
-                    "entities_sensors": "Sensoren",
-                    "entities_switches": "Schalter",
-                    "entities_numbers": "Zahlen-Steuerungen",
-                    "entities_selects": "Auswahl-Steuerungen"
-                }
-            },
-            "entities_sensors": {
-                "title": "Sensor-Auswahl",
-                "description": "Wählen Sie die Sensoren aus, die aktiviert sein sollen",
+                "description": "Wählen Sie die Entities aus, die aktiviert sein sollen. Jede Kategorie kann separat konfiguriert werden.",
                 "data": {
-                    "enabled_sensors": "Aktivierte Sensoren"
-                }
-            },
-            "entities_switches": {
-                "title": "Schalter-Auswahl",
-                "description": "Wählen Sie die Schalter aus, die aktiviert sein sollen",
-                "data": {
-                    "enabled_switches": "Aktivierte Schalter"
-                }
-            },
-            "entities_numbers": {
-                "title": "Zahlen-Steuerung-Auswahl",
-                "description": "Wählen Sie die Zahlen-Steuerungen aus, die aktiviert sein sollen",
-                "data": {
-                    "enabled_numbers": "Aktivierte Zahlen-Steuerungen"
-                }
-            },
-            "entities_selects": {
-                "title": "Auswahl-Steuerung-Auswahl",
-                "description": "Wählen Sie die Auswahl-Steuerungen aus, die aktiviert sein sollen",
-                "data": {
-                    "enabled_selects": "Aktivierte Auswahl-Steuerungen"
+                    "enabled_dashboard": "📈 Dashboard Sensoren",
+                    "enabled_thermalprofile": "🌡️ Thermalprofil Sensoren",
+                    "enabled_monitoring": "⏱️ Monitoring Sensoren",
+                    "enabled_connected_device_telemetry": "📡 Gerät Telemetrie",
+                    "enabled_connected_device_properties": "🔧 Gerät Eigenschaften",
+                    "enabled_connected_device_definition": "📋 Gerät Definitionen",
+                    "enabled_access_tracking": "🔍 Zugriffs-Tracking (Diagnose)",
+                    "enabled_switches": "🔌 Schalter",
+                    "enabled_numbers": "🔢 Zahlen-Steuerungen",
+                    "enabled_selects": "📝 Auswahl-Steuerungen"
+                },
+                "error": {
+                    "entity_options_error": "Fehler beim Laden der Entity-Optionen. Überprüfen Sie die Logs für weitere Details."
                 }
             },
             "general": {
@@ -431,20 +451,6 @@
                     "min_request_interval": "Minimaler Zeitabstand zwischen aufeinanderfolgenden API-Anfragen (Standard: 0.1 Sekunden)",
                     "write_cooldown": "Wartezeit nach Schreibvorgängen bevor Lesevorgänge erlaubt sind (Standard: 2.0 Sekunden)",
                     "request_debounce": "Entprellzeit für schnell aufeinanderfolgende gleiche Anfragen (Standard: 0.3 Sekunden)"
-                }
-            },
-            "entities": {
-                "title": "Entity-Auswahl",
-                "description": "Wählen Sie einzelne Entities aus, die aktiviert werden sollen. Das Deaktivieren von Entities kann die API-Last auf Ihrem ComfoClime-Gerät reduzieren.",
-                "data": {
-                    "enabled_entities": "Aktivierte Entities"
-                },
-                "data_description": {
-                    "enabled_entities": "Wählen Sie einzelne Entities aus, die erstellt werden sollen. Nicht ausgewählte Entities werden nicht geladen, wodurch der API-Zugriff auf das ComfoClime-Gerät reduziert wird. Änderungen erfordern einen Neustart von Home Assistant."
-                },
-                "error": {
-                    "entity_options_error": "Fehler beim Laden der Entity-Optionen. Überprüfen Sie die Logs für weitere Details.",
-                    "no_entities_available": "Keine Entities verfügbar. Dies kann auf einen Konfigurationsfehler hindeuten."
                 }
             }
         }

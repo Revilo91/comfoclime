@@ -53,10 +53,10 @@ _LOGGER = logging.getLogger(__name__)
 
 class ComfoClimeAPI:
     """Async client for ComfoClime device API.
-    
+
     Provides methods for reading and writing device data with automatic
     rate limiting, caching, retry logic, and session management.
-    
+
     Attributes:
         base_url: Base URL of the ComfoClime device
         hass: Home Assistant instance (optional)
@@ -65,7 +65,7 @@ class ComfoClimeAPI:
         write_timeout: Timeout for write operations in seconds
         max_retries: Maximum number of retries for failed requests
     """
-    
+
     # Mapping von kwargs zu payload-Struktur (class-level constant)
     FIELD_MAPPING = {
         # season fields
@@ -119,7 +119,7 @@ class ComfoClimeAPI:
         request_debounce: float = API_DEFAULTS.REQUEST_DEBOUNCE,
     ) -> None:
         """Initialize ComfoClime API client.
-        
+
         Args:
             base_url: Base URL of the ComfoClime device (e.g., "http://192.168.1.100")
             hass: Optional Home Assistant instance for integration
@@ -156,10 +156,10 @@ class ComfoClimeAPI:
 
     async def _wait_for_rate_limit(self, is_write: bool = False) -> None:
         """Wait if necessary to respect rate limits.
-        
+
         This method enforces minimum request intervals and write cooldowns
         to prevent overloading the device's API.
-        
+
         Args:
             is_write: True for write operations, False for read operations.
                 Write operations have longer cooldown periods.
@@ -172,13 +172,13 @@ class ComfoClimeAPI:
 
     async def _get_session(self) -> aiohttp.ClientSession:
         """Get or create aiohttp session.
-        
+
         Returns an existing session if available, or creates a new one.
         The session is reused across all API calls for connection pooling.
-        
+
         Returns:
             Active aiohttp ClientSession instance.
-            
+
         Note:
             Timeouts are set per-request, not on the session level,
             to allow different timeouts for read vs write operations.
@@ -190,10 +190,10 @@ class ComfoClimeAPI:
 
     async def close(self) -> None:
         """Close the aiohttp session.
-        
+
         This should be called when the API client is no longer needed
         to properly clean up network resources.
-        
+
         Example:
             >>> api = ComfoClimeAPI("http://192.168.1.100")
             >>> try:
@@ -209,21 +209,21 @@ class ComfoClimeAPI:
         data: list, byte_count: int = None, signed: bool = True
     ) -> int:
         """Convert raw bytes to a signed or unsigned integer value.
-        
+
         Converts a list of bytes (little-endian) to an integer value.
         Supports 1-byte and 2-byte conversions with optional signed interpretation.
-        
+
         Args:
             data: List of bytes (integers 0-255) in little-endian order
             byte_count: Number of bytes to read. If None, calculated from data length
             signed: If True, interpret as signed integer; if False, unsigned
-        
+
         Returns:
             Integer value decoded from bytes.
-        
+
         Raises:
             ValueError: If data is not a list or byte_count is not 1 or 2.
-            
+
         Example:
             >>> ComfoClimeAPI.bytes_to_signed_int([255, 255], 2, signed=True)
             -1
@@ -246,21 +246,21 @@ class ComfoClimeAPI:
         data: int, byte_count: int = 2, signed: bool = False
     ) -> list:
         """Convert a signed or unsigned integer to a list of bytes.
-        
+
         Converts an integer value to a list of bytes in little-endian order.
         Supports 1-byte and 2-byte conversions.
-        
+
         Args:
             data: Integer value to convert
             byte_count: Number of bytes to convert to (1 or 2)
             signed: If True, interpret as signed integer; if False, unsigned
-        
+
         Returns:
             List of bytes (integers 0-255) in little-endian order.
-        
+
         Raises:
             ValueError: If byte_count is not 1 or 2.
-            
+
         Example:
             >>> ComfoClimeAPI.signed_int_to_bytes(-1, 2, signed=True)
             [255, 255]
@@ -275,17 +275,17 @@ class ComfoClimeAPI:
     @staticmethod
     def fix_signed_temperature(api_value: float) -> float:
         """Fix temperature value by converting through signed 16-bit integer.
-        
+
         The ComfoClime API returns temperature values that need to be
         interpreted as signed 16-bit integers (scaled by 10). This method
         performs the necessary conversion to handle negative temperatures correctly.
-        
+
         Args:
             api_value: Temperature value from API (scaled by 10)
-        
+
         Returns:
             Corrected temperature value in °C.
-            
+
         Example:
             >>> ComfoClimeAPI.fix_signed_temperature(655.3)
             -1.3
@@ -304,13 +304,13 @@ class ComfoClimeAPI:
         Applies fix_signed_temperature to all keys containing "Temperature"
         in both flat and nested dictionary structures. This is used to
         automatically fix temperature values from API responses.
-        
+
         Args:
             data: Dictionary potentially containing temperature values
         
         Returns:
             Dictionary with fixed temperature values.
-            
+
         Example:
             >>> data = {"indoorTemperature": 655.3, "outdoor": {"temperature": 650.0}}
             >>> ComfoClimeAPI.fix_signed_temperatures_in_dict(data)
@@ -332,16 +332,16 @@ class ComfoClimeAPI:
     @api_get("/monitoring/ping", skip_lock=True)
     async def _async_get_uuid_internal(self, response_data):
         """Internal method to get device UUID from monitoring endpoint.
-        
+
         Uses skip_lock=True because it's called from within other api_get
         decorated methods where the lock is already held.
-        
+
         Args:
             response_data: JSON response from /monitoring/ping endpoint
-            
+
         Returns:
             Device UUID string or None if not found.
-            
+
         Note:
             The @api_get decorator handles rate limiting, session management,
             and HTTP request execution.
@@ -351,17 +351,17 @@ class ComfoClimeAPI:
 
     async def async_get_uuid(self) -> str | None:
         """Get device UUID with lock protection.
-        
+
         Public method to fetch the system UUID from the device.
         The UUID is cached after the first call.
-        
+
         Returns:
             Device UUID string or None if not available.
-            
+
         Raises:
             aiohttp.ClientError: If connection to device fails.
             asyncio.TimeoutError: If request times out.
-            
+
         Example:
             >>> uuid = await api.async_get_uuid()
             >>> print(f"Device UUID: {uuid}")
@@ -372,45 +372,58 @@ class ComfoClimeAPI:
     @api_get("/monitoring/ping")
     async def async_get_monitoring_ping(self, response_data):
         """Get monitoring/ping data including device uptime.
-        
+
         Returns comprehensive monitoring information including UUID,
         uptime, and timestamp.
-        
+
         Args:
             response_data: JSON response from /monitoring/ping endpoint
-        
+
         Returns:
             Dictionary containing:
                 - uuid (str): Device UUID
                 - up_time_seconds (int): Device uptime in seconds
                 - timestamp (int): Current timestamp
-                
+
         Raises:
             aiohttp.ClientError: If connection to device fails.
             asyncio.TimeoutError: If request times out.
-            
+
         Example:
             >>> data = await api.async_get_monitoring_ping()
             >>> hours = data['up_time_seconds'] / 3600
             >>> print(f"Device has been running for {hours:.1f} hours")
-            
+
         Note:
             The @api_get decorator handles request locking, rate limiting,
             and session management automatically.
         """
+        # Backwards/forward compatibility: some devices return 'uptime',
+        # others return 'up_time_seconds'. Normalize both keys so callers
+        # can rely on either key being present.
+        try:
+            if isinstance(response_data, dict):
+                if "up_time_seconds" in response_data and "uptime" not in response_data:
+                    response_data["uptime"] = response_data["up_time_seconds"]
+                elif "uptime" in response_data and "up_time_seconds" not in response_data:
+                    response_data["up_time_seconds"] = response_data["uptime"]
+        except Exception:
+            # Keep original response on any unexpected structure/errors
+            _LOGGER.debug("Could not normalize monitoring ping keys: %s", response_data)
+
         return response_data
 
     @api_get("/system/{uuid}/dashboard", requires_uuid=True, fix_temperatures=True)
     async def async_get_dashboard_data(self, response_data):
         """Fetch current dashboard data from the device.
-        
+
         Returns real-time status including temperatures, fan speed,
         operating mode, and system state. All temperature values are
         automatically fixed for signed integer handling.
-        
+
         Args:
             response_data: JSON response from /system/{uuid}/dashboard endpoint
-        
+
         Returns:
             Dictionary containing:
                 - indoorTemperature (float): Current indoor temperature in °C
@@ -421,16 +434,16 @@ class ComfoClimeAPI:
                 - hpStandby (bool): Heat pump standby state
                 - temperatureProfile (int): Active temperature profile (0-2)
                 - status (int): Control mode (0=manual, 1=automatic)
-                
+
         Raises:
             aiohttp.ClientError: If connection to device fails.
             asyncio.TimeoutError: If request times out.
-            
+
         Example:
             >>> data = await api.async_get_dashboard_data()
             >>> if data['season'] == 1:
             ...     print(f"Heating mode: {data['indoorTemperature']}°C")
-            
+
         Note:
             The @api_get decorator handles request locking, rate limiting,
             UUID retrieval, session management, and temperature value fixing.
@@ -445,29 +458,29 @@ class ComfoClimeAPI:
     )
     async def async_get_connected_devices(self, response_data):
         """Fetch list of connected devices from the system.
-        
+
         Returns information about all devices connected to the ComfoClime
         system, including heat pumps, sensors, and other peripherals.
-        
+
         Args:
             response_data: Extracted 'devices' array from response
-        
+
         Returns:
             List of device dictionaries, each containing:
                 - uuid (str): Device UUID
                 - @modelType (str): Device model type/ID
                 - displayName (str): Human-readable device name
                 - version (str): Firmware version
-                
+
         Raises:
             aiohttp.ClientError: If connection to device fails.
             asyncio.TimeoutError: If request times out.
-            
+
         Example:
             >>> devices = await api.async_get_connected_devices()
             >>> for device in devices:
             ...     print(f"{device['displayName']}: {device['@modelType']}")
-            
+
         Note:
             The @api_get decorator extracts 'devices' key from response
             and returns [] if not found.
@@ -528,25 +541,25 @@ class ComfoClimeAPI:
         byte_count: int | None = None,
     ) -> float | None:
         """Read telemetry data for a device with automatic caching.
-        
+
         Fetches telemetry data from a specific device sensor. Results are
         cached for CACHE_TTL seconds to reduce API load. Supports scaling
         and signed/unsigned interpretation.
-        
+
         Args:
             device_uuid: UUID of the device
             telemetry_id: Telemetry sensor ID to read
             faktor: Scaling factor to multiply the raw value by (default: 1.0)
             signed: If True, interpret as signed integer (default: True)
             byte_count: Number of bytes to read (1 or 2, auto-detected if None)
-        
+
         Returns:
             Scaled telemetry value as float, or None if read failed.
-            
+
         Raises:
             aiohttp.ClientError: If connection to device fails.
             asyncio.TimeoutError: If request times out.
-            
+
         Example:
             >>> # Read temperature sensor (2 bytes, signed, factor 0.1)
             >>> temp = await api.async_read_telemetry_for_device(
@@ -587,26 +600,26 @@ class ComfoClimeAPI:
         byte_count: int | None = None,
     ) -> float | str | None:
         """Read property data for a device with automatic caching.
-        
+
         Fetches property data from a device. Results are cached for CACHE_TTL
         seconds to reduce API load. Supports numeric properties (1-2 bytes)
         and string properties (3+ bytes).
-        
+
         Args:
             device_uuid: UUID of the device
             property_path: Property path in format "X/Y/Z" (e.g., "29/1/10")
             faktor: Scaling factor for numeric values (default: 1.0)
             signed: If True, interpret numeric values as signed (default: True)
             byte_count: Number of bytes (1-2 for numeric, 3+ for string)
-        
+
         Returns:
             Property value as float (numeric) or str (string), or None if failed.
-            
+
         Raises:
             ValueError: If byte_count is invalid or data size mismatch.
             aiohttp.ClientError: If connection to device fails.
             asyncio.TimeoutError: If request times out.
-            
+
         Example:
             >>> # Read numeric property
             >>> value = await api.async_read_property_for_device(
@@ -685,14 +698,14 @@ class ComfoClimeAPI:
     )
     async def async_get_thermal_profile(self, response_data):
         """Fetch thermal profile configuration from the device.
-        
+
         Returns heating and cooling parameters including temperature profiles,
         season settings, and control modes. All temperature values are
         automatically fixed for signed integer handling.
-        
+
         Args:
             response_data: JSON response from /system/{uuid}/thermalprofile endpoint
-        
+
         Returns:
             Dictionary containing thermal profile data:
                 - season: Season configuration (status, season value, thresholds)
@@ -701,17 +714,17 @@ class ComfoClimeAPI:
                 - heatingThermalProfileSeasonData: Heating parameters
                 - coolingThermalProfileSeasonData: Cooling parameters
                 Returns {} on error.
-                
+
         Raises:
             aiohttp.ClientError: If connection to device fails (returns {}).
             asyncio.TimeoutError: If request times out (returns {}).
-            
+
         Example:
             >>> profile = await api.async_get_thermal_profile()
             >>> if profile['season']['season'] == 1:
             ...     comfort = profile['heatingThermalProfileSeasonData']['comfortTemperature']
             ...     print(f"Heating comfort temperature: {comfort}°C")
-            
+
         Note:
             The @api_get decorator returns {} on any error to prevent
             integration failures.
@@ -881,14 +894,14 @@ class ComfoClimeAPI:
 
     async def async_update_thermal_profile(self, updates: dict[str, Any] | None = None, **kwargs) -> dict[str, Any]:
         """Update thermal profile settings on the device.
-        
+
         Provides backward compatibility with legacy dict-based calls while
         supporting modern kwargs-based calls. Only specified fields are updated.
-        
+
         Supports two calling styles:
             1. Legacy dict-based: await api.async_update_thermal_profile({"season": {"season": 1}})
             2. Modern kwargs-based: await api.async_update_thermal_profile(season_value=1)
-        
+
         Args:
             updates: Optional dict with nested thermal profile structure (legacy style)
             **kwargs: Modern kwargs style parameters:
@@ -905,14 +918,14 @@ class ComfoClimeAPI:
                 - cooling_comfort_temperature (float): Cooling comfort temperature
                 - cooling_knee_point_temperature (float): Cooling knee point
                 - cooling_temperature_limit (float): Cooling temperature limit
-        
+
         Returns:
             Response from device API.
-            
+
         Raises:
             aiohttp.ClientError: If connection to device fails.
             asyncio.TimeoutError: If request times out.
-            
+
         Example:
             >>> # Modern style - set season to heating
             >>> await api.async_update_thermal_profile(season_value=1)
@@ -928,13 +941,13 @@ class ComfoClimeAPI:
 
     async def _convert_dict_to_kwargs_and_update(self, updates: dict[str, Any]) -> dict[str, Any]:
         """Convert legacy dict-based thermal profile updates to kwargs format.
-        
+
         Internal method that translates nested dict structure to modern
         kwargs format for calling _async_update_thermal_profile.
-        
+
         Args:
             updates: Nested dict structure with thermal profile updates
-        
+
         Returns:
             Response from _async_update_thermal_profile.
         """
@@ -992,19 +1005,19 @@ class ComfoClimeAPI:
 
     async def async_set_hvac_season(self, season: int, hpStandby: bool = False) -> None:
         """Set HVAC season and heat pump standby state atomically.
-        
+
         Updates both the season (via thermal profile) and hpStandby state
         (via dashboard) in a single atomic operation. The decorators handle
         all locking internally.
-        
+
         Args:
             season: Season value (0=transition, 1=heating, 2=cooling)
             hpStandby: Heat pump standby state (False=active, True=standby/off)
-        
+
         Raises:
             aiohttp.ClientError: If connection to device fails.
             asyncio.TimeoutError: If request times out.
-            
+
         Example:
             >>> # Activate heating mode
             >>> await api.async_set_hvac_season(season=1, hpStandby=False)
@@ -1059,11 +1072,11 @@ class ComfoClimeAPI:
         faktor: float = 1.0,
     ) -> dict[str, Any]:
         """Set property value for a device.
-        
+
         Writes a property value to a device. The decorator handles all
         locking, rate limiting, and retry logic. After successful write,
         the cache for this device is invalidated.
-        
+
         Args:
             device_uuid: UUID of the device
             property_path: Property path in format "X/Y/Z" (e.g., "29/1/10")
@@ -1071,15 +1084,15 @@ class ComfoClimeAPI:
             byte_count: Number of bytes (1 or 2)
             signed: If True, encode as signed integer (default: True)
             faktor: Scaling factor to divide value by before encoding (default: 1.0)
-        
+
         Returns:
             Response from device API.
-            
+
         Raises:
             ValueError: If byte_count is not 1 or 2.
             aiohttp.ClientError: If connection to device fails.
             asyncio.TimeoutError: If request times out.
-            
+
         Example:
             >>> # Set property to 22.5°C (factor 0.1, so raw value = 225)
             >>> await api.async_set_property_for_device(
@@ -1095,7 +1108,7 @@ class ComfoClimeAPI:
         is_valid, error_message = validate_property_path(property_path)
         if not is_valid:
             raise ValueError(f"Invalid property path: {error_message}")
-        
+
         # Validate byte count
         if byte_count not in (1, 2):
             raise ValueError("Nur 1 oder 2 Byte unterstützt")
@@ -1105,7 +1118,7 @@ class ComfoClimeAPI:
         is_valid, error_message = validate_byte_value(raw_value, byte_count, signed)
         if not is_valid:
             raise ValueError(f"Invalid value for byte_count={byte_count}, signed={signed}: {error_message}")
-        
+
         data = self.signed_int_to_bytes(raw_value, byte_count, signed)
 
         x, y, z = map(int, property_path.split("/"))
@@ -1118,22 +1131,22 @@ class ComfoClimeAPI:
     @api_put("/system/reset")
     async def async_reset_system(self):
         """Trigger a system restart of the ComfoClime device.
-        
+
         Sends a reset command to reboot the device. The device will
         be unavailable for a short time during the restart process.
-        
+
         Returns:
             Response from device API.
-            
+
         Raises:
             aiohttp.ClientError: If connection to device fails.
             asyncio.TimeoutError: If request times out.
-            
+
         Example:
             >>> await api.async_reset_system()
             >>> # Wait for device to restart
             >>> await asyncio.sleep(10)
-            
+
         Note:
             The @api_put decorator handles request locking, rate limiting,
             session management, and retry with exponential backoff.

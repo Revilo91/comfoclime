@@ -53,14 +53,14 @@ DEFAULT_POLLING_INTERVAL_SECONDS = API_DEFAULTS.POLLING_INTERVAL
 
 class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
     """Coordinator for fetching real-time dashboard data from ComfoClime device.
-    
+
     Polls the device at regular intervals to fetch current operating status
     including temperatures, fan speed, season mode, and system state.
     This data is used by climate, fan, and sensor entities.
-    
+
     Attributes:
         api: ComfoClimeAPI instance for device communication
-        
+
     Example:
         >>> coordinator = ComfoClimeDashboardCoordinator(
         ...     hass=hass,
@@ -77,9 +77,10 @@ class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
         api,
         polling_interval=DEFAULT_POLLING_INTERVAL_SECONDS,
         access_tracker: "AccessTracker | None" = None,
+        config_entry=None,
     ):
         """Initialize the dashboard data coordinator.
-        
+
         Args:
             hass: Home Assistant instance
             api: ComfoClimeAPI instance for device communication
@@ -91,13 +92,14 @@ class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
             _LOGGER,
             name="ComfoClime Dashboard",
             update_interval=timedelta(seconds=polling_interval),
+            config_entry=config_entry,
         )
         self.api = api
         self._access_tracker = access_tracker
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch dashboard data from the API.
-        
+
         Returns:
             Dictionary containing dashboard data with keys:
                 - indoorTemperature: Indoor temperature in °C
@@ -108,7 +110,7 @@ class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
                 - hpStandby: Heat pump standby state
                 - temperatureProfile: Active temperature profile (0-2)
                 - status: Control mode (0=manual, 1=automatic)
-                
+
         Raises:
             UpdateFailed: If API call fails or times out.
         """
@@ -124,14 +126,14 @@ class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
 
 class ComfoClimeMonitoringCoordinator(DataUpdateCoordinator):
     """Coordinator for fetching device monitoring and health data.
-    
+
     Polls the monitoring endpoint to fetch device uptime, UUID, and
     health status. This data is used by sensor entities to track
     device availability and performance.
-    
+
     Attributes:
         api: ComfoClimeAPI instance for device communication
-        
+
     Example:
         >>> coordinator = ComfoClimeMonitoringCoordinator(hass, api)
         >>> await coordinator.async_config_entry_first_refresh()
@@ -144,9 +146,10 @@ class ComfoClimeMonitoringCoordinator(DataUpdateCoordinator):
         api: ComfoClimeAPI,
         polling_interval: int = DEFAULT_POLLING_INTERVAL_SECONDS,
         access_tracker: AccessTracker | None = None,
+        config_entry=None,
     ) -> None:
         """Initialize the monitoring data coordinator.
-        
+
         Args:
             hass: Home Assistant instance
             api: ComfoClimeAPI instance for device communication
@@ -158,19 +161,20 @@ class ComfoClimeMonitoringCoordinator(DataUpdateCoordinator):
             _LOGGER,
             name="ComfoClime Monitoring",
             update_interval=timedelta(seconds=polling_interval),
+            config_entry=config_entry,
         )
         self.api = api
         self._access_tracker = access_tracker
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch monitoring data from the API.
-        
+
         Returns:
             Dictionary containing monitoring data with keys:
                 - uuid: Device UUID string
                 - up_time_seconds: Device uptime in seconds
                 - timestamp: Current timestamp
-                
+
         Raises:
             UpdateFailed: If API call fails or times out.
         """
@@ -188,14 +192,14 @@ class ComfoClimeMonitoringCoordinator(DataUpdateCoordinator):
 
 class ComfoClimeThermalprofileCoordinator(DataUpdateCoordinator):
     """Coordinator for fetching thermal profile configuration data.
-    
+
     Polls the device to fetch heating and cooling parameters, season settings,
     temperature profiles, and control modes. This data is used by climate
     entities and sensor entities for temperature control.
-    
+
     Attributes:
         api: ComfoClimeAPI instance for device communication
-        
+
     Example:
         >>> coordinator = ComfoClimeThermalprofileCoordinator(hass, api)
         >>> await coordinator.async_config_entry_first_refresh()
@@ -208,9 +212,10 @@ class ComfoClimeThermalprofileCoordinator(DataUpdateCoordinator):
         api: ComfoClimeAPI,
         polling_interval: int = DEFAULT_POLLING_INTERVAL_SECONDS,
         access_tracker: AccessTracker | None = None,
+        config_entry=None,
     ) -> None:
         """Initialize the thermal profile data coordinator.
-        
+
         Args:
             hass: Home Assistant instance
             api: ComfoClimeAPI instance for device communication
@@ -222,13 +227,14 @@ class ComfoClimeThermalprofileCoordinator(DataUpdateCoordinator):
             _LOGGER,
             name="ComfoClime Thermalprofile",
             update_interval=timedelta(seconds=polling_interval),
+            config_entry=config_entry,
         )
         self.api = api
         self._access_tracker = access_tracker
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch thermal profile data from the API.
-        
+
         Returns:
             Dictionary containing thermal profile data with keys:
                 - season: Season configuration
@@ -236,7 +242,7 @@ class ComfoClimeThermalprofileCoordinator(DataUpdateCoordinator):
                 - temperatureProfile: Active profile
                 - heatingThermalProfileSeasonData: Heating parameters
                 - coolingThermalProfileSeasonData: Cooling parameters
-                
+
         Raises:
             UpdateFailed: If API call fails or times out.
         """
@@ -256,15 +262,15 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
     Instead of each sensor making individual API calls, this coordinator
     collects all telemetry requests and fetches them in a single batched
     update cycle. This significantly reduces API load on the Airduino board.
-    
+
     Sensors register their telemetry needs using register_telemetry(), and
     the coordinator fetches all values during each update. Sensors then
     retrieve their values using get_telemetry_value().
-    
+
     Attributes:
         api: ComfoClimeAPI instance for device communication
         devices: List of connected devices
-        
+
     Example:
         >>> coordinator = ComfoClimeTelemetryCoordinator(hass, api, devices)
         >>> # Register a sensor
@@ -287,9 +293,10 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
         devices: list[dict[str, Any]] | None = None,
         polling_interval: int = DEFAULT_POLLING_INTERVAL_SECONDS,
         access_tracker: AccessTracker | None = None,
+        config_entry=None,
     ) -> None:
         """Initialize the telemetry data coordinator.
-        
+
         Args:
             hass: Home Assistant instance
             api: ComfoClimeAPI instance for device communication
@@ -302,6 +309,7 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
             _LOGGER,
             name="ComfoClime Telemetry",
             update_interval=timedelta(seconds=polling_interval),
+            config_entry=config_entry,
         )
         self.api = api
         self.devices = devices or []
@@ -320,18 +328,18 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
         byte_count: int | None = None,
     ) -> None:
         """Register a telemetry sensor to be fetched during updates.
-        
+
         Sensors should call this during their initialization to register
         their telemetry needs. The coordinator will then fetch this value
         during each update cycle.
-        
+
         Args:
             device_uuid: UUID of the device to read from
             telemetry_id: Telemetry sensor ID to fetch
             faktor: Scaling factor to multiply the raw value by (default: 1.0)
             signed: If True, interpret as signed integer (default: True)
             byte_count: Number of bytes to read (1 or 2, auto-detected if None)
-            
+
         Example:
             >>> await coordinator.register_telemetry(
             ...     device_uuid="abc123",
@@ -356,11 +364,11 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         """Fetch all registered telemetry data in a batched manner.
-        
+
         Iterates through all registered telemetry sensors and fetches
         their values from the API. Failed reads are logged but don't
         fail the entire update.
-        
+
         Returns:
             Nested dictionary: {device_uuid: {telemetry_id: value}}
             Values are None if read failed.
@@ -404,18 +412,18 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
 
     def get_telemetry_value(self, device_uuid: str, telemetry_id: str | int) -> Any:
         """Get a cached telemetry value from the last update.
-        
+
         Retrieves a telemetry value that was fetched during the last
         coordinator update. Returns None if the value doesn't exist or
         if the read failed.
-        
+
         Args:
             device_uuid: UUID of the device
             telemetry_id: Telemetry sensor ID (string or int)
-        
+
         Returns:
             The cached telemetry value, or None if not found/failed.
-            
+
         Example:
             >>> temp = coordinator.get_telemetry_value("abc123", "100")
             >>> if temp is not None:
@@ -435,15 +443,15 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
     this coordinator collects all property requests and fetches them
     in a single batched update cycle. This significantly reduces API
     load on the Airduino board.
-    
+
     Entities register their property needs using register_property(), and
     the coordinator fetches all values during each update. Entities then
     retrieve their values using get_property_value().
-    
+
     Attributes:
         api: ComfoClimeAPI instance for device communication
         devices: List of connected devices
-        
+
     Example:
         >>> coordinator = ComfoClimePropertyCoordinator(hass, api, devices)
         >>> # Register a property
@@ -465,9 +473,10 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
         devices: list[dict[str, Any]] | None = None,
         polling_interval: int = DEFAULT_POLLING_INTERVAL_SECONDS,
         access_tracker: AccessTracker | None = None,
+        config_entry=None,
     ) -> None:
         """Initialize the property data coordinator.
-        
+
         Args:
             hass: Home Assistant instance
             api: ComfoClimeAPI instance for device communication
@@ -480,6 +489,7 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
             _LOGGER,
             name="ComfoClime Properties",
             update_interval=timedelta(seconds=polling_interval),
+            config_entry=config_entry,
         )
         self.api = api
         self.devices = devices or []
@@ -498,18 +508,18 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
         byte_count: int | None = None,
     ) -> None:
         """Register a property to be fetched during updates.
-        
+
         Entities should call this during their initialization to register
         their property needs. The coordinator will then fetch this value
         during each update cycle.
-        
+
         Args:
             device_uuid: UUID of the device to read from
             property_path: Property path in format "X/Y/Z" (e.g., "29/1/10")
             faktor: Scaling factor to multiply numeric values by (default: 1.0)
             signed: If True, interpret numeric values as signed (default: True)
             byte_count: Number of bytes (1-2 for numeric, 3+ for string)
-            
+
         Example:
             >>> await coordinator.register_property(
             ...     device_uuid="abc123",
@@ -534,11 +544,11 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         """Fetch all registered property data in a batched manner.
-        
+
         Iterates through all registered properties and fetches their
         values from the API. Failed reads are logged but don't fail
         the entire update.
-        
+
         Returns:
             Nested dictionary: {device_uuid: {property_path: value}}
             Values are None if read failed.
@@ -582,18 +592,18 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
 
     def get_property_value(self, device_uuid: str, property_path: str) -> Any:
         """Get a cached property value from the last update.
-        
+
         Retrieves a property value that was fetched during the last
         coordinator update. Returns None if the value doesn't exist or
         if the read failed.
-        
+
         Args:
             device_uuid: UUID of the device
             property_path: Property path (e.g., "29/1/10")
-        
+
         Returns:
             The cached property value (float or string), or None if not found/failed.
-            
+
         Example:
             >>> value = coordinator.get_property_value("abc123", "29/1/10")
             >>> if value is not None:
@@ -613,11 +623,11 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
     for ComfoAirQ devices (modelTypeId=1) which provide detailed sensor
     and control point definitions. ComfoClime devices provide less useful
     definition data and are skipped.
-    
+
     Attributes:
         api: ComfoClimeAPI instance for device communication
         devices: List of connected devices
-        
+
     Example:
         >>> coordinator = ComfoClimeDefinitionCoordinator(hass, api, devices)
         >>> await coordinator.async_config_entry_first_refresh()
@@ -631,9 +641,10 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
         devices: list[dict[str, Any]] | None = None,
         polling_interval: int = DEFAULT_POLLING_INTERVAL_SECONDS,
         access_tracker: AccessTracker | None = None,
+        config_entry=None,
     ) -> None:
         """Initialize the device definition coordinator.
-        
+
         Args:
             hass: Home Assistant instance
             api: ComfoClimeAPI instance for device communication
@@ -646,6 +657,7 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
             _LOGGER,
             name="ComfoClime Device Definition",
             update_interval=timedelta(seconds=polling_interval),
+            config_entry=config_entry,
         )
         self.api = api
         self.devices = devices or []
@@ -653,11 +665,11 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         """Fetch definition data for ComfoAirQ devices.
-        
+
         Only fetches definitions for ComfoAirQ devices (modelTypeId=1)
         as ComfoClime devices provide minimal useful definition data.
         Failed reads are logged but don't fail the entire update.
-        
+
         Returns:
             Dictionary mapping device_uuid to definition data.
             Values are None if read failed or device skipped.
@@ -695,17 +707,17 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
 
     def get_definition_data(self, device_uuid: str) -> dict | None:
         """Get cached definition data for a device.
-        
+
         Retrieves definition data that was fetched during the last
         coordinator update. Returns None if the device doesn't exist,
         wasn't fetched, or if the read failed.
-        
+
         Args:
             device_uuid: UUID of the device
         
         Returns:
             Dictionary containing device definition data, or None if not found.
-            
+
         Example:
             >>> definition = coordinator.get_definition_data("abc123")
             >>> if definition:
