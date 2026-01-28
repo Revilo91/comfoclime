@@ -5,7 +5,7 @@ import aiohttp
 import homeassistant.helpers.device_registry as dr
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import HomeAssistantError, ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
 
 from .access_tracker import AccessTracker
@@ -130,8 +130,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         definitioncoordinator.async_config_entry_first_refresh(),
         return_exceptions=True,
     )
-    _LOGGER.debug("Coordinator first refresh completed. Results: %s",
-                  ["Success" if not isinstance(r, Exception) else f"Error: {r}" for r in results])
+    
+    # Check for failures and raise ConfigEntryNotReady if any coordinator failed
+    for i, result in enumerate(results):
+        if isinstance(result, Exception):
+            coordinator_names = ["dashboard", "thermalprofile", "monitoring", "definition"]
+            _LOGGER.error("Coordinator %s first refresh failed: %s", coordinator_names[i], result)
+            raise ConfigEntryNotReady(f"Failed to initialize {coordinator_names[i]} coordinator: {result}") from result
+    
+    _LOGGER.debug("Coordinator first refresh completed successfully")
 
     # Create telemetry and property coordinators with device list
     tlcoordinator = ComfoClimeTelemetryCoordinator(

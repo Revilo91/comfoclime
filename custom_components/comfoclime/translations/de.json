@@ -422,6 +422,9 @@
                     "enabled_switches": "🔌 Schalter",
                     "enabled_numbers": "🔢 Zahlen-Steuerungen",
                     "enabled_selects": "📝 Auswahl-Steuerungen"
+                },
+                "error": {
+                    "entity_options_error": "Fehler beim Laden der Entity-Optionen. Überprüfen Sie die Logs für weitere Details."
                 }
             },
             "general": {
