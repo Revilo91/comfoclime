@@ -181,15 +181,15 @@ async def test_options_flow_entities_step():
 
     # Verify all 10 entity selection fields exist
     assert "enabled_dashboard" in field_names
-    assert "enabled_thermal_profile" in field_names
+    assert "enabled_thermalprofile" in field_names
     assert "enabled_monitoring" in field_names
-    assert "enabled_connected_telemetry" in field_names
-    assert "enabled_connected_properties" in field_names
+    assert "enabled_connected_device_telemetry" in field_names
+    assert "enabled_connected_device_properties" in field_names
     assert "enabled_connected_device_definition" in field_names
     assert "enabled_access_tracking" in field_names
     assert "enabled_switches" in field_names
     assert "enabled_numbers" in field_names
-    assert "enabled_all" in field_names
+    assert "enabled_selects" in field_names
 
 
 
