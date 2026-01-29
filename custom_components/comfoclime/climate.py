@@ -460,26 +460,41 @@ class ComfoClimeClimate(
                 return Season(season)
         return Season.TRANSITIONAL
 
-    async def _async_refresh_coordinators(self) -> None:
+    async def _async_refresh_coordinators(self, blocking: bool = True) -> None:
         """Refresh both dashboard and thermal profile coordinators.
 
-        Schedules non-blocking refresh of both coordinators to prevent blocking
-        user interactions. The coordinators will update in the background and
-        trigger entity updates via their listeners when ready.
+        Args:
+            blocking: If True (default), waits for coordinators to complete refresh.
+                     If False, schedules non-blocking refresh in background.
+
+        When blocking=True (default for "set then fetch" pattern):
+        - Waits for both coordinators to complete refresh
+        - Ensures UI shows actual device state after setting values
+        - Prevents stale state display
+
+        When blocking=False:
+        - Schedules non-blocking refresh for both coordinators
+        - Prevents UI from becoming unresponsive
+        - Updates happen in background
         """
-        # Schedule non-blocking refresh for both coordinators
-        # This prevents the UI from becoming unresponsive while waiting for updates
         async def safe_refresh(coordinator, name: str) -> None:
             """Safely refresh coordinator with error handling."""
             try:
                 await coordinator.async_request_refresh()
             except Exception:
-                _LOGGER.exception("Background refresh failed for %s", name)
+                _LOGGER.exception("Refresh failed for %s", name)
 
-        self.hass.async_create_task(safe_refresh(self.coordinator, "dashboard"))
-        self.hass.async_create_task(
-            safe_refresh(self._thermalprofile_coordinator, "thermal_profile")
-        )
+        if blocking:
+            # Blocking mode: Wait for both coordinators to complete
+            # This ensures "set then fetch" behavior - UI reflects actual device state
+            await safe_refresh(self.coordinator, "dashboard")
+            await safe_refresh(self._thermalprofile_coordinator, "thermal_profile")
+        else:
+            # Non-blocking mode: Schedule refresh as background tasks
+            self.hass.async_create_task(safe_refresh(self.coordinator, "dashboard"))
+            self.hass.async_create_task(
+                safe_refresh(self._thermalprofile_coordinator, "thermal_profile")
+            )
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature via dashboard API in manual mode.
@@ -505,8 +520,8 @@ class ComfoClimeClimate(
                 status=0,
             )
 
-            # Schedule non-blocking refresh of coordinators
-            await self._async_refresh_coordinators()
+            # Wait for coordinators to refresh (blocking) to ensure UI shows actual device state
+            await self._async_refresh_coordinators(blocking=True)
 
         except (asyncio.TimeoutError, asyncio.CancelledError):
             _LOGGER.exception(
@@ -569,8 +584,8 @@ class ComfoClimeClimate(
                     season=season_value, hpStandby=False
                 )
 
-            # Schedule non-blocking refresh of coordinators
-            await self._async_refresh_coordinators()
+            # Wait for coordinators to refresh (blocking) to ensure UI shows actual device state
+            await self._async_refresh_coordinators(blocking=True)
 
         except (asyncio.TimeoutError, asyncio.CancelledError):
             _LOGGER.exception(
@@ -604,8 +619,8 @@ class ComfoClimeClimate(
                 # setPointTemperature should be set separately via async_set_temperature
                 await self.async_update_dashboard(status=0)
 
-                # Schedule non-blocking refresh of coordinators
-                await self._async_refresh_coordinators()
+                # Wait for coordinators to refresh (blocking) to ensure UI shows actual device state
+                await self._async_refresh_coordinators(blocking=True)
                 return
 
             # Check if this is a scenario mode
@@ -637,8 +652,8 @@ class ComfoClimeClimate(
                 status=1,
             )
 
-            # Schedule non-blocking refresh of coordinators
-            await self._async_refresh_coordinators()
+            # Wait for coordinators to refresh (blocking) to ensure UI shows actual device state
+            await self._async_refresh_coordinators(blocking=True)
 
         except (asyncio.TimeoutError, asyncio.CancelledError):
             _LOGGER.exception(
@@ -671,8 +686,8 @@ class ComfoClimeClimate(
             # Update fan speed via dashboard API
             await self.async_update_dashboard(fan_speed=fan_speed)
 
-            # Schedule non-blocking refresh of coordinators
-            await self._async_refresh_coordinators()
+            # Wait for coordinators to refresh (blocking) to ensure UI shows actual device state
+            await self._async_refresh_coordinators(blocking=True)
 
         except (asyncio.TimeoutError, asyncio.CancelledError):
             _LOGGER.exception(
@@ -765,8 +780,8 @@ class ComfoClimeClimate(
                 scenario_start_delay=scenario_start_delay,
             )
 
-            # Schedule non-blocking refresh of coordinators
-            await self._async_refresh_coordinators()
+            # Wait for coordinators to refresh (blocking) to ensure UI shows actual device state
+            await self._async_refresh_coordinators(blocking=True)
 
         except (aiohttp.ClientError, asyncio.TimeoutError, ValueError, KeyError, TypeError):
             _LOGGER.exception("Failed to set scenario mode %s", scenario_mode)
@@ -822,8 +837,8 @@ class ComfoClimeClimate(
             _LOGGER.debug("Turning off climate device - setting hpStandby=True")
             await self.async_update_dashboard(hpStandby=True)
 
-            # Schedule non-blocking refresh of coordinators
-            await self._async_refresh_coordinators()
+            # Wait for coordinators to refresh (blocking) to ensure UI shows actual device state
+            await self._async_refresh_coordinators(blocking=True)
 
         except (asyncio.TimeoutError, asyncio.CancelledError):
             _LOGGER.exception(
@@ -845,8 +860,8 @@ class ComfoClimeClimate(
             _LOGGER.debug("Turning on climate device - setting hpStandby=False")
             await self.async_update_dashboard(hpStandby=False)
 
-            # Schedule non-blocking refresh of coordinators
-            await self._async_refresh_coordinators()
+            # Wait for coordinators to refresh (blocking) to ensure UI shows actual device state
+            await self._async_refresh_coordinators(blocking=True)
 
         except (asyncio.TimeoutError, asyncio.CancelledError):
             _LOGGER.exception(
