@@ -421,9 +421,6 @@
                     "enabled_switches": "🔌 Switches",
                     "enabled_numbers": "🔢 Number Controls",
                     "enabled_selects": "📝 Select Controls"
-                },
-                "error": {
-                    "entity_options_error": "Failed to load entity options. Check the logs for more details."
                 }
             }
         }
