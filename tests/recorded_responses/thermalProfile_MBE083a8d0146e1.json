@@ -1,0 +1,23 @@
+{
+  "season": {
+    "status": 0,
+    "season": 1,
+    "heatingThresholdTemperature": 14.0,
+    "coolingThresholdTemperature": 17.0
+  },
+  "temperature": {
+    "status": 0,
+    "manualTemperature": 21.0
+  },
+  "temperatureProfile": 0,
+  "heatingThermalProfileSeasonData": {
+    "comfortTemperature": 23.0,
+    "kneePointTemperature": 12.0,
+    "reductionDeltaTemperature": 0.5
+  },
+  "coolingThermalProfileSeasonData": {
+    "comfortTemperature": 22.0,
+    "kneePointTemperature": 18.0,
+    "temperatureLimit": 23.0
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "uuid": "DEM0121153000",
+  "modelTypeId": 5,
+  "variant": 0,
+  "zoneId": 255,
+  "@modelType": "ComfoConnectLANC",
+  "name": "ComfoConnectLANC",
+  "displayName": "ComfoConnectLANC",
+  "indoorTemperature": 20.8
+}

@@ -1,0 +1,15 @@
+{
+  "indoorTemperature": 20.8,
+  "outdoorTemperature": 0.4,
+  "exhaustAirFlow": 170,
+  "supplyAirFlow": 168,
+  "fanSpeed": 2,
+  "setPointTemperature": 21.0,
+  "season": 1,
+  "schedule": 0,
+  "status": 0,
+  "heatPumpStatus": 0,
+  "hpStandby": false,
+  "freeCoolingEnabled": false,
+  "caqFreeCoolingAvailable": false
+}

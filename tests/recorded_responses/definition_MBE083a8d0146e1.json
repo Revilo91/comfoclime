@@ -1,0 +1,15 @@
+{
+  "uuid": "MBE083a8d0146e1",
+  "modelTypeId": 20,
+  "variant": 1,
+  "zoneId": 1,
+  "@modelType": "ComfoClime 24",
+  "name": "ComfoClime 24",
+  "displayName": "ComfoClime 24",
+  "version": "R1.5.5",
+  "setPointTemperature": 21.0,
+  "indoorTemperature": 20.8,
+  "supplyTemperature": 16.2,
+  "heatPumpStatus": 0,
+  "status": 0
+}

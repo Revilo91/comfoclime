@@ -1,0 +1,15 @@
+{
+  "uuid": "SIT14276877",
+  "modelTypeId": 1,
+  "variant": 1,
+  "zoneId": 1,
+  "@modelType": "ComfoAirQ 350",
+  "name": "ComfoAirQ 350",
+  "displayName": "ComfoAirQ 350",
+  "fanSpeed": 2,
+  "indoorTemperature": 20.8,
+  "outdoorTemperature": 0.4,
+  "extractTemperature": 20.8,
+  "supplyTemperature": 15.4,
+  "exhaustTemperature": 4.8
+}

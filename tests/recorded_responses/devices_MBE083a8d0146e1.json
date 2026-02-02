@@ -1,0 +1,34 @@
+{
+  "devices": [
+    {
+      "uuid": "SIT14276877",
+      "modelTypeId": 1,
+      "variant": 1,
+      "zoneId": 1,
+      "@modelType": "ComfoAirQ 350",
+      "name": "ComfoAirQ 350",
+      "displayName": "ComfoAirQ 350",
+      "fanSpeed": 2
+    },
+    {
+      "uuid": "MBE083a8d0146e1",
+      "modelTypeId": 20,
+      "variant": 1,
+      "zoneId": 1,
+      "@modelType": "ComfoClime 24",
+      "name": "ComfoClime 24",
+      "displayName": "ComfoClime 24",
+      "version": "R1.5.5",
+      "setPointTemperature": 21.0
+    },
+    {
+      "uuid": "DEM0121153000",
+      "modelTypeId": 5,
+      "variant": 0,
+      "zoneId": 255,
+      "@modelType": "ComfoConnectLANC",
+      "name": "ComfoConnectLANC",
+      "displayName": "ComfoConnectLANC"
+    }
+  ]
+}
