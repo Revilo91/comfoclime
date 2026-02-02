@@ -3,14 +3,11 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from custom_components.comfoclime import (
     async_setup,
     async_setup_entry,
     async_unload_entry,
 )
-
-
 @pytest.mark.asyncio
 async def test_async_setup():
     """Test async_setup returns True."""
@@ -20,8 +17,6 @@ async def test_async_setup():
     result = await async_setup(mock_hass, config)
 
     assert result is True
-
-
 @pytest.mark.asyncio
 async def test_async_setup_entry(
     mock_hass,
@@ -109,8 +104,6 @@ async def test_async_setup_entry(
 
                             # Verify services were registered (set_property, reset_system, set_scenario_mode)
                             assert mock_hass.services.async_register.call_count == 3
-
-
 @pytest.mark.asyncio
 async def test_async_setup_entry_with_float_max_retries(
     mock_hass,
@@ -217,8 +210,6 @@ async def test_async_setup_entry_with_float_max_retries(
                                 polling_interval_arg = db_coord_args[2]  # hass, api, polling_interval
                                 assert isinstance(polling_interval_arg, int)
                                 assert polling_interval_arg == 60
-
-
 @pytest.mark.asyncio
 async def test_async_unload_entry(mock_hass, mock_config_entry):
     """Test async_unload_entry."""
@@ -233,3 +224,117 @@ async def test_async_unload_entry(mock_hass, mock_config_entry):
 
     # Verify all platforms were unloaded
     assert mock_hass.config_entries.async_forward_entry_unload.call_count == 6
+@pytest.mark.asyncio
+async def test_async_unload_entry_closes_api(mock_hass, mock_config_entry):
+    """Test async_unload_entry closes API session."""
+    mock_api = MagicMock()
+    mock_api.close = AsyncMock()
+
+    mock_hass.config_entries = MagicMock()
+    mock_hass.config_entries.async_forward_entry_unload = AsyncMock(return_value=True)
+    mock_hass.data = {"comfoclime": {"test_entry_id": {"api": mock_api}}}
+
+    result = await async_unload_entry(mock_hass, mock_config_entry)
+
+    assert result is True
+    mock_api.close.assert_called_once()
+
+
+# ============================================================================
+# Validator tests for service input validation (coverage for __init__.py validation paths)
+# ============================================================================
+
+
+def test_validate_property_path_valid():
+    """Test validate_property_path with valid paths."""
+    from custom_components.comfoclime.validators import validate_property_path
+
+    # Valid path format X/Y/Z
+    is_valid, error = validate_property_path("29/1/10")
+    assert is_valid is True
+    assert error is None
+
+    is_valid, error = validate_property_path("1/0/0")
+    assert is_valid is True
+
+
+def test_validate_property_path_invalid():
+    """Test validate_property_path with invalid paths."""
+    from custom_components.comfoclime.validators import validate_property_path
+
+    # Invalid formats
+    is_valid, error = validate_property_path("invalid")
+    assert is_valid is False
+    assert error is not None
+
+    is_valid, error = validate_property_path("29/1")  # Missing part
+    assert is_valid is False
+
+    is_valid, error = validate_property_path("")  # Empty
+    assert is_valid is False
+
+
+def test_validate_byte_value_valid():
+    """Test validate_byte_value with valid values."""
+    from custom_components.comfoclime.validators import validate_byte_value
+
+    # 1 byte unsigned: 0-255
+    is_valid, error = validate_byte_value(0, 1, False)
+    assert is_valid is True
+
+    is_valid, error = validate_byte_value(255, 1, False)
+    assert is_valid is True
+
+    # 1 byte signed: -128 to 127
+    is_valid, error = validate_byte_value(-128, 1, True)
+    assert is_valid is True
+
+    is_valid, error = validate_byte_value(127, 1, True)
+    assert is_valid is True
+
+    # 2 bytes unsigned: 0-65535
+    is_valid, error = validate_byte_value(65535, 2, False)
+    assert is_valid is True
+
+
+def test_validate_byte_value_out_of_range():
+    """Test validate_byte_value with out of range values."""
+    from custom_components.comfoclime.validators import validate_byte_value
+
+    # 1 byte unsigned overflow
+    is_valid, error = validate_byte_value(256, 1, False)
+    assert is_valid is False
+
+    # 1 byte signed overflow
+    is_valid, error = validate_byte_value(128, 1, True)
+    assert is_valid is False
+
+    # Negative value for unsigned
+    is_valid, error = validate_byte_value(-1, 1, False)
+    assert is_valid is False
+
+
+def test_validate_duration_valid():
+    """Test validate_duration with valid values."""
+    from custom_components.comfoclime.validators import validate_duration
+
+    is_valid, error = validate_duration(30)
+    assert is_valid is True
+
+    is_valid, error = validate_duration(1)
+    assert is_valid is True
+
+    is_valid, error = validate_duration(1440)  # 24 hours
+    assert is_valid is True
+
+
+def test_validate_duration_invalid():
+    """Test validate_duration with invalid values."""
+    from custom_components.comfoclime.validators import validate_duration
+
+    # Negative duration
+    is_valid, error = validate_duration(-10)
+    assert is_valid is False
+    assert error is not None
+
+    # Zero duration

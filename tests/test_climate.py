@@ -668,3 +668,762 @@ async def test_async_setup_entry_no_main_device(
 
     # Verify entities were not added
     assert not async_add_entities.called
+
+
+# ============================================================================
+# Additional climate tests for improved coverage
+# ============================================================================
+
+
+class TestClimateAsyncMethods:
+    """Test async methods of ComfoClimeClimate."""
+
+    @pytest.mark.asyncio
+    async def test_async_set_temperature(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """Test async_set_temperature method."""
+        mock_hass.async_create_task = MagicMock()
+
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+        climate.hass = mock_hass
+
+        await climate.async_set_temperature(temperature=23.5)
+
+        # Verify API was called with correct parameters
+        mock_api.async_update_dashboard.assert_called()
+        call_kwargs = mock_api.async_update_dashboard.call_args[1]
+        assert call_kwargs["set_point_temperature"] == 23.5
+        assert call_kwargs["status"] == 0  # Manual mode
+
+    @pytest.mark.asyncio
+    async def test_async_set_temperature_no_temperature(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """Test async_set_temperature with no temperature provided."""
+        mock_hass.async_create_task = MagicMock()
+
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+        climate.hass = mock_hass
+
+        # Call without temperature
+        await climate.async_set_temperature()
+
+        # Verify API was NOT called
+        mock_api.async_update_dashboard.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_async_set_hvac_mode_off(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """Test async_set_hvac_mode to OFF."""
+        mock_hass.async_create_task = MagicMock()
+
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+        climate.hass = mock_hass
+
+        await climate.async_set_hvac_mode(HVACMode.OFF)
+
+        # Verify dashboard was called with hpStandby=True
+        mock_api.async_update_dashboard.assert_called()
+        call_kwargs = mock_api.async_update_dashboard.call_args[1]
+        assert call_kwargs["hpStandby"] is True
+
+    @pytest.mark.asyncio
+    async def test_async_set_hvac_mode_heat(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """Test async_set_hvac_mode to HEAT."""
+        mock_hass.async_create_task = MagicMock()
+
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+        climate.hass = mock_hass
+
+        await climate.async_set_hvac_mode(HVACMode.HEAT)
+
+        # Verify async_set_hvac_season was called with season=1
+        mock_api.async_set_hvac_season.assert_called()
+        call_kwargs = mock_api.async_set_hvac_season.call_args[1]
+        assert call_kwargs["season"] == 1
+        assert call_kwargs["hpStandby"] is False
+
+    @pytest.mark.asyncio
+    async def test_async_set_hvac_mode_cool(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """Test async_set_hvac_mode to COOL."""
+        mock_hass.async_create_task = MagicMock()
+
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+        climate.hass = mock_hass
+
+        await climate.async_set_hvac_mode(HVACMode.COOL)
+
+        # Verify async_set_hvac_season was called with season=2
+        mock_api.async_set_hvac_season.assert_called()
+        call_kwargs = mock_api.async_set_hvac_season.call_args[1]
+        assert call_kwargs["season"] == 2
+        assert call_kwargs["hpStandby"] is False
+
+    @pytest.mark.asyncio
+    async def test_async_set_hvac_mode_fan_only(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """Test async_set_hvac_mode to FAN_ONLY."""
+        mock_hass.async_create_task = MagicMock()
+
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+        climate.hass = mock_hass
+
+        await climate.async_set_hvac_mode(HVACMode.FAN_ONLY)
+
+        # Verify async_set_hvac_season was called with season=0 (transition)
+        mock_api.async_set_hvac_season.assert_called()
+        call_kwargs = mock_api.async_set_hvac_season.call_args[1]
+        assert call_kwargs["season"] == 0
+        assert call_kwargs["hpStandby"] is False
+
+    @pytest.mark.asyncio
+    async def test_async_set_preset_mode_manual(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """Test async_set_preset_mode to manual."""
+        mock_hass.async_create_task = MagicMock()
+
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+        climate.hass = mock_hass
+
+        await climate.async_set_preset_mode(PRESET_NONE)
+
+        # Verify API was called with status=0 (manual mode)
+        mock_api.async_update_dashboard.assert_called()
+        call_kwargs = mock_api.async_update_dashboard.call_args[1]
+        assert call_kwargs["status"] == 0
+
+    @pytest.mark.asyncio
+    async def test_async_set_preset_mode_comfort(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """Test async_set_preset_mode to comfort."""
+        mock_hass.async_create_task = MagicMock()
+
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+        climate.hass = mock_hass
+
+        await climate.async_set_preset_mode(PRESET_COMFORT)
+
+        # Verify API was called with profile values
+        mock_api.async_update_dashboard.assert_called()
+        call_kwargs = mock_api.async_update_dashboard.call_args[1]
+        assert call_kwargs["temperature_profile"] == 0  # comfort
+        assert call_kwargs["season_profile"] == 0
+        assert call_kwargs["status"] == 1  # automatic mode
+
+    @pytest.mark.asyncio
+    async def test_async_set_preset_mode_eco(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """Test async_set_preset_mode to eco."""
+        mock_hass.async_create_task = MagicMock()
+
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+        climate.hass = mock_hass
+
+        await climate.async_set_preset_mode(PRESET_ECO)
+
+        # Verify API was called with profile values
+        mock_api.async_update_dashboard.assert_called()
+        call_kwargs = mock_api.async_update_dashboard.call_args[1]
+        assert call_kwargs["temperature_profile"] == 2  # eco
+        assert call_kwargs["season_profile"] == 2
+        assert call_kwargs["status"] == 1
+
+    @pytest.mark.asyncio
+    async def test_async_set_fan_mode(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """Test async_set_fan_mode method."""
+        mock_hass.async_create_task = MagicMock()
+
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+        climate.hass = mock_hass
+
+        await climate.async_set_fan_mode(FAN_HIGH)
+
+        # Verify API was called with fan_speed=3 (high)
+        mock_api.async_update_dashboard.assert_called()
+        call_kwargs = mock_api.async_update_dashboard.call_args[1]
+        assert call_kwargs["fan_speed"] == 3
+
+    @pytest.mark.asyncio
+    async def test_async_set_fan_mode_low(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """Test async_set_fan_mode to low."""
+        mock_hass.async_create_task = MagicMock()
+
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+        climate.hass = mock_hass
+
+        await climate.async_set_fan_mode("low")
+
+        mock_api.async_update_dashboard.assert_called()
+        call_kwargs = mock_api.async_update_dashboard.call_args[1]
+        assert call_kwargs["fan_speed"] == 1
+
+    @pytest.mark.asyncio
+    async def test_async_turn_off(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """Test async_turn_off method."""
+        mock_hass.async_create_task = MagicMock()
+
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+        climate.hass = mock_hass
+
+        await climate.async_turn_off()
+
+        # Verify API was called with hpStandby=True
+        mock_api.async_update_dashboard.assert_called()
+        call_kwargs = mock_api.async_update_dashboard.call_args[1]
+        assert call_kwargs["hpStandby"] is True
+
+    @pytest.mark.asyncio
+    async def test_async_turn_on(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """Test async_turn_on method."""
+        mock_hass.async_create_task = MagicMock()
+
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+        climate.hass = mock_hass
+
+        await climate.async_turn_on()
+
+        # Verify API was called with hpStandby=False
+        mock_api.async_update_dashboard.assert_called()
+        call_kwargs = mock_api.async_update_dashboard.call_args[1]
+        assert call_kwargs["hpStandby"] is False
+
+    @pytest.mark.asyncio
+    async def test_async_set_scenario_mode_with_duration(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """Test async_set_scenario_mode with custom duration."""
+        mock_hass.async_create_task = MagicMock()
+        # Mock config object with time_zone
+        mock_config = MagicMock()
+        mock_config.time_zone = "Europe/Berlin"
+        mock_hass.config = mock_config
+
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+        climate.hass = mock_hass
+
+        await climate.async_set_scenario_mode("cooking", duration=60)
+
+        # Verify API was called with correct scenario and duration
+        mock_api.async_update_dashboard.assert_called()
+        call_kwargs = mock_api.async_update_dashboard.call_args[1]
+        assert call_kwargs["scenario"] == 4  # cooking
+        assert call_kwargs["scenario_time_left"] == 3600  # 60 minutes in seconds
+
+
+class TestClimateProperties:
+    """Test properties of ComfoClimeClimate."""
+
+    def test_available_both_coordinators_success(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """Test available returns True when either coordinator succeeds."""
+        mock_coordinator.last_update_success = True
+        mock_thermalprofile_coordinator.last_update_success = True
+
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+
+        assert climate.available is True
+
+    def test_available_only_dashboard_success(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """Test available returns True when only dashboard coordinator succeeds."""
+        mock_coordinator.last_update_success = True
+        mock_thermalprofile_coordinator.last_update_success = False
+
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+
+        assert climate.available is True
+
+    def test_available_only_thermalprofile_success(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """Test available returns True when only thermal profile coordinator succeeds."""
+        mock_coordinator.last_update_success = False
+        mock_thermalprofile_coordinator.last_update_success = True
+
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+
+        assert climate.available is True
+
+    def test_current_temperature_no_data(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """Test current_temperature returns None when no data."""
+        mock_coordinator.data = None
+
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+
+        assert climate.current_temperature is None
+
+    def test_target_temperature_no_data(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """Test target_temperature returns None when no data."""
+        mock_thermalprofile_coordinator.data = None
+
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+
+        assert climate.target_temperature is None
+
+    def test_min_max_temp(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """Test min and max temperature properties."""
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+
+        assert climate.min_temp == 10.0
+        assert climate.max_temp == 30.0
+
+    def test_hvac_mode_no_data(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """Test hvac_mode returns OFF when no data."""
+        mock_coordinator.data = None
+
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+
+        assert climate.hvac_mode == HVACMode.OFF
+
+    def test_hvac_action_no_data(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """Test hvac_action returns OFF when no data."""
+        mock_coordinator.data = None
+
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+
+        assert HVACAction.OFF in climate.hvac_action
+
+    def test_preset_mode_no_data(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """Test preset_mode returns None when no data."""
+        mock_coordinator.data = None
+
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+
+        assert climate.preset_mode is None
+
+    def test_fan_mode_no_data(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """Test fan_mode returns None when no data."""
+        mock_coordinator.data = None
+
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+
+        assert climate.fan_mode is None
+
+    def test_fan_mode_string_value(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """Test fan_mode with string fanSpeed value."""
+        mock_coordinator.data = {"fanSpeed": "2"}
+
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+
+        assert climate.fan_mode == FAN_MEDIUM
+
+    def test_extra_state_attributes(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """Test extra_state_attributes property."""
+        mock_coordinator.data = {
+            "indoorTemperature": 22.5,
+            "scenarioTimeLeft": 1800,  # 30 minutes
+        }
+        mock_thermalprofile_coordinator.data = {
+            "temperature": {"manualTemperature": 22.0}
+        }
+
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+
+        attrs = climate.extra_state_attributes
+
+        assert "dashboard" in attrs
+        assert attrs["scenario_time_left"] == 1800
+        assert attrs["scenario_time_left_formatted"] == "30m 0s"
+        assert attrs["last_manual_temperature"] == 22.0
+
+    def test_extra_state_attributes_hours_format(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """Test extra_state_attributes with hours format."""
+        mock_coordinator.data = {
+            "scenarioTimeLeft": 7200,  # 2 hours
+        }
+
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+
+        attrs = climate.extra_state_attributes
+
+        assert attrs["scenario_time_left_formatted"] == "2h 0m"
+
+    def test_extra_state_attributes_seconds_format(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """Test extra_state_attributes with seconds format."""
+        mock_coordinator.data = {
+            "scenarioTimeLeft": 45,  # 45 seconds
+        }
+
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+
+        attrs = climate.extra_state_attributes
+
+        assert attrs["scenario_time_left_formatted"] == "45s"
