@@ -68,7 +68,6 @@ class RateLimiterCache:
         # Write priority mechanism
         # When a write is pending, reads should yield to allow the write to proceed
         self._pending_writes: int = 0
-        self._write_event: asyncio.Event | None = None
 
         # Cache storage: {cache_key: (value, timestamp)}
         self._telemetry_cache: dict[str, tuple] = {}
