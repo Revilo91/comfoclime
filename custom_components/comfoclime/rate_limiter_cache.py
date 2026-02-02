@@ -6,6 +6,7 @@ This module provides the RateLimiterCache class that handles:
 - Write cooldown periods
 - Request debouncing
 - Telemetry and property caching with TTL
+- Write operation priority over read operations
 """
 
 import asyncio
@@ -27,6 +28,7 @@ class RateLimiterCache:
 
     This class provides:
     - Rate limiting to prevent overwhelming the API
+    - Write priority mechanism to ensure writes always succeed before reads
     - Write cooldown to ensure reads after writes are stable
     - Request debouncing to prevent rapid successive calls
     - TTL-based caching for telemetry and property reads
@@ -63,6 +65,11 @@ class RateLimiterCache:
         self._last_write_time: float = 0.0
         self._pending_requests: dict[str, asyncio.Task] = {}
 
+        # Write priority mechanism
+        # When a write is pending, reads should yield to allow the write to proceed
+        self._pending_writes: int = 0
+        self._write_event: asyncio.Event | None = None
+
         # Cache storage: {cache_key: (value, timestamp)}
         self._telemetry_cache: dict[str, tuple] = {}
         self._property_cache: dict[str, tuple] = {}
@@ -76,11 +83,61 @@ class RateLimiterCache:
         return asyncio.get_event_loop().time()
 
     # -------------------------------------------------------------------------
+    # Write priority methods
+    # -------------------------------------------------------------------------
+
+    def signal_write_pending(self) -> None:
+        """Signal that a write operation is pending.
+        
+        This should be called before acquiring the lock for a write operation.
+        Read operations will check this flag and yield priority to writes.
+        """
+        self._pending_writes += 1
+        _LOGGER.debug("Write pending signaled (count: %d)", self._pending_writes)
+
+    def signal_write_complete(self) -> None:
+        """Signal that a write operation has completed.
+        
+        This should be called after a write operation is done.
+        """
+        self._pending_writes = max(0, self._pending_writes - 1)
+        _LOGGER.debug("Write complete signaled (count: %d)", self._pending_writes)
+
+    def has_pending_writes(self) -> bool:
+        """Check if there are pending write operations.
+        
+        Returns:
+            True if there are write operations waiting to be processed.
+        """
+        return self._pending_writes > 0
+
+    async def yield_to_writes(self, max_wait: float = 0.5) -> None:
+        """Yield to pending write operations.
+        
+        Read operations call this to allow pending writes to proceed first.
+        This ensures writes always have priority over reads.
+        
+        Args:
+            max_wait: Maximum time to wait for writes in seconds (default: 0.5)
+        """
+        if not self.has_pending_writes():
+            return
+        
+        _LOGGER.debug("Read yielding to %d pending writes", self._pending_writes)
+        # Give writes a short window to acquire the lock
+        await asyncio.sleep(min(max_wait, 0.1))
+
+    # -------------------------------------------------------------------------
     # Rate limiting methods
     # -------------------------------------------------------------------------
 
     async def wait_for_rate_limit(self, is_write: bool = False) -> None:
         """Wait if necessary to respect rate limits.
+
+        For write operations: Only applies minimum request interval.
+        For read operations: Also waits for write cooldown period.
+        
+        Write operations have priority - they skip write cooldown checks.
 
         Args:
             is_write: True if this is a write operation (will set cooldown after)
@@ -100,11 +157,16 @@ class RateLimiterCache:
             )
 
         # If this is a read and we recently wrote, wait for cooldown
+        # Write operations skip this check - they always have priority
         if not is_write and time_since_last_write < self.write_cooldown:
             wait_time = max(wait_time, self.write_cooldown - time_since_last_write)
 
         if wait_time > 0:
-            _LOGGER.debug(f"Rate limiting: waiting {wait_time:.2f}s before request")
+            _LOGGER.debug(
+                "Rate limiting (%s): waiting %.2fs before request",
+                "write" if is_write else "read",
+                wait_time
+            )
             await asyncio.sleep(wait_time)
 
         # Update last request time

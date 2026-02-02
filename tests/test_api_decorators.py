@@ -10,6 +10,29 @@ from custom_components.comfoclime.api_decorators import (
 )
 
 
+class MockRateLimiter:
+    """Mock rate limiter for testing."""
+
+    def __init__(self):
+        self._pending_writes = 0
+
+    def signal_write_pending(self):
+        """Signal that a write operation is pending."""
+        self._pending_writes += 1
+
+    def signal_write_complete(self):
+        """Signal that a write operation has completed."""
+        self._pending_writes = max(0, self._pending_writes - 1)
+
+    def has_pending_writes(self):
+        """Check if there are pending write operations."""
+        return self._pending_writes > 0
+
+    async def yield_to_writes(self, max_wait: float = 0.5):
+        """Yield to pending write operations."""
+        pass
+
+
 class MockAPI:
     """Mock API class for testing decorators."""
 
@@ -21,11 +44,13 @@ class MockAPI:
         self.max_retries = 3
         self._request_lock = MagicMock()
         self._request_lock.__aenter__ = AsyncMock()
-        self._request_lock.__aexit__ = AsyncMock()
+        # __aexit__ must return None/False to not suppress exceptions
+        self._request_lock.__aexit__ = AsyncMock(return_value=None)
         self._wait_for_rate_limit = AsyncMock()
         self._async_get_uuid_internal = AsyncMock()
         self.async_get_uuid = AsyncMock()
         self._get_session = AsyncMock()
+        self._rate_limiter = MockRateLimiter()
 
     def fix_signed_temperatures_in_dict(self, data):
         """Mock temperature fix method."""
@@ -249,11 +274,13 @@ class MockAPIForPut:
         self.hass.config.time_zone = "UTC"
         self._request_lock = MagicMock()
         self._request_lock.__aenter__ = AsyncMock()
-        self._request_lock.__aexit__ = AsyncMock()
+        # __aexit__ must return None/False to not suppress exceptions
+        self._request_lock.__aexit__ = AsyncMock(return_value=None)
         self._wait_for_rate_limit = AsyncMock()
         self._get_session = AsyncMock()
         self._async_get_uuid_internal = AsyncMock()
         self.async_get_uuid = AsyncMock()
+        self._rate_limiter = MockRateLimiter()
 
 
 @pytest.mark.asyncio
@@ -431,3 +458,173 @@ async def test_api_put_with_url_parameters():
     assert "device-123" in called_url
     assert "/29/" in called_url
     assert "/1/" in called_url
+
+
+# Write Priority Tests
+
+@pytest.mark.asyncio
+async def test_api_put_signals_write_pending():
+    """Test that api_put signals write pending before acquiring lock."""
+    mock_response = MagicMock()
+    mock_response.status = 200
+    mock_response.raise_for_status = MagicMock()
+
+    @api_put("/test/endpoint")
+    async def test_method(self):
+        return {"key": "value"}
+
+    api = MockAPIForPut()
+    
+    # Track signal calls
+    signal_calls = []
+    original_pending = api._rate_limiter.signal_write_pending
+    original_complete = api._rate_limiter.signal_write_complete
+    
+    def track_pending():
+        signal_calls.append("pending")
+        original_pending()
+    
+    def track_complete():
+        signal_calls.append("complete")
+        original_complete()
+    
+    api._rate_limiter.signal_write_pending = track_pending
+    api._rate_limiter.signal_write_complete = track_complete
+
+    # Mock session and response
+    mock_session = MagicMock()
+    mock_context = MagicMock()
+    mock_context.__aenter__ = AsyncMock(return_value=mock_response)
+    mock_context.__aexit__ = AsyncMock()
+    mock_session.put = MagicMock(return_value=mock_context)
+    api._get_session = AsyncMock(return_value=mock_session)
+
+    await test_method(api)
+
+    # Verify signals were called in order
+    assert signal_calls == ["pending", "complete"]
+
+
+@pytest.mark.asyncio
+async def test_api_put_signals_complete_on_error():
+    """Test that api_put signals write complete even on error."""
+    import aiohttp
+
+    @api_put("/test/endpoint")
+    async def test_method(self):
+        return {"key": "value"}
+
+    api = MockAPIForPut()
+    api.max_retries = 0  # No retries - fail after first attempt
+    
+    # Track signal calls
+    signal_calls = []
+    original_pending = api._rate_limiter.signal_write_pending
+    original_complete = api._rate_limiter.signal_write_complete
+    
+    def track_pending():
+        signal_calls.append("pending")
+        original_pending()
+    
+    def track_complete():
+        signal_calls.append("complete")
+        original_complete()
+    
+    api._rate_limiter.signal_write_pending = track_pending
+    api._rate_limiter.signal_write_complete = track_complete
+
+    # Mock session to raise error
+    mock_session = MagicMock()
+    mock_context = MagicMock()
+    mock_context.__aenter__ = AsyncMock(side_effect=aiohttp.ClientError("Test error"))
+    mock_context.__aexit__ = AsyncMock()
+    mock_session.put = MagicMock(return_value=mock_context)
+    api._get_session = AsyncMock(return_value=mock_session)
+
+    # The error will be raised after retries are exhausted
+    try:
+        await test_method(api)
+        # If no exception was raised, that's unexpected
+        pytest.fail("Expected ClientError to be raised")
+    except aiohttp.ClientError:
+        pass  # Expected
+
+    # Verify complete was still called even on error
+    assert "pending" in signal_calls
+    assert "complete" in signal_calls
+
+
+@pytest.mark.asyncio
+async def test_api_get_yields_to_pending_writes():
+    """Test that api_get yields to pending writes."""
+    mock_response = {"key": "value"}
+
+    @api_get("/test/endpoint")
+    async def test_method(self, response_data):
+        return response_data
+
+    api = MockAPI()
+    
+    # Track yield_to_writes calls
+    yield_called = []
+    
+    async def track_yield(max_wait: float = 0.5):
+        yield_called.append(True)
+    
+    api._rate_limiter.yield_to_writes = track_yield
+
+    # Mock session and response
+    mock_session = MagicMock()
+    mock_context = MagicMock()
+    mock_context.__aenter__ = AsyncMock(
+        return_value=MagicMock(
+            raise_for_status=MagicMock(), json=AsyncMock(return_value=mock_response)
+        )
+    )
+    mock_context.__aexit__ = AsyncMock()
+    mock_session.get = MagicMock(return_value=mock_context)
+    api._get_session = AsyncMock(return_value=mock_session)
+
+    result = await test_method(api)
+
+    assert result == mock_response
+    # Verify yield_to_writes was called
+    assert len(yield_called) == 1
+
+
+@pytest.mark.asyncio
+async def test_api_get_skip_lock_does_not_yield():
+    """Test that api_get with skip_lock=True does not yield to writes."""
+    mock_response = {"key": "value"}
+
+    @api_get("/test/endpoint", skip_lock=True)
+    async def test_method(self, response_data):
+        return response_data
+
+    api = MockAPI()
+    
+    # Track yield_to_writes calls
+    yield_called = []
+    
+    async def track_yield(max_wait: float = 0.5):
+        yield_called.append(True)
+    
+    api._rate_limiter.yield_to_writes = track_yield
+
+    # Mock session and response
+    mock_session = MagicMock()
+    mock_context = MagicMock()
+    mock_context.__aenter__ = AsyncMock(
+        return_value=MagicMock(
+            raise_for_status=MagicMock(), json=AsyncMock(return_value=mock_response)
+        )
+    )
+    mock_context.__aexit__ = AsyncMock()
+    mock_session.get = MagicMock(return_value=mock_context)
+    api._get_session = AsyncMock(return_value=mock_session)
+
+    result = await test_method(api)
+
+    assert result == mock_response
+    # With skip_lock=True, yield_to_writes should NOT be called
+    assert len(yield_called) == 0
