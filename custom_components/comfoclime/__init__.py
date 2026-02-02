@@ -64,7 +64,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     write_timeout = entry.options.get("write_timeout", 30)
     polling_interval = entry.options.get("polling_interval", 60)
     cache_ttl = entry.options.get("cache_ttl", 30)
-    max_retries = entry.options.get("max_retries", 3)
+    max_retries = int(entry.options.get("max_retries", 3))
     min_request_interval = entry.options.get("min_request_interval", 0.1)
     write_cooldown = entry.options.get("write_cooldown", 2.0)
     request_debounce = entry.options.get("request_debounce", 0.3)

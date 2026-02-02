@@ -110,6 +110,84 @@ async def test_async_setup_entry(
 
 
 @pytest.mark.asyncio
+async def test_async_setup_entry_with_float_max_retries(
+    mock_hass,
+    mock_config_entry,
+    mock_api,
+    mock_coordinator,
+    mock_thermalprofile_coordinator,
+    mock_device,
+):
+    """Test that max_retries is converted to int even when stored as float."""
+    # Set max_retries as a float (which can happen from NumberSelector)
+    mock_config_entry.options = {"max_retries": 3.0}
+    mock_hass.config_entries = MagicMock()
+    mock_hass.config_entries.async_forward_entry_setups = AsyncMock()
+    mock_hass.services = MagicMock()
+    mock_hass.services.async_register = MagicMock()
+
+    with patch("custom_components.comfoclime.ComfoClimeAPI") as mock_api_class:
+        with patch(
+            "custom_components.comfoclime.ComfoClimeDashboardCoordinator"
+        ) as mock_db_coord:
+            with patch(
+                "custom_components.comfoclime.ComfoClimeThermalprofileCoordinator"
+            ) as mock_tp_coord:
+                with patch(
+                    "custom_components.comfoclime.ComfoClimeMonitoringCoordinator"
+                ) as mock_mon_coord:
+                    with patch(
+                        "custom_components.comfoclime.ComfoClimeTelemetryCoordinator"
+                    ) as mock_tl_coord:
+                        with patch(
+                            "custom_components.comfoclime.ComfoClimePropertyCoordinator"
+                        ) as mock_prop_coord:
+                            with patch(
+                                "custom_components.comfoclime.ComfoClimeDefinitionCoordinator"
+                            ) as mock_def_coord:
+                                # Setup mocks
+                                mock_api_instance = MagicMock()
+                                mock_api_instance.async_get_connected_devices = AsyncMock(
+                                    return_value=[mock_device]
+                                )
+                                mock_api_class.return_value = mock_api_instance
+
+                                mock_db_coord_instance = MagicMock()
+                                mock_db_coord_instance.async_config_entry_first_refresh = AsyncMock()
+                                mock_db_coord.return_value = mock_db_coord_instance
+
+                                mock_tp_coord_instance = MagicMock()
+                                mock_tp_coord_instance.async_config_entry_first_refresh = AsyncMock()
+                                mock_tp_coord.return_value = mock_tp_coord_instance
+
+                                mock_mon_coord_instance = MagicMock()
+                                mock_mon_coord_instance.async_config_entry_first_refresh = AsyncMock()
+                                mock_mon_coord.return_value = mock_mon_coord_instance
+
+                                mock_tl_coord_instance = MagicMock()
+                                mock_tl_coord.return_value = mock_tl_coord_instance
+
+                                mock_prop_coord_instance = MagicMock()
+                                mock_prop_coord.return_value = mock_prop_coord_instance
+
+                                mock_def_coord_instance = MagicMock()
+                                mock_def_coord_instance.async_config_entry_first_refresh = AsyncMock()
+                                mock_def_coord.return_value = mock_def_coord_instance
+
+                                # Call async_setup_entry
+                                result = await async_setup_entry(mock_hass, mock_config_entry)
+
+                                # Verify setup was successful
+                                assert result is True
+
+                                # Verify max_retries was passed as int to API constructor
+                                call_kwargs = mock_api_class.call_args[1]
+                                assert "max_retries" in call_kwargs
+                                assert call_kwargs["max_retries"] == 3
+                                assert isinstance(call_kwargs["max_retries"], int)
+
+
+@pytest.mark.asyncio
 async def test_async_unload_entry(mock_hass, mock_config_entry):
     """Test async_unload_entry."""
     mock_hass.config_entries = MagicMock()
