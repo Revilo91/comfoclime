@@ -9,6 +9,46 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 
+def pytest_addoption(parser):
+    """Add custom pytest options for real device testing."""
+    parser.addoption(
+        "--real-device",
+        action="store_true",
+        default=False,
+        help="Run tests against a real ComfoClime device",
+    )
+    parser.addoption(
+        "--device-ip",
+        action="store",
+        default="10.0.2.27",
+        help="IP address of the ComfoClime device",
+    )
+    parser.addoption(
+        "--record-responses",
+        action="store_true",
+        default=False,
+        help="Record responses from real device for later playback",
+    )
+
+
+@pytest.fixture
+def real_device_ip(request) -> str:
+    """Get the real device IP from pytest options."""
+    return request.config.getoption("--device-ip", default="10.0.2.27")
+
+
+@pytest.fixture
+def use_real_device(request) -> bool:
+    """Check if tests should use real device."""
+    return request.config.getoption("--real-device", default=False)
+
+
+@pytest.fixture
+def record_responses(request) -> bool:
+    """Check if responses should be recorded."""
+    return request.config.getoption("--record-responses", default=False)
+
+
 @dataclass
 class MockAPIResponses:
     """Configurable responses for API mock."""
@@ -54,7 +94,7 @@ class MockComfoClimeAPI:
         self.responses = responses or MockAPIResponses()
         self.uuid = self.responses.uuid
         self._call_history: list[tuple[str, tuple, dict]] = []
-        
+
         # Wrap async methods with AsyncMock for assertion support
         self.async_update_dashboard = AsyncMock(side_effect=self._async_update_dashboard)
         self.async_set_hvac_season = AsyncMock(side_effect=self._async_set_hvac_season)
@@ -378,3 +418,16 @@ def mock_connected_device():
         "modelTypeId": 21,
         "version": "2.0.0",
     }
+
+
+# ============================================================================
+# Real Device / Recorded Response Fixtures
+# ============================================================================
+
+# Import real device fixtures and make them available to all tests
+from tests.conftest_real_device import (  # noqa: E402, F401
+    RESPONSES_DIR,
+    RecordedResponseAPI,
+    ResponseRecorder,
+    real_or_recorded_api,
+)
