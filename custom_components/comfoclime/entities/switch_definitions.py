@@ -8,7 +8,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True, slots=True)
 class SwitchDefinition:
     """Definition of a switch entity.
-    
+
     Attributes:
         key: Unique identifier for the switch in API responses or dict key.
         name: Display name for the switch (fallback if translation missing).
@@ -16,6 +16,7 @@ class SwitchDefinition:
         endpoint: Either "thermal_profile" or "dashboard".
         invert: If True, invert the state logic (e.g., for hpstandby).
     """
+
     key: str
     name: str
     translation_key: str

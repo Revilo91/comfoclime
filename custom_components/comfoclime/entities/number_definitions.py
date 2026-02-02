@@ -8,7 +8,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True, slots=True)
 class NumberDefinition:
     """Definition of a number entity.
-    
+
     Attributes:
         key: Unique identifier for the number in API responses.
         name: Display name for the number control.
@@ -18,6 +18,7 @@ class NumberDefinition:
         step: Step increment.
         unit: Optional unit of measurement.
     """
+
     key: str
     name: str
     translation_key: str
@@ -30,7 +31,7 @@ class NumberDefinition:
 @dataclass(frozen=True, slots=True)
 class PropertyNumberDefinition:
     """Definition of a property-based number entity.
-    
+
     Attributes:
         property: Property path in format "X/Y/Z".
         name: Display name for the number control.
@@ -42,6 +43,7 @@ class PropertyNumberDefinition:
         faktor: Multiplication factor for the raw value.
         byte_count: Number of bytes to read/write.
     """
+
     property: str
     name: str
     translation_key: str

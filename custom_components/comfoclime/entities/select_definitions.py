@@ -8,13 +8,14 @@ from dataclasses import dataclass
 @dataclass(frozen=True, slots=True)
 class SelectDefinition:
     """Definition of a select entity.
-    
+
     Attributes:
         key: Unique identifier for the select in API responses.
         name: Display name for the select control.
         translation_key: Key for i18n translations.
         options: Dictionary mapping numeric values to string options.
     """
+
     key: str
     name: str
     translation_key: str
@@ -24,13 +25,14 @@ class SelectDefinition:
 @dataclass(frozen=True, slots=True)
 class PropertySelectDefinition:
     """Definition of a property-based select entity.
-    
+
     Attributes:
         path: Property path in format "X/Y/Z".
         name: Display name for the select control.
         translation_key: Key for i18n translations.
         options: Dictionary mapping numeric values to string options.
     """
+
     path: str
     name: str
     translation_key: str

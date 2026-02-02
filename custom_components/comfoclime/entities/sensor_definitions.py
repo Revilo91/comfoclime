@@ -11,6 +11,7 @@ from homeassistant.const import EntityCategory
 
 class SensorCategory(Enum):
     """Categories of sensors in the integration."""
+
     DASHBOARD = auto()
     THERMALPROFILE = auto()
     MONITORING = auto()
@@ -23,7 +24,7 @@ class SensorCategory(Enum):
 @dataclass(frozen=True, slots=True)
 class SensorDefinition:
     """Definition of a sensor entity.
-    
+
     Attributes:
         key: Unique identifier for the sensor in API responses or dict key.
         translation_key: Key for i18n translations.
@@ -35,6 +36,7 @@ class SensorDefinition:
         icon: MDI icon name.
         suggested_display_precision: Decimal places for display.
     """
+
     key: str
     translation_key: str
     name: str
@@ -49,7 +51,7 @@ class SensorDefinition:
 @dataclass(frozen=True, slots=True)
 class TelemetrySensorDefinition:
     """Definition for telemetry-based sensors.
-    
+
     Attributes:
         telemetry_id: ID for telemetry endpoint.
         name: Display name for the sensor (fallback if translation missing).
@@ -65,6 +67,7 @@ class TelemetrySensorDefinition:
         suggested_display_precision: Decimal places for display.
         diagnose: Whether this is a diagnostic sensor (experimental/unknown).
     """
+
     telemetry_id: int
     name: str
     translation_key: str
@@ -83,7 +86,7 @@ class TelemetrySensorDefinition:
 @dataclass(frozen=True, slots=True)
 class PropertySensorDefinition:
     """Definition for property-based sensors.
-    
+
     Attributes:
         path: Property path in format "X/Y/Z".
         name: Display name for the sensor (fallback if translation missing).
@@ -98,6 +101,7 @@ class PropertySensorDefinition:
         icon: MDI icon name.
         suggested_display_precision: Decimal places for display.
     """
+
     path: str
     name: str
     translation_key: str
@@ -115,7 +119,7 @@ class PropertySensorDefinition:
 @dataclass(frozen=True, slots=True)
 class AccessTrackingSensorDefinition:
     """Definition for access tracking sensors.
-    
+
     Attributes:
         coordinator: Name of the coordinator to track (None for total).
         metric: Metric type (per_minute, per_hour, total_per_minute, total_per_hour).
@@ -128,6 +132,7 @@ class AccessTrackingSensorDefinition:
         icon: MDI icon name.
         suggested_display_precision: Decimal places for display.
     """
+
     coordinator: str | None
     metric: str
     name: str
