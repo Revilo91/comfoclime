@@ -130,14 +130,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         definitioncoordinator.async_config_entry_first_refresh(),
         return_exceptions=True,
     )
-    
+
     # Check for failures and raise ConfigEntryNotReady if any coordinator failed
     for i, result in enumerate(results):
         if isinstance(result, Exception):
             coordinator_names = ["dashboard", "thermalprofile", "monitoring", "definition"]
             _LOGGER.error("Coordinator %s first refresh failed: %s", coordinator_names[i], result)
             raise ConfigEntryNotReady(f"Failed to initialize {coordinator_names[i]} coordinator: {result}") from result
-    
+
     _LOGGER.debug("Coordinator first refresh completed successfully")
 
     # Create telemetry and property coordinators with device list
@@ -200,6 +200,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             raise HomeAssistantError(f"Ungültiger Wert: {error_message}")
 
         dev_reg = dr.async_get(hass)
+        
         device = dev_reg.async_get(device_id)
         if not device or not device.identifiers:
             _LOGGER.error("Gerät nicht gefunden oder ungültig")

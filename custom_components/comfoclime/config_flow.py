@@ -45,10 +45,10 @@ from .entity_helper import (
     get_connected_device_telemetry_sensors,
     get_dashboard_sensors,
     get_monitoring_sensors,
-    get_sensors,
-    get_switches,
     get_numbers,
     get_selects,
+    get_sensors,
+    get_switches,
     get_thermalprofile_sensors,
 )
 from .validators import validate_host
