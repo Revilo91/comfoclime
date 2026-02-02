@@ -3,7 +3,12 @@
 
 These decorators provide a clean, consistent way to define API endpoints
 by handling common patterns like locking, rate limiting, session management,
-and error handling.
+error handling, and write operation priority.
+
+Write Priority Mechanism:
+    Write operations (PUT) always have priority over read operations (GET).
+    Before a write acquires the lock, it signals its intent. Read operations
+    check for pending writes and yield priority to allow writes to proceed first.
 
 Usage:
     @api_get("/system/{uuid}/dashboard", requires_uuid=True, fix_temperatures=True)
@@ -46,6 +51,7 @@ def api_get(
     - Temperature value fixing (if fix_temperatures=True)
     - Response key extraction (if response_key is specified)
     - Error handling (if on_error is specified)
+    - Yielding to pending write operations (write priority)
 
     Args:
         url_template: URL template with placeholders (e.g., "/system/{uuid}/dashboard")
@@ -117,6 +123,11 @@ def api_get(
                 if skip_lock:
                     # Execute without acquiring lock (lock already held by caller)
                     return await _execute()
+                
+                # Yield to pending writes before trying to acquire lock
+                # This ensures write operations always have priority
+                await self._rate_limiter.yield_to_writes()
+                
                 # Execute with lock acquisition
                 async with self._request_lock:
                     return await _execute()
@@ -142,6 +153,7 @@ def api_put(
     """Decorator for PUT API endpoints.
 
     Handles:
+    - Write priority signaling (writes always have priority over reads)
     - Request locking (unless skip_lock=True)
     - Rate limiting (write mode)
     - Session management
@@ -222,8 +234,11 @@ def api_put(
                         timeout = aiohttp.ClientTimeout(total=self.write_timeout)
                         session = await self._get_session()
                         _LOGGER.debug(
-                            f"PUT attempt {attempt + 1}/{self.max_retries + 1}, "
-                            f"timeout={self.write_timeout}s, payload={payload}"
+                            "PUT attempt %d/%d, timeout=%ds, payload=%s",
+                            attempt + 1,
+                            self.max_retries + 1,
+                            self.write_timeout,
+                            payload
                         )
                         async with session.put(
                             url, json=payload, headers=headers, timeout=timeout
@@ -234,9 +249,9 @@ def api_put(
                                     resp_json = await response.json()
                                 except (aiohttp.ContentTypeError, ValueError):
                                     resp_json = {"text": await response.text()}
-                                _LOGGER.debug(f"Update OK response={resp_json}")
+                                _LOGGER.debug("Update OK response=%s", resp_json)
                                 return resp_json
-                            _LOGGER.debug(f"Update OK status={response.status}")
+                            _LOGGER.debug("Update OK status=%d", response.status)
                             return response.status == 200
 
                     except (  # noqa: PERF203
@@ -248,14 +263,19 @@ def api_put(
                         if attempt < self.max_retries:
                             wait_time = 2 ** (attempt + 1)
                             _LOGGER.warning(
-                                f"Update failed (attempt {attempt + 1}/{self.max_retries + 1}), "
-                                f"retrying in {wait_time}s: {type(e).__name__}: {e}"
+                                "Update failed (attempt %d/%d), retrying in %ds: %s: %s",
+                                attempt + 1,
+                                self.max_retries + 1,
+                                wait_time,
+                                type(e).__name__,
+                                e
                             )
                             await asyncio.sleep(wait_time)
                         else:
                             _LOGGER.exception(
-                                f"Update failed after {self.max_retries + 1} attempts: "
-                                f"{type(e).__name__}"
+                                "Update failed after %d attempts: %s",
+                                self.max_retries + 1,
+                                type(e).__name__
                             )
 
                 if last_exception:
@@ -265,9 +285,17 @@ def api_put(
             if skip_lock:
                 # Execute without acquiring lock (lock already held by caller)
                 return await _execute()
-            # Execute with lock acquisition
-            async with self._request_lock:
-                return await _execute()
+            
+            # Signal write intent before acquiring lock
+            # This allows read operations to yield priority to this write
+            self._rate_limiter.signal_write_pending()
+            try:
+                # Execute with lock acquisition
+                async with self._request_lock:
+                    return await _execute()
+            finally:
+                # Signal write complete
+                self._rate_limiter.signal_write_complete()
 
         return wrapper
 
