@@ -458,7 +458,7 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
         self._attr_has_entity_name = True
 
     @property
-    def state(self):
+    def native_value(self):
         return self._state
 
     @property
