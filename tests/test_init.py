@@ -118,9 +118,19 @@ async def test_async_setup_entry_with_float_max_retries(
     mock_thermalprofile_coordinator,
     mock_device,
 ):
-    """Test that max_retries is converted to int even when stored as float."""
-    # Set max_retries as a float (which can happen from NumberSelector)
-    mock_config_entry.options = {"max_retries": 3.0}
+    """Test that integer config values are converted from float to int."""
+    # Set all integer config values as floats (which can happen from NumberSelector)
+    mock_config_entry.options = {
+        "read_timeout": 10.0,
+        "write_timeout": 30.0,
+        "polling_interval": 60.0,
+        "cache_ttl": 30.0,
+        "max_retries": 3.0,
+        # Float values should remain as float
+        "min_request_interval": 0.1,
+        "write_cooldown": 2.0,
+        "request_debounce": 0.3,
+    }
     mock_hass.config_entries = MagicMock()
     mock_hass.config_entries.async_forward_entry_setups = AsyncMock()
     mock_hass.services = MagicMock()
@@ -180,11 +190,29 @@ async def test_async_setup_entry_with_float_max_retries(
                                 # Verify setup was successful
                                 assert result is True
 
-                                # Verify max_retries was passed as int to API constructor
-                                call_kwargs = mock_api_class.call_args[1]
-                                assert "max_retries" in call_kwargs
-                                assert call_kwargs["max_retries"] == 3
-                                assert isinstance(call_kwargs["max_retries"], int)
+                                # Verify integer values were passed as int to API constructor
+                                api_kwargs = mock_api_class.call_args[1]
+                                assert isinstance(api_kwargs["read_timeout"], int)
+                                assert api_kwargs["read_timeout"] == 10
+                                assert isinstance(api_kwargs["write_timeout"], int)
+                                assert api_kwargs["write_timeout"] == 30
+                                assert isinstance(api_kwargs["cache_ttl"], int)
+                                assert api_kwargs["cache_ttl"] == 30
+                                assert isinstance(api_kwargs["max_retries"], int)
+                                assert api_kwargs["max_retries"] == 3
+
+                                # Verify float values remain as float
+                                assert isinstance(api_kwargs["min_request_interval"], float)
+                                assert api_kwargs["min_request_interval"] == 0.1
+                                assert isinstance(api_kwargs["write_cooldown"], float)
+                                assert api_kwargs["write_cooldown"] == 2.0
+                                assert isinstance(api_kwargs["request_debounce"], float)
+                                assert api_kwargs["request_debounce"] == 0.3
+
+                                # Verify polling_interval was passed as int to coordinators
+                                db_coord_kwargs = mock_db_coord.call_args[1]
+                                assert isinstance(db_coord_kwargs["polling_interval"], int)
+                                assert db_coord_kwargs["polling_interval"] == 60
 
 
 @pytest.mark.asyncio
