@@ -1,7 +1,9 @@
 """Tests for ComfoClime integration setup."""
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+
 from custom_components.comfoclime import (
     async_setup,
     async_setup_entry,
@@ -210,9 +212,11 @@ async def test_async_setup_entry_with_float_max_retries(
                                 assert api_kwargs["request_debounce"] == 0.3
 
                                 # Verify polling_interval was passed as int to coordinators
-                                db_coord_kwargs = mock_db_coord.call_args[1]
-                                assert isinstance(db_coord_kwargs["polling_interval"], int)
-                                assert db_coord_kwargs["polling_interval"] == 60
+                                # polling_interval is passed as a positional argument (3rd position)
+                                db_coord_args = mock_db_coord.call_args[0]
+                                polling_interval_arg = db_coord_args[2]  # hass, api, polling_interval
+                                assert isinstance(polling_interval_arg, int)
+                                assert polling_interval_arg == 60
 
 
 @pytest.mark.asyncio
