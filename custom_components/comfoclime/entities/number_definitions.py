@@ -1,12 +1,11 @@
-"""Entity definitions for ComfoClime number controls using dataclasses."""
+"""Entity definitions for ComfoClime number controls using Pydantic models."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from pydantic import BaseModel, Field
 
 
-@dataclass(frozen=True, slots=True)
-class NumberDefinition:
+class NumberDefinition(BaseModel):
     """Definition of a number entity.
     
     Attributes:
@@ -18,17 +17,19 @@ class NumberDefinition:
         step: Step increment.
         unit: Optional unit of measurement.
     """
-    key: str
-    name: str
-    translation_key: str
-    min: float
-    max: float
-    step: float
-    unit: str | None = None
+    
+    model_config = {"frozen": True}
+    
+    key: str = Field(..., description="Unique identifier for the number in API responses")
+    name: str = Field(..., description="Display name for the number control")
+    translation_key: str = Field(..., description="Key for i18n translations")
+    min: float = Field(..., description="Minimum value")
+    max: float = Field(..., description="Maximum value")
+    step: float = Field(..., description="Step increment")
+    unit: str | None = Field(default=None, description="Optional unit of measurement")
 
 
-@dataclass(frozen=True, slots=True)
-class PropertyNumberDefinition:
+class PropertyNumberDefinition(BaseModel):
     """Definition of a property-based number entity.
     
     Attributes:
@@ -42,15 +43,18 @@ class PropertyNumberDefinition:
         faktor: Multiplication factor for the raw value.
         byte_count: Number of bytes to read/write.
     """
-    property: str
-    name: str
-    translation_key: str
-    min: float
-    max: float
-    step: float
-    unit: str | None = None
-    faktor: float = 1.0
-    byte_count: int = 1
+    
+    model_config = {"frozen": True}
+    
+    property: str = Field(..., description="Property path in format 'X/Y/Z'")
+    name: str = Field(..., description="Display name for the number control")
+    translation_key: str = Field(..., description="Key for i18n translations")
+    min: float = Field(..., description="Minimum value")
+    max: float = Field(..., description="Maximum value")
+    step: float = Field(..., description="Step increment")
+    unit: str | None = Field(default=None, description="Optional unit of measurement")
+    faktor: float = Field(default=1.0, description="Multiplication factor for the raw value")
+    byte_count: int = Field(default=1, description="Number of bytes to read/write")
 
 
 NUMBER_ENTITIES = [

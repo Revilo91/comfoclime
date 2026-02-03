@@ -13,14 +13,14 @@ and optimize API access patterns to the Airduino board.
 import logging
 import time
 from collections import deque
-from dataclasses import dataclass, field
 from typing import Deque
+
+from pydantic import BaseModel, Field
 
 _LOGGER = logging.getLogger(__name__)
 
 
-@dataclass(slots=True)
-class CoordinatorStats:
+class CoordinatorStats(BaseModel):
     """Statistics for a single coordinator's API accesses.
 
     Tracks access timestamps, counts, and timing for monitoring
@@ -38,18 +38,13 @@ class CoordinatorStats:
         1
     """
 
+    model_config = {"validate_assignment": True, "arbitrary_types_allowed": True}
+
     # Deque of timestamps for accesses in the last hour
     # Using deque for efficient removal of old entries
-    access_timestamps: Deque[float] = field(default_factory=deque)
-    total_count: int = field(default=0)
-    last_access_time: float = field(default=0.0)
-
-    def __post_init__(self) -> None:
-        """Validate initial state."""
-        if self.total_count < 0:
-            raise ValueError("total_count cannot be negative")
-        if self.last_access_time < 0:
-            raise ValueError("last_access_time cannot be negative")
+    access_timestamps: Deque[float] = Field(default_factory=deque, description="FIFO queue of access timestamps (monotonic time)")
+    total_count: int = Field(default=0, ge=0, description="Total number of accesses since creation")
+    last_access_time: float = Field(default=0.0, ge=0.0, description="Timestamp of most recent access")
 
     def record_access(self, timestamp: float) -> None:
         """Record a new API access.
