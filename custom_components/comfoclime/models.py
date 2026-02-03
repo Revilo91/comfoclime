@@ -1,20 +1,20 @@
 """Data models for ComfoClime integration.
 
-This module provides dataclasses for structured data representation
+This module provides Pydantic models for structured data representation
 with validation and type safety.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Literal
 
+from pydantic import BaseModel, Field, field_validator, model_validator
 
-@dataclass(frozen=True, slots=True)
-class DeviceConfig:
+
+class DeviceConfig(BaseModel):
     """Configuration for a connected device.
 
-    Immutable dataclass representing device configuration from API responses.
+    Immutable Pydantic model representing device configuration from API responses.
 
     Attributes:
         uuid: Device unique identifier.
@@ -32,21 +32,15 @@ class DeviceConfig:
         'abc123'
     """
 
-    uuid: str
-    model_type_id: int
-    display_name: str = "Unknown Device"
-    version: str | None = None
+    model_config = {"frozen": True, "validate_assignment": True}
 
-    def __post_init__(self) -> None:
-        """Validate device configuration."""
-        if not self.uuid or len(self.uuid) == 0:
-            raise ValueError("uuid cannot be empty")
-        if self.model_type_id < 0:
-            raise ValueError("model_type_id must be non-negative")
+    uuid: str = Field(..., min_length=1, description="Device unique identifier")
+    model_type_id: int = Field(..., ge=0, description="Model type identifier (numeric)")
+    display_name: str = Field(default="Unknown Device", description="Human-readable device name")
+    version: str | None = Field(default=None, description="Optional firmware version")
 
 
-@dataclass(slots=True)
-class TelemetryReading:
+class TelemetryReading(BaseModel):
     """A single telemetry reading from a device.
 
     Represents a telemetry value with its metadata for scaling and interpretation.
@@ -70,23 +64,14 @@ class TelemetryReading:
         25.0
     """
 
-    device_uuid: str
-    telemetry_id: str
-    raw_value: int
-    faktor: float = 1.0
-    signed: bool = False
-    byte_count: Literal[1, 2] = 2
+    model_config = {"validate_assignment": True}
 
-    def __post_init__(self) -> None:
-        """Validate telemetry reading."""
-        if not self.device_uuid:
-            raise ValueError("device_uuid cannot be empty")
-        if not self.telemetry_id:
-            raise ValueError("telemetry_id cannot be empty")
-        if self.faktor <= 0:
-            raise ValueError("faktor must be greater than 0")
-        if self.byte_count not in (1, 2):
-            raise ValueError("byte_count must be 1 or 2")
+    device_uuid: str = Field(..., min_length=1, description="UUID of the device providing the reading")
+    telemetry_id: str = Field(..., min_length=1, description="Telemetry identifier (path or ID)")
+    raw_value: int = Field(..., description="Raw integer value from device")
+    faktor: float = Field(default=1.0, gt=0, description="Multiplicative scaling factor (must be > 0)")
+    signed: bool = Field(default=False, description="Whether the value should be interpreted as signed")
+    byte_count: Literal[1, 2] = Field(default=2, description="Number of bytes in the value (1 or 2)")
 
     @property
     def scaled_value(self) -> float:
@@ -109,8 +94,7 @@ class TelemetryReading:
         return value * self.faktor
 
 
-@dataclass(slots=True)
-class PropertyReading:
+class PropertyReading(BaseModel):
     """A property reading from a device.
 
     Similar to TelemetryReading but for property-based data access.
@@ -134,23 +118,14 @@ class PropertyReading:
         123.0
     """
 
-    device_uuid: str
-    path: str
-    raw_value: int
-    faktor: float = 1.0
-    signed: bool = True
-    byte_count: Literal[1, 2] = 2
+    model_config = {"validate_assignment": True}
 
-    def __post_init__(self) -> None:
-        """Validate property reading."""
-        if not self.device_uuid:
-            raise ValueError("device_uuid cannot be empty")
-        if not self.path:
-            raise ValueError("path cannot be empty")
-        if self.faktor <= 0:
-            raise ValueError("faktor must be greater than 0")
-        if self.byte_count not in (1, 2):
-            raise ValueError("byte_count must be 1 or 2")
+    device_uuid: str = Field(..., min_length=1, description="UUID of the device")
+    path: str = Field(..., min_length=1, description="Property path (e.g., '29/1/10')")
+    raw_value: int = Field(..., description="Raw integer value from device")
+    faktor: float = Field(default=1.0, gt=0, description="Multiplicative scaling factor")
+    signed: bool = Field(default=True, description="Whether the value is signed")
+    byte_count: Literal[1, 2] = Field(default=2, description="Number of bytes (1 or 2)")
 
     @property
     def scaled_value(self) -> float:
@@ -173,8 +148,7 @@ class PropertyReading:
         return value * self.faktor
 
 
-@dataclass(slots=True)
-class DashboardData:
+class DashboardData(BaseModel):
     """Dashboard data from ComfoClime device.
 
     Contains key operational data from the device dashboard.
@@ -197,13 +171,10 @@ class DashboardData:
         22.5
     """
 
-    temperature: float | None = None
-    target_temperature: float | None = None
-    fan_speed: int | None = None
-    season: str | None = None
-    hp_standby: bool | None = None
+    model_config = {"validate_assignment": True}
 
-    def __post_init__(self) -> None:
-        """Validate dashboard data."""
-        if self.fan_speed is not None and (self.fan_speed < 0 or self.fan_speed > 100):
-            raise ValueError("fan_speed must be between 0 and 100")
+    temperature: float | None = Field(default=None, description="Current temperature reading")
+    target_temperature: float | None = Field(default=None, description="Target temperature setting")
+    fan_speed: int | None = Field(default=None, ge=0, le=100, description="Current fan speed percentage")
+    season: str | None = Field(default=None, description="Current season mode (heating/cooling)")
+    hp_standby: bool | None = Field(default=None, description="Heat pump standby status")
