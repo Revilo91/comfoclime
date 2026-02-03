@@ -140,6 +140,9 @@ class APIDefaults(BaseModel):
 
     Immutable configuration values for API timeouts, caching, and rate limiting.
     These values can be overridden when instantiating ComfoClimeAPI.
+    
+    Note: frozen=True provides immutability at the instance level. Final type hints
+    are not needed with Pydantic as the frozen configuration prevents reassignment.
     """
 
     model_config = {"frozen": True}
