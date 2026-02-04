@@ -1,7 +1,8 @@
 """Data models for ComfoClime integration.
 
 This module provides Pydantic models for structured data representation
-with validation and type safety.
+with validation and type safety. Also includes utility functions for
+byte conversion and temperature value processing.
 """
 
 from __future__ import annotations
@@ -9,6 +10,134 @@ from __future__ import annotations
 from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
+
+
+# Utility functions for byte and temperature value processing
+def bytes_to_signed_int(
+    data: list, byte_count: int | None = None, signed: bool = True
+) -> int:
+    """Convert raw bytes to a signed or unsigned integer value.
+
+    Converts a list of bytes (little-endian) to an integer value.
+    Supports 1-byte and 2-byte conversions with optional signed interpretation.
+
+    Args:
+        data: List of bytes (integers 0-255) in little-endian order
+        byte_count: Number of bytes to read. If None, calculated from data length
+        signed: If True, interpret as signed integer; if False, unsigned
+
+    Returns:
+        Integer value decoded from bytes.
+
+    Raises:
+        ValueError: If data is not a list or byte_count is not 1 or 2.
+
+    Example:
+        >>> bytes_to_signed_int([255, 255], 2, signed=True)
+        -1
+        >>> bytes_to_signed_int([0, 1], 2, signed=False)
+        256
+    """
+    if not isinstance(data, list):
+        raise ValueError("'data' is not a list")
+
+    if byte_count is None:
+        byte_count = len(data)
+
+    if byte_count not in (1, 2):
+        raise ValueError(f"Unsupported byte count: {byte_count}")
+
+    return int.from_bytes(data[:byte_count], byteorder="little", signed=signed)
+
+
+def signed_int_to_bytes(
+    data: int, byte_count: int = 2, signed: bool = False
+) -> list:
+    """Convert a signed or unsigned integer to a list of bytes.
+
+    Converts an integer value to a list of bytes in little-endian order.
+    Supports 1-byte and 2-byte conversions.
+
+    Args:
+        data: Integer value to convert
+        byte_count: Number of bytes to convert to (1 or 2)
+        signed: If True, interpret as signed integer; if False, unsigned
+
+    Returns:
+        List of bytes (integers 0-255) in little-endian order.
+
+    Raises:
+        ValueError: If byte_count is not 1 or 2.
+
+    Example:
+        >>> signed_int_to_bytes(-1, 2, signed=True)
+        [255, 255]
+        >>> signed_int_to_bytes(256, 2, signed=False)
+        [0, 1]
+    """
+    if byte_count not in (1, 2):
+        raise ValueError(f"Unsupported byte count: {byte_count}")
+
+    return list(data.to_bytes(byte_count, byteorder="little", signed=signed))
+
+
+def fix_signed_temperature(api_value: float) -> float:
+    """Fix temperature value by converting through signed 16-bit integer.
+
+    The ComfoClime API returns temperature values that need to be
+    interpreted as signed 16-bit integers (scaled by 10). This method
+    performs the necessary conversion to handle negative temperatures correctly.
+
+    Args:
+        api_value: Temperature value from API (scaled by 10)
+
+    Returns:
+        Corrected temperature value in °C.
+
+    Example:
+        >>> fix_signed_temperature(6552.3)  # API value for -1.3°C
+        -1.3
+        >>> fix_signed_temperature(235.0)  # Positive temps unchanged
+        23.5
+    """
+    raw_value = int(api_value * 10)
+    # Convert to signed 16-bit using Python's built-in byte conversion
+    unsigned_value = raw_value & 0xFFFF
+    bytes_data = signed_int_to_bytes(unsigned_value, 2)
+    signed_value = bytes_to_signed_int(bytes_data, signed=True)
+    return signed_value / 10.0
+
+
+def fix_signed_temperatures_in_dict(data: dict) -> dict:
+    """Recursively fix signed temperature values in a dictionary.
+    
+    Applies fix_signed_temperature to all keys containing "Temperature"
+    in both flat and nested dictionary structures. This is used to
+    automatically fix temperature values from API responses.
+
+    Args:
+        data: Dictionary potentially containing temperature values
+    
+    Returns:
+        Dictionary with fixed temperature values.
+
+    Example:
+        >>> data = {"indoorTemperature": 6552.3, "outdoor": {"temperature": 235.0}}
+        >>> fix_signed_temperatures_in_dict(data)
+        {"indoorTemperature": -1.3, "outdoor": {"temperature": 23.5}}
+    """
+    for key in list(data.keys()):
+        val = data[key]
+        if isinstance(val, dict):
+            # Recursively process nested dictionaries
+            data[key] = fix_signed_temperatures_in_dict(val)
+        elif (
+            "Temperature" in key
+            and val is not None
+            and isinstance(val, (int, float))
+        ):
+            data[key] = fix_signed_temperature(val)
+    return data
 
 
 class DeviceConfig(BaseModel):

@@ -28,6 +28,9 @@ from typing import Any, Callable
 
 import aiohttp
 
+# Import temperature fixing function from models module
+from .models import fix_signed_temperatures_in_dict
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -114,7 +117,7 @@ def api_get(
 
                 # Fix temperature values if needed
                 if fix_temperatures:
-                    data = self.fix_signed_temperatures_in_dict(data)
+                    data = fix_signed_temperatures_in_dict(data)
 
                 # Call the original function with the response data and remaining args/kwargs
                 return await func(self, data, *args, **kwargs)
