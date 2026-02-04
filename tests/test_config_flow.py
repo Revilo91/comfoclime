@@ -1,20 +1,21 @@
 """Tests for ComfoClime config_flow."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 from homeassistant.data_entry_flow import FlowResultType
 
 from custom_components.comfoclime.config_flow import (
-    ComfoClimeConfigFlow,
-    ComfoClimeOptionsFlow,
-    DEFAULT_READ_TIMEOUT,
-    DEFAULT_WRITE_TIMEOUT,
-    DEFAULT_POLLING_INTERVAL,
     DEFAULT_CACHE_TTL,
     DEFAULT_MAX_RETRIES,
     DEFAULT_MIN_REQUEST_INTERVAL,
-    DEFAULT_WRITE_COOLDOWN,
+    DEFAULT_POLLING_INTERVAL,
+    DEFAULT_READ_TIMEOUT,
     DEFAULT_REQUEST_DEBOUNCE,
+    DEFAULT_WRITE_COOLDOWN,
+    DEFAULT_WRITE_TIMEOUT,
+    ComfoClimeConfigFlow,
+    ComfoClimeOptionsFlow,
 )
 
 
@@ -147,7 +148,7 @@ async def test_options_flow_general_diagnostics_form():
 
     # Check that schema has the expected field
     schema = result["data_schema"].schema
-    field_names = {key.schema: key for key in schema.keys()}
+    field_names = {key.schema: key for key in schema}
 
     assert "enable_diagnostics" in field_names
 
@@ -167,7 +168,7 @@ async def test_options_flow_entities_step():
 
     # Check that schema has all expected sensor/entity fields
     schema = result["data_schema"].schema
-    field_names = [key.schema for key in schema.keys()]
+    field_names = [key.schema for key in schema]
 
     # Verify all 10 entity selection fields exist
     assert "enabled_dashboard" in field_names
@@ -278,7 +279,7 @@ async def test_options_flow_validates_timeout_ranges():
     schema = result["data_schema"].schema
 
     # Find the read_timeout field and verify it has a default value
-    for key in schema.keys():
+    for key in schema:
         if key.schema == "read_timeout":
             # Check that the field has a default value set
             assert hasattr(key, "default")

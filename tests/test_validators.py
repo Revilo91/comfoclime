@@ -1,10 +1,10 @@
 """Tests for validators module."""
 
 from custom_components.comfoclime.validators import (
-    validate_host,
-    validate_property_path,
     validate_byte_value,
     validate_duration,
+    validate_host,
+    validate_property_path,
 )
 
 

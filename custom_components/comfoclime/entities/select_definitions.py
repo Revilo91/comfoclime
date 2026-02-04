@@ -17,14 +17,10 @@ class SelectDefinition(BaseModel):
 
     model_config = {"frozen": True}
 
-    key: str = Field(
-        ..., description="Unique identifier for the select in API responses"
-    )
+    key: str = Field(..., description="Unique identifier for the select in API responses")
     name: str = Field(..., description="Display name for the select control")
     translation_key: str = Field(..., description="Key for i18n translations")
-    options: dict[int, str] = Field(
-        ..., description="Dictionary mapping numeric values to string options"
-    )
+    options: dict[int, str] = Field(..., description="Dictionary mapping numeric values to string options")
 
 
 class PropertySelectDefinition(BaseModel):
@@ -42,9 +38,7 @@ class PropertySelectDefinition(BaseModel):
     path: str = Field(..., description="Property path in format 'X/Y/Z'")
     name: str = Field(..., description="Display name for the select control")
     translation_key: str = Field(..., description="Key for i18n translations")
-    options: dict[int, str] = Field(
-        ..., description="Dictionary mapping numeric values to string options"
-    )
+    options: dict[int, str] = Field(..., description="Dictionary mapping numeric values to string options")
 
 
 SELECT_ENTITIES = [

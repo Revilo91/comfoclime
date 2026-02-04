@@ -36,9 +36,7 @@ class TestDashboardUpdateRetry:
         mock_response.raise_for_status = MagicMock()
 
         mock_session = AsyncMock()
-        mock_session.put = MagicMock(
-            return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
-        )
+        mock_session.put = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
 
         with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
             result = await api.async_update_dashboard(set_point_temperature=22.0)
@@ -57,7 +55,7 @@ class TestDashboardUpdateRetry:
 
         # First call times out, second succeeds
         timeout_response = AsyncMock()
-        timeout_response.__aenter__ = AsyncMock(side_effect=asyncio.TimeoutError())
+        timeout_response.__aenter__ = AsyncMock(side_effect=TimeoutError())
 
         success_response = AsyncMock()
         success_response.json = AsyncMock(return_value={"status": "ok"})
@@ -88,7 +86,7 @@ class TestDashboardUpdateRetry:
 
         # All calls timeout
         timeout_response = AsyncMock()
-        timeout_response.__aenter__ = AsyncMock(side_effect=asyncio.TimeoutError())
+        timeout_response.__aenter__ = AsyncMock(side_effect=TimeoutError())
 
         mock_session = AsyncMock()
         mock_session.put = MagicMock(return_value=timeout_response)
@@ -110,9 +108,7 @@ class TestDashboardUpdateRetry:
 
         # First call has network error, second succeeds
         error_response = AsyncMock()
-        error_response.__aenter__ = AsyncMock(
-            side_effect=aiohttp.ClientConnectionError()
-        )
+        error_response.__aenter__ = AsyncMock(side_effect=aiohttp.ClientConnectionError())
 
         success_response = AsyncMock()
         success_response.json = AsyncMock(return_value={"status": "ok"})
@@ -176,7 +172,7 @@ class TestThermalProfileUpdateRetry:
 
         # First call times out, second succeeds
         timeout_response = AsyncMock()
-        timeout_response.__aenter__ = AsyncMock(side_effect=asyncio.TimeoutError())
+        timeout_response.__aenter__ = AsyncMock(side_effect=TimeoutError())
 
         success_response = AsyncMock()
         success_response.status = 200
@@ -208,7 +204,7 @@ class TestPropertySetRetry:
 
         # First call times out, second succeeds
         timeout_response = AsyncMock()
-        timeout_response.__aenter__ = AsyncMock(side_effect=asyncio.TimeoutError())
+        timeout_response.__aenter__ = AsyncMock(side_effect=TimeoutError())
 
         success_response = AsyncMock()
         success_response.raise_for_status = MagicMock()
@@ -240,7 +236,7 @@ class TestPropertySetRetry:
 
         # All calls timeout
         timeout_response = AsyncMock()
-        timeout_response.__aenter__ = AsyncMock(side_effect=asyncio.TimeoutError())
+        timeout_response.__aenter__ = AsyncMock(side_effect=TimeoutError())
 
         mock_session = AsyncMock()
         mock_session.put = MagicMock(return_value=timeout_response)

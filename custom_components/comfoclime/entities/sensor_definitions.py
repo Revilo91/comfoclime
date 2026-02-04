@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from enum import Enum, auto
 
-from pydantic import BaseModel, Field
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.const import EntityCategory
+from pydantic import BaseModel, Field
 
 
 class SensorCategory(Enum):
@@ -38,29 +38,17 @@ class SensorDefinition(BaseModel):
 
     model_config = {"frozen": True, "arbitrary_types_allowed": True}
 
-    key: str = Field(
-        ..., description="Unique identifier for the sensor in API responses or dict key"
-    )
+    key: str = Field(..., description="Unique identifier for the sensor in API responses or dict key")
     translation_key: str = Field(..., description="Key for i18n translations")
-    name: str = Field(
-        ..., description="Display name for the sensor (fallback if translation missing)"
-    )
-    unit: str | None = Field(
-        default=None, description="Unit of measurement (e.g., '°C', 'm³/h')"
-    )
-    device_class: SensorDeviceClass | str | None = Field(
-        default=None, description="Home Assistant device class"
-    )
-    state_class: SensorStateClass | str | None = Field(
-        default=None, description="Home Assistant state class"
-    )
+    name: str = Field(..., description="Display name for the sensor (fallback if translation missing)")
+    unit: str | None = Field(default=None, description="Unit of measurement (e.g., '°C', 'm³/h')")
+    device_class: SensorDeviceClass | str | None = Field(default=None, description="Home Assistant device class")
+    state_class: SensorStateClass | str | None = Field(default=None, description="Home Assistant state class")
     entity_category: EntityCategory | str | None = Field(
         default=None, description="Entity category (None, diagnostic, config)"
     )
     icon: str | None = Field(default=None, description="MDI icon name")
-    suggested_display_precision: int | None = Field(
-        default=None, description="Decimal places for display"
-    )
+    suggested_display_precision: int | None = Field(default=None, description="Decimal places for display")
 
 
 class TelemetrySensorDefinition(BaseModel):
@@ -85,33 +73,19 @@ class TelemetrySensorDefinition(BaseModel):
     model_config = {"frozen": True, "arbitrary_types_allowed": True}
 
     telemetry_id: int = Field(..., description="ID for telemetry endpoint")
-    name: str = Field(
-        ..., description="Display name for the sensor (fallback if translation missing)"
-    )
+    name: str = Field(..., description="Display name for the sensor (fallback if translation missing)")
     translation_key: str = Field(..., description="Key for i18n translations")
-    faktor: float = Field(
-        default=1.0, description="Multiplication factor for the raw value"
-    )
+    faktor: float = Field(default=1.0, description="Multiplication factor for the raw value")
     signed: bool = Field(default=False, description="Whether the value is signed")
-    byte_count: int = Field(
-        default=1, description="Number of bytes to read from telemetry"
-    )
-    unit: str | None = Field(
-        default=None, description="Unit of measurement (e.g., '°C', 'm³/h')"
-    )
-    device_class: SensorDeviceClass | str | None = Field(
-        default=None, description="Home Assistant device class"
-    )
-    state_class: SensorStateClass | str | None = Field(
-        default=None, description="Home Assistant state class"
-    )
+    byte_count: int = Field(default=1, description="Number of bytes to read from telemetry")
+    unit: str | None = Field(default=None, description="Unit of measurement (e.g., '°C', 'm³/h')")
+    device_class: SensorDeviceClass | str | None = Field(default=None, description="Home Assistant device class")
+    state_class: SensorStateClass | str | None = Field(default=None, description="Home Assistant state class")
     entity_category: EntityCategory | str | None = Field(
         default=None, description="Entity category (None, diagnostic, config)"
     )
     icon: str | None = Field(default=None, description="MDI icon name")
-    suggested_display_precision: int | None = Field(
-        default=None, description="Decimal places for display"
-    )
+    suggested_display_precision: int | None = Field(default=None, description="Decimal places for display")
     diagnose: bool = Field(
         default=False,
         description="Whether this is a diagnostic sensor (experimental/unknown)",
@@ -139,33 +113,19 @@ class PropertySensorDefinition(BaseModel):
     model_config = {"frozen": True, "arbitrary_types_allowed": True}
 
     path: str = Field(..., description="Property path in format 'X/Y/Z'")
-    name: str = Field(
-        ..., description="Display name for the sensor (fallback if translation missing)"
-    )
+    name: str = Field(..., description="Display name for the sensor (fallback if translation missing)")
     translation_key: str = Field(..., description="Key for i18n translations")
-    faktor: float = Field(
-        default=1.0, description="Multiplication factor for the raw value"
-    )
+    faktor: float = Field(default=1.0, description="Multiplication factor for the raw value")
     signed: bool = Field(default=False, description="Whether the value is signed")
-    byte_count: int = Field(
-        default=1, description="Number of bytes to read from property"
-    )
-    unit: str | None = Field(
-        default=None, description="Unit of measurement (e.g., '°C', 'm³/h')"
-    )
-    device_class: SensorDeviceClass | str | None = Field(
-        default=None, description="Home Assistant device class"
-    )
-    state_class: SensorStateClass | str | None = Field(
-        default=None, description="Home Assistant state class"
-    )
+    byte_count: int = Field(default=1, description="Number of bytes to read from property")
+    unit: str | None = Field(default=None, description="Unit of measurement (e.g., '°C', 'm³/h')")
+    device_class: SensorDeviceClass | str | None = Field(default=None, description="Home Assistant device class")
+    state_class: SensorStateClass | str | None = Field(default=None, description="Home Assistant state class")
     entity_category: EntityCategory | str | None = Field(
         default=None, description="Entity category (None, diagnostic, config)"
     )
     icon: str | None = Field(default=None, description="MDI icon name")
-    suggested_display_precision: int | None = Field(
-        default=None, description="Decimal places for display"
-    )
+    suggested_display_precision: int | None = Field(default=None, description="Decimal places for display")
 
 
 class AccessTrackingSensorDefinition(BaseModel):
@@ -186,33 +146,21 @@ class AccessTrackingSensorDefinition(BaseModel):
 
     model_config = {"frozen": True, "arbitrary_types_allowed": True}
 
-    coordinator: str | None = Field(
-        ..., description="Name of the coordinator to track (None for total)"
-    )
+    coordinator: str | None = Field(..., description="Name of the coordinator to track (None for total)")
     metric: str = Field(
         ...,
         description="Metric type (per_minute, per_hour, total_per_minute, total_per_hour)",
     )
-    name: str = Field(
-        ..., description="Display name for the sensor (fallback if translation missing)"
-    )
+    name: str = Field(..., description="Display name for the sensor (fallback if translation missing)")
     translation_key: str = Field(..., description="Key for i18n translations")
-    state_class: SensorStateClass | str | None = Field(
-        default=None, description="Home Assistant state class"
-    )
+    state_class: SensorStateClass | str | None = Field(default=None, description="Home Assistant state class")
     entity_category: EntityCategory | str | None = Field(
         default=None, description="Entity category (None, diagnostic, config)"
     )
-    unit: str | None = Field(
-        default=None, description="Unit of measurement (e.g., '°C', 'm³/h')"
-    )
-    device_class: SensorDeviceClass | str | None = Field(
-        default=None, description="Home Assistant device class"
-    )
+    unit: str | None = Field(default=None, description="Unit of measurement (e.g., '°C', 'm³/h')")
+    device_class: SensorDeviceClass | str | None = Field(default=None, description="Home Assistant device class")
     icon: str | None = Field(default=None, description="MDI icon name")
-    suggested_display_precision: int | None = Field(
-        default=None, description="Decimal places for display"
-    )
+    suggested_display_precision: int | None = Field(default=None, description="Decimal places for display")
 
 
 # Dashboard sensor definitions using Pydantic models

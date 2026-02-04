@@ -1,8 +1,15 @@
 """Helper module for managing entity definitions and selections."""
 
 import logging
-from typing import Dict, List, Set, Union
 
+from .entities.number_definitions import (
+    CONNECTED_DEVICE_NUMBER_PROPERTIES,
+    NUMBER_ENTITIES,
+)
+from .entities.select_definitions import (
+    PROPERTY_SELECT_ENTITIES,
+    SELECT_ENTITIES,
+)
 from .entities.sensor_definitions import (
     ACCESS_TRACKING_SENSORS,
     CONNECTED_DEVICE_DEFINITION_SENSORS,
@@ -13,14 +20,6 @@ from .entities.sensor_definitions import (
     THERMALPROFILE_SENSORS,
 )
 from .entities.switch_definitions import SWITCHES
-from .entities.number_definitions import (
-    CONNECTED_DEVICE_NUMBER_PROPERTIES,
-    NUMBER_ENTITIES,
-)
-from .entities.select_definitions import (
-    PROPERTY_SELECT_ENTITIES,
-    SELECT_ENTITIES,
-)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,7 +30,7 @@ MODEL_TYPE_NAMES = {
 }
 
 
-def _get_attr(entity_def: Union[dict, object], key: str, default=None):
+def _get_attr(entity_def: dict | object, key: str, default=None):
     """Get attribute from either dict or dataclass instance.
 
     Args:
@@ -62,7 +61,7 @@ def _friendly_model_name(model_id) -> str:
     return MODEL_TYPE_NAMES.get(mid, f"Model {mid}")
 
 
-def get_all_entity_categories() -> Dict[str, Dict[str, List]]:
+def get_all_entity_categories() -> dict[str, dict[str, list]]:
     """Get all entity definitions organized by category.
 
     Returns:
@@ -109,9 +108,7 @@ def get_all_entity_categories() -> Dict[str, Dict[str, List]]:
     }
 
 
-def _make_sensor_id(
-    category: str, subcategory: str, sensor_def: Union[dict, object]
-) -> str:
+def _make_sensor_id(category: str, subcategory: str, sensor_def: dict | object) -> str:
     """Create a unique ID for a sensor.
 
     Args:
@@ -149,28 +146,24 @@ def _make_sensor_id(
         elif hasattr(sensor_def, "path"):
             identifier = f"prop_{_get_attr(sensor_def, 'path', '').replace('/', '_')}"
         elif hasattr(sensor_def, "property"):
-            identifier = (
-                f"prop_{_get_attr(sensor_def, 'property', '').replace('/', '_')}"
-            )
+            identifier = f"prop_{_get_attr(sensor_def, 'property', '').replace('/', '_')}"
         elif hasattr(sensor_def, "metric"):
             coord = (_get_attr(sensor_def, "coordinator") or "total").lower()
             identifier = f"{coord}_{_get_attr(sensor_def, 'metric', '')}"
         else:
             # Fallback to name-based ID
-            identifier = (
-                _get_attr(sensor_def, "name", "unknown").lower().replace(" ", "_")
-            )
+            identifier = _get_attr(sensor_def, "name", "unknown").lower().replace(" ", "_")
 
     return f"{category}_{subcategory}_{identifier}"
 
 
 def _format_simple_entities(
-    entity_list: List[Union[Dict, object]],
+    entity_list: list[dict | object],
     category: str,
     subcategory: str,
     emoji: str,
     prefix: str = "",
-) -> List[Dict]:
+) -> list[dict]:
     """Format simple entities (without per-model grouping) to option dicts.
 
     Args:
@@ -191,19 +184,17 @@ def _format_simple_entities(
             full_label = f"{emoji} {prefix}{label}" if prefix else f"{emoji} {label}"
             options.append({"value": entity_id, "label": full_label})
         except (KeyError, AttributeError):
-            _LOGGER.exception(
-                "❌ Error processing %s_%s entity %s", category, subcategory, entity_def
-            )
+            _LOGGER.exception("❌ Error processing %s_%s entity %s", category, subcategory, entity_def)
     return options
 
 
 def _format_per_model_entities(
-    entity_dict: Dict,
+    entity_dict: dict,
     category: str,
     subcategory: str,
     emoji: str,
     fallback_name: str = "",
-) -> List[Dict]:
+) -> list[dict]:
     """Format entities grouped per connected device model to option dicts.
 
     Args:
@@ -228,9 +219,7 @@ def _format_per_model_entities(
                     )
                 else:
                     label = _get_attr(entity_def, "name", "unknown")
-                options.append(
-                    {"value": entity_id, "label": f"{emoji} {model_name} • {label}"}
-                )
+                options.append({"value": entity_id, "label": f"{emoji} {model_name} • {label}"})
             except (KeyError, AttributeError):
                 _LOGGER.exception(
                     "❌ Error processing %s_%s for model %s",
@@ -241,7 +230,7 @@ def _format_per_model_entities(
     return options
 
 
-def _get_sensor_options() -> List[Dict]:
+def _get_sensor_options() -> list[dict]:
     """Get all sensor entity options (dashboard, thermal, telemetry, properties, etc.)."""
     options = []
     options.extend(_get_dashboard_sensors())
@@ -254,24 +243,22 @@ def _get_sensor_options() -> List[Dict]:
     return options
 
 
-def _get_dashboard_sensors() -> List[Dict]:
+def _get_dashboard_sensors() -> list[dict]:
     """Get all dashboard sensor entity options."""
     return _format_simple_entities(DASHBOARD_SENSORS, "sensors", "dashboard", "📊")
 
 
-def _get_thermalprofile_sensors() -> List[Dict]:
+def _get_thermalprofile_sensors() -> list[dict]:
     """Get all thermal profile sensor entity options."""
-    return _format_simple_entities(
-        THERMALPROFILE_SENSORS, "sensors", "thermalprofile", "🌡️"
-    )
+    return _format_simple_entities(THERMALPROFILE_SENSORS, "sensors", "thermalprofile", "🌡️")
 
 
-def _get_monitoring_sensors() -> List[Dict]:
+def _get_monitoring_sensors() -> list[dict]:
     """Get all monitoring sensor entity options."""
     return _format_simple_entities(MONITORING_SENSORS, "sensors", "monitoring", "⏱️")
 
 
-def _get_connected_device_telemetry_sensors() -> List[Dict]:
+def _get_connected_device_telemetry_sensors() -> list[dict]:
     """Get all connected device telemetry sensor entity options."""
     return _format_per_model_entities(
         CONNECTED_DEVICE_SENSORS,
@@ -282,7 +269,7 @@ def _get_connected_device_telemetry_sensors() -> List[Dict]:
     )
 
 
-def _get_connected_device_properties_sensors() -> List[Dict]:
+def _get_connected_device_properties_sensors() -> list[dict]:
     """Get all connected device properties sensor entity options."""
     return _format_per_model_entities(
         CONNECTED_DEVICE_PROPERTIES,
@@ -293,34 +280,26 @@ def _get_connected_device_properties_sensors() -> List[Dict]:
     )
 
 
-def _get_connected_device_definition_sensors() -> List[Dict]:
+def _get_connected_device_definition_sensors() -> list[dict]:
     """Get all connected device definition sensor entity options."""
-    return _format_per_model_entities(
-        CONNECTED_DEVICE_DEFINITION_SENSORS, "sensors", "connected_definition", "📋"
-    )
+    return _format_per_model_entities(CONNECTED_DEVICE_DEFINITION_SENSORS, "sensors", "connected_definition", "📋")
 
 
-def _get_access_tracking_sensors() -> List[Dict]:
+def _get_access_tracking_sensors() -> list[dict]:
     """Get all access tracking sensor entity options."""
-    return _format_simple_entities(
-        ACCESS_TRACKING_SENSORS, "sensors", "access_tracking", "🔍"
-    )
+    return _format_simple_entities(ACCESS_TRACKING_SENSORS, "sensors", "access_tracking", "🔍")
 
 
-def _get_switch_options() -> List[Dict]:
+def _get_switch_options() -> list[dict]:
     """Get all switch entity options."""
     return _format_simple_entities(SWITCHES, "switches", "all", "🔌")
 
 
-def _get_number_options() -> List[Dict]:
+def _get_number_options() -> list[dict]:
     """Get all number entity options (thermal profile and connected device properties)."""
     options = []
     # Thermal profile numbers
-    options.extend(
-        _format_simple_entities(
-            NUMBER_ENTITIES, "numbers", "thermal_profile", "🔢", prefix="Thermal • "
-        )
-    )
+    options.extend(_format_simple_entities(NUMBER_ENTITIES, "numbers", "thermal_profile", "🔢", prefix="Thermal • "))
 
     # Connected device number properties - per model
     options.extend(
@@ -335,15 +314,11 @@ def _get_number_options() -> List[Dict]:
     return options
 
 
-def _get_select_options() -> List[Dict]:
+def _get_select_options() -> list[dict]:
     """Get all select entity options (thermal profile and connected device properties)."""
     options = []
     # Thermal profile selects
-    options.extend(
-        _format_simple_entities(
-            SELECT_ENTITIES, "selects", "thermal_profile", "📝", prefix="Thermal • "
-        )
-    )
+    options.extend(_format_simple_entities(SELECT_ENTITIES, "selects", "thermal_profile", "📝", prefix="Thermal • "))
 
     # Connected device select properties - per model
     options.extend(
@@ -358,62 +333,62 @@ def _get_select_options() -> List[Dict]:
     return options
 
 
-def get_sensors() -> List[Dict]:
+def get_sensors() -> list[dict]:
     """Get all sensor entity options."""
     return _get_sensor_options()
 
 
-def get_dashboard_sensors() -> List[Dict]:
+def get_dashboard_sensors() -> list[dict]:
     """Get all dashboard sensor entity options."""
     return _get_dashboard_sensors()
 
 
-def get_thermalprofile_sensors() -> List[Dict]:
+def get_thermalprofile_sensors() -> list[dict]:
     """Get all thermal profile sensor entity options."""
     return _get_thermalprofile_sensors()
 
 
-def get_monitoring_sensors() -> List[Dict]:
+def get_monitoring_sensors() -> list[dict]:
     """Get all monitoring sensor entity options."""
     return _get_monitoring_sensors()
 
 
-def get_connected_device_telemetry_sensors() -> List[Dict]:
+def get_connected_device_telemetry_sensors() -> list[dict]:
     """Get all connected device telemetry sensor entity options."""
     return _get_connected_device_telemetry_sensors()
 
 
-def get_connected_device_properties_sensors() -> List[Dict]:
+def get_connected_device_properties_sensors() -> list[dict]:
     """Get all connected device properties sensor entity options."""
     return _get_connected_device_properties_sensors()
 
 
-def get_connected_device_definition_sensors() -> List[Dict]:
+def get_connected_device_definition_sensors() -> list[dict]:
     """Get all connected device definition sensor entity options."""
     return _get_connected_device_definition_sensors()
 
 
-def get_access_tracking_sensors() -> List[Dict]:
+def get_access_tracking_sensors() -> list[dict]:
     """Get all access tracking sensor entity options."""
     return _get_access_tracking_sensors()
 
 
-def get_switches() -> List[Dict]:
+def get_switches() -> list[dict]:
     """Get all switch entity options."""
     return _get_switch_options()
 
 
-def get_numbers() -> List[Dict]:
+def get_numbers() -> list[dict]:
     """Get all number entity options."""
     return _get_number_options()
 
 
-def get_selects() -> List[Dict]:
+def get_selects() -> list[dict]:
     """Get all select entity options."""
     return _get_select_options()
 
 
-def get_individual_entity_options() -> List[Dict]:
+def get_individual_entity_options() -> list[dict]:
     """Get list of individual entities for user selection in config flow.
 
     Returns a FLAT list of {value, label} dicts (NOT optgroups).
@@ -424,23 +399,19 @@ def get_individual_entity_options() -> List[Dict]:
     """
     options = []
 
-    _LOGGER.debug(
-        "🔍 get_individual_entity_options() called - start building flat options"
-    )
+    _LOGGER.debug("🔍 get_individual_entity_options() called - start building flat options")
 
     options.extend(_get_sensor_options())
     options.extend(_get_switch_options())
     options.extend(_get_number_options())
     options.extend(_get_select_options())
 
-    _LOGGER.debug(
-        f"✅ get_individual_entity_options() finished - created {len(options)} total options"
-    )
+    _LOGGER.debug(f"✅ get_individual_entity_options() finished - created {len(options)} total options")
 
     return options
 
 
-def get_entity_selection_options() -> List[Dict[str, str]]:
+def get_entity_selection_options() -> list[dict[str, str]]:
     """Get list of entity categories for user selection in config flow.
 
     Returns:
@@ -487,7 +458,7 @@ def get_entity_selection_options() -> List[Dict[str, str]]:
     ]
 
 
-def get_default_enabled_entities() -> Set[str]:
+def get_default_enabled_entities() -> set[str]:
     """Get default set of enabled entity categories.
 
     Returns:
@@ -510,7 +481,7 @@ def get_default_enabled_entities() -> Set[str]:
     }
 
 
-def get_default_enabled_individual_entities() -> Set[str]:
+def get_default_enabled_individual_entities() -> set[str]:
     """Get default set of enabled individual entities.
 
     Returns:
@@ -532,20 +503,18 @@ def get_default_enabled_individual_entities() -> Set[str]:
         enabled.add(_make_sensor_id("sensors", "monitoring", sensor_def))
 
     # Connected device telemetry - all non-diagnostic by default
-    for model_id, sensor_list in CONNECTED_DEVICE_SENSORS.items():
+    for _model_id, sensor_list in CONNECTED_DEVICE_SENSORS.items():
         for sensor_def in sensor_list:
             if not _get_attr(sensor_def, "diagnose", False):
-                enabled.add(
-                    _make_sensor_id("sensors", "connected_telemetry", sensor_def)
-                )
+                enabled.add(_make_sensor_id("sensors", "connected_telemetry", sensor_def))
 
     # Connected device properties - all by default
-    for model_id, prop_list in CONNECTED_DEVICE_PROPERTIES.items():
+    for _model_id, prop_list in CONNECTED_DEVICE_PROPERTIES.items():
         for prop_def in prop_list:
             enabled.add(_make_sensor_id("sensors", "connected_properties", prop_def))
 
     # Connected device definition sensors - all by default
-    for model_id, def_list in CONNECTED_DEVICE_DEFINITION_SENSORS.items():
+    for _model_id, def_list in CONNECTED_DEVICE_DEFINITION_SENSORS.items():
         for def_sensor in def_list:
             enabled.add(_make_sensor_id("sensors", "connected_definition", def_sensor))
 
@@ -560,7 +529,7 @@ def get_default_enabled_individual_entities() -> Set[str]:
     for number_def in NUMBER_ENTITIES:
         enabled.add(_make_sensor_id("numbers", "thermal_profile", number_def))
 
-    for model_id, number_list in CONNECTED_DEVICE_NUMBER_PROPERTIES.items():
+    for _model_id, number_list in CONNECTED_DEVICE_NUMBER_PROPERTIES.items():
         for number_def in number_list:
             enabled.add(_make_sensor_id("numbers", "connected_properties", number_def))
 
@@ -568,16 +537,14 @@ def get_default_enabled_individual_entities() -> Set[str]:
     for select_def in SELECT_ENTITIES:
         enabled.add(_make_sensor_id("selects", "thermal_profile", select_def))
 
-    for model_id, select_list in PROPERTY_SELECT_ENTITIES.items():
+    for _model_id, select_list in PROPERTY_SELECT_ENTITIES.items():
         for select_def in select_list:
             enabled.add(_make_sensor_id("selects", "connected_properties", select_def))
 
     return enabled
 
 
-def is_entity_enabled(
-    options: dict, category: str, subcategory: str, entity_def: Union[dict, object]
-) -> bool:
+def is_entity_enabled(options: dict, category: str, subcategory: str, entity_def: dict | object) -> bool:
     """Check if an individual entity is enabled in options.
 
     Args:
@@ -644,13 +611,11 @@ def is_entity_enabled(
             return result
 
     # Check old format (enabled_entities)
-    enabled_entities = options.get("enabled_entities", None)
+    enabled_entities = options.get("enabled_entities")
 
     # If no selection has been made yet, enable everything by default
     if enabled_entities is None:
-        _LOGGER.debug(
-            "Entity '%s': no enabled_entities key, enabling by default", entity_id
-        )
+        _LOGGER.debug("Entity '%s': no enabled_entities key, enabling by default", entity_id)
         return True
 
     # Check if this specific entity is enabled
@@ -661,17 +626,12 @@ def is_entity_enabled(
     # Fall back to category-level check for backward compatibility
     # If the category is enabled but no individual entities are selected,
     # enable all entities in that category
-    if subcategory:
-        category_key = f"{category}_{subcategory}"
-    else:
-        category_key = category
+    category_key = f"{category}_{subcategory}" if subcategory else category
 
     if category_key in enabled_entities:
         # Category is enabled - check if any individual entities from this category are in the selection
         # If not, it means we're using old-style category selection, so enable all
-        any_individual_in_category = any(
-            e.startswith(f"{category}_{subcategory}_") for e in enabled_entities
-        )
+        any_individual_in_category = any(e.startswith(f"{category}_{subcategory}_") for e in enabled_entities)
         if not any_individual_in_category:
             # Old-style category selection - enable all in category
             _LOGGER.debug(
@@ -685,9 +645,7 @@ def is_entity_enabled(
     return False
 
 
-def is_entity_category_enabled(
-    options: dict, category: str, subcategory: str = None
-) -> bool:
+def is_entity_category_enabled(options: dict, category: str, subcategory: str | None = None) -> bool:
     """Check if an entity category is enabled in options.
 
     This function is kept for backward compatibility and for checking
@@ -737,7 +695,7 @@ def is_entity_category_enabled(
             return result
 
     # Check old format (enabled_entities)
-    enabled_entities = options.get("enabled_entities", None)
+    enabled_entities = options.get("enabled_entities")
 
     # If no selection has been made yet, enable everything by default
     if enabled_entities is None:
@@ -745,10 +703,7 @@ def is_entity_category_enabled(
         return True
 
     # Build the key to check
-    if subcategory:
-        key = f"{category}_{subcategory}"
-    else:
-        key = category
+    key = f"{category}_{subcategory}" if subcategory else category
 
     # Check if category itself is enabled
     if key in enabled_entities:

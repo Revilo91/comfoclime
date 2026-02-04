@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import aiohttp
 
@@ -40,15 +40,15 @@ if TYPE_CHECKING:
 from .api_decorators import api_get, api_put
 from .constants import API_DEFAULTS
 from .models import (
-    TelemetryReading,
-    PropertyReading,
     DeviceConfig,
+    PropertyReading,
+    TelemetryReading,
     bytes_to_signed_int,
 )
 from .rate_limiter_cache import (
     RateLimiterCache,
 )
-from .validators import validate_property_path, validate_byte_value
+from .validators import validate_byte_value, validate_property_path
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -69,7 +69,7 @@ class ComfoClimeAPI:
     """
 
     # Mapping von kwargs zu payload-Struktur (class-level constant)
-    FIELD_MAPPING = {
+    FIELD_MAPPING: ClassVar[dict[str, tuple[str, str | None]]] = {
         # season fields
         "season_status": ("season", "status"),
         "season_value": ("season", "season"),
@@ -282,9 +282,7 @@ class ComfoClimeAPI:
             if isinstance(response_data, dict):
                 if "up_time_seconds" in response_data and "uptime" not in response_data:
                     response_data["uptime"] = response_data["up_time_seconds"]
-                elif (
-                    "uptime" in response_data and "up_time_seconds" not in response_data
-                ):
+                elif "uptime" in response_data and "up_time_seconds" not in response_data:
                     response_data["up_time_seconds"] = response_data["uptime"]
         except Exception:
             # Keep original response on any unexpected structure/errors
@@ -378,9 +376,7 @@ class ComfoClimeAPI:
                 )
                 device_configs.append(device_config)
             except (KeyError, ValueError, TypeError) as e:
-                _LOGGER.warning(
-                    "Skipping invalid device entry: %s - Error: %s", device_dict, e
-                )
+                _LOGGER.warning("Skipping invalid device entry: %s - Error: %s", device_dict, e)
                 continue
 
         return device_configs
@@ -406,9 +402,7 @@ class ComfoClimeAPI:
         return response_data
 
     @api_get("/device/{device_uuid}/telemetry/{telemetry_id}")
-    async def _read_telemetry_raw(
-        self, response_data, device_uuid: str, telemetry_id: str
-    ):
+    async def _read_telemetry_raw(self, response_data, device_uuid: str, telemetry_id: str):
         """Read raw telemetry data from device.
 
         The @api_get decorator handles:
@@ -558,11 +552,7 @@ class ComfoClimeAPI:
         cached_value = self._rate_limiter.get_property_from_cache(cache_key)
         if cached_value is not None:
             # Cache stores the final value, reconstruct approximation
-            estimated_raw = (
-                int(cached_value / faktor)
-                if faktor != 0 and isinstance(cached_value, (int, float))
-                else 0
-            )
+            estimated_raw = int(cached_value / faktor) if faktor != 0 and isinstance(cached_value, int | float) else 0
             return PropertyReading(
                 device_uuid=device_uuid,
                 path=property_path,
@@ -604,24 +594,19 @@ class ComfoClimeAPI:
 
         # String properties (3+ bytes) - not supported by PropertyReading model yet
         # Return None for string properties for now
-        elif byte_count and byte_count > 2:
+        if byte_count and byte_count > 2:
             if len(data) != byte_count:
-                raise ValueError(
-                    f"Unerwartete Byte-Anzahl: erwartet {byte_count}, erhalten {len(data)}"
-                )
+                raise ValueError(f"Unerwartete Byte-Anzahl: erwartet {byte_count}, erhalten {len(data)}")
             # String values don't fit PropertyReading model - return None
             # TODO: Consider adding StringPropertyReading model
             result = "".join(chr(byte) for byte in data if byte != 0)
             self._rate_limiter.set_property_cache(cache_key, result)
             _LOGGER.debug("String property read (not returned as model): %s", result)
             return None
-        else:
-            raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
+        raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
 
     @api_get("/device/{device_uuid}/property/{property_path}")
-    async def _read_property_for_device_raw(
-        self, response_data, device_uuid: str, property_path: str
-    ) -> None | list:
+    async def _read_property_for_device_raw(self, response_data, device_uuid: str, property_path: str) -> None | list:
         """Read raw property data from device.
 
         The @api_get decorator handles:
@@ -845,9 +830,7 @@ class ComfoClimeAPI:
 
         return payload
 
-    async def async_update_thermal_profile(
-        self, updates: dict[str, Any] | None = None, **kwargs
-    ) -> dict[str, Any]:
+    async def async_update_thermal_profile(self, updates: dict[str, Any] | None = None, **kwargs) -> dict[str, Any]:
         """Update thermal profile settings on the device.
 
         Provides backward compatibility with legacy dict-based calls while
@@ -894,9 +877,7 @@ class ComfoClimeAPI:
             return await self._convert_dict_to_kwargs_and_update(updates)
         return await self._async_update_thermal_profile(**kwargs)
 
-    async def _convert_dict_to_kwargs_and_update(
-        self, updates: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _convert_dict_to_kwargs_and_update(self, updates: dict[str, Any]) -> dict[str, Any]:
         """Convert legacy dict-based thermal profile updates to kwargs format.
 
         Internal method that translates nested dict structure to modern
@@ -1016,7 +997,7 @@ class ComfoClimeAPI:
         Returns:
             Payload dict for the decorator to process
         """
-        return {"data": [z] + data}
+        return {"data": [z, *data]}
 
     async def async_set_property_for_device(
         self,
@@ -1071,12 +1052,10 @@ class ComfoClimeAPI:
             raise ValueError("Nur 1 oder 2 Byte unterstützt")
 
         # Calculate raw value and validate it fits in byte count
-        raw_value = int(round(value / faktor))
+        raw_value = round(value / faktor)
         is_valid, error_message = validate_byte_value(raw_value, byte_count, signed)
         if not is_valid:
-            raise ValueError(
-                f"Invalid value for byte_count={byte_count}, signed={signed}: {error_message}"
-            )
+            raise ValueError(f"Invalid value for byte_count={byte_count}, signed={signed}: {error_message}")
 
         data = self.signed_int_to_bytes(raw_value, byte_count, signed)
 

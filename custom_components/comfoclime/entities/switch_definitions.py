@@ -18,12 +18,8 @@ class SwitchDefinition(BaseModel):
 
     model_config = {"frozen": True}
 
-    key: str = Field(
-        ..., description="Unique identifier for the switch in API responses or dict key"
-    )
-    name: str = Field(
-        ..., description="Display name for the switch (fallback if translation missing)"
-    )
+    key: str = Field(..., description="Unique identifier for the switch in API responses or dict key")
+    name: str = Field(..., description="Display name for the switch (fallback if translation missing)")
     translation_key: str = Field(..., description="Key for i18n translations")
     endpoint: str = Field(..., description="Either 'thermal_profile' or 'dashboard'")
     invert: bool = Field(

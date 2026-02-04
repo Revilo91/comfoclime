@@ -56,16 +56,10 @@ class MockComfoClimeAPI:
         self._call_history: list[tuple[str, tuple, dict]] = []
 
         # Wrap async methods with AsyncMock for assertion support
-        self.async_update_dashboard = AsyncMock(
-            side_effect=self._async_update_dashboard
-        )
+        self.async_update_dashboard = AsyncMock(side_effect=self._async_update_dashboard)
         self.async_set_hvac_season = AsyncMock(side_effect=self._async_set_hvac_season)
-        self.async_update_thermal_profile = AsyncMock(
-            side_effect=self._async_update_thermal_profile
-        )
-        self.async_set_property_for_device = AsyncMock(
-            side_effect=self._async_set_property_for_device
-        )
+        self.async_update_thermal_profile = AsyncMock(side_effect=self._async_update_thermal_profile)
+        self.async_set_property_for_device = AsyncMock(side_effect=self._async_set_property_for_device)
 
     def _record_call(self, method: str, *args: Any, **kwargs: Any) -> None:
         """Record a method call for verification."""
@@ -114,22 +108,16 @@ class MockComfoClimeAPI:
         self.responses.dashboard_data["season"] = season
         self.responses.dashboard_data["hpStandby"] = hpStandby
 
-    async def async_read_telemetry_for_device(
-        self, device_uuid: str, telemetry_id: int, **kwargs: Any
-    ) -> float:
+    async def async_read_telemetry_for_device(self, device_uuid: str, telemetry_id: int, **kwargs: Any) -> float:
         self._record_call(
             "async_read_telemetry_for_device",
             device_uuid=device_uuid,
             telemetry_id=telemetry_id,
             **kwargs,
         )
-        return self.responses.telemetry_data.get(device_uuid, {}).get(
-            str(telemetry_id), 0.0
-        )
+        return self.responses.telemetry_data.get(device_uuid, {}).get(str(telemetry_id), 0.0)
 
-    async def async_read_property_for_device(
-        self, device_uuid: str, path: str, **kwargs: Any
-    ) -> int:
+    async def async_read_property_for_device(self, device_uuid: str, path: str, **kwargs: Any) -> int:
         self._record_call(
             "async_read_property_for_device",
             device_uuid=device_uuid,
@@ -170,12 +158,8 @@ class MockComfoClimeAPI:
         assert len(calls) > 0, f"Expected at least 1 call to {method}, got 0"
         _, kwargs = calls[-1]  # Check last call
         for key, expected_value in expected_kwargs.items():
-            assert key in kwargs, (
-                f"Expected kwarg '{key}' not found in call to {method}"
-            )
-            assert kwargs[key] == expected_value, (
-                f"Expected {key}={expected_value}, got {kwargs[key]}"
-            )
+            assert key in kwargs, f"Expected kwarg '{key}' not found in call to {method}"
+            assert kwargs[key] == expected_value, f"Expected {key}={expected_value}, got {kwargs[key]}"
 
 
 @pytest.fixture

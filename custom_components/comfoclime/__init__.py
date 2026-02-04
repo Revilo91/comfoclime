@@ -1,11 +1,11 @@
+import asyncio
 import logging
 
-import asyncio
 import aiohttp
 import homeassistant.helpers.device_registry as dr
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.exceptions import HomeAssistantError, ConfigEntryNotReady
+from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 
 from .access_tracker import AccessTracker
@@ -18,7 +18,7 @@ from .coordinator import (
     ComfoClimeTelemetryCoordinator,
     ComfoClimeThermalprofileCoordinator,
 )
-from .validators import validate_property_path, validate_byte_value, validate_duration
+from .validators import validate_byte_value, validate_duration, validate_property_path
 
 DOMAIN = "comfoclime"
 
@@ -54,9 +54,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         from .config_flow import _get_default_entity_options
         from .entity_helper import get_monitoring_sensors
 
-        new_options["enabled_monitoring"] = [
-            opt["value"] for opt in get_monitoring_sensors()
-        ]
+        new_options["enabled_monitoring"] = [opt["value"] for opt in get_monitoring_sensors()]
         needs_update = True
 
     if needs_update:
@@ -167,12 +165,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
                 "monitoring",
                 "definition",
             ]
-            _LOGGER.error(
-                "Coordinator %s first refresh failed: %s", coordinator_names[i], result
-            )
-            raise ConfigEntryNotReady(
-                f"Failed to initialize {coordinator_names[i]} coordinator: {result}"
-            ) from result
+            _LOGGER.error("Coordinator %s first refresh failed: %s", coordinator_names[i], result)
+            raise ConfigEntryNotReady(f"Failed to initialize {coordinator_names[i]} coordinator: {result}") from result
 
     _LOGGER.debug("Coordinator first refresh completed successfully")
 
@@ -244,7 +238,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
         # Validate value fits in byte count
         # Convert value with factor before validation (use same rounding as API)
-        actual_value = int(round(value / faktor))
+        actual_value = round(value / faktor)
         is_valid, error_message = validate_byte_value(actual_value, byte_count, signed)
         if not is_valid:
             _LOGGER.error(
@@ -261,7 +255,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         if not device or not device.identifiers:
             _LOGGER.error("Gerät nicht gefunden oder ungültig")
             raise HomeAssistantError("Gerät nicht gefunden oder ungültig")
-        domain, device_uuid = list(device.identifiers)[0]
+        domain, device_uuid = next(iter(device.identifiers))
         if domain != DOMAIN:
             _LOGGER.error(f"Gerät gehört nicht zur Integration {DOMAIN}")
             raise HomeAssistantError(f"Gerät gehört nicht zur Integration {DOMAIN}")
@@ -275,7 +269,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
                 faktor=faktor,
             )
             _LOGGER.info(f"Property {path} auf {value} gesetzt für {device_uuid}")
-        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+        except (TimeoutError, aiohttp.ClientError) as e:
             _LOGGER.exception("Fehler beim Setzen von Property %s", path)
             raise HomeAssistantError(f"Fehler beim Setzen von Property {path}") from e
 
@@ -283,7 +277,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         try:
             await api.async_reset_system()
             _LOGGER.info("ComfoClime Neustart ausgelöst")
-        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+        except (TimeoutError, aiohttp.ClientError) as e:
             _LOGGER.exception("Fehler beim Neustart des Geräts")
             raise HomeAssistantError("Fehler beim Neustart des Geräts") from e
 
@@ -309,9 +303,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
         valid_scenarios = list(SCENARIO_REVERSE_MAPPING.keys())
         if scenario not in valid_scenarios:
-            raise HomeAssistantError(
-                f"Invalid scenario '{scenario}'. Must be one of: {', '.join(valid_scenarios)}"
-            )
+            raise HomeAssistantError(f"Invalid scenario '{scenario}'. Must be one of: {', '.join(valid_scenarios)}")
 
         # Validate duration if provided
         if duration is not None:
@@ -321,11 +313,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
                 raise HomeAssistantError(f"Ungültige Dauer: {error_message}")
 
         # Validate start_delay format if provided
-        if start_delay is not None:
-            if not isinstance(start_delay, str):
-                raise HomeAssistantError(
-                    f"start_delay must be a datetime string (e.g. 'YYYY-MM-DD HH:MM:SS'), got: {type(start_delay).__name__}"
-                )
+        if start_delay is not None and not isinstance(start_delay, str):
+            raise HomeAssistantError(
+                f"start_delay must be a datetime string (e.g. 'YYYY-MM-DD HH:MM:SS'), got: {type(start_delay).__name__}"
+            )
 
         _LOGGER.debug(
             f"Service call: set_scenario_mode for {entity_id}, "
@@ -345,13 +336,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
                         duration=duration,
                         start_delay=start_delay,
                     )
-                except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as e:
-                    _LOGGER.exception(
-                        "Error setting scenario mode '%s' on %s", scenario, entity_id
-                    )
-                    raise HomeAssistantError(
-                        f"Failed to set scenario mode '{scenario}'"
-                    ) from e
+                except (TimeoutError, aiohttp.ClientError, ValueError) as e:
+                    _LOGGER.exception("Error setting scenario mode '%s' on %s", scenario, entity_id)
+                    raise HomeAssistantError(f"Failed to set scenario mode '{scenario}'") from e
                 else:
                     _LOGGER.info(
                         f"Scenario mode '{scenario}' activated for {entity_id} "
@@ -367,9 +354,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     hass.services.async_register(DOMAIN, "set_property", handle_set_property_service)
     hass.services.async_register(DOMAIN, "reset_system", handle_reset_system_service)
-    hass.services.async_register(
-        DOMAIN, "set_scenario_mode", handle_set_scenario_mode_service
-    )
+    hass.services.async_register(DOMAIN, "set_scenario_mode", handle_set_scenario_mode_service)
     return True
 
 

@@ -10,6 +10,7 @@ This module provides the RateLimiterCache class that handles:
 """
 
 import asyncio
+import contextlib
 import logging
 
 from .constants import API_DEFAULTS
@@ -151,9 +152,7 @@ class RateLimiterCache:
 
         # Ensure minimum interval between requests
         if time_since_last_request < self.min_request_interval:
-            wait_time = max(
-                wait_time, self.min_request_interval - time_since_last_request
-            )
+            wait_time = max(wait_time, self.min_request_interval - time_since_last_request)
 
         # If this is a read and we recently wrote, wait for cooldown
         # Write operations skip this check - they always have priority
@@ -202,10 +201,8 @@ class RateLimiterCache:
             pending_task = self._pending_requests[key]
             if not pending_task.done():
                 pending_task.cancel()
-                try:
+                with contextlib.suppress(asyncio.CancelledError):
                     await pending_task
-                except asyncio.CancelledError:
-                    pass
 
         # Wait for debounce time
         await asyncio.sleep(debounce_time)
@@ -316,16 +313,12 @@ class RateLimiterCache:
             device_uuid: UUID of the device
         """
         # Remove telemetry cache entries for this device
-        keys_to_remove = [
-            k for k in self._telemetry_cache.keys() if k.startswith(f"{device_uuid}:")
-        ]
+        keys_to_remove = [k for k in self._telemetry_cache if k.startswith(f"{device_uuid}:")]
         for k in keys_to_remove:
             del self._telemetry_cache[k]
 
         # Remove property cache entries for this device
-        keys_to_remove = [
-            k for k in self._property_cache.keys() if k.startswith(f"{device_uuid}:")
-        ]
+        keys_to_remove = [k for k in self._property_cache if k.startswith(f"{device_uuid}:")]
         for k in keys_to_remove:
             del self._property_cache[k]
 

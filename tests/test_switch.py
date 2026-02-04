@@ -332,9 +332,7 @@ class TestComfoClimeSwitch:
         assert ("comfoclime", "test-device-uuid") in device_info["identifiers"]
         assert device_info["name"] == "ComfoClime Test"
 
-    def test_switch_device_info_none(
-        self, mock_hass, mock_thermalprofile_coordinator, mock_api, mock_config_entry
-    ):
+    def test_switch_device_info_none(self, mock_hass, mock_thermalprofile_coordinator, mock_api, mock_config_entry):
         """Test switch device info when device is None."""
         switch = ComfoClimeSwitch(
             hass=mock_hass,

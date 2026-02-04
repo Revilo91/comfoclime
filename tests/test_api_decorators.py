@@ -72,9 +72,7 @@ async def test_api_get_simple():
     mock_session = MagicMock()
     mock_context = MagicMock()
     mock_context.__aenter__ = AsyncMock(
-        return_value=MagicMock(
-            raise_for_status=MagicMock(), json=AsyncMock(return_value=mock_response)
-        )
+        return_value=MagicMock(raise_for_status=MagicMock(), json=AsyncMock(return_value=mock_response))
     )
     mock_context.__aexit__ = AsyncMock()
     mock_session.get = MagicMock(return_value=mock_context)
@@ -102,9 +100,7 @@ async def test_api_get_with_uuid():
     mock_session = MagicMock()
     mock_context = MagicMock()
     mock_context.__aenter__ = AsyncMock(
-        return_value=MagicMock(
-            raise_for_status=MagicMock(), json=AsyncMock(return_value=mock_response)
-        )
+        return_value=MagicMock(raise_for_status=MagicMock(), json=AsyncMock(return_value=mock_response))
     )
     mock_context.__aexit__ = AsyncMock()
     mock_session.get = MagicMock(return_value=mock_context)
@@ -139,9 +135,7 @@ async def test_api_get_with_parameters():
     mock_session = MagicMock()
     mock_context = MagicMock()
     mock_context.__aenter__ = AsyncMock(
-        return_value=MagicMock(
-            raise_for_status=MagicMock(), json=AsyncMock(return_value=mock_response)
-        )
+        return_value=MagicMock(raise_for_status=MagicMock(), json=AsyncMock(return_value=mock_response))
     )
     mock_context.__aexit__ = AsyncMock()
     mock_session.get = MagicMock(return_value=mock_context)
@@ -171,9 +165,7 @@ async def test_api_get_with_response_key():
     mock_session = MagicMock()
     mock_context = MagicMock()
     mock_context.__aenter__ = AsyncMock(
-        return_value=MagicMock(
-            raise_for_status=MagicMock(), json=AsyncMock(return_value=mock_response)
-        )
+        return_value=MagicMock(raise_for_status=MagicMock(), json=AsyncMock(return_value=mock_response))
     )
     mock_context.__aexit__ = AsyncMock()
     mock_session.get = MagicMock(return_value=mock_context)
@@ -201,9 +193,7 @@ async def test_api_get_with_fix_temperatures():
     mock_session = MagicMock()
     mock_context = MagicMock()
     mock_context.__aenter__ = AsyncMock(
-        return_value=MagicMock(
-            raise_for_status=MagicMock(), json=AsyncMock(return_value=mock_response)
-        )
+        return_value=MagicMock(raise_for_status=MagicMock(), json=AsyncMock(return_value=mock_response))
     )
     mock_context.__aexit__ = AsyncMock()
     mock_session.get = MagicMock(return_value=mock_context)
@@ -244,9 +234,7 @@ async def test_api_get_skip_lock():
     mock_session = MagicMock()
     mock_context = MagicMock()
     mock_context.__aenter__ = AsyncMock(
-        return_value=MagicMock(
-            raise_for_status=MagicMock(), json=AsyncMock(return_value=mock_response)
-        )
+        return_value=MagicMock(raise_for_status=MagicMock(), json=AsyncMock(return_value=mock_response))
     )
     mock_context.__aexit__ = AsyncMock()
     mock_session.get = MagicMock(return_value=mock_context)
@@ -578,9 +566,7 @@ async def test_api_get_yields_to_pending_writes():
     mock_session = MagicMock()
     mock_context = MagicMock()
     mock_context.__aenter__ = AsyncMock(
-        return_value=MagicMock(
-            raise_for_status=MagicMock(), json=AsyncMock(return_value=mock_response)
-        )
+        return_value=MagicMock(raise_for_status=MagicMock(), json=AsyncMock(return_value=mock_response))
     )
     mock_context.__aexit__ = AsyncMock()
     mock_session.get = MagicMock(return_value=mock_context)
@@ -616,9 +602,7 @@ async def test_api_get_skip_lock_does_not_yield():
     mock_session = MagicMock()
     mock_context = MagicMock()
     mock_context.__aenter__ = AsyncMock(
-        return_value=MagicMock(
-            raise_for_status=MagicMock(), json=AsyncMock(return_value=mock_response)
-        )
+        return_value=MagicMock(raise_for_status=MagicMock(), json=AsyncMock(return_value=mock_response))
     )
     mock_context.__aexit__ = AsyncMock()
     mock_session.get = MagicMock(return_value=mock_context)

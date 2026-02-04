@@ -26,25 +26,25 @@ Note:
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
 from homeassistant.components.fan import FanEntity, FanEntityFeature
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
     from .comfoclime_api import ComfoClimeAPI
     from .coordinator import ComfoClimeDashboardCoordinator
 
-from .constants import FanSpeed
 from . import DOMAIN
+from .constants import FanSpeed
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -151,12 +151,10 @@ class ComfoClimeFan(CoordinatorEntity, FanEntity):
                 try:
                     await self.coordinator.async_request_refresh()
                 except Exception:
-                    _LOGGER.exception(
-                        "Background refresh failed after fan speed update"
-                    )
+                    _LOGGER.exception("Background refresh failed after fan speed update")
 
             self._hass.async_create_task(safe_refresh())
-        except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+        except (TimeoutError, aiohttp.ClientError) as err:
             _LOGGER.exception("Error setting fan speed")
             raise HomeAssistantError(f"Failed to set fan speed: {err}") from err
 
@@ -175,9 +173,7 @@ class ComfoClimeFan(CoordinatorEntity, FanEntity):
         self.async_write_ha_state()
 
 
-async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
-) -> None:
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     """Set up ComfoClime fan entity from a config entry.
 
     Creates the fan entity for controlling the ComfoClime ventilation

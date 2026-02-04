@@ -67,9 +67,7 @@ def validate_host(host: str) -> tuple[bool, str | None]:
         pass
 
     # Validate as hostname
-    hostname_pattern = re.compile(
-        r"^(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\.[A-Za-z0-9-]{1,63})*\.?$"
-    )
+    hostname_pattern = re.compile(r"^(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\.[A-Za-z0-9-]{1,63})*\.?$")
     if not hostname_pattern.match(host):
         return False, "Invalid hostname format"
 

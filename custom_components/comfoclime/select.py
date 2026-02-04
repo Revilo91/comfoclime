@@ -1,19 +1,19 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
 from homeassistant.components.select import SelectEntity
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
     from .comfoclime_api import ComfoClimeAPI
     from .coordinator import (
         ComfoClimePropertyCoordinator,
@@ -23,8 +23,8 @@ if TYPE_CHECKING:
 from . import DOMAIN
 from .entities.select_definitions import (
     PROPERTY_SELECT_ENTITIES,
-    PropertySelectDefinition,
     SELECT_ENTITIES,
+    PropertySelectDefinition,
     SelectDefinition,
 )
 from .entity_helper import is_entity_category_enabled, is_entity_enabled
@@ -32,9 +32,7 @@ from .entity_helper import is_entity_category_enabled, is_entity_enabled
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
-) -> None:
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     data = hass.data[DOMAIN][entry.entry_id]
     api = data["api"]
     main_device = data["main_device"]
@@ -49,11 +47,7 @@ async def async_setup_entry(
     if is_entity_category_enabled(entry.options, "selects", "thermal_profile"):
         for conf in SELECT_ENTITIES:
             if is_entity_enabled(entry.options, "selects", "thermal_profile", conf):
-                entities.append(
-                    ComfoClimeSelect(
-                        hass, tpcoordinator, api, conf, device=main_device, entry=entry
-                    )
-                )
+                entities.append(ComfoClimeSelect(hass, tpcoordinator, api, conf, device=main_device, entry=entry))
 
     # Verbundene Geräte abrufen
     try:
@@ -75,9 +69,7 @@ async def async_setup_entry(
 
             for select_def in select_defs:
                 # Check if this individual select property is enabled
-                if not is_entity_enabled(
-                    entry.options, "selects", "connected_properties", select_def
-                ):
+                if not is_entity_enabled(entry.options, "selects", "connected_properties", select_def):
                     continue
 
                 # Register property with coordinator for batched fetching
@@ -200,7 +192,7 @@ class ComfoClimeSelect(CoordinatorEntity, SelectEntity):
                     _LOGGER.exception("Background refresh failed after select update")
 
             self._hass.async_create_task(safe_refresh())
-        except (aiohttp.ClientError, asyncio.TimeoutError):
+        except (TimeoutError, aiohttp.ClientError):
             _LOGGER.exception("Error setting select %s", self._name)
             raise HomeAssistantError(f"Error setting {self._name}") from None
 
@@ -280,6 +272,6 @@ class ComfoClimePropertySelect(CoordinatorEntity, SelectEntity):
             self._current = option
             # Trigger coordinator refresh to update all entities
             await self.coordinator.async_request_refresh()
-        except (aiohttp.ClientError, asyncio.TimeoutError):
+        except (TimeoutError, aiohttp.ClientError):
             _LOGGER.exception("Error setting select %s", self._name)
             raise HomeAssistantError(f"Error setting {self._name}") from None

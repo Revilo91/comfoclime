@@ -48,22 +48,23 @@ from homeassistant.components.climate import (
     HVACAction,
     HVACMode,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.entity import DeviceInfo
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.helpers.entity import DeviceInfo
+    from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
     from .comfoclime_api import ComfoClimeAPI
     from .coordinator import (
         ComfoClimeDashboardCoordinator,
         ComfoClimeThermalprofileCoordinator,
     )
 
-from .constants import FanSpeed, ScenarioMode, Season, TemperatureProfile
 from . import DOMAIN
+from .constants import FanSpeed, ScenarioMode, Season, TemperatureProfile
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -92,9 +93,7 @@ SCENARIO_MAPPING = {
 SCENARIO_REVERSE_MAPPING = {v: k for k, v in SCENARIO_MAPPING.items()}
 
 # Default durations for scenarios in minutes
-SCENARIO_DEFAULT_DURATIONS = {
-    mode: mode.default_duration_minutes for mode in ScenarioMode
-}
+SCENARIO_DEFAULT_DURATIONS = {mode: mode.default_duration_minutes for mode in ScenarioMode}
 
 # Fan Mode Mapping (based on fan.py implementation)
 # fanSpeed from dashboard: 0, 1, 2, 3
@@ -149,9 +148,7 @@ async def async_setup_entry(
     data = hass.data[DOMAIN][config_entry.entry_id]
     api: ComfoClimeAPI = data["api"]
     dashboard_coordinator: ComfoClimeDashboardCoordinator = data["coordinator"]
-    thermalprofile_coordinator: ComfoClimeThermalprofileCoordinator = data[
-        "tpcoordinator"
-    ]
+    thermalprofile_coordinator: ComfoClimeThermalprofileCoordinator = data["tpcoordinator"]
     main_device: dict[str, Any] | None = data.get("main_device")
 
     if not main_device:
@@ -243,7 +240,7 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
         self._attr_hvac_modes = list(HVAC_MODE_REVERSE_MAPPING.keys())
 
         # Preset modes (automatic profiles + manual mode)
-        self._attr_preset_modes = [PRESET_MANUAL] + list(PRESET_REVERSE_MAPPING.keys())
+        self._attr_preset_modes = [PRESET_MANUAL, *list(PRESET_REVERSE_MAPPING.keys())]
 
         # Fan modes
         self._attr_fan_modes = list(FAN_MODE_REVERSE_MAPPING.keys())
@@ -254,11 +251,7 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
 
         # Also listen to thermal profile coordinator updates
         # This ensures target_temperature updates are reflected immediately
-        self.async_on_remove(
-            self._thermalprofile_coordinator.async_add_listener(
-                self._handle_coordinator_update
-            )
-        )
+        self.async_on_remove(self._thermalprofile_coordinator.async_add_listener(self._handle_coordinator_update))
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -280,10 +273,7 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
         Climate entity depends on both dashboard and thermal profile coordinators,
         so we check both for successful updates.
         """
-        return (
-            self.coordinator.last_update_success
-            or self._thermalprofile_coordinator.last_update_success
-        )
+        return self.coordinator.last_update_success or self._thermalprofile_coordinator.last_update_success
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -312,7 +302,7 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
         """
         tp = self._thermalprofile_coordinator.data or {}
         temp = (tp.get("temperature") or {}).get("manualTemperature")
-        if isinstance(temp, (int, float)):
+        if isinstance(temp, int | float):
             return temp
         return None
 
@@ -385,9 +375,7 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
             0x80: HVACAction.IDLE,  # Unused
         }
 
-        active_flags = [
-            status for mask, status in status_mapping.items() if heat_pump_status & mask
-        ]
+        active_flags = [status for mask, status in status_mapping.items() if heat_pump_status & mask]
 
         if not active_flags:
             return [HVACAction.IDLE]
@@ -485,9 +473,7 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
         else:
             # Non-blocking mode: Schedule refresh as background tasks
             self.hass.async_create_task(safe_refresh(self.coordinator, "dashboard"))
-            self.hass.async_create_task(
-                safe_refresh(self._thermalprofile_coordinator, "thermal_profile")
-            )
+            self.hass.async_create_task(safe_refresh(self._thermalprofile_coordinator, "thermal_profile"))
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature via dashboard API in manual mode.
@@ -501,9 +487,7 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
             return
 
         try:
-            _LOGGER.debug(
-                "Setting manual temperature to %s°C via dashboard API", temperature
-            )
+            _LOGGER.debug("Setting manual temperature to %s°C via dashboard API", temperature)
 
             # Setting setPointTemperature should explicitly switch to manual mode (status=0)
             # and replaces seasonProfile/temperatureProfile. We send status=0 to ensure
@@ -516,7 +500,7 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
             # Wait for coordinators to refresh (blocking) to ensure UI shows actual device state
             await self._async_refresh_coordinators(blocking=True)
 
-        except (asyncio.TimeoutError, asyncio.CancelledError):
+        except (TimeoutError, asyncio.CancelledError):
             _LOGGER.exception(
                 "Timeout setting temperature to %s°C. "
                 "This may indicate network connectivity issues with the device. "
@@ -526,9 +510,7 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
         except aiohttp.ClientError:
             _LOGGER.exception("Network error setting temperature to %s°C", temperature)
         except (ValueError, KeyError, TypeError):
-            _LOGGER.exception(
-                "Invalid data while setting temperature to %s°C", temperature
-            )
+            _LOGGER.exception("Invalid data while setting temperature to %s°C", temperature)
 
     async def async_update_dashboard(self, **kwargs: Any) -> None:
         """Update dashboard settings via API.
@@ -568,22 +550,18 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
                 # Active modes: Use atomic operation to set both season and hpStandby
                 # This prevents race conditions between thermal profile and dashboard updates
                 _LOGGER.debug(
-                    "Setting HVAC mode to %s - "
-                    "atomically setting season=%s and hpStandby=False",
+                    "Setting HVAC mode to %s - atomically setting season=%s and hpStandby=False",
                     hvac_mode,
                     season_value,
                 )
-                await self._api.async_set_hvac_season(
-                    season=season_value, hpStandby=False
-                )
+                await self._api.async_set_hvac_season(season=season_value, hpStandby=False)
 
             # Wait for coordinators to refresh (blocking) to ensure UI shows actual device state
             await self._async_refresh_coordinators(blocking=True)
 
-        except (asyncio.TimeoutError, asyncio.CancelledError):
+        except (TimeoutError, asyncio.CancelledError):
             _LOGGER.exception(
-                "Timeout setting HVAC mode to %s. "
-                "This may indicate network connectivity issues with the device.",
+                "Timeout setting HVAC mode to %s. This may indicate network connectivity issues with the device.",
                 hvac_mode,
             )
         except aiohttp.ClientError:
@@ -604,10 +582,7 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
         try:
             # Manual mode: User wants to use manual temperature control
             if preset_mode == PRESET_MANUAL:
-                _LOGGER.debug(
-                    "Switching to manual temperature control mode - "
-                    "user needs to set temperature manually"
-                )
+                _LOGGER.debug("Switching to manual temperature control mode - user needs to set temperature manually")
                 # Set status=0 to activate manual mode
                 # setPointTemperature should be set separately via async_set_temperature
                 await self.async_update_dashboard(status=0)
@@ -630,8 +605,7 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
             profile_value = PRESET_REVERSE_MAPPING[preset_mode]
 
             _LOGGER.debug(
-                "Setting preset mode to %s (profile=%s) "
-                "via dashboard API - activates automatic mode",
+                "Setting preset mode to %s (profile=%s) via dashboard API - activates automatic mode",
                 preset_mode,
                 profile_value,
             )
@@ -648,18 +622,15 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
             # Wait for coordinators to refresh (blocking) to ensure UI shows actual device state
             await self._async_refresh_coordinators(blocking=True)
 
-        except (asyncio.TimeoutError, asyncio.CancelledError):
+        except (TimeoutError, asyncio.CancelledError):
             _LOGGER.exception(
-                "Timeout setting preset mode to %s. "
-                "This may indicate network connectivity issues with the device.",
+                "Timeout setting preset mode to %s. This may indicate network connectivity issues with the device.",
                 preset_mode,
             )
         except aiohttp.ClientError:
             _LOGGER.exception("Network error setting preset mode to %s", preset_mode)
         except (ValueError, KeyError, TypeError):
-            _LOGGER.exception(
-                "Invalid data while setting preset mode to %s", preset_mode
-            )
+            _LOGGER.exception("Invalid data while setting preset mode to %s", preset_mode)
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         """Set fan mode by updating fan speed via dashboard API.
@@ -684,10 +655,9 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
             # Wait for coordinators to refresh (blocking) to ensure UI shows actual device state
             await self._async_refresh_coordinators(blocking=True)
 
-        except (asyncio.TimeoutError, asyncio.CancelledError):
+        except (TimeoutError, asyncio.CancelledError):
             _LOGGER.exception(
-                "Timeout setting fan mode to %s. "
-                "This may indicate network connectivity issues with the device.",
+                "Timeout setting fan mode to %s. This may indicate network connectivity issues with the device.",
                 fan_mode,
             )
         except aiohttp.ClientError:
@@ -760,8 +730,7 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
                     raise
 
             _LOGGER.debug(
-                "Setting scenario mode to %s (value=%s) "
-                "with duration=%ss, start_delay=%ss",
+                "Setting scenario mode to %s (value=%s) with duration=%ss, start_delay=%ss",
                 scenario_mode,
                 scenario_value,
                 scenario_time_left,
@@ -778,13 +747,7 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
             # Wait for coordinators to refresh (blocking) to ensure UI shows actual device state
             await self._async_refresh_coordinators(blocking=True)
 
-        except (
-            aiohttp.ClientError,
-            asyncio.TimeoutError,
-            ValueError,
-            KeyError,
-            TypeError,
-        ):
+        except (TimeoutError, aiohttp.ClientError, ValueError, KeyError, TypeError):
             _LOGGER.exception("Failed to set scenario mode %s", scenario_mode)
             raise
 
@@ -810,20 +773,16 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
                 hours, remainder = divmod(scenario_time_left, 3600)
                 minutes, seconds = divmod(remainder, 60)
                 if hours > 0:
-                    attrs["scenario_time_left_formatted"] = (
-                        f"{int(hours)}h {int(minutes)}m"
-                    )
+                    attrs["scenario_time_left_formatted"] = f"{int(hours)}h {int(minutes)}m"
                 elif minutes > 0:
-                    attrs["scenario_time_left_formatted"] = (
-                        f"{int(minutes)}m {int(seconds)}s"
-                    )
+                    attrs["scenario_time_left_formatted"] = f"{int(minutes)}m {int(seconds)}s"
                 else:
                     attrs["scenario_time_left_formatted"] = f"{int(seconds)}s"
 
         # For transparency: expose last_manual_temperature from thermal profile if available
         tp = getattr(self._thermalprofile_coordinator, "data", None) or {}
         manual_temp = (tp.get("temperature") or {}).get("manualTemperature")
-        if isinstance(manual_temp, (int, float)):
+        if isinstance(manual_temp, int | float):
             attrs["last_manual_temperature"] = manual_temp
 
         return attrs
@@ -841,10 +800,9 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
             # Wait for coordinators to refresh (blocking) to ensure UI shows actual device state
             await self._async_refresh_coordinators(blocking=True)
 
-        except (asyncio.TimeoutError, asyncio.CancelledError):
+        except (TimeoutError, asyncio.CancelledError):
             _LOGGER.exception(
-                "Timeout turning off climate device. "
-                "This may indicate network connectivity issues with the device."
+                "Timeout turning off climate device. This may indicate network connectivity issues with the device."
             )
         except aiohttp.ClientError:
             _LOGGER.exception("Network error turning off climate device")
@@ -864,10 +822,9 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
             # Wait for coordinators to refresh (blocking) to ensure UI shows actual device state
             await self._async_refresh_coordinators(blocking=True)
 
-        except (asyncio.TimeoutError, asyncio.CancelledError):
+        except (TimeoutError, asyncio.CancelledError):
             _LOGGER.exception(
-                "Timeout turning on climate device. "
-                "This may indicate network connectivity issues with the device."
+                "Timeout turning on climate device. This may indicate network connectivity issues with the device."
             )
         except aiohttp.ClientError:
             _LOGGER.exception("Network error turning on climate device")

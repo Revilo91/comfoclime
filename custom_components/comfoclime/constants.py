@@ -146,9 +146,7 @@ class APIDefaults(BaseModel):
 
     model_config = {"frozen": True}
 
-    READ_TIMEOUT: int = Field(
-        default=10, description="Timeout for read operations (GET) in seconds"
-    )
+    READ_TIMEOUT: int = Field(default=10, description="Timeout for read operations (GET) in seconds")
     WRITE_TIMEOUT: int = Field(
         default=30,
         description="Timeout for write operations (PUT) in seconds - longer for dashboard updates",
@@ -157,21 +155,11 @@ class APIDefaults(BaseModel):
         default=30.0,
         description="Cache time-to-live in seconds for telemetry and property reads",
     )
-    MAX_RETRIES: int = Field(
-        default=3, description="Number of retries for transient failures"
-    )
-    MIN_REQUEST_INTERVAL: float = Field(
-        default=0.1, description="Minimum interval between API requests in seconds"
-    )
-    WRITE_COOLDOWN: float = Field(
-        default=2.0, description="Cooldown period after write operations in seconds"
-    )
-    REQUEST_DEBOUNCE: float = Field(
-        default=0.3, description="Debounce interval for repeated requests in seconds"
-    )
-    POLLING_INTERVAL: int = Field(
-        default=60, description="Default polling interval for coordinators in seconds"
-    )
+    MAX_RETRIES: int = Field(default=3, description="Number of retries for transient failures")
+    MIN_REQUEST_INTERVAL: float = Field(default=0.1, description="Minimum interval between API requests in seconds")
+    WRITE_COOLDOWN: float = Field(default=2.0, description="Cooldown period after write operations in seconds")
+    REQUEST_DEBOUNCE: float = Field(default=0.3, description="Debounce interval for repeated requests in seconds")
+    POLLING_INTERVAL: int = Field(default=60, description="Default polling interval for coordinators in seconds")
 
 
 # Create a default instance for easy access

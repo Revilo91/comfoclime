@@ -24,7 +24,8 @@ import asyncio
 import functools
 import inspect
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import aiohttp
 
@@ -135,7 +136,7 @@ def api_get(
                 async with self._request_lock:
                     return await _execute()
 
-            except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            except (TimeoutError, aiohttp.ClientError) as e:
                 if on_error is not None:
                     _LOGGER.warning(f"Error fetching {url_template}: {e}")
                     return on_error
@@ -225,9 +226,7 @@ def api_put(
                     from zoneinfo import ZoneInfo
 
                     if not self.hass:
-                        raise ValueError(
-                            "hass instance required for timestamp generation"
-                        )
+                        raise ValueError("hass instance required for timestamp generation")
                     tz = ZoneInfo(self.hass.config.time_zone)
                     payload["timestamp"] = datetime.now(tz).isoformat()
                     headers = {"content-type": "application/json; charset=utf-8"}
@@ -245,9 +244,7 @@ def api_put(
                             self.write_timeout,
                             payload,
                         )
-                        async with session.put(
-                            url, json=payload, headers=headers, timeout=timeout
-                        ) as response:
+                        async with session.put(url, json=payload, headers=headers, timeout=timeout) as response:
                             response.raise_for_status()
                             if is_dashboard:
                                 try:
@@ -259,11 +256,7 @@ def api_put(
                             _LOGGER.debug("Update OK status=%d", response.status)
                             return response.status == 200
 
-                    except (  # noqa: PERF203
-                        asyncio.TimeoutError,
-                        asyncio.CancelledError,
-                        aiohttp.ClientError,
-                    ) as e:
+                    except (TimeoutError, asyncio.CancelledError, aiohttp.ClientError) as e:
                         last_exception = e
                         if attempt < self.max_retries:
                             wait_time = 2 ** (attempt + 1)

@@ -1,6 +1,5 @@
 """Tests for the AccessTracker module."""
 
-
 from custom_components.comfoclime.access_tracker import AccessTracker
 
 
@@ -149,9 +148,7 @@ class TestAccessTracker:
 
         # Check at time 70 - first access should be outside minute window
         mock_tracker._mock_time = 70
-        assert (
-            mock_tracker.get_accesses_per_minute("Dashboard") == 1
-        )  # Only the second access
+        assert mock_tracker.get_accesses_per_minute("Dashboard") == 1  # Only the second access
 
         # Check at time 3700 - both should be outside hour window
         mock_tracker._mock_time = 3700

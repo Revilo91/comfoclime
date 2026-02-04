@@ -1,8 +1,10 @@
 """Test to verify the UUID deadlock fix."""
 
 import asyncio
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
 from custom_components.comfoclime.comfoclime_api import ComfoClimeAPI
 
 
@@ -62,7 +64,7 @@ async def test_uuid_no_deadlock_on_connected_devices():
             assert devices == [{"id": 1}]
             assert api.uuid == "test-uuid-123"
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pytest.fail("async_get_connected_devices() timed out - likely a deadlock!")
 
 
@@ -180,5 +182,5 @@ async def test_concurrent_uuid_requests():
             # Note: Due to rate limiting and locking, only one call should fetch UUID
             assert call_count["uuid"] >= 1  # At least one UUID fetch
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pytest.fail("Concurrent requests timed out - likely a deadlock!")

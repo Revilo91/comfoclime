@@ -17,13 +17,9 @@ from custom_components.comfoclime.coordinator import (
 
 
 @pytest.mark.asyncio
-async def test_telemetry_coordinator_concurrent_registration(
-    hass_with_frame_helper, mock_api
-):
+async def test_telemetry_coordinator_concurrent_registration(hass_with_frame_helper, mock_api):
     """Test that TelemetryCoordinator handles concurrent registrations during update."""
-    coordinator = ComfoClimeTelemetryCoordinator(
-        hass_with_frame_helper, mock_api, devices=[]
-    )
+    coordinator = ComfoClimeTelemetryCoordinator(hass_with_frame_helper, mock_api, devices=[])
 
     # Register initial telemetry
     await coordinator.register_telemetry(
@@ -46,9 +42,7 @@ async def test_telemetry_coordinator_concurrent_registration(
         )
         return 25.5
 
-    mock_api.async_read_telemetry_for_device = AsyncMock(
-        side_effect=mock_read_telemetry
-    )
+    mock_api.async_read_telemetry_for_device = AsyncMock(side_effect=mock_read_telemetry)
 
     # This should not raise RuntimeError: dictionary changed size during iteration
     result = await coordinator._async_update_data()
@@ -59,13 +53,9 @@ async def test_telemetry_coordinator_concurrent_registration(
 
 
 @pytest.mark.asyncio
-async def test_property_coordinator_concurrent_registration(
-    hass_with_frame_helper, mock_api
-):
+async def test_property_coordinator_concurrent_registration(hass_with_frame_helper, mock_api):
     """Test that PropertyCoordinator handles concurrent registrations during update."""
-    coordinator = ComfoClimePropertyCoordinator(
-        hass_with_frame_helper, mock_api, devices=[]
-    )
+    coordinator = ComfoClimePropertyCoordinator(hass_with_frame_helper, mock_api, devices=[])
 
     # Register initial property
     await coordinator.register_property(
@@ -101,9 +91,7 @@ async def test_property_coordinator_concurrent_registration(
 @pytest.mark.asyncio
 async def test_telemetry_coordinator_multiple_devices(hass_with_frame_helper, mock_api):
     """Test TelemetryCoordinator with multiple devices and telemetry values."""
-    coordinator = ComfoClimeTelemetryCoordinator(
-        hass_with_frame_helper, mock_api, devices=[]
-    )
+    coordinator = ComfoClimeTelemetryCoordinator(hass_with_frame_helper, mock_api, devices=[])
 
     # Register multiple telemetries for multiple devices
     await coordinator.register_telemetry(
@@ -124,9 +112,7 @@ async def test_telemetry_coordinator_multiple_devices(hass_with_frame_helper, mo
     async def mock_read_telemetry(device_uuid, telemetry_id, **kwargs):
         return float(telemetry_id) / 10.0
 
-    mock_api.async_read_telemetry_for_device = AsyncMock(
-        side_effect=mock_read_telemetry
-    )
+    mock_api.async_read_telemetry_for_device = AsyncMock(side_effect=mock_read_telemetry)
 
     result = await coordinator._async_update_data()
 
@@ -141,9 +127,7 @@ async def test_telemetry_coordinator_multiple_devices(hass_with_frame_helper, mo
 @pytest.mark.asyncio
 async def test_property_coordinator_multiple_devices(hass_with_frame_helper, mock_api):
     """Test PropertyCoordinator with multiple devices and property values."""
-    coordinator = ComfoClimePropertyCoordinator(
-        hass_with_frame_helper, mock_api, devices=[]
-    )
+    coordinator = ComfoClimePropertyCoordinator(hass_with_frame_helper, mock_api, devices=[])
 
     # Register multiple properties for multiple devices
     await coordinator.register_property(
@@ -187,9 +171,7 @@ async def test_property_coordinator_multiple_devices(hass_with_frame_helper, moc
 @pytest.mark.asyncio
 async def test_telemetry_coordinator_error_handling(hass_with_frame_helper, mock_api):
     """Test TelemetryCoordinator handles errors gracefully."""
-    coordinator = ComfoClimeTelemetryCoordinator(
-        hass_with_frame_helper, mock_api, devices=[]
-    )
+    coordinator = ComfoClimeTelemetryCoordinator(hass_with_frame_helper, mock_api, devices=[])
 
     await coordinator.register_telemetry(
         device_uuid="device1", telemetry_id="123", faktor=1.0, signed=True, byte_count=2
@@ -204,9 +186,7 @@ async def test_telemetry_coordinator_error_handling(hass_with_frame_helper, mock
             raise aiohttp.ClientError("Test error")
         return 25.5
 
-    mock_api.async_read_telemetry_for_device = AsyncMock(
-        side_effect=mock_read_telemetry
-    )
+    mock_api.async_read_telemetry_for_device = AsyncMock(side_effect=mock_read_telemetry)
 
     result = await coordinator._async_update_data()
 
@@ -219,9 +199,7 @@ async def test_telemetry_coordinator_error_handling(hass_with_frame_helper, mock
 @pytest.mark.asyncio
 async def test_property_coordinator_error_handling(hass_with_frame_helper, mock_api):
     """Test PropertyCoordinator handles errors gracefully."""
-    coordinator = ComfoClimePropertyCoordinator(
-        hass_with_frame_helper, mock_api, devices=[]
-    )
+    coordinator = ComfoClimePropertyCoordinator(hass_with_frame_helper, mock_api, devices=[])
 
     await coordinator.register_property(
         device_uuid="device1",
@@ -257,9 +235,7 @@ async def test_property_coordinator_error_handling(hass_with_frame_helper, mock_
 @pytest.mark.asyncio
 async def test_telemetry_coordinator_get_value(hass_with_frame_helper, mock_api):
     """Test TelemetryCoordinator get_telemetry_value method."""
-    coordinator = ComfoClimeTelemetryCoordinator(
-        hass_with_frame_helper, mock_api, devices=[]
-    )
+    coordinator = ComfoClimeTelemetryCoordinator(hass_with_frame_helper, mock_api, devices=[])
 
     # Test with no data
     assert coordinator.get_telemetry_value("device1", "123") is None
@@ -272,9 +248,7 @@ async def test_telemetry_coordinator_get_value(hass_with_frame_helper, mock_api)
 
     # Test retrieval
     assert coordinator.get_telemetry_value("device1", "123") == 25.5
-    assert (
-        coordinator.get_telemetry_value("device1", 456) == 30.0
-    )  # Test int conversion
+    assert coordinator.get_telemetry_value("device1", 456) == 30.0  # Test int conversion
     assert coordinator.get_telemetry_value("device2", "789") == 15.0
     assert coordinator.get_telemetry_value("device1", "999") is None
     assert coordinator.get_telemetry_value("device3", "123") is None
@@ -283,9 +257,7 @@ async def test_telemetry_coordinator_get_value(hass_with_frame_helper, mock_api)
 @pytest.mark.asyncio
 async def test_property_coordinator_get_value(hass_with_frame_helper, mock_api):
     """Test PropertyCoordinator get_property_value method."""
-    coordinator = ComfoClimePropertyCoordinator(
-        hass_with_frame_helper, mock_api, devices=[]
-    )
+    coordinator = ComfoClimePropertyCoordinator(hass_with_frame_helper, mock_api, devices=[])
 
     # Test with no data
     assert coordinator.get_property_value("device1", "29/1/10") is None
@@ -327,9 +299,7 @@ async def test_dashboard_coordinator_error(hass_with_frame_helper, mock_api):
     """Test DashboardCoordinator error handling."""
     coordinator = ComfoClimeDashboardCoordinator(hass_with_frame_helper, mock_api)
 
-    mock_api.async_get_dashboard_data = AsyncMock(
-        side_effect=aiohttp.ClientError("Test error")
-    )
+    mock_api.async_get_dashboard_data = AsyncMock(side_effect=aiohttp.ClientError("Test error"))
 
     with pytest.raises(UpdateFailed):
         await coordinator._async_update_data()
@@ -357,9 +327,7 @@ async def test_thermalprofile_coordinator_error(hass_with_frame_helper, mock_api
     """Test ThermalprofileCoordinator error handling."""
     coordinator = ComfoClimeThermalprofileCoordinator(hass_with_frame_helper, mock_api)
 
-    mock_api.async_get_thermal_profile = AsyncMock(
-        side_effect=aiohttp.ClientError("Test error")
-    )
+    mock_api.async_get_thermal_profile = AsyncMock(side_effect=aiohttp.ClientError("Test error"))
 
     with pytest.raises(UpdateFailed):
         await coordinator._async_update_data()
@@ -372,9 +340,7 @@ async def test_definition_coordinator(hass_with_frame_helper, mock_api):
         {"uuid": "device1", "modelTypeId": 1},  # ComfoAirQ - should fetch
         {"uuid": "device2", "modelTypeId": 20},  # ComfoClime - should skip
     ]
-    coordinator = ComfoClimeDefinitionCoordinator(
-        hass_with_frame_helper, mock_api, devices=devices
-    )
+    coordinator = ComfoClimeDefinitionCoordinator(hass_with_frame_helper, mock_api, devices=devices)
 
     mock_definition_data = {"name": "ComfoAir Q350", "version": "2.0"}
     mock_api.async_get_device_definition = AsyncMock(return_value=mock_definition_data)
@@ -391,9 +357,7 @@ async def test_definition_coordinator(hass_with_frame_helper, mock_api):
 @pytest.mark.asyncio
 async def test_definition_coordinator_get_value(hass_with_frame_helper, mock_api):
     """Test DefinitionCoordinator get_definition_data method."""
-    coordinator = ComfoClimeDefinitionCoordinator(
-        hass_with_frame_helper, mock_api, devices=[]
-    )
+    coordinator = ComfoClimeDefinitionCoordinator(hass_with_frame_helper, mock_api, devices=[])
 
     # Test with no data
     assert coordinator.get_definition_data("device1") is None
@@ -414,18 +378,14 @@ async def test_definition_coordinator_get_value(hass_with_frame_helper, mock_api
 async def test_dashboard_coordinator_custom_interval(hass_with_frame_helper, mock_api):
     """Test dashboard coordinator with custom polling interval."""
     custom_interval = 120
-    coordinator = ComfoClimeDashboardCoordinator(
-        hass_with_frame_helper, mock_api, polling_interval=custom_interval
-    )
+    coordinator = ComfoClimeDashboardCoordinator(hass_with_frame_helper, mock_api, polling_interval=custom_interval)
 
     assert coordinator.update_interval.total_seconds() == custom_interval
     assert coordinator.api == mock_api
 
 
 @pytest.mark.asyncio
-async def test_thermalprofile_coordinator_custom_interval(
-    hass_with_frame_helper, mock_api
-):
+async def test_thermalprofile_coordinator_custom_interval(hass_with_frame_helper, mock_api):
     """Test thermal profile coordinator with custom polling interval."""
     custom_interval = 90
     coordinator = ComfoClimeThermalprofileCoordinator(
@@ -501,9 +461,7 @@ async def test_monitoring_coordinator_success(hass_with_frame_helper, mock_api):
 @pytest.mark.asyncio
 async def test_monitoring_coordinator_failure(hass_with_frame_helper, mock_api):
     """Test monitoring coordinator handles API errors."""
-    mock_api.async_get_monitoring_ping = AsyncMock(
-        side_effect=aiohttp.ClientError("Connection error")
-    )
+    mock_api.async_get_monitoring_ping = AsyncMock(side_effect=aiohttp.ClientError("Connection error"))
 
     coordinator = ComfoClimeMonitoringCoordinator(hass_with_frame_helper, mock_api)
 
@@ -515,9 +473,7 @@ async def test_monitoring_coordinator_failure(hass_with_frame_helper, mock_api):
 async def test_monitoring_coordinator_custom_interval(hass_with_frame_helper, mock_api):
     """Test monitoring coordinator with custom polling interval."""
     custom_interval = 120
-    coordinator = ComfoClimeMonitoringCoordinator(
-        hass_with_frame_helper, mock_api, polling_interval=custom_interval
-    )
+    coordinator = ComfoClimeMonitoringCoordinator(hass_with_frame_helper, mock_api, polling_interval=custom_interval)
 
     assert coordinator.update_interval.total_seconds() == custom_interval
     assert coordinator.api == mock_api

@@ -13,9 +13,7 @@ from pydantic import BaseModel, Field
 
 
 # Utility functions for byte and temperature value processing
-def bytes_to_signed_int(
-    data: list, byte_count: int | None = None, signed: bool = True
-) -> int:
+def bytes_to_signed_int(data: list, byte_count: int | None = None, signed: bool = True) -> int:
     """Convert raw bytes to a signed or unsigned integer value.
 
     Converts a list of bytes (little-endian) to an integer value.
@@ -129,7 +127,7 @@ def fix_signed_temperatures_in_dict(data: dict) -> dict:
         if isinstance(val, dict):
             # Recursively process nested dictionaries
             data[key] = fix_signed_temperatures_in_dict(val)
-        elif "Temperature" in key and val is not None and isinstance(val, (int, float)):
+        elif "Temperature" in key and val is not None and isinstance(val, int | float):
             data[key] = fix_signed_temperature(val)
     return data
 
@@ -159,9 +157,7 @@ class DeviceConfig(BaseModel):
 
     uuid: str = Field(..., min_length=1, description="Device unique identifier")
     model_type_id: int = Field(..., ge=0, description="Model type identifier (numeric)")
-    display_name: str = Field(
-        default="Unknown Device", description="Human-readable device name"
-    )
+    display_name: str = Field(default="Unknown Device", description="Human-readable device name")
     version: str | None = Field(default=None, description="Optional firmware version")
 
 
@@ -191,22 +187,12 @@ class TelemetryReading(BaseModel):
 
     model_config = {"validate_assignment": True}
 
-    device_uuid: str = Field(
-        ..., min_length=1, description="UUID of the device providing the reading"
-    )
-    telemetry_id: str = Field(
-        ..., min_length=1, description="Telemetry identifier (path or ID)"
-    )
+    device_uuid: str = Field(..., min_length=1, description="UUID of the device providing the reading")
+    telemetry_id: str = Field(..., min_length=1, description="Telemetry identifier (path or ID)")
     raw_value: int = Field(..., description="Raw integer value from device")
-    faktor: float = Field(
-        default=1.0, gt=0, description="Multiplicative scaling factor (must be > 0)"
-    )
-    signed: bool = Field(
-        default=False, description="Whether the value should be interpreted as signed"
-    )
-    byte_count: Literal[1, 2] = Field(
-        default=2, description="Number of bytes in the value (1 or 2)"
-    )
+    faktor: float = Field(default=1.0, gt=0, description="Multiplicative scaling factor (must be > 0)")
+    signed: bool = Field(default=False, description="Whether the value should be interpreted as signed")
+    byte_count: Literal[1, 2] = Field(default=2, description="Number of bytes in the value (1 or 2)")
 
     @property
     def scaled_value(self) -> float:
@@ -254,9 +240,7 @@ class PropertyReading(BaseModel):
     device_uuid: str = Field(..., min_length=1, description="UUID of the device")
     path: str = Field(..., min_length=1, description="Property path (e.g., '29/1/10')")
     raw_value: int = Field(..., description="Raw integer value from device")
-    faktor: float = Field(
-        default=1.0, gt=0, description="Multiplicative scaling factor"
-    )
+    faktor: float = Field(default=1.0, gt=0, description="Multiplicative scaling factor")
     signed: bool = Field(default=True, description="Whether the value is signed")
     byte_count: Literal[1, 2] = Field(default=2, description="Number of bytes (1 or 2)")
 
@@ -338,12 +322,8 @@ class DashboardData(BaseModel):
     )
 
     # Air flow
-    exhaust_air_flow: int | None = Field(
-        default=None, alias="exhaustAirFlow", description="Exhaust air flow in m³/h"
-    )
-    supply_air_flow: int | None = Field(
-        default=None, alias="supplyAirFlow", description="Supply air flow in m³/h"
-    )
+    exhaust_air_flow: int | None = Field(default=None, alias="exhaustAirFlow", description="Exhaust air flow in m³/h")
+    supply_air_flow: int | None = Field(default=None, alias="supplyAirFlow", description="Supply air flow in m³/h")
 
     # Fan and profiles
     fan_speed: int | None = Field(
@@ -376,9 +356,7 @@ class DashboardData(BaseModel):
         description="Season mode (0=transition, 1=heating, 2=cooling)",
     )
     schedule: int | None = Field(default=None, description="Schedule mode status")
-    status: int | None = Field(
-        default=None, ge=0, le=1, description="Control mode (0=manual, 1=automatic)"
-    )
+    status: int | None = Field(default=None, ge=0, le=1, description="Control mode (0=manual, 1=automatic)")
 
     # Heat pump status
     heat_pump_status: int | None = Field(

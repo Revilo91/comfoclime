@@ -20,9 +20,7 @@ class NumberDefinition(BaseModel):
 
     model_config = {"frozen": True}
 
-    key: str = Field(
-        ..., description="Unique identifier for the number in API responses"
-    )
+    key: str = Field(..., description="Unique identifier for the number in API responses")
     name: str = Field(..., description="Display name for the number control")
     translation_key: str = Field(..., description="Key for i18n translations")
     min: float = Field(..., description="Minimum value")
@@ -55,9 +53,7 @@ class PropertyNumberDefinition(BaseModel):
     max: float = Field(..., description="Maximum value")
     step: float = Field(..., description="Step increment")
     unit: str | None = Field(default=None, description="Optional unit of measurement")
-    faktor: float = Field(
-        default=1.0, description="Multiplication factor for the raw value"
-    )
+    faktor: float = Field(default=1.0, description="Multiplication factor for the raw value")
     byte_count: int = Field(default=1, description="Number of bytes to read/write")
 
 

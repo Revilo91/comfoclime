@@ -1,12 +1,14 @@
 """Tests for ComfoClime sensor entities."""
 
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
+
 from custom_components.comfoclime.sensor import (
+    ComfoClimeDefinitionSensor,
+    ComfoClimePropertySensor,
     ComfoClimeSensor,
     ComfoClimeTelemetrySensor,
-    ComfoClimePropertySensor,
-    ComfoClimeDefinitionSensor,
     async_setup_entry,
 )
 
@@ -14,9 +16,7 @@ from custom_components.comfoclime.sensor import (
 class TestComfoClimeSensor:
     """Test ComfoClimeSensor class."""
 
-    def test_sensor_initialization(
-        self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry
-    ):
+    def test_sensor_initialization(self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry):
         """Test sensor initialization."""
         sensor = ComfoClimeSensor(
             hass=mock_hass,
@@ -39,9 +39,7 @@ class TestComfoClimeSensor:
         assert sensor._attr_state_class == "measurement"
         assert sensor._attr_unique_id == "test_entry_id_dashboard_indoorTemperature"
 
-    def test_sensor_state_update(
-        self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry
-    ):
+    def test_sensor_state_update(self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry):
         """Test sensor state update from coordinator."""
         sensor = ComfoClimeSensor(
             hass=mock_hass,
@@ -65,9 +63,7 @@ class TestComfoClimeSensor:
 
         assert sensor._state == 22.5
 
-    def test_sensor_value_mapping(
-        self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry
-    ):
+    def test_sensor_value_mapping(self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry):
         """Test sensor value mapping for temperatureProfile."""
         mock_coordinator.data = {"temperatureProfile": 0}
 
@@ -91,9 +87,7 @@ class TestComfoClimeSensor:
         # Should map 0 to "comfort"
         assert sensor._state == "comfort"
 
-    def test_sensor_device_info(
-        self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry
-    ):
+    def test_sensor_device_info(self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry):
         """Test sensor device info."""
         sensor = ComfoClimeSensor(
             hass=mock_hass,
@@ -145,9 +139,7 @@ class TestComfoClimeTelemetrySensor:
         assert sensor._byte_count == 2
         assert sensor._attr_unique_id == "test_entry_id_telemetry_123"
 
-    def test_telemetry_sensor_update(
-        self, mock_hass, mock_telemetry_coordinator, mock_device, mock_config_entry
-    ):
+    def test_telemetry_sensor_update(self, mock_hass, mock_telemetry_coordinator, mock_device, mock_config_entry):
         """Test telemetry sensor update from coordinator."""
         mock_telemetry_coordinator.get_telemetry_value.return_value = 25.5
 
@@ -171,9 +163,7 @@ class TestComfoClimeTelemetrySensor:
         sensor._handle_coordinator_update()
 
         assert sensor._state == 25.5
-        mock_telemetry_coordinator.get_telemetry_value.assert_called_once_with(
-            "test-device-uuid", "123"
-        )
+        mock_telemetry_coordinator.get_telemetry_value.assert_called_once_with("test-device-uuid", "123")
 
     def test_telemetry_sensor_update_with_override_uuid(
         self, mock_hass, mock_telemetry_coordinator, mock_device, mock_config_entry
@@ -202,9 +192,7 @@ class TestComfoClimeTelemetrySensor:
         sensor._handle_coordinator_update()
 
         # Should use override_uuid
-        mock_telemetry_coordinator.get_telemetry_value.assert_called_once_with(
-            override_uuid, "456"
-        )
+        mock_telemetry_coordinator.get_telemetry_value.assert_called_once_with(override_uuid, "456")
 
     def test_telemetry_sensor_negative_temperature(
         self, mock_hass, mock_telemetry_coordinator, mock_device, mock_config_entry
@@ -243,17 +231,13 @@ class TestComfoClimeTelemetrySensor:
 
         # Verify negative temperature is correctly read
         assert sensor._state == -5.5
-        mock_telemetry_coordinator.get_telemetry_value.assert_called_once_with(
-            "test-device-uuid", "4145"
-        )
+        mock_telemetry_coordinator.get_telemetry_value.assert_called_once_with("test-device-uuid", "4145")
 
 
 class TestComfoClimePropertySensor:
     """Test ComfoClimePropertySensor class."""
 
-    def test_property_sensor_initialization(
-        self, mock_hass, mock_property_coordinator, mock_device, mock_config_entry
-    ):
+    def test_property_sensor_initialization(self, mock_hass, mock_property_coordinator, mock_device, mock_config_entry):
         """Test property sensor initialization."""
         sensor = ComfoClimePropertySensor(
             hass=mock_hass,
@@ -278,9 +262,7 @@ class TestComfoClimePropertySensor:
         assert sensor._byte_count == 2
         assert sensor._attr_unique_id == "test_entry_id_property_29_1_10"
 
-    def test_property_sensor_update(
-        self, mock_hass, mock_property_coordinator, mock_device, mock_config_entry
-    ):
+    def test_property_sensor_update(self, mock_hass, mock_property_coordinator, mock_device, mock_config_entry):
         """Test property sensor update from coordinator."""
         mock_property_coordinator.get_property_value.return_value = 230
 
@@ -304,9 +286,7 @@ class TestComfoClimePropertySensor:
         sensor._handle_coordinator_update()
 
         assert sensor._state == 230
-        mock_property_coordinator.get_property_value.assert_called_once_with(
-            "test-device-uuid", "29/1/10"
-        )
+        mock_property_coordinator.get_property_value.assert_called_once_with("test-device-uuid", "29/1/10")
 
     def test_property_sensor_update_with_mapping(
         self, mock_hass, mock_property_coordinator, mock_device, mock_config_entry
@@ -411,14 +391,9 @@ class TestComfoClimeDefinitionSensor:
         assert sensor._attr_native_unit_of_measurement == "°C"
         assert sensor._attr_device_class == "temperature"
         assert sensor._attr_state_class == "measurement"
-        assert (
-            sensor._attr_unique_id
-            == "test_entry_id_definition_test-device-uuid_indoorTemperature"
-        )
+        assert sensor._attr_unique_id == "test_entry_id_definition_test-device-uuid_indoorTemperature"
 
-    def test_definition_sensor_update(
-        self, mock_hass, mock_definition_coordinator, mock_device, mock_config_entry
-    ):
+    def test_definition_sensor_update(self, mock_hass, mock_definition_coordinator, mock_device, mock_config_entry):
         """Test definition sensor update from coordinator."""
         sensor = ComfoClimeDefinitionSensor(
             hass=mock_hass,
@@ -441,9 +416,7 @@ class TestComfoClimeDefinitionSensor:
         sensor._handle_coordinator_update()
 
         assert sensor._state == 21.4
-        mock_definition_coordinator.get_definition_data.assert_called_once_with(
-            "test-device-uuid"
-        )
+        mock_definition_coordinator.get_definition_data.assert_called_once_with("test-device-uuid")
 
     def test_definition_sensor_update_missing_key(
         self, mock_hass, mock_definition_coordinator, mock_device, mock_config_entry

@@ -4,14 +4,14 @@ import pytest
 from pydantic import ValidationError
 
 from custom_components.comfoclime.models import (
-    DeviceConfig,
-    TelemetryReading,
-    PropertyReading,
     DashboardData,
+    DeviceConfig,
+    PropertyReading,
+    TelemetryReading,
     bytes_to_signed_int,
-    signed_int_to_bytes,
     fix_signed_temperature,
     fix_signed_temperatures_in_dict,
+    signed_int_to_bytes,
 )
 
 
@@ -157,21 +157,15 @@ class TestTelemetryReading:
     def test_telemetry_reading_invalid_faktor(self):
         """Test that invalid faktor raises ValidationError."""
         with pytest.raises(ValidationError):
-            TelemetryReading(
-                device_uuid="abc123", telemetry_id="10", raw_value=100, faktor=0
-            )
+            TelemetryReading(device_uuid="abc123", telemetry_id="10", raw_value=100, faktor=0)
 
         with pytest.raises(ValidationError):
-            TelemetryReading(
-                device_uuid="abc123", telemetry_id="10", raw_value=100, faktor=-1.0
-            )
+            TelemetryReading(device_uuid="abc123", telemetry_id="10", raw_value=100, faktor=-1.0)
 
     def test_telemetry_reading_invalid_byte_count(self):
         """Test that invalid byte_count raises ValidationError."""
         with pytest.raises(ValidationError):
-            TelemetryReading(
-                device_uuid="abc123", telemetry_id="10", raw_value=100, byte_count=3
-            )
+            TelemetryReading(device_uuid="abc123", telemetry_id="10", raw_value=100, byte_count=3)
 
 
 class TestPropertyReading:

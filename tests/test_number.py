@@ -1,15 +1,17 @@
 """Tests for ComfoClime number entities."""
 
-import pytest
 from unittest.mock import MagicMock
-from custom_components.comfoclime.number import (
-    ComfoClimeTemperatureNumber,
-    ComfoClimePropertyNumber,
-    async_setup_entry,
-)
+
+import pytest
+
 from custom_components.comfoclime.entities.number_definitions import (
     NumberDefinition,
     PropertyNumberDefinition,
+)
+from custom_components.comfoclime.number import (
+    ComfoClimePropertyNumber,
+    ComfoClimeTemperatureNumber,
+    async_setup_entry,
 )
 
 
@@ -68,9 +70,7 @@ class TestComfoClimeTemperatureNumber:
             step=0.5,
         )
 
-        mock_thermalprofile_coordinator.data = {
-            "temperature": {"manualTemperature": 22.5}
-        }
+        mock_thermalprofile_coordinator.data = {"temperature": {"manualTemperature": 22.5}}
 
         number = ComfoClimeTemperatureNumber(
             hass=mock_hass,
@@ -109,9 +109,7 @@ class TestComfoClimeTemperatureNumber:
         )
 
         # Set manual mode (status = 0)
-        mock_thermalprofile_coordinator.data = {
-            "temperature": {"status": 0, "manualTemperature": 22.0}
-        }
+        mock_thermalprofile_coordinator.data = {"temperature": {"status": 0, "manualTemperature": 22.0}}
 
         mock_hass.add_job = MagicMock()
 
@@ -127,9 +125,7 @@ class TestComfoClimeTemperatureNumber:
         await number.async_set_native_value(23.5)
 
         # Verify API was called
-        mock_api.async_update_thermal_profile.assert_called_once_with(
-            manual_temperature=23.5
-        )
+        mock_api.async_update_thermal_profile.assert_called_once_with(manual_temperature=23.5)
 
     def test_temperature_number_availability_when_automatic(
         self,
@@ -150,9 +146,7 @@ class TestComfoClimeTemperatureNumber:
         )
 
         # Set automatic mode (status = 1)
-        mock_thermalprofile_coordinator.data = {
-            "temperature": {"status": 1, "manualTemperature": 22.0}
-        }
+        mock_thermalprofile_coordinator.data = {"temperature": {"status": 1, "manualTemperature": 22.0}}
 
         number = ComfoClimeTemperatureNumber(
             hass=mock_hass,
@@ -185,9 +179,7 @@ class TestComfoClimeTemperatureNumber:
         )
 
         # Set manual mode (status = 0)
-        mock_thermalprofile_coordinator.data = {
-            "temperature": {"status": 0, "manualTemperature": 22.0}
-        }
+        mock_thermalprofile_coordinator.data = {"temperature": {"status": 0, "manualTemperature": 22.0}}
 
         number = ComfoClimeTemperatureNumber(
             hass=mock_hass,
@@ -314,9 +306,7 @@ class TestComfoClimePropertyNumber:
         number._handle_coordinator_update()
 
         assert number.native_value == 75
-        mock_property_coordinator.get_property_value.assert_called_once_with(
-            "test-device-uuid", "29/1/20"
-        )
+        mock_property_coordinator.get_property_value.assert_called_once_with("test-device-uuid", "29/1/20")
 
     @pytest.mark.asyncio
     async def test_property_number_async_set_value(
