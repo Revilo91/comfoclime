@@ -1,12 +1,17 @@
 """Tests for data models in models.py"""
 
 import pytest
+from pydantic import ValidationError
 
 from custom_components.comfoclime.models import (
     DeviceConfig,
     TelemetryReading,
     PropertyReading,
     DashboardData,
+    bytes_to_signed_int,
+    signed_int_to_bytes,
+    fix_signed_temperature,
+    fix_signed_temperatures_in_dict,
 )
 
 
@@ -35,20 +40,20 @@ class TestDeviceConfig:
         assert config.version is None
 
     def test_device_config_empty_uuid(self):
-        """Test that empty uuid raises ValueError."""
-        with pytest.raises(ValueError, match="uuid cannot be empty"):
+        """Test that empty uuid raises ValidationError."""
+        with pytest.raises(ValidationError):
             DeviceConfig(uuid="", model_type_id=1)
 
     def test_device_config_negative_model_type_id(self):
-        """Test that negative model_type_id raises ValueError."""
-        with pytest.raises(ValueError, match="model_type_id must be non-negative"):
+        """Test that negative model_type_id raises ValidationError."""
+        with pytest.raises(ValidationError):
             DeviceConfig(uuid="abc123", model_type_id=-1)
 
     def test_device_config_immutable(self):
         """Test that DeviceConfig is immutable (frozen)."""
         config = DeviceConfig(uuid="abc123", model_type_id=1)
 
-        with pytest.raises(AttributeError):
+        with pytest.raises(ValidationError):
             config.uuid = "new_uuid"
 
 
@@ -140,30 +145,30 @@ class TestTelemetryReading:
         assert reading.scaled_value == -10.0
 
     def test_telemetry_reading_empty_device_uuid(self):
-        """Test that empty device_uuid raises ValueError."""
-        with pytest.raises(ValueError, match="device_uuid cannot be empty"):
+        """Test that empty device_uuid raises ValidationError."""
+        with pytest.raises(ValidationError):
             TelemetryReading(device_uuid="", telemetry_id="10", raw_value=100)
 
     def test_telemetry_reading_empty_telemetry_id(self):
-        """Test that empty telemetry_id raises ValueError."""
-        with pytest.raises(ValueError, match="telemetry_id cannot be empty"):
+        """Test that empty telemetry_id raises ValidationError."""
+        with pytest.raises(ValidationError):
             TelemetryReading(device_uuid="abc123", telemetry_id="", raw_value=100)
 
     def test_telemetry_reading_invalid_faktor(self):
-        """Test that invalid faktor raises ValueError."""
-        with pytest.raises(ValueError, match="faktor must be greater than 0"):
+        """Test that invalid faktor raises ValidationError."""
+        with pytest.raises(ValidationError):
             TelemetryReading(
                 device_uuid="abc123", telemetry_id="10", raw_value=100, faktor=0
             )
 
-        with pytest.raises(ValueError, match="faktor must be greater than 0"):
+        with pytest.raises(ValidationError):
             TelemetryReading(
                 device_uuid="abc123", telemetry_id="10", raw_value=100, faktor=-1.0
             )
 
     def test_telemetry_reading_invalid_byte_count(self):
-        """Test that invalid byte_count raises ValueError."""
-        with pytest.raises(ValueError, match="byte_count must be 1 or 2"):
+        """Test that invalid byte_count raises ValidationError."""
+        with pytest.raises(ValidationError):
             TelemetryReading(
                 device_uuid="abc123", telemetry_id="10", raw_value=100, byte_count=3
             )
@@ -202,52 +207,137 @@ class TestPropertyReading:
         assert reading.scaled_value == 50.0
 
     def test_property_reading_empty_path(self):
-        """Test that empty path raises ValueError."""
-        with pytest.raises(ValueError, match="path cannot be empty"):
+        """Test that empty path raises ValidationError."""
+        with pytest.raises(ValidationError):
             PropertyReading(device_uuid="abc123", path="", raw_value=100)
 
 
 class TestDashboardData:
-    """Tests for DashboardData dataclass."""
+    """Tests for DashboardData Pydantic model."""
 
     def test_create_dashboard_data(self):
-        """Test creating a valid DashboardData."""
+        """Test creating a valid DashboardData with expanded fields."""
         data = DashboardData(
-            temperature=22.5,
-            target_temperature=21.0,
-            fan_speed=50,
-            season="heating",
+            indoor_temperature=22.5,
+            outdoor_temperature=10.0,
+            set_point_temperature=21.0,
+            fan_speed=2,
+            season=1,
             hp_standby=False,
         )
 
-        assert data.temperature == 22.5
-        assert data.target_temperature == 21.0
-        assert data.fan_speed == 50
-        assert data.season == "heating"
+        assert data.indoor_temperature == 22.5
+        assert data.outdoor_temperature == 10.0
+        assert data.set_point_temperature == 21.0
+        assert data.fan_speed == 2
+        assert data.season == 1
         assert data.hp_standby is False
 
     def test_dashboard_data_default_values(self):
         """Test DashboardData with default values."""
         data = DashboardData()
 
-        assert data.temperature is None
-        assert data.target_temperature is None
+        assert data.indoor_temperature is None
+        assert data.outdoor_temperature is None
+        assert data.set_point_temperature is None
         assert data.fan_speed is None
         assert data.season is None
         assert data.hp_standby is None
 
+    def test_dashboard_data_field_aliases(self):
+        """Test that field aliases work with camelCase API responses."""
+        # Create with camelCase (API format)
+        data = DashboardData(
+            indoorTemperature=22.5,
+            outdoorTemperature=10.0,
+            setPointTemperature=21.0,
+        )
+
+        # Access with snake_case (Python format)
+        assert data.indoor_temperature == 22.5
+        assert data.outdoor_temperature == 10.0
+        assert data.set_point_temperature == 21.0
+
+    def test_dashboard_data_helper_properties(self):
+        """Test helper properties for mode detection."""
+        data_heating = DashboardData(season=1)
+        assert data_heating.is_heating_mode is True
+        assert data_heating.is_cooling_mode is False
+
+        data_cooling = DashboardData(season=2)
+        assert data_cooling.is_heating_mode is False
+        assert data_cooling.is_cooling_mode is True
+
+        data_manual = DashboardData(status=0)
+        assert data_manual.is_manual_mode is True
+        assert data_manual.is_auto_mode is False
+
+        data_auto = DashboardData(status=1)
+        assert data_auto.is_manual_mode is False
+        assert data_auto.is_auto_mode is True
+
     def test_dashboard_data_invalid_fan_speed(self):
-        """Test that invalid fan_speed raises ValueError."""
-        with pytest.raises(ValueError, match="fan_speed must be between 0 and 100"):
+        """Test that invalid fan_speed raises ValidationError."""
+        with pytest.raises(ValidationError):
             DashboardData(fan_speed=-1)
 
-        with pytest.raises(ValueError, match="fan_speed must be between 0 and 100"):
-            DashboardData(fan_speed=101)
+        with pytest.raises(ValidationError):
+            DashboardData(fan_speed=4)  # Max is 3
 
     def test_dashboard_data_mutable(self):
         """Test that DashboardData is mutable (not frozen)."""
-        data = DashboardData(temperature=22.5)
+        data = DashboardData(indoor_temperature=22.5)
 
         # Should be able to update values
-        data.temperature = 23.0
-        assert data.temperature == 23.0
+        data.indoor_temperature = 23.0
+        assert data.indoor_temperature == 23.0
+
+
+class TestUtilityFunctions:
+    """Tests for utility functions moved to models.py."""
+
+    def test_bytes_to_signed_int(self):
+        """Test bytes_to_signed_int function."""
+        # Test unsigned 2-byte value
+        assert bytes_to_signed_int([0, 1], 2, signed=False) == 256
+
+        # Test signed 2-byte negative value
+        assert bytes_to_signed_int([255, 255], 2, signed=True) == -1
+
+        # Test signed 1-byte negative value
+        assert bytes_to_signed_int([255], 1, signed=True) == -1
+
+    def test_signed_int_to_bytes(self):
+        """Test signed_int_to_bytes function."""
+        # Test signed negative value
+        assert signed_int_to_bytes(-1, 2, signed=True) == [255, 255]
+
+        # Test unsigned value
+        assert signed_int_to_bytes(256, 2, signed=False) == [0, 1]
+
+    def test_fix_signed_temperature(self):
+        """Test fix_signed_temperature function."""
+        # Test negative temperature
+        result = fix_signed_temperature(6552.3)
+        assert abs(result - (-1.3)) < 0.01
+
+        # Test positive temperature (should remain unchanged)
+        result = fix_signed_temperature(235.0)
+        assert abs(result - 23.5) < 0.01
+
+    def test_fix_signed_temperatures_in_dict(self):
+        """Test fix_signed_temperatures_in_dict function."""
+        data = {
+            "indoorTemperature": 6552.3,
+            "fanSpeed": 2,
+            "outdoorTemperature": 235.0,
+        }
+
+        result = fix_signed_temperatures_in_dict(data)
+
+        # Temperature fields should be fixed
+        assert abs(result["indoorTemperature"] - (-1.3)) < 0.01
+        assert abs(result["outdoorTemperature"] - 23.5) < 0.01
+
+        # Non-temperature fields should be unchanged
+        assert result["fanSpeed"] == 2

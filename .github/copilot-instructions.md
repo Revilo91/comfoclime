@@ -30,6 +30,11 @@ Kurze, präzise Hinweise für KI-Coding-Agenten, damit sie sofort produktiv an d
 - eindeutige Entitäts-ID: `f"{entry.entry_id}_<type>_<id>"` für deterministische IDs.
 - Batch-Koordinatoren: TelemetryCoordinator und PropertyCoordinator bündeln Anfragen aller Entitäten in einem einzigen Aktualisierungszyklus (reduziert die API-Last).
 - Szenario-Modi: Kochen (4), Party (5), Abwesenheit (7), Boost (8) – siehe SCENARIO_MODES.md. Aktivierung über Klimavoreinstellungen oder den Dienst `set_scenario_mode`.
+- **Pydantic-Modelle**: Alle Datenmodelle verwenden Pydantic v2 BaseModel (siehe `models.py`). Utility-Funktionen (`bytes_to_signed_int`, `signed_int_to_bytes`, `fix_signed_temperature`) sind in `models.py` zentralisiert.
+  - Modelle sind mit Field-Constraints validiert (min_length, ge, gt, le, lt)
+  - `model_config = {"frozen": True}` für unveränderliche Modelle
+  - ValidationError statt ValueError bei ungültigen Daten
+  - Field-Aliase unterstützen camelCase (API) und snake_case (Python)
 
 ## Hinzufügen eines Telemetrie- oder Eigenschaftssensors
 
@@ -51,6 +56,13 @@ Kurze, präzise Hinweise für KI-Coding-Agenten, damit sie sofort produktiv an d
 - Debug-Logging: `.devcontainer/configuration.yaml` aktiviert das Debugging für `custom_components.comfoclime`.
 - Schnelle Iteration: `container restart` nach Codeänderungen (kein vollständiger Neuaufbau des Dev-Containers).
 - Tests: Ausführen mit `pytest tests/ -v` (Anforderungen in `requirements_test.txt`). Die umfassende Testsuite deckt alle Entitätstypen, die API, Caching sowie Timeout/Retry ab.
+- **WICHTIG: Testaktualisierung**: Bei JEDER Codeänderung MÜSSEN die entsprechenden Tests aktualisiert oder neue Tests hinzugefügt werden. Keine Code-Änderung ohne Test-Update!
+  - Modell-Änderungen → `tests/test_models.py` aktualisieren
+  - API-Änderungen → `tests/test_api.py` aktualisieren
+  - Koordinator-Änderungen → `tests/test_coordinator.py` aktualisieren
+  - Entitäts-Änderungen → entsprechende `tests/test_*.py` Dateien aktualisieren
+  - Neue Funktionen → neue Tests hinzufügen
+  - Pydantic-Modelle → ValidationError statt ValueError in Tests verwenden
 
 ## Fallstricke & Tücken
 
