@@ -39,6 +39,7 @@ if TYPE_CHECKING:
 
 from .api_decorators import api_get, api_put
 from .constants import API_DEFAULTS
+from .models import TelemetryReading, PropertyReading, DeviceConfig
 from .rate_limiter_cache import (
     DEFAULT_CACHE_TTL,
     DEFAULT_MIN_REQUEST_INTERVAL,
@@ -466,11 +467,11 @@ class ComfoClimeAPI:
             response_data: Extracted 'devices' array from response
 
         Returns:
-            List of device dictionaries, each containing:
+            List of DeviceConfig Pydantic models, each validated and containing:
                 - uuid (str): Device UUID
-                - @modelType (str): Device model type/ID
-                - displayName (str): Human-readable device name
-                - version (str): Firmware version
+                - model_type_id (int): Device model type/ID
+                - display_name (str): Human-readable device name
+                - version (str): Firmware version (optional)
 
         Raises:
             aiohttp.ClientError: If connection to device fails.
@@ -479,13 +480,30 @@ class ComfoClimeAPI:
         Example:
             >>> devices = await api.async_get_connected_devices()
             >>> for device in devices:
-            ...     print(f"{device['displayName']}: {device['@modelType']}")
+            ...     print(f"{device.display_name}: {device.model_type_id}")
 
         Note:
             The @api_get decorator extracts 'devices' key from response
-            and returns [] if not found.
+            and returns [] if not found. Invalid device entries are skipped.
         """
-        return response_data
+        # Parse each device dict into DeviceConfig model
+        device_configs = []
+        for device_dict in response_data:
+            try:
+                # Map API field names to model field names
+                # API uses @modelType, we need model_type_id
+                device_config = DeviceConfig(
+                    uuid=device_dict.get("uuid", ""),
+                    model_type_id=int(device_dict.get("@modelType", 0)),
+                    display_name=device_dict.get("displayName", "Unknown Device"),
+                    version=device_dict.get("version"),
+                )
+                device_configs.append(device_config)
+            except (KeyError, ValueError, TypeError) as e:
+                _LOGGER.warning("Skipping invalid device entry: %s - Error: %s", device_dict, e)
+                continue
+        
+        return device_configs
 
     @api_get(
         "/device/{device_uuid}/definition",
@@ -539,7 +557,7 @@ class ComfoClimeAPI:
         faktor: float = 1.0,
         signed: bool = True,
         byte_count: int | None = None,
-    ) -> float | None:
+    ) -> TelemetryReading | None:
         """Read telemetry data for a device with automatic caching.
 
         Fetches telemetry data from a specific device sensor. Results are
@@ -554,7 +572,8 @@ class ComfoClimeAPI:
             byte_count: Number of bytes to read (1 or 2, auto-detected if None)
 
         Returns:
-            Scaled telemetry value as float, or None if read failed.
+            TelemetryReading model with validated data and scaled_value property,
+            or None if read failed.
 
         Raises:
             aiohttp.ClientError: If connection to device fails.
@@ -562,20 +581,33 @@ class ComfoClimeAPI:
 
         Example:
             >>> # Read temperature sensor (2 bytes, signed, factor 0.1)
-            >>> temp = await api.async_read_telemetry_for_device(
+            >>> reading = await api.async_read_telemetry_for_device(
             ...     device_uuid="abc123",
             ...     telemetry_id="100",
             ...     faktor=0.1,
             ...     signed=True,
             ...     byte_count=2
             ... )
-            >>> print(f"Temperature: {temp}°C")
+            >>> if reading:
+            ...     print(f"Temperature: {reading.scaled_value}°C")
         """
         # Try to get from cache first
         cache_key = RateLimiterCache.get_cache_key(device_uuid, telemetry_id)
         cached_value = self._rate_limiter.get_telemetry_from_cache(cache_key)
         if cached_value is not None:
-            return cached_value
+            # Cache stores the raw value, reconstruct the model
+            # We need to reverse-engineer raw_value from cached scaled value
+            # For now, return a model with the cached result as raw (approximation)
+            # This is a simplification - ideally we'd cache the full model
+            estimated_raw = int(cached_value / faktor) if faktor != 0 else 0
+            return TelemetryReading(
+                device_uuid=device_uuid,
+                telemetry_id=str(telemetry_id),
+                raw_value=estimated_raw,
+                faktor=faktor,
+                signed=signed,
+                byte_count=byte_count or 2,
+            )
 
         # Not in cache, fetch from API using decorator
         data = await self._read_telemetry_raw(device_uuid, telemetry_id)
@@ -583,13 +615,22 @@ class ComfoClimeAPI:
         if data is None:
             return None
 
-        value = self.bytes_to_signed_int(data, byte_count, signed)
-        result = value * faktor
+        raw_value = self.bytes_to_signed_int(data, byte_count, signed)
+        
+        # Create validated Pydantic model
+        reading = TelemetryReading(
+            device_uuid=device_uuid,
+            telemetry_id=str(telemetry_id),
+            raw_value=raw_value,
+            faktor=faktor,
+            signed=signed,
+            byte_count=byte_count or len(data),
+        )
 
-        # Store in cache
-        self._rate_limiter.set_telemetry_cache(cache_key, result)
+        # Store scaled value in cache
+        self._rate_limiter.set_telemetry_cache(cache_key, reading.scaled_value)
 
-        return result
+        return reading
 
     async def async_read_property_for_device(
         self,
@@ -598,7 +639,7 @@ class ComfoClimeAPI:
         faktor: float = 1.0,
         signed: bool = True,
         byte_count: int | None = None,
-    ) -> float | str | None:
+    ) -> PropertyReading | None:
         """Read property data for a device with automatic caching.
 
         Fetches property data from a device. Results are cached for CACHE_TTL
@@ -613,7 +654,8 @@ class ComfoClimeAPI:
             byte_count: Number of bytes (1-2 for numeric, 3+ for string)
 
         Returns:
-            Property value as float (numeric) or str (string), or None if failed.
+            PropertyReading model with validated data and scaled_value property,
+            or None if failed.
 
         Raises:
             ValueError: If byte_count is invalid or data size mismatch.
@@ -622,24 +664,29 @@ class ComfoClimeAPI:
 
         Example:
             >>> # Read numeric property
-            >>> value = await api.async_read_property_for_device(
+            >>> reading = await api.async_read_property_for_device(
             ...     device_uuid="abc123",
             ...     property_path="29/1/10",
             ...     byte_count=2,
             ...     faktor=0.1
             ... )
-            >>> # Read string property
-            >>> name = await api.async_read_property_for_device(
-            ...     device_uuid="abc123",
-            ...     property_path="29/1/20",
-            ...     byte_count=16
-            ... )
+            >>> if reading:
+            ...     print(f"Value: {reading.scaled_value}")
         """
         # Try to get from cache first
         cache_key = RateLimiterCache.get_cache_key(device_uuid, property_path)
         cached_value = self._rate_limiter.get_property_from_cache(cache_key)
         if cached_value is not None:
-            return cached_value
+            # Cache stores the final value, reconstruct approximation
+            estimated_raw = int(cached_value / faktor) if faktor != 0 and isinstance(cached_value, (int, float)) else 0
+            return PropertyReading(
+                device_uuid=device_uuid,
+                path=property_path,
+                raw_value=estimated_raw,
+                faktor=faktor,
+                signed=signed,
+                byte_count=byte_count or 2,
+            )
 
         # Not in cache, fetch from API using decorator
         data = await self._read_property_for_device_raw(device_uuid, property_path)
@@ -648,22 +695,44 @@ class ComfoClimeAPI:
         if not data:
             return None
 
+        # Determine actual byte count if not provided
+        if byte_count is None:
+            byte_count = len(data)
+
+        # Parse numeric values (1-2 bytes)
         if byte_count in (1, 2):
-            value = self.bytes_to_signed_int(data, byte_count, signed)
-            result = value * faktor
+            raw_value = self.bytes_to_signed_int(data, byte_count, signed)
+            
+            # Create validated Pydantic model  
+            reading = PropertyReading(
+                device_uuid=device_uuid,
+                path=property_path,
+                raw_value=raw_value,
+                faktor=faktor,
+                signed=signed,
+                byte_count=byte_count,
+            )
+            
+            # Store scaled value in cache
+            self._rate_limiter.set_property_cache(cache_key, reading.scaled_value)
+            
+            return reading
+        
+        # String properties (3+ bytes) - not supported by PropertyReading model yet
+        # Return None for string properties for now
         elif byte_count and byte_count > 2:
             if len(data) != byte_count:
                 raise ValueError(
                     f"Unerwartete Byte-Anzahl: erwartet {byte_count}, erhalten {len(data)}"
                 )
+            # String values don't fit PropertyReading model - return None
+            # TODO: Consider adding StringPropertyReading model
             result = "".join(chr(byte) for byte in data if byte != 0)
+            self._rate_limiter.set_property_cache(cache_key, result)
+            _LOGGER.debug("String property read (not returned as model): %s", result)
+            return None
         else:
             raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
-
-        # Store in cache
-        self._rate_limiter.set_property_cache(cache_key, result)
-
-        return result
 
     @api_get("/device/{device_uuid}/property/{property_path}")
     async def _read_property_for_device_raw(

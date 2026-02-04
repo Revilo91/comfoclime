@@ -391,14 +391,15 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
 
             for telemetry_id, params in telemetry_items.items():
                 try:
-                    value = await self.api.async_read_telemetry_for_device(
+                    reading = await self.api.async_read_telemetry_for_device(
                         device_uuid=device_uuid,
                         telemetry_id=telemetry_id,
                         faktor=params["faktor"],
                         signed=params["signed"],
                         byte_count=params["byte_count"],
                     )
-                    result[device_uuid][telemetry_id] = value
+                    # Store the scaled value for backward compatibility with sensors
+                    result[device_uuid][telemetry_id] = reading.scaled_value if reading else None
                     # Track each individual API call
                     if self._access_tracker:
                         self._access_tracker.record_access("Telemetry")
@@ -571,14 +572,15 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
 
             for property_path, params in property_items.items():
                 try:
-                    value = await self.api.async_read_property_for_device(
+                    reading = await self.api.async_read_property_for_device(
                         device_uuid=device_uuid,
                         property_path=property_path,
                         faktor=params["faktor"],
                         signed=params["signed"],
                         byte_count=params["byte_count"],
                     )
-                    result[device_uuid][property_path] = value
+                    # Store the scaled value for backward compatibility with sensors
+                    result[device_uuid][property_path] = reading.scaled_value if reading else None
                     # Track each individual API call
                     if self._access_tracker:
                         self._access_tracker.record_access("Property")
