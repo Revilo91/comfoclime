@@ -1,0 +1,85 @@
+[project]
+name = "comfoclime"
+version = "1.0.0"
+description = "ComfoClime Home Assistant Integration"
+requires-python = ">=3.12"
+
+[tool.ruff]
+# Zielversion für Python
+target-version = "py312"
+
+# Maximale Zeilenlänge
+line-length = 120
+
+# Dateien/Ordner ausschließen
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    ".mypy_cache",
+    ".pytest_cache",
+    "*.egg-info",
+]
+
+[tool.ruff.lint]
+# Aktivierte Regel-Sets
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort (Import-Sortierung)
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "ARG",    # flake8-unused-arguments
+    "SIM",    # flake8-simplify
+    "TCH",    # flake8-type-checking
+    "PTH",    # flake8-use-pathlib
+    "RUF",    # Ruff-spezifische Regeln
+    "ASYNC",  # flake8-async
+]
+
+# Ignorierte Regeln
+ignore = [
+    "E501",   # Zeilenlänge (wird durch line-length gesteuert)
+    "B008",   # Function calls in argument defaults (für FastAPI/Pydantic)
+    "ARG001", # Unused function argument (manchmal nötig für Callbacks)
+    "ARG002", # Unused method argument
+]
+
+# Automatisch behebbare Regeln
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.lint.isort]
+# Import-Sortierung Konfiguration
+known-first-party = ["custom_components.comfoclime"]
+force-single-line = false
+combine-as-imports = true
+
+[tool.ruff.lint.per-file-ignores]
+# Tests dürfen private Member zugreifen und verschachtelte with-Statements verwenden
+"tests/**/*.py" = [
+    "SLF001",  # Private member accessed
+    "SIM117",  # Nested with statements (pytest patterns)
+    "B017",    # pytest.raises(Exception) is intentional
+    "PTH",     # Path usage (sys.path manipulation in tests)
+]
+# Pydantic models need runtime imports for type annotations
+"**/entities/*_definitions.py" = [
+    "TCH002",  # Third-party imports used by Pydantic at runtime
+]
+
+[tool.ruff.format]
+# Formatierungsstil
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
