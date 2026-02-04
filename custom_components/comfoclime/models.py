@@ -207,19 +207,15 @@ class TelemetryReading(BaseModel):
         """Calculate the scaled value.
 
         Applies signed interpretation (if needed) and scaling factor.
+        Uses the bytes_to_signed_int utility function for proper conversion.
 
         Returns:
             The scaled telemetry value.
         """
-        value = self.raw_value
-
-        # Handle signed values
-        if self.signed:
-            if self.byte_count == 1 and value > 127:
-                value -= 256
-            elif self.byte_count == 2 and value > 32767:
-                value -= 65536
-
+        # Convert raw_value to bytes and back using utility function for proper signed handling
+        bytes_data = signed_int_to_bytes(self.raw_value, self.byte_count, signed=False)
+        value = bytes_to_signed_int(bytes_data, self.byte_count, signed=self.signed)
+        
         return value * self.faktor
 
 
@@ -261,19 +257,15 @@ class PropertyReading(BaseModel):
         """Calculate the scaled value.
 
         Applies signed interpretation and scaling factor.
+        Uses the bytes_to_signed_int utility function for proper conversion.
 
         Returns:
             The scaled property value.
         """
-        value = self.raw_value
-
-        # Handle signed values
-        if self.signed:
-            if self.byte_count == 1 and value > 127:
-                value -= 256
-            elif self.byte_count == 2 and value > 32767:
-                value -= 65536
-
+        # Convert raw_value to bytes and back using utility function for proper signed handling
+        bytes_data = signed_int_to_bytes(self.raw_value, self.byte_count, signed=False)
+        value = bytes_to_signed_int(bytes_data, self.byte_count, signed=self.signed)
+        
         return value * self.faktor
 
 
