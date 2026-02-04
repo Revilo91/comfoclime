@@ -1,7 +1,7 @@
 """Tests for ComfoClime fan entity."""
 
 import pytest
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock
 from custom_components.comfoclime.fan import (
     ComfoClimeFan,
     async_setup_entry,
@@ -72,7 +72,14 @@ class TestComfoClimeFan:
         ids=["speed_0", "speed_1", "speed_2", "speed_3"],
     )
     def test_fan_percentage_calculation(
-        self, speed, expected_percentage, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry
+        self,
+        speed,
+        expected_percentage,
+        mock_hass,
+        mock_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
     ):
         """Test fan percentage calculation for various speeds."""
         fan = ComfoClimeFan(
@@ -99,7 +106,14 @@ class TestComfoClimeFan:
         ids=["0%", "33%", "50%", "66%", "100%"],
     )
     async def test_fan_percentage_to_step_conversion(
-        self, percentage, expected_step, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry
+        self,
+        percentage,
+        expected_step,
+        mock_hass,
+        mock_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
     ):
         """Test percentage to step conversion for various inputs."""
         mock_hass.add_job = MagicMock()

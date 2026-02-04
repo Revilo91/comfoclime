@@ -56,8 +56,8 @@ async def test_async_setup_entry(
                             ) as mock_def_coord:
                                 # Setup mocks
                                 mock_api_instance = MagicMock()
-                                mock_api_instance.async_get_connected_devices = AsyncMock(
-                                    return_value=[mock_device]
+                                mock_api_instance.async_get_connected_devices = (
+                                    AsyncMock(return_value=[mock_device])
                                 )
                                 mock_api_class.return_value = mock_api_instance
 
@@ -84,7 +84,9 @@ async def test_async_setup_entry(
                                 mock_def_coord.return_value = mock_def_coord_instance
 
                                 # Call async_setup_entry
-                                result = await async_setup_entry(mock_hass, mock_config_entry)
+                                result = await async_setup_entry(
+                                    mock_hass, mock_config_entry
+                                )
 
                                 # Verify setup was successful
                                 assert result is True
@@ -95,9 +97,9 @@ async def test_async_setup_entry(
 
                             # Verify platforms were set up
                             mock_hass.config_entries.async_forward_entry_setups.assert_called_once()
-                            platforms = (
-                                mock_hass.config_entries.async_forward_entry_setups.call_args[0][1]
-                            )
+                            platforms = mock_hass.config_entries.async_forward_entry_setups.call_args[
+                                0
+                            ][1]
                             assert "sensor" in platforms
                             assert "switch" in platforms
                             assert "number" in platforms
@@ -157,8 +159,8 @@ async def test_async_setup_entry_with_float_max_retries(
                             ) as mock_def_coord:
                                 # Setup mocks
                                 mock_api_instance = MagicMock()
-                                mock_api_instance.async_get_connected_devices = AsyncMock(
-                                    return_value=[mock_device]
+                                mock_api_instance.async_get_connected_devices = (
+                                    AsyncMock(return_value=[mock_device])
                                 )
                                 mock_api_class.return_value = mock_api_instance
 
@@ -185,7 +187,9 @@ async def test_async_setup_entry_with_float_max_retries(
                                 mock_def_coord.return_value = mock_def_coord_instance
 
                                 # Call async_setup_entry
-                                result = await async_setup_entry(mock_hass, mock_config_entry)
+                                result = await async_setup_entry(
+                                    mock_hass, mock_config_entry
+                                )
 
                                 # Verify setup was successful
                                 assert result is True
@@ -202,7 +206,9 @@ async def test_async_setup_entry_with_float_max_retries(
                                 assert api_kwargs["max_retries"] == 3
 
                                 # Verify float values remain as float
-                                assert isinstance(api_kwargs["min_request_interval"], float)
+                                assert isinstance(
+                                    api_kwargs["min_request_interval"], float
+                                )
                                 assert api_kwargs["min_request_interval"] == 0.1
                                 assert isinstance(api_kwargs["write_cooldown"], float)
                                 assert api_kwargs["write_cooldown"] == 2.0
@@ -211,7 +217,9 @@ async def test_async_setup_entry_with_float_max_retries(
 
                                 # Verify polling_interval was passed as int to coordinators
                                 db_coord_kwargs = mock_db_coord.call_args[1]
-                                assert isinstance(db_coord_kwargs["polling_interval"], int)
+                                assert isinstance(
+                                    db_coord_kwargs["polling_interval"], int
+                                )
                                 assert db_coord_kwargs["polling_interval"] == 60
 
 

@@ -44,6 +44,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     if "enabled_dashboard" not in entry.options:
         from .config_flow import _get_default_entity_options
+
         default_options = _get_default_entity_options()
         new_options = {**entry.options, **default_options}
         needs_update = True
@@ -52,7 +53,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     if "enabled_monitoring" not in new_options:
         from .config_flow import _get_default_entity_options
         from .entity_helper import get_monitoring_sensors
-        new_options["enabled_monitoring"] = [opt["value"] for opt in get_monitoring_sensors()]
+
+        new_options["enabled_monitoring"] = [
+            opt["value"] for opt in get_monitoring_sensors()
+        ]
         needs_update = True
 
     if needs_update:
@@ -72,8 +76,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     _LOGGER.debug(
         "Configuration loaded: read_timeout=%s, write_timeout=%s, polling_interval=%s, "
         "cache_ttl=%s, max_retries=%s, min_request_interval=%s, write_cooldown=%s, request_debounce=%s",
-        read_timeout, write_timeout, polling_interval, cache_ttl, max_retries,
-        min_request_interval, write_cooldown, request_debounce
+        read_timeout,
+        write_timeout,
+        polling_interval,
+        cache_ttl,
+        max_retries,
+        min_request_interval,
+        write_cooldown,
+        request_debounce,
     )
 
     # Create access tracker for monitoring API access patterns
@@ -101,25 +111,42 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     dashboard_coordinator = ComfoClimeDashboardCoordinator(
         hass, api, polling_interval, access_tracker=access_tracker, config_entry=entry
     )
-    _LOGGER.debug("Created ComfoClimeDashboardCoordinator with polling_interval=%s", polling_interval)
+    _LOGGER.debug(
+        "Created ComfoClimeDashboardCoordinator with polling_interval=%s",
+        polling_interval,
+    )
 
     # Create Thermalprofile-Coordinator
     thermalprofile_coordinator = ComfoClimeThermalprofileCoordinator(
         hass, api, polling_interval, access_tracker=access_tracker, config_entry=entry
     )
-    _LOGGER.debug("Created ComfoClimeThermalprofileCoordinator with polling_interval=%s", polling_interval)
+    _LOGGER.debug(
+        "Created ComfoClimeThermalprofileCoordinator with polling_interval=%s",
+        polling_interval,
+    )
 
     # Create Monitoring-Coordinator
     monitoring_coordinator = ComfoClimeMonitoringCoordinator(
         hass, api, polling_interval, access_tracker=access_tracker, config_entry=entry
     )
-    _LOGGER.debug("Created ComfoClimeMonitoringCoordinator with polling_interval=%s", polling_interval)
+    _LOGGER.debug(
+        "Created ComfoClimeMonitoringCoordinator with polling_interval=%s",
+        polling_interval,
+    )
 
     # Create definition coordinator for device definition data (mainly for ComfoAirQ)
     definitioncoordinator = ComfoClimeDefinitionCoordinator(
-        hass, api, devices, polling_interval, access_tracker=access_tracker, config_entry=entry
+        hass,
+        api,
+        devices,
+        polling_interval,
+        access_tracker=access_tracker,
+        config_entry=entry,
     )
-    _LOGGER.debug("Created ComfoClimeDefinitionCoordinator with polling_interval=%s", polling_interval)
+    _LOGGER.debug(
+        "Created ComfoClimeDefinitionCoordinator with polling_interval=%s",
+        polling_interval,
+    )
 
     # Parallel initialization of all coordinators for faster startup
     _LOGGER.debug("Starting parallel first refresh of all coordinators")
@@ -130,26 +157,51 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         definitioncoordinator.async_config_entry_first_refresh(),
         return_exceptions=True,
     )
-    
+
     # Check for failures and raise ConfigEntryNotReady if any coordinator failed
     for i, result in enumerate(results):
         if isinstance(result, Exception):
-            coordinator_names = ["dashboard", "thermalprofile", "monitoring", "definition"]
-            _LOGGER.error("Coordinator %s first refresh failed: %s", coordinator_names[i], result)
-            raise ConfigEntryNotReady(f"Failed to initialize {coordinator_names[i]} coordinator: {result}") from result
-    
+            coordinator_names = [
+                "dashboard",
+                "thermalprofile",
+                "monitoring",
+                "definition",
+            ]
+            _LOGGER.error(
+                "Coordinator %s first refresh failed: %s", coordinator_names[i], result
+            )
+            raise ConfigEntryNotReady(
+                f"Failed to initialize {coordinator_names[i]} coordinator: {result}"
+            ) from result
+
     _LOGGER.debug("Coordinator first refresh completed successfully")
 
     # Create telemetry and property coordinators with device list
     tlcoordinator = ComfoClimeTelemetryCoordinator(
-        hass, api, devices, polling_interval, access_tracker=access_tracker, config_entry=entry
+        hass,
+        api,
+        devices,
+        polling_interval,
+        access_tracker=access_tracker,
+        config_entry=entry,
     )
-    _LOGGER.debug("Created ComfoClimeTelemetryCoordinator with polling_interval=%s", polling_interval)
+    _LOGGER.debug(
+        "Created ComfoClimeTelemetryCoordinator with polling_interval=%s",
+        polling_interval,
+    )
 
     propcoordinator = ComfoClimePropertyCoordinator(
-        hass, api, devices, polling_interval, access_tracker=access_tracker, config_entry=entry
+        hass,
+        api,
+        devices,
+        polling_interval,
+        access_tracker=access_tracker,
+        config_entry=entry,
     )
-    _LOGGER.debug("Created ComfoClimePropertyCoordinator with polling_interval=%s", polling_interval)
+    _LOGGER.debug(
+        "Created ComfoClimePropertyCoordinator with polling_interval=%s",
+        polling_interval,
+    )
 
     hass.data[DOMAIN][entry.entry_id] = {
         "api": api,
@@ -195,8 +247,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         actual_value = int(round(value / faktor))
         is_valid, error_message = validate_byte_value(actual_value, byte_count, signed)
         if not is_valid:
-            _LOGGER.error("Ungültiger Wert %s für byte_count=%s, signed=%s: %s",
-                          actual_value, byte_count, signed, error_message)
+            _LOGGER.error(
+                "Ungültiger Wert %s für byte_count=%s, signed=%s: %s",
+                actual_value,
+                byte_count,
+                signed,
+                error_message,
+            )
             raise HomeAssistantError(f"Ungültiger Wert: {error_message}")
 
         dev_reg = dr.async_get(hass)
@@ -261,9 +318,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             is_valid, error_message = validate_duration(duration)
             if not is_valid:
                 _LOGGER.error("Ungültige Dauer: %s - %s", duration, error_message)
-                raise HomeAssistantError(
-                    f"Ungültige Dauer: {error_message}"
-                )
+                raise HomeAssistantError(f"Ungültige Dauer: {error_message}")
 
         # Validate start_delay format if provided
         if start_delay is not None:

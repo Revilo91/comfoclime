@@ -627,7 +627,9 @@ class TestComfoClimeAPIThermalProfileSignedTemperatures:
 
         # Temperature values should be fixed
         assert data["season"]["heatingThresholdTemperature"] == 14.0
-        assert data["season"]["coolingThresholdTemperature"] == -0.5  # Fixed from unsigned
+        assert (
+            data["season"]["coolingThresholdTemperature"] == -0.5
+        )  # Fixed from unsigned
         assert data["temperature"]["manualTemperature"] == 22.0
         assert data["heatingThermalProfileSeasonData"]["comfortTemperature"] == 21.5
         # Non-temperature values should be unchanged

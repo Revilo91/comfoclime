@@ -54,12 +54,18 @@ class MockComfoClimeAPI:
         self.responses = responses or MockAPIResponses()
         self.uuid = self.responses.uuid
         self._call_history: list[tuple[str, tuple, dict]] = []
-        
+
         # Wrap async methods with AsyncMock for assertion support
-        self.async_update_dashboard = AsyncMock(side_effect=self._async_update_dashboard)
+        self.async_update_dashboard = AsyncMock(
+            side_effect=self._async_update_dashboard
+        )
         self.async_set_hvac_season = AsyncMock(side_effect=self._async_set_hvac_season)
-        self.async_update_thermal_profile = AsyncMock(side_effect=self._async_update_thermal_profile)
-        self.async_set_property_for_device = AsyncMock(side_effect=self._async_set_property_for_device)
+        self.async_update_thermal_profile = AsyncMock(
+            side_effect=self._async_update_thermal_profile
+        )
+        self.async_set_property_for_device = AsyncMock(
+            side_effect=self._async_set_property_for_device
+        )
 
     def _record_call(self, method: str, *args: Any, **kwargs: Any) -> None:
         """Record a method call for verification."""
@@ -164,12 +170,12 @@ class MockComfoClimeAPI:
         assert len(calls) > 0, f"Expected at least 1 call to {method}, got 0"
         _, kwargs = calls[-1]  # Check last call
         for key, expected_value in expected_kwargs.items():
-            assert (
-                key in kwargs
-            ), f"Expected kwarg '{key}' not found in call to {method}"
-            assert (
-                kwargs[key] == expected_value
-            ), f"Expected {key}={expected_value}, got {kwargs[key]}"
+            assert key in kwargs, (
+                f"Expected kwarg '{key}' not found in call to {method}"
+            )
+            assert kwargs[key] == expected_value, (
+                f"Expected {key}={expected_value}, got {kwargs[key]}"
+            )
 
 
 @pytest.fixture

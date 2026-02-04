@@ -1,7 +1,7 @@
 """Tests for ComfoClime sensor entities."""
 
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock
 from custom_components.comfoclime.sensor import (
     ComfoClimeSensor,
     ComfoClimeTelemetrySensor,
@@ -352,14 +352,14 @@ async def test_async_setup_entry(
     """Test async_setup_entry for sensors."""
     # Setup mock data
     mock_api.uuid = "test-device-uuid"
-    
+
     # Create a mock monitoring coordinator
     mock_monitoring_coordinator = MagicMock()
     mock_monitoring_coordinator.data = {"uptime": 123456, "uuid": "test-uuid"}
-    
+
     # Create a mock access tracker
     mock_access_tracker = MagicMock()
-    
+
     mock_hass.data = {
         "comfoclime": {
             "test_entry_id": {

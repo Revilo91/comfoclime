@@ -48,7 +48,7 @@ async def async_setup_entry(
             # Check if this individual switch is enabled
             if not is_entity_enabled(entry.options, "switches", "all", s):
                 continue
-            
+
             # Determine which coordinator to use based on endpoint
             coordinator = (
                 tpcoordinator if s.endpoint == "thermal_profile" else dbcoordinator
@@ -82,7 +82,8 @@ class ComfoClimeSwitch(CoordinatorEntity, SwitchEntity):
     def __init__(
         self,
         hass: HomeAssistant,
-        coordinator: ComfoClimeDashboardCoordinator | ComfoClimeThermalprofileCoordinator,
+        coordinator: ComfoClimeDashboardCoordinator
+        | ComfoClimeThermalprofileCoordinator,
         api: ComfoClimeAPI,
         key: str,
         translation_key: str,

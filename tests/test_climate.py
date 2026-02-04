@@ -140,8 +140,8 @@ class TestComfoClimeClimate:
         [
             (3, HVACAction.HEATING),  # 0000 0011 - active + heating
             (5, HVACAction.COOLING),  # 0000 0101 - active + cooling
-            (1, HVACAction.IDLE),     # 0000 0001 - active but not heating/cooling
-            (0, HVACAction.OFF),      # off
+            (1, HVACAction.IDLE),  # 0000 0001 - active but not heating/cooling
+            (0, HVACAction.OFF),  # off
         ],
         ids=["heating", "cooling", "idle", "off"],
     )

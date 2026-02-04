@@ -261,7 +261,7 @@ class ComfoClimeThermalprofileCoordinator(DataUpdateCoordinator):
 
 class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
     """Coordinator for batching telemetry requests from all devices.
-    
+
     Instead of each sensor making individual API calls, this coordinator
     collects all telemetry requests and fetches them in a single batched
     update cycle. This significantly reduces API load on the Airduino board.
@@ -399,7 +399,9 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
                         byte_count=params["byte_count"],
                     )
                     # Store the scaled value for backward compatibility with sensors
-                    result[device_uuid][telemetry_id] = reading.scaled_value if reading else None
+                    result[device_uuid][telemetry_id] = (
+                        reading.scaled_value if reading else None
+                    )
                     # Track each individual API call
                     if self._access_tracker:
                         self._access_tracker.record_access("Telemetry")
@@ -442,7 +444,7 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
 
 class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
     """Coordinator for batching property requests from all devices.
-    
+
     Instead of each sensor/number/select making individual API calls,
     this coordinator collects all property requests and fetches them
     in a single batched update cycle. This significantly reduces API
@@ -580,7 +582,9 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
                         byte_count=params["byte_count"],
                     )
                     # Store the scaled value for backward compatibility with sensors
-                    result[device_uuid][property_path] = reading.scaled_value if reading else None
+                    result[device_uuid][property_path] = (
+                        reading.scaled_value if reading else None
+                    )
                     # Track each individual API call
                     if self._access_tracker:
                         self._access_tracker.record_access("Property")
@@ -623,7 +627,7 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
 
 class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
     """Coordinator for fetching device definition data.
-    
+
     Fetches definition data for connected devices, particularly useful
     for ComfoAirQ devices (modelTypeId=1) which provide detailed sensor
     and control point definitions. ComfoClime devices provide less useful
@@ -703,9 +707,13 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
                 # Track each individual API call
                 if self._access_tracker:
                     self._access_tracker.record_access("Definition")
-                _LOGGER.debug("Successfully fetched definition for device %s", device_uuid)
+                _LOGGER.debug(
+                    "Successfully fetched definition for device %s", device_uuid
+                )
             except (aiohttp.ClientError, asyncio.TimeoutError) as e:
-                _LOGGER.debug("Error fetching definition for device %s: %s", device_uuid, e)
+                _LOGGER.debug(
+                    "Error fetching definition for device %s: %s", device_uuid, e
+                )
                 result[device_uuid] = None
 
         return result
@@ -719,7 +727,7 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
 
         Args:
             device_uuid: UUID of the device
-        
+
         Returns:
             Dictionary containing device definition data, or None if not found.
 

@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 class NumberDefinition(BaseModel):
     """Definition of a number entity.
-    
+
     Attributes:
         key: Unique identifier for the number in API responses.
         name: Display name for the number control.
@@ -17,10 +17,12 @@ class NumberDefinition(BaseModel):
         step: Step increment.
         unit: Optional unit of measurement.
     """
-    
+
     model_config = {"frozen": True}
-    
-    key: str = Field(..., description="Unique identifier for the number in API responses")
+
+    key: str = Field(
+        ..., description="Unique identifier for the number in API responses"
+    )
     name: str = Field(..., description="Display name for the number control")
     translation_key: str = Field(..., description="Key for i18n translations")
     min: float = Field(..., description="Minimum value")
@@ -31,7 +33,7 @@ class NumberDefinition(BaseModel):
 
 class PropertyNumberDefinition(BaseModel):
     """Definition of a property-based number entity.
-    
+
     Attributes:
         property: Property path in format "X/Y/Z".
         name: Display name for the number control.
@@ -43,9 +45,9 @@ class PropertyNumberDefinition(BaseModel):
         faktor: Multiplication factor for the raw value.
         byte_count: Number of bytes to read/write.
     """
-    
+
     model_config = {"frozen": True}
-    
+
     property: str = Field(..., description="Property path in format 'X/Y/Z'")
     name: str = Field(..., description="Display name for the number control")
     translation_key: str = Field(..., description="Key for i18n translations")
@@ -53,7 +55,9 @@ class PropertyNumberDefinition(BaseModel):
     max: float = Field(..., description="Maximum value")
     step: float = Field(..., description="Step increment")
     unit: str | None = Field(default=None, description="Optional unit of measurement")
-    faktor: float = Field(default=1.0, description="Multiplication factor for the raw value")
+    faktor: float = Field(
+        default=1.0, description="Multiplication factor for the raw value"
+    )
     byte_count: int = Field(default=1, description="Number of bytes to read/write")
 
 

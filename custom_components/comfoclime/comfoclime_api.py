@@ -44,15 +44,8 @@ from .models import (
     PropertyReading,
     DeviceConfig,
     bytes_to_signed_int,
-    signed_int_to_bytes,
-    fix_signed_temperature,
-    fix_signed_temperatures_in_dict,
 )
 from .rate_limiter_cache import (
-    DEFAULT_CACHE_TTL,
-    DEFAULT_MIN_REQUEST_INTERVAL,
-    DEFAULT_REQUEST_DEBOUNCE,
-    DEFAULT_WRITE_COOLDOWN,
     RateLimiterCache,
 )
 from .validators import validate_property_path, validate_byte_value
@@ -289,7 +282,9 @@ class ComfoClimeAPI:
             if isinstance(response_data, dict):
                 if "up_time_seconds" in response_data and "uptime" not in response_data:
                     response_data["uptime"] = response_data["up_time_seconds"]
-                elif "uptime" in response_data and "up_time_seconds" not in response_data:
+                elif (
+                    "uptime" in response_data and "up_time_seconds" not in response_data
+                ):
                     response_data["up_time_seconds"] = response_data["uptime"]
         except Exception:
             # Keep original response on any unexpected structure/errors
@@ -383,9 +378,11 @@ class ComfoClimeAPI:
                 )
                 device_configs.append(device_config)
             except (KeyError, ValueError, TypeError) as e:
-                _LOGGER.warning("Skipping invalid device entry: %s - Error: %s", device_dict, e)
+                _LOGGER.warning(
+                    "Skipping invalid device entry: %s - Error: %s", device_dict, e
+                )
                 continue
-        
+
         return device_configs
 
     @api_get(
@@ -499,7 +496,7 @@ class ComfoClimeAPI:
             return None
 
         raw_value = bytes_to_signed_int(data, byte_count, signed)
-        
+
         # Create validated Pydantic model
         reading = TelemetryReading(
             device_uuid=device_uuid,
@@ -561,7 +558,11 @@ class ComfoClimeAPI:
         cached_value = self._rate_limiter.get_property_from_cache(cache_key)
         if cached_value is not None:
             # Cache stores the final value, reconstruct approximation
-            estimated_raw = int(cached_value / faktor) if faktor != 0 and isinstance(cached_value, (int, float)) else 0
+            estimated_raw = (
+                int(cached_value / faktor)
+                if faktor != 0 and isinstance(cached_value, (int, float))
+                else 0
+            )
             return PropertyReading(
                 device_uuid=device_uuid,
                 path=property_path,
@@ -585,8 +586,8 @@ class ComfoClimeAPI:
         # Parse numeric values (1-2 bytes)
         if byte_count in (1, 2):
             raw_value = bytes_to_signed_int(data, byte_count, signed)
-            
-            # Create validated Pydantic model  
+
+            # Create validated Pydantic model
             reading = PropertyReading(
                 device_uuid=device_uuid,
                 path=property_path,
@@ -595,12 +596,12 @@ class ComfoClimeAPI:
                 signed=signed,
                 byte_count=byte_count,
             )
-            
+
             # Store scaled value in cache
             self._rate_limiter.set_property_cache(cache_key, reading.scaled_value)
-            
+
             return reading
-        
+
         # String properties (3+ bytes) - not supported by PropertyReading model yet
         # Return None for string properties for now
         elif byte_count and byte_count > 2:
@@ -844,7 +845,9 @@ class ComfoClimeAPI:
 
         return payload
 
-    async def async_update_thermal_profile(self, updates: dict[str, Any] | None = None, **kwargs) -> dict[str, Any]:
+    async def async_update_thermal_profile(
+        self, updates: dict[str, Any] | None = None, **kwargs
+    ) -> dict[str, Any]:
         """Update thermal profile settings on the device.
 
         Provides backward compatibility with legacy dict-based calls while
@@ -891,7 +894,9 @@ class ComfoClimeAPI:
             return await self._convert_dict_to_kwargs_and_update(updates)
         return await self._async_update_thermal_profile(**kwargs)
 
-    async def _convert_dict_to_kwargs_and_update(self, updates: dict[str, Any]) -> dict[str, Any]:
+    async def _convert_dict_to_kwargs_and_update(
+        self, updates: dict[str, Any]
+    ) -> dict[str, Any]:
         """Convert legacy dict-based thermal profile updates to kwargs format.
 
         Internal method that translates nested dict structure to modern
@@ -1069,7 +1074,9 @@ class ComfoClimeAPI:
         raw_value = int(round(value / faktor))
         is_valid, error_message = validate_byte_value(raw_value, byte_count, signed)
         if not is_valid:
-            raise ValueError(f"Invalid value for byte_count={byte_count}, signed={signed}: {error_message}")
+            raise ValueError(
+                f"Invalid value for byte_count={byte_count}, signed={signed}: {error_message}"
+            )
 
         data = self.signed_int_to_bytes(raw_value, byte_count, signed)
 

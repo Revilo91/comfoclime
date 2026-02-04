@@ -13,7 +13,6 @@ and optimize API access patterns to the Airduino board.
 import logging
 import time
 from collections import deque
-from typing import Deque
 
 from pydantic import BaseModel, Field
 
@@ -42,9 +41,16 @@ class CoordinatorStats(BaseModel):
 
     # Deque of timestamps for accesses in the last hour
     # Using deque for efficient removal of old entries
-    access_timestamps: Deque[float] = Field(default_factory=deque, description="FIFO queue of access timestamps (monotonic time)")
-    total_count: int = Field(default=0, ge=0, description="Total number of accesses since creation")
-    last_access_time: float = Field(default=0.0, ge=0.0, description="Timestamp of most recent access")
+    access_timestamps: deque[float] = Field(
+        default_factory=deque,
+        description="FIFO queue of access timestamps (monotonic time)",
+    )
+    total_count: int = Field(
+        default=0, ge=0, description="Total number of accesses since creation"
+    )
+    last_access_time: float = Field(
+        default=0.0, ge=0.0, description="Timestamp of most recent access"
+    )
 
     def record_access(self, timestamp: float) -> None:
         """Record a new API access.
@@ -109,8 +115,7 @@ class AccessTracker:
         stats.record_access(current_time)
 
         _LOGGER.debug(
-            f"Recorded access for {coordinator_name}, "
-            f"total={stats.total_count}"
+            f"Recorded access for {coordinator_name}, total={stats.total_count}"
         )
 
     def _cleanup_old_entries(
@@ -190,8 +195,7 @@ class AccessTracker:
             Total accesses in the last minute.
         """
         return sum(
-            self.get_accesses_per_minute(name)
-            for name in self._coordinators.keys()
+            self.get_accesses_per_minute(name) for name in self._coordinators.keys()
         )
 
     def get_total_accesses_per_hour(self) -> int:
@@ -201,8 +205,7 @@ class AccessTracker:
             Total accesses in the last hour.
         """
         return sum(
-            self.get_accesses_per_hour(name)
-            for name in self._coordinators.keys()
+            self.get_accesses_per_hour(name) for name in self._coordinators.keys()
         )
 
     def get_summary(self) -> dict:

@@ -45,7 +45,7 @@ async def async_setup_entry(
     # Note: Coordinator first refresh is already done in __init__.py
     # We don't need to await it here to avoid blocking number setup
     entities = []
-    
+
     if is_entity_category_enabled(entry.options, "numbers", "thermal_profile"):
         for conf in NUMBER_ENTITIES:
             if is_entity_enabled(entry.options, "numbers", "thermal_profile", conf):
@@ -72,9 +72,11 @@ async def async_setup_entry(
 
             for number_def in number_properties:
                 # Check if this individual number property is enabled
-                if not is_entity_enabled(entry.options, "numbers", "connected_properties", number_def):
+                if not is_entity_enabled(
+                    entry.options, "numbers", "connected_properties", number_def
+                ):
                     continue
-                
+
                 _LOGGER.debug("Creating number entity for property: %s", number_def)
                 # Register property with coordinator for batched fetching
                 await propcoordinator.register_property(
@@ -99,9 +101,7 @@ async def async_setup_entry(
     async_add_entities(entities, True)
 
 
-class ComfoClimeTemperatureNumber(
-    CoordinatorEntity, NumberEntity
-):
+class ComfoClimeTemperatureNumber(CoordinatorEntity, NumberEntity):
     def __init__(
         self,
         hass: HomeAssistant,
@@ -153,7 +153,8 @@ class ComfoClimeTemperatureNumber(
                 return automatic_temperature_status == 0
             except (KeyError, TypeError, ValueError) as e:
                 _LOGGER.debug(
-                    "Could not check automatic temperature status for availability: %s", e
+                    "Could not check automatic temperature status for availability: %s",
+                    e,
                 )
                 # Return True if we can't determine the status to avoid breaking functionality
                 return True
@@ -269,9 +270,7 @@ class ComfoClimeTemperatureNumber(
             raise HomeAssistantError(f"Error setting {self._name}") from None
 
 
-class ComfoClimePropertyNumber(
-    CoordinatorEntity, NumberEntity
-):
+class ComfoClimePropertyNumber(CoordinatorEntity, NumberEntity):
     """Number entity for property values using coordinator for batched fetching."""
 
     def __init__(
@@ -308,8 +307,7 @@ class ComfoClimePropertyNumber(
         self._signed = False  # PropertyNumberDefinition always uses unsigned
 
         _LOGGER.debug(
-            "ComfoClimePropertyNumber initialized: path=%s, "
-            "device=%s, unique_id=%s",
+            "ComfoClimePropertyNumber initialized: path=%s, device=%s, unique_id=%s",
             self._property_path,
             device.get("uuid"),
             self._attr_unique_id,

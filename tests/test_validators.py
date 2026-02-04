@@ -343,7 +343,12 @@ class TestValidationIntegration:
         away_duration = 1440  # 24 hours
         boost_duration = 15
 
-        for duration in [cooking_duration, party_duration, away_duration, boost_duration]:
+        for duration in [
+            cooking_duration,
+            party_duration,
+            away_duration,
+            boost_duration,
+        ]:
             is_valid, error = validate_duration(duration)
             assert is_valid is True
             assert error is None

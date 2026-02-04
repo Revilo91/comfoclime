@@ -2,7 +2,6 @@
 
 from custom_components.comfoclime.entities.sensor_definitions import (
     CONNECTED_DEVICE_SENSORS,
-    TelemetrySensorDefinition,
 )
 
 
@@ -11,7 +10,7 @@ class TestTelemetrySensorDefinitions:
 
     def test_all_temperature_sensors_are_signed(self):
         """Test that all temperature telemetry sensors have signed=True.
-        
+
         This is critical for correctly displaying negative temperatures.
         Temperatures can go below 0°C and must be interpreted as signed integers.
         """
@@ -34,10 +33,7 @@ class TestTelemetrySensorDefinitions:
         for model_id, sensor_defs in CONNECTED_DEVICE_SENSORS.items():
             for sensor_def in sensor_defs:
                 # Check if this is a temperature sensor
-                if (
-                    sensor_def.device_class == "temperature"
-                    or sensor_def.unit == "°C"
-                ):
+                if sensor_def.device_class == "temperature" or sensor_def.unit == "°C":
                     # Most temperature sensors use faktor=0.1
                     assert sensor_def.faktor == 0.1, (
                         f"Temperature sensor '{sensor_def.name}' should use faktor=0.1"
@@ -49,7 +45,7 @@ class TestTelemetrySensorDefinitions:
 
     def test_tpma_temperature_sensor_configuration(self):
         """Test that tpma_temperature sensor is correctly configured.
-        
+
         This is the specific sensor mentioned in the issue.
         """
         # tpma_temperature is in model 20
@@ -63,10 +59,16 @@ class TestTelemetrySensorDefinitions:
                 tpma_sensor = sensor_def
                 break
 
-        assert tpma_sensor is not None, "tpma_temperature sensor should exist in model 20"
-        assert tpma_sensor.telemetry_id == 4145, "tpma_temperature should have telemetry_id 4145"
+        assert tpma_sensor is not None, (
+            "tpma_temperature sensor should exist in model 20"
+        )
+        assert tpma_sensor.telemetry_id == 4145, (
+            "tpma_temperature should have telemetry_id 4145"
+        )
         assert tpma_sensor.signed is True, "tpma_temperature must be signed"
         assert tpma_sensor.faktor == 0.1, "tpma_temperature should use faktor 0.1"
         assert tpma_sensor.byte_count == 2, "tpma_temperature should use byte_count 2"
-        assert tpma_sensor.device_class == "temperature", "tpma_temperature should have device_class temperature"
+        assert tpma_sensor.device_class == "temperature", (
+            "tpma_temperature should have device_class temperature"
+        )
         assert tpma_sensor.unit == "°C", "tpma_temperature should use °C unit"

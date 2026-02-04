@@ -39,7 +39,6 @@ from homeassistant.components.climate import (
     FAN_LOW,
     FAN_MEDIUM,
     FAN_OFF,
-    PRESET_AWAY,
     PRESET_BOOST,
     PRESET_COMFORT,
     PRESET_ECO,
@@ -133,16 +132,16 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up ComfoClime climate entity from a config entry.
-    
+
     Creates the climate entity for the main ComfoClime device.
     The climate entity controls HVAC operation, temperature, fan speed,
     and preset modes.
-    
+
     Args:
         hass: Home Assistant instance
         config_entry: Config entry for this integration
         async_add_entities: Callback to add entities
-        
+
     Note:
         Only one climate entity is created per integration instance,
         representing the main ComfoClime device.
@@ -170,20 +169,18 @@ async def async_setup_entry(
     async_add_entities([climate_entity])
 
 
-class ComfoClimeClimate(
-    CoordinatorEntity, ClimateEntity
-):
+class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
     """ComfoClime Climate entity for HVAC control.
-    
+
     Provides climate control for the ComfoClime ventilation and heat pump
     system. Supports temperature control, HVAC modes (heating/cooling/fan),
     preset modes (comfort/power/eco/manual), fan speed control, and
     special scenario modes (cooking/party/away/boost).
-    
+
     The entity monitors two coordinators:
         - DashboardCoordinator: Real-time temperature, fan, and season data
         - ThermalprofileCoordinator: Thermal profile and preset settings
-    
+
     Attributes:
         hvac_mode: Current HVAC mode (off/fan_only/heat/cool)
         current_temperature: Current indoor temperature in °C
@@ -191,7 +188,7 @@ class ComfoClimeClimate(
         preset_mode: Current preset mode
         fan_mode: Current fan speed mode
         hvac_action: Current HVAC action (idle/heating/cooling/fan)
-        
+
     Example:
         >>> # Set heating mode with comfort preset at 22°C
         >>> await climate.async_set_hvac_mode(HVACMode.HEAT)
@@ -208,7 +205,7 @@ class ComfoClimeClimate(
         entry: ConfigEntry,
     ) -> None:
         """Initialize the ComfoClime climate entity.
-        
+
         Args:
             dashboard_coordinator: Coordinator for dashboard data
             thermalprofile_coordinator: Coordinator for thermal profile data
@@ -472,6 +469,7 @@ class ComfoClimeClimate(
         - Prevents UI from becoming unresponsive
         - Updates happen in background
         """
+
         async def safe_refresh(coordinator, name: str) -> None:
             """Safely refresh coordinator with error handling."""
             try:
@@ -659,7 +657,9 @@ class ComfoClimeClimate(
         except aiohttp.ClientError:
             _LOGGER.exception("Network error setting preset mode to %s", preset_mode)
         except (ValueError, KeyError, TypeError):
-            _LOGGER.exception("Invalid data while setting preset mode to %s", preset_mode)
+            _LOGGER.exception(
+                "Invalid data while setting preset mode to %s", preset_mode
+            )
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         """Set fan mode by updating fan speed via dashboard API.
@@ -778,7 +778,13 @@ class ComfoClimeClimate(
             # Wait for coordinators to refresh (blocking) to ensure UI shows actual device state
             await self._async_refresh_coordinators(blocking=True)
 
-        except (aiohttp.ClientError, asyncio.TimeoutError, ValueError, KeyError, TypeError):
+        except (
+            aiohttp.ClientError,
+            asyncio.TimeoutError,
+            ValueError,
+            KeyError,
+            TypeError,
+        ):
             _LOGGER.exception("Failed to set scenario mode %s", scenario_mode)
             raise
 
@@ -867,4 +873,3 @@ class ComfoClimeClimate(
             _LOGGER.exception("Network error turning on climate device")
         except (ValueError, KeyError, TypeError):
             _LOGGER.exception("Invalid data while turning on climate device")
-

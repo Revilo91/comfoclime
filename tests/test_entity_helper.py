@@ -1,6 +1,5 @@
 """Tests for entity_helper module."""
 
-import pytest
 
 from custom_components.comfoclime.entity_helper import (
     _make_sensor_id,
@@ -107,25 +106,19 @@ def test_is_entity_category_enabled_with_selection():
 
 def test_is_entity_category_enabled_category_only():
     """Test checking categories without subcategories."""
-    options = {
-        "enabled_entities": ["switches"]
-    }
+    options = {"enabled_entities": ["switches"]}
 
     # Without subcategory parameter
     assert is_entity_category_enabled(options, "switches") is True
 
     # Categories not in the list should be disabled
-    options2 = {
-        "enabled_entities": ["sensors_dashboard"]
-    }
+    options2 = {"enabled_entities": ["sensors_dashboard"]}
     assert is_entity_category_enabled(options2, "switches") is False
 
 
 def test_is_entity_category_enabled_empty_selection():
     """Test that empty selection list disables all categories."""
-    options = {
-        "enabled_entities": []
-    }
+    options = {"enabled_entities": []}
 
     assert is_entity_category_enabled(options, "sensors", "dashboard") is False
     assert is_entity_category_enabled(options, "switches") is False
@@ -162,7 +155,11 @@ def test_make_sensor_id_with_property():
 
 def test_make_sensor_id_with_metric():
     """Test _make_sensor_id with coordinator and metric fields."""
-    sensor_def = {"coordinator": "Dashboard", "metric": "per_minute", "name": "Dashboard Accesses"}
+    sensor_def = {
+        "coordinator": "Dashboard",
+        "metric": "per_minute",
+        "name": "Dashboard Accesses",
+    }
     result = _make_sensor_id("sensors", "access_tracking", sensor_def)
     assert result == "sensors_access_tracking_dashboard_per_minute"
 
@@ -190,10 +187,10 @@ def test_get_individual_entity_options():
     # Check that some specific entities are present (flat structure)
     all_values = [opt["value"] for opt in options]
 
-    assert any("sensors_dashboard_indoorTemperature" in v for v in all_values), \
+    assert any("sensors_dashboard_indoorTemperature" in v for v in all_values), (
         "Should contain indoor temperature sensor"
-    assert any("switches_all_" in v for v in all_values), \
-        "Should contain switches"
+    )
+    assert any("switches_all_" in v for v in all_values), "Should contain switches"
     assert len(all_values) > 10, "Should have multiple entities"
 
 
@@ -224,9 +221,7 @@ def test_is_entity_enabled_with_none():
 def test_is_entity_enabled_individual_selected():
     """Test entity checking when individual entity is selected."""
     sensor_def = {"key": "indoorTemperature", "name": "Indoor Temperature"}
-    options = {
-        "enabled_entities": ["sensors_dashboard_indoorTemperature"]
-    }
+    options = {"enabled_entities": ["sensors_dashboard_indoorTemperature"]}
 
     assert is_entity_enabled(options, "sensors", "dashboard", sensor_def) is True
 
@@ -235,9 +230,7 @@ def test_is_entity_enabled_individual_not_selected():
     """Test entity checking when individual entity is NOT selected."""
     sensor_def = {"key": "indoorTemperature", "name": "Indoor Temperature"}
     other_sensor_def = {"key": "outdoorTemperature", "name": "Outdoor Temperature"}
-    options = {
-        "enabled_entities": ["sensors_dashboard_outdoorTemperature"]
-    }
+    options = {"enabled_entities": ["sensors_dashboard_outdoorTemperature"]}
 
     # indoor temp is not selected, should be False
     assert is_entity_enabled(options, "sensors", "dashboard", sensor_def) is False
@@ -263,7 +256,7 @@ def test_is_entity_enabled_mixed_selection():
     options = {
         "enabled_entities": [
             "sensors_dashboard",  # Category
-            "sensors_dashboard_outdoorTemperature"  # Individual entity
+            "sensors_dashboard_outdoorTemperature",  # Individual entity
         ]
     }
 
@@ -278,7 +271,7 @@ def test_is_entity_category_enabled_with_individual_entities():
     options = {
         "enabled_entities": [
             "sensors_dashboard_indoorTemperature",
-            "sensors_dashboard_outdoorTemperature"
+            "sensors_dashboard_outdoorTemperature",
         ]
     }
 

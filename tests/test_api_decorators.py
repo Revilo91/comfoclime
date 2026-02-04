@@ -462,6 +462,7 @@ async def test_api_put_with_url_parameters():
 
 # Write Priority Tests
 
+
 @pytest.mark.asyncio
 async def test_api_put_signals_write_pending():
     """Test that api_put signals write pending before acquiring lock."""
@@ -474,20 +475,20 @@ async def test_api_put_signals_write_pending():
         return {"key": "value"}
 
     api = MockAPIForPut()
-    
+
     # Track signal calls
     signal_calls = []
     original_pending = api._rate_limiter.signal_write_pending
     original_complete = api._rate_limiter.signal_write_complete
-    
+
     def track_pending():
         signal_calls.append("pending")
         original_pending()
-    
+
     def track_complete():
         signal_calls.append("complete")
         original_complete()
-    
+
     api._rate_limiter.signal_write_pending = track_pending
     api._rate_limiter.signal_write_complete = track_complete
 
@@ -516,20 +517,20 @@ async def test_api_put_signals_complete_on_error():
 
     api = MockAPIForPut()
     api.max_retries = 0  # No retries - fail after first attempt
-    
+
     # Track signal calls
     signal_calls = []
     original_pending = api._rate_limiter.signal_write_pending
     original_complete = api._rate_limiter.signal_write_complete
-    
+
     def track_pending():
         signal_calls.append("pending")
         original_pending()
-    
+
     def track_complete():
         signal_calls.append("complete")
         original_complete()
-    
+
     api._rate_limiter.signal_write_pending = track_pending
     api._rate_limiter.signal_write_complete = track_complete
 
@@ -564,13 +565,13 @@ async def test_api_get_yields_to_pending_writes():
         return response_data
 
     api = MockAPI()
-    
+
     # Track yield_to_writes calls
     yield_called = []
-    
+
     async def track_yield(max_wait: float = 0.5):
         yield_called.append(True)
-    
+
     api._rate_limiter.yield_to_writes = track_yield
 
     # Mock session and response
@@ -602,13 +603,13 @@ async def test_api_get_skip_lock_does_not_yield():
         return response_data
 
     api = MockAPI()
-    
+
     # Track yield_to_writes calls
     yield_called = []
-    
+
     async def track_yield(max_wait: float = 0.5):
         yield_called.append(True)
-    
+
     api._rate_limiter.yield_to_writes = track_yield
 
     # Mock session and response

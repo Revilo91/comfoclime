@@ -49,7 +49,7 @@ def validate_host(host: str) -> tuple[bool, str | None]:
         return False, "Host cannot be empty"
 
     # Check for dangerous characters (command injection prevention)
-    if re.search(r'[;&|`$]', host):
+    if re.search(r"[;&|`$]", host):
         return False, "Invalid characters in hostname"
 
     # Check for URL scheme (should be just host)
@@ -68,7 +68,7 @@ def validate_host(host: str) -> tuple[bool, str | None]:
 
     # Validate as hostname
     hostname_pattern = re.compile(
-        r'^(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\.[A-Za-z0-9-]{1,63})*\.?$'
+        r"^(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\.[A-Za-z0-9-]{1,63})*\.?$"
     )
     if not hostname_pattern.match(host):
         return False, "Invalid hostname format"

@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 class SwitchDefinition(BaseModel):
     """Definition of a switch entity.
-    
+
     Attributes:
         key: Unique identifier for the switch in API responses or dict key.
         name: Display name for the switch (fallback if translation missing).
@@ -15,14 +15,21 @@ class SwitchDefinition(BaseModel):
         endpoint: Either "thermal_profile" or "dashboard".
         invert: If True, invert the state logic (e.g., for hpstandby).
     """
-    
+
     model_config = {"frozen": True}
-    
-    key: str = Field(..., description="Unique identifier for the switch in API responses or dict key")
-    name: str = Field(..., description="Display name for the switch (fallback if translation missing)")
+
+    key: str = Field(
+        ..., description="Unique identifier for the switch in API responses or dict key"
+    )
+    name: str = Field(
+        ..., description="Display name for the switch (fallback if translation missing)"
+    )
     translation_key: str = Field(..., description="Key for i18n translations")
     endpoint: str = Field(..., description="Either 'thermal_profile' or 'dashboard'")
-    invert: bool = Field(default=False, description="If True, invert the state logic (e.g., for hpstandby)")
+    invert: bool = Field(
+        default=False,
+        description="If True, invert the state logic (e.g., for hpstandby)",
+    )
 
 
 SWITCHES = [

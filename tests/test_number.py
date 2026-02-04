@@ -1,7 +1,7 @@
 """Tests for ComfoClime number entities."""
 
 import pytest
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock
 from custom_components.comfoclime.number import (
     ComfoClimeTemperatureNumber,
     ComfoClimePropertyNumber,

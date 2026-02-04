@@ -20,8 +20,6 @@ class TestTimeoutConfiguration:
         assert API_DEFAULTS.MAX_RETRIES == 3
 
 
-
-
 class TestDashboardUpdateRetry:
     """Test retry logic for dashboard updates."""
 
