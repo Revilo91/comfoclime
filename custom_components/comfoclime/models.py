@@ -151,30 +151,125 @@ class PropertyReading(BaseModel):
 class DashboardData(BaseModel):
     """Dashboard data from ComfoClime device.
 
-    Contains key operational data from the device dashboard.
+    Contains key operational data from the device dashboard endpoint.
     Not frozen to allow for mutable updates from coordinator.
+    All fields are optional as the API response varies between AUTO and MANUAL mode.
 
     Attributes:
-        temperature: Current temperature reading.
-        target_temperature: Target temperature setting.
-        fan_speed: Current fan speed percentage.
-        season: Current season mode (heating/cooling).
-        hp_standby: Heat pump standby status.
+        indoor_temperature: Current indoor temperature in °C
+        outdoor_temperature: Current outdoor temperature in °C
+        set_point_temperature: Target temperature in °C (manual mode only)
+        exhaust_air_flow: Exhaust air flow in m³/h
+        supply_air_flow: Supply air flow in m³/h
+        fan_speed: Current fan speed level (0-3)
+        season_profile: Season profile (0=comfort, 1=boost, 2=eco)
+        temperature_profile: Temperature profile (0=comfort, 1=boost, 2=eco)
+        season: Season mode (0=transition, 1=heating, 2=cooling)
+        schedule: Schedule mode status
+        status: Control mode (0=manual, 1=automatic)
+        heat_pump_status: Heat pump operating status code
+        hp_standby: Heat pump standby state (True=standby/off, False=active)
+        free_cooling_enabled: Free cooling status
+        caq_free_cooling_available: ComfoAirQ free cooling availability
+        scenario: Active scenario mode (4=cooking, 5=party, 7=away, 8=boost, None=none)
+        scenario_time_left: Remaining time in seconds for active scenario
 
     Example:
+        >>> # Parse from API response
         >>> data = DashboardData(
-        ...     temperature=22.5,
-        ...     target_temperature=21.0,
-        ...     fan_speed=50
+        ...     indoor_temperature=22.5,
+        ...     outdoor_temperature=18.0,
+        ...     fan_speed=2,
+        ...     season=1,
+        ...     status=1
         ... )
-        >>> data.temperature
+        >>> data.indoor_temperature
         22.5
+        >>> data.is_heating_mode
+        True
     """
 
-    model_config = {"validate_assignment": True}
+    model_config = {"validate_assignment": True, "populate_by_name": True}
 
-    temperature: float | None = Field(default=None, description="Current temperature reading")
-    target_temperature: float | None = Field(default=None, description="Target temperature setting")
-    fan_speed: int | None = Field(default=None, ge=0, le=100, description="Current fan speed percentage")
-    season: str | None = Field(default=None, description="Current season mode (heating/cooling)")
-    hp_standby: bool | None = Field(default=None, description="Heat pump standby status")
+    # Temperature readings
+    indoor_temperature: float | None = Field(
+        default=None, alias="indoorTemperature", description="Current indoor temperature in °C"
+    )
+    outdoor_temperature: float | None = Field(
+        default=None, alias="outdoorTemperature", description="Current outdoor temperature in °C"
+    )
+    set_point_temperature: float | None = Field(
+        default=None, alias="setPointTemperature", description="Target temperature in °C (manual mode only)"
+    )
+
+    # Air flow
+    exhaust_air_flow: int | None = Field(
+        default=None, alias="exhaustAirFlow", description="Exhaust air flow in m³/h"
+    )
+    supply_air_flow: int | None = Field(
+        default=None, alias="supplyAirFlow", description="Supply air flow in m³/h"
+    )
+
+    # Fan and profiles
+    fan_speed: int | None = Field(
+        default=None, ge=0, le=3, alias="fanSpeed", description="Current fan speed level (0-3)"
+    )
+    season_profile: int | None = Field(
+        default=None, ge=0, le=2, alias="seasonProfile", description="Season profile (0=comfort, 1=boost, 2=eco)"
+    )
+    temperature_profile: int | None = Field(
+        default=None, ge=0, le=2, alias="temperatureProfile", description="Temperature profile (0=comfort, 1=boost, 2=eco)"
+    )
+
+    # Operating modes
+    season: int | None = Field(
+        default=None, ge=0, le=2, description="Season mode (0=transition, 1=heating, 2=cooling)"
+    )
+    schedule: int | None = Field(default=None, description="Schedule mode status")
+    status: int | None = Field(
+        default=None, ge=0, le=1, description="Control mode (0=manual, 1=automatic)"
+    )
+
+    # Heat pump status
+    heat_pump_status: int | None = Field(
+        default=None, alias="heatPumpStatus", description="Heat pump operating status code"
+    )
+    hp_standby: bool | None = Field(
+        default=None, alias="hpStandby", description="Heat pump standby state (True=standby/off, False=active)"
+    )
+
+    # Cooling
+    free_cooling_enabled: bool | None = Field(
+        default=None, alias="freeCoolingEnabled", description="Free cooling status"
+    )
+    caq_free_cooling_available: bool | None = Field(
+        default=None, alias="caqFreeCoolingAvailable", description="ComfoAirQ free cooling availability"
+    )
+
+    # Scenarios
+    scenario: int | None = Field(
+        default=None, description="Active scenario mode (4=cooking, 5=party, 7=away, 8=boost, None=none)"
+    )
+    scenario_time_left: int | None = Field(
+        default=None, alias="scenarioTimeLeft", description="Remaining time in seconds for active scenario"
+    )
+
+    @property
+    def is_heating_mode(self) -> bool:
+        """Check if system is in heating mode."""
+        return self.season == 1
+
+    @property
+    def is_cooling_mode(self) -> bool:
+        """Check if system is in cooling mode."""
+        return self.season == 2
+
+    @property
+    def is_manual_mode(self) -> bool:
+        """Check if system is in manual temperature control mode."""
+        return self.status == 0 or self.set_point_temperature is not None
+
+    @property
+    def is_auto_mode(self) -> bool:
+        """Check if system is in automatic temperature control mode."""
+        return self.status == 1

@@ -20,7 +20,7 @@ Example:
     >>> coordinator = ComfoClimeDashboardCoordinator(hass, api)
     >>> await coordinator.async_config_entry_first_refresh()
     >>> dashboard_data = coordinator.data
-    >>> print(f"Indoor temp: {dashboard_data['indoorTemperature']}°C")
+    >>> print(f"Indoor temp: {dashboard_data.indoor_temperature}°C")
 
 Note:
     All coordinators poll every 60 seconds by default (DEFAULT_POLLING_INTERVAL_SECONDS)
@@ -44,6 +44,7 @@ if TYPE_CHECKING:
     from .comfoclime_api import ComfoClimeAPI
 
 from .constants import API_DEFAULTS
+from .models import DashboardData
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -97,19 +98,20 @@ class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
         self.api = api
         self._access_tracker = access_tracker
 
-    async def _async_update_data(self) -> dict[str, Any]:
+    async def _async_update_data(self) -> DashboardData:
         """Fetch dashboard data from the API.
 
         Returns:
-            Dictionary containing dashboard data with keys:
-                - indoorTemperature: Indoor temperature in °C
-                - outdoorTemperature: Outdoor temperature in °C
-                - setPointTemperature: Target temperature in °C
-                - fanSpeed: Fan speed level (0-3)
+            DashboardData model containing validated dashboard data with fields:
+                - indoor_temperature: Indoor temperature in °C
+                - outdoor_temperature: Outdoor temperature in °C
+                - set_point_temperature: Target temperature in °C (manual mode)
+                - exhaust_air_flow: Exhaust air flow in m³/h
+                - supply_air_flow: Supply air flow in m³/h
+                - fan_speed: Fan speed level (0-3)
                 - season: Season mode (0=transition, 1=heating, 2=cooling)
-                - hpStandby: Heat pump standby state
-                - temperatureProfile: Active temperature profile (0-2)
                 - status: Control mode (0=manual, 1=automatic)
+                - and more (see DashboardData model)
 
         Raises:
             UpdateFailed: If API call fails or times out.
@@ -118,7 +120,8 @@ class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
             result = await self.api.async_get_dashboard_data()
             if self._access_tracker:
                 self._access_tracker.record_access("Dashboard")
-            return result
+            # Parse the raw dict into a validated DashboardData model
+            return DashboardData(**result)
         except (aiohttp.ClientError, asyncio.TimeoutError) as e:
             _LOGGER.warning("Error fetching dashboard data: %s", e)
             raise UpdateFailed(f"Error fetching dashboard data: {e}") from e

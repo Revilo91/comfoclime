@@ -303,7 +303,7 @@ class ComfoClimeClimate(
     def current_temperature(self) -> float | None:
         """Return current temperature from dashboard data."""
         if self.coordinator.data:
-            return self.coordinator.data.get("indoorTemperature")
+            return self.coordinator.data.indoor_temperature
         return None
 
     @property
@@ -343,9 +343,9 @@ class ComfoClimeClimate(
         if not self.coordinator.data:
             return HVACMode.OFF
 
-        # Get season and hpStandby values
-        hpStandby = self.coordinator.data.get("hpStandby")
-        season = self.coordinator.data.get("season")
+        # Get season and hpStandby values from DashboardData model
+        hpStandby = self.coordinator.data.hp_standby
+        season = self.coordinator.data.season
 
         # If device is in standby (powered off), always report OFF regardless of season
         if hpStandby is True:
@@ -373,7 +373,7 @@ class ComfoClimeClimate(
         if not self.coordinator.data:
             return [HVACAction.OFF]
 
-        heat_pump_status = self.coordinator.data.get("heatPumpStatus")
+        heat_pump_status = self.coordinator.data.heat_pump_status
 
         if heat_pump_status in [None, 0]:
             return [HVACAction.OFF]
@@ -407,21 +407,18 @@ class ComfoClimeClimate(
         if not self.coordinator.data:
             return None
 
-        # Check if in manual mode by presence of setPointTemperature
-        # or explicit status field (status=0 means manual mode)
-        set_point = self.coordinator.data.get("setPointTemperature")
-        status = self.coordinator.data.get("status")
+        # Check if in manual mode using DashboardData model properties
+        set_point = self.coordinator.data.set_point_temperature
+        status = self.coordinator.data.status
 
         # Manual mode: setPointTemperature is set or status=0
         if set_point is not None or status == 0:
             return PRESET_MANUAL
 
         # Automatic mode: return the temperatureProfile preset
-        temp_profile = self.coordinator.data.get("temperatureProfile")
+        temp_profile = self.coordinator.data.temperature_profile
         if isinstance(temp_profile, int):
             return PRESET_MAPPING.get(temp_profile)
-        if isinstance(temp_profile, str) and temp_profile.isdigit():
-            return PRESET_MAPPING.get(int(temp_profile))
 
         return None
 
@@ -436,11 +433,9 @@ class ComfoClimeClimate(
         - 3: high
         """
         if self.coordinator.data:
-            fan_speed = self.coordinator.data.get("fanSpeed")
+            fan_speed = self.coordinator.data.fan_speed
             if isinstance(fan_speed, int):
                 return FAN_MODE_MAPPING.get(fan_speed)
-            if isinstance(fan_speed, str) and fan_speed.isdigit():
-                return FAN_MODE_MAPPING.get(int(fan_speed))
         return None
 
     @property
@@ -455,7 +450,7 @@ class ComfoClimeClimate(
             Season enum (TRANSITIONAL, HEATING, or COOLING)
         """
         if self.coordinator.data:
-            season = self.coordinator.data.get("season")
+            season = self.coordinator.data.season
             if isinstance(season, int) and season in Season._value2member_map_:
                 return Season(season)
         return Season.TRANSITIONAL
