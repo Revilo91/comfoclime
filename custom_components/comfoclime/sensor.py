@@ -69,8 +69,11 @@ from .entities.sensor_definitions import (
     THERMALPROFILE_SENSORS,
 )
 from .entity_helper import (
+    get_device_display_name,
+    get_device_model_type,
     get_device_model_type_id,
     get_device_uuid,
+    get_device_version,
     is_entity_category_enabled,
     is_entity_enabled,
 )
@@ -486,11 +489,11 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
             return None
 
         return DeviceInfo(
-            identifiers={(DOMAIN, self._device["uuid"])},
-            name=self._device.get("displayName", "ComfoClime"),
+            identifiers={(DOMAIN, get_device_uuid(self._device))},
+            name=get_device_display_name(self._device),
             manufacturer="Zehnder",
-            model=self._device.get("@modelType"),
-            sw_version=self._device.get("version", None),
+            model=get_device_model_type(self._device),
+            sw_version=get_device_version(self._device),
         )
 
     def _handle_coordinator_update(self) -> None:
@@ -621,11 +624,11 @@ class ComfoClimeTelemetrySensor(CoordinatorEntity, SensorEntity):
             return None
 
         return DeviceInfo(
-            identifiers={(DOMAIN, self._device["uuid"])},
-            name=self._device.get("displayName", "ComfoClime Device"),
+            identifiers={(DOMAIN, get_device_uuid(self._device))},
+            name=get_device_display_name(self._device, "ComfoClime Device"),
             manufacturer="Zehnder",
-            model=self._device.get("@modelType"),
-            sw_version=self._device.get("version", None),
+            model=get_device_model_type(self._device),
+            sw_version=get_device_version(self._device),
         )
 
     @callback
@@ -695,11 +698,11 @@ class ComfoClimePropertySensor(CoordinatorEntity, SensorEntity):
         if not self._device:
             return None
         return DeviceInfo(
-            identifiers={(DOMAIN, self._device["uuid"])},
-            name=self._device.get("displayName", "ComfoClime"),
+            identifiers={(DOMAIN, get_device_uuid(self._device))},
+            name=get_device_display_name(self._device),
             manufacturer="Zehnder",
-            model=self._device.get("@modelType"),
-            sw_version=self._device.get("version"),
+            model=get_device_model_type(self._device),
+            sw_version=get_device_version(self._device),
         )
 
     @callback
@@ -764,11 +767,11 @@ class ComfoClimeDefinitionSensor(CoordinatorEntity, SensorEntity):
         if not self._device:
             return None
         return DeviceInfo(
-            identifiers={(DOMAIN, self._device["uuid"])},
-            name=self._device.get("displayName", "ComfoClime"),
+            identifiers={(DOMAIN, get_device_uuid(self._device))},
+            name=get_device_display_name(self._device),
             manufacturer="Zehnder",
-            model=self._device.get("@modelType"),
-            sw_version=self._device.get("version"),
+            model=get_device_model_type(self._device),
+            sw_version=get_device_version(self._device),
         )
 
     @callback
@@ -860,11 +863,11 @@ class ComfoClimeAccessTrackingSensor(SensorEntity):
             return None
 
         return DeviceInfo(
-            identifiers={(DOMAIN, self._device["uuid"])},
-            name=self._device.get("displayName", "ComfoClime"),
+            identifiers={(DOMAIN, get_device_uuid(self._device))},
+            name=get_device_display_name(self._device),
             manufacturer="Zehnder",
-            model=self._device.get("@modelType"),
-            sw_version=self._device.get("version", None),
+            model=get_device_model_type(self._device),
+            sw_version=get_device_version(self._device),
         )
 
     @property

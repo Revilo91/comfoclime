@@ -28,8 +28,11 @@ from .entities.select_definitions import (
     SelectDefinition,
 )
 from .entity_helper import (
+    get_device_display_name,
+    get_device_model_type,
     get_device_model_type_id,
     get_device_uuid,
+    get_device_version,
     is_entity_category_enabled,
     is_entity_enabled,
 )
@@ -138,11 +141,11 @@ class ComfoClimeSelect(CoordinatorEntity, SelectEntity):
             return None
 
         return DeviceInfo(
-            identifiers={(DOMAIN, self._device["uuid"])},
-            name=self._device.get("displayName", "ComfoClime"),
+            identifiers={(DOMAIN, get_device_uuid(self._device))},
+            name=get_device_display_name(self._device),
             manufacturer="Zehnder",
-            model=self._device.get("@modelType"),
-            sw_version=self._device.get("version", None),
+            model=get_device_model_type(self._device),
+            sw_version=get_device_version(self._device),
         )
 
     def _handle_coordinator_update(self) -> None:
@@ -243,18 +246,18 @@ class ComfoClimePropertySelect(CoordinatorEntity, SelectEntity):
             return None
 
         return DeviceInfo(
-            identifiers={(DOMAIN, self._device["uuid"])},
-            name=self._device.get("displayName", "ComfoClime"),
+            identifiers={(DOMAIN, get_device_uuid(self._device))},
+            name=get_device_display_name(self._device),
             manufacturer="Zehnder",
-            model=self._device.get("@modelType"),
-            sw_version=self._device.get("version", None),
+            model=get_device_model_type(self._device),
+            sw_version=get_device_version(self._device),
         )
 
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         try:
-            val = self.coordinator.get_property_value(self._device["uuid"], self._path)
+            val = self.coordinator.get_property_value(get_device_uuid(self._device), self._path)
             self._current = self._options_map.get(val)
         except (KeyError, TypeError, ValueError) as e:
             _LOGGER.debug("Error loading %s: %s", self._name, e)
@@ -268,7 +271,7 @@ class ComfoClimePropertySelect(CoordinatorEntity, SelectEntity):
 
         try:
             await self._api.async_set_property_for_device(
-                device_uuid=self._device["uuid"],
+                device_uuid=get_device_uuid(self._device),
                 property_path=self._path,
                 value=value,
                 byte_count=1,

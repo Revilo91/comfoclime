@@ -84,6 +84,64 @@ def get_device_model_type_id(device: dict | object) -> int | None:
     return None
 
 
+def get_device_display_name(device: dict | object, default: str = "ComfoClime") -> str:
+    """Get device display name from either dict or Pydantic model.
+
+    Supports both legacy dict format with 'displayName' key and
+    Pydantic DeviceConfig models with 'display_name' attribute.
+
+    Args:
+        device: Either a dict or DeviceConfig instance
+        default: Default name if not found
+
+    Returns:
+        Device display name string
+    """
+    if hasattr(device, "display_name"):
+        return device.display_name or default
+    if isinstance(device, dict):
+        return device.get("displayName", default)
+    return default
+
+
+def get_device_version(device: dict | object) -> str | None:
+    """Get device version from either dict or Pydantic model.
+
+    Supports both legacy dict format with 'version' key and
+    Pydantic DeviceConfig models with 'version' attribute.
+
+    Args:
+        device: Either a dict or DeviceConfig instance
+
+    Returns:
+        Device version string or None if not found
+    """
+    if hasattr(device, "version"):
+        return device.version
+    if isinstance(device, dict):
+        return device.get("version")
+    return None
+
+
+def get_device_model_type(device: dict | object) -> str | None:
+    """Get device model type string from either dict or Pydantic model.
+
+    Supports legacy dict format with '@modelType' key.
+    For Pydantic models, returns a friendly name based on model_type_id.
+
+    Args:
+        device: Either a dict or DeviceConfig instance
+
+    Returns:
+        Device model type string or None if not found
+    """
+    if isinstance(device, dict):
+        return device.get("@modelType")
+    if hasattr(device, "model_type_id"):
+        return _friendly_model_name(device.model_type_id)
+    return None
+
+
 def _friendly_model_name(model_id) -> str:
     """Return a human-friendly model name for a model_id, safe for strings/ints.
 

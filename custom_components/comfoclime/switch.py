@@ -14,7 +14,14 @@ from pydantic import BaseModel
 
 from . import DOMAIN
 from .entities.switch_definitions import SWITCHES
-from .entity_helper import is_entity_category_enabled, is_entity_enabled
+from .entity_helper import (
+    get_device_display_name,
+    get_device_model_type,
+    get_device_uuid,
+    get_device_version,
+    is_entity_category_enabled,
+    is_entity_enabled,
+)
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -146,11 +153,11 @@ class ComfoClimeSwitch(CoordinatorEntity, SwitchEntity):
             return None
 
         return DeviceInfo(
-            identifiers={(DOMAIN, self._device["uuid"])},
-            name=self._device.get("displayName", "ComfoClime"),
+            identifiers={(DOMAIN, get_device_uuid(self._device))},
+            name=get_device_display_name(self._device),
             manufacturer="Zehnder",
-            model=self._device.get("@modelType"),
-            sw_version=self._device.get("version", None),
+            model=get_device_model_type(self._device),
+            sw_version=get_device_version(self._device),
         )
 
     def _handle_coordinator_update(self) -> None:

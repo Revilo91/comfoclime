@@ -46,6 +46,12 @@ if TYPE_CHECKING:
 
 from . import DOMAIN
 from .constants import FanSpeed
+from .entity_helper import (
+    get_device_display_name,
+    get_device_model_type,
+    get_device_uuid,
+    get_device_version,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -106,11 +112,11 @@ class ComfoClimeFan(CoordinatorEntity, FanEntity):
     @property
     def device_info(self) -> DeviceInfo:
         return DeviceInfo(
-            identifiers={(DOMAIN, self._device["uuid"])},
-            name=self._device.get("displayName", "ComfoClime"),
+            identifiers={(DOMAIN, get_device_uuid(self._device))},
+            name=get_device_display_name(self._device),
             manufacturer="Zehnder",
-            model=self._device.get("@modelType"),
-            sw_version=self._device.get("version"),
+            model=get_device_model_type(self._device),
+            sw_version=get_device_version(self._device),
         )
 
     @property

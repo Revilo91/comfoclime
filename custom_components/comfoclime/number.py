@@ -28,8 +28,11 @@ from .entities.number_definitions import (
     PropertyNumberDefinition,
 )
 from .entity_helper import (
+    get_device_display_name,
+    get_device_model_type,
     get_device_model_type_id,
     get_device_uuid,
+    get_device_version,
     is_entity_category_enabled,
     is_entity_enabled,
 )
@@ -187,14 +190,10 @@ class ComfoClimeTemperatureNumber(CoordinatorEntity, NumberEntity):
 
         return DeviceInfo(
             identifiers={(DOMAIN, dev_id)},
-            name=self._device.get("displayName", "ComfoClime")
-            if isinstance(self._device, dict)
-            else getattr(self._device, "display_name", "ComfoClime"),
+            name=get_device_display_name(self._device),
             manufacturer="Zehnder",
-            model=self._device.get("@modelType") if isinstance(self._device, dict) else None,
-            sw_version=self._device.get("version", None)
-            if isinstance(self._device, dict)
-            else getattr(self._device, "version", None),
+            model=get_device_model_type(self._device),
+            sw_version=get_device_version(self._device),
         )
 
     def _handle_coordinator_update(self) -> None:
@@ -315,18 +314,18 @@ class ComfoClimePropertyNumber(CoordinatorEntity, NumberEntity):
         if not self._device:
             return None
         return DeviceInfo(
-            identifiers={(DOMAIN, self._device["uuid"])},
-            name=self._device.get("displayName", "ComfoClime"),
+            identifiers={(DOMAIN, get_device_uuid(self._device))},
+            name=get_device_display_name(self._device),
             manufacturer="Zehnder",
-            model=self._device.get("@modelType"),
-            sw_version=self._device.get("version"),
+            model=get_device_model_type(self._device),
+            sw_version=get_device_version(self._device),
         )
 
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         try:
-            value = self.coordinator.get_property_value(self._device["uuid"], self._property_path)
+            value = self.coordinator.get_property_value(get_device_uuid(self._device), self._property_path)
             _LOGGER.debug("Property %s updated from coordinator: %s", self._property_path, value)
             self._value = value
         except (KeyError, TypeError, ValueError) as e:
@@ -337,7 +336,7 @@ class ComfoClimePropertyNumber(CoordinatorEntity, NumberEntity):
     async def async_set_native_value(self, value: float) -> None:
         try:
             await self._api.async_set_property_for_device(
-                device_uuid=self._device["uuid"],
+                device_uuid=get_device_uuid(self._device),
                 property_path=self._property_path,
                 value=value,
                 byte_count=self._byte_count,

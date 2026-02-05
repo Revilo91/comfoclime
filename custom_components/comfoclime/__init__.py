@@ -18,6 +18,7 @@ from .coordinator import (
     ComfoClimeTelemetryCoordinator,
     ComfoClimeThermalprofileCoordinator,
 )
+from .entity_helper import get_device_model_type_id
 from .validators import validate_byte_value, validate_duration, validate_property_path
 
 DOMAIN = "comfoclime"
@@ -216,7 +217,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         "definitioncoordinator": definitioncoordinator,
         "access_tracker": access_tracker,
         "devices": devices,
-        "main_device": next((d for d in devices if d.get("modelTypeId") == 20), None),
+        "main_device": next((d for d in devices if get_device_model_type_id(d) == 20), None),
     }
 
     # Register update listener to reload integration when options change
