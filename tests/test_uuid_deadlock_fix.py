@@ -27,7 +27,7 @@ async def test_uuid_no_deadlock_on_connected_devices():
     uuid_response.raise_for_status = MagicMock()
 
     devices_response = AsyncMock()
-    devices_response.json = AsyncMock(return_value={"devices": [{"id": 1}]})
+    devices_response.json = AsyncMock(return_value={"devices": [{"uuid": "device-1", "modelTypeId": 20}]})
     devices_response.raise_for_status = MagicMock()
 
     # Create context managers for responses

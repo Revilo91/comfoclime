@@ -111,7 +111,7 @@ class TestComfoClimeSensor:
     def test_sensor_handles_pydantic_model(self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry):
         """Test sensor properly handles DashboardData Pydantic model without AttributeError."""
         # Ensure coordinator.data is a Pydantic model, not a dict
-        assert hasattr(mock_coordinator.data, 'model_dump'), "Coordinator data should be a Pydantic model"
+        assert hasattr(mock_coordinator.data, "model_dump"), "Coordinator data should be a Pydantic model"
 
         sensor = ComfoClimeSensor(
             hass=mock_hass,

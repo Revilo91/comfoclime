@@ -37,7 +37,7 @@ def test_cache_key_generation():
 
 def test_cache_ttl_constant():
     """Test that cache TTL is properly configured."""
-    from custom_components.comfoclime.comfoclime_api import DEFAULT_CACHE_TTL
+    from custom_components.comfoclime.rate_limiter_cache import DEFAULT_CACHE_TTL
 
     assert DEFAULT_CACHE_TTL == 30.0, f"Expected DEFAULT_CACHE_TTL=30.0, got {DEFAULT_CACHE_TTL}"
     print("✅ Cache TTL constant test passed")

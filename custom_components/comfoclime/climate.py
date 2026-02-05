@@ -34,8 +34,6 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
-from pydantic import BaseModel
-
 from homeassistant.components.climate import (
     FAN_HIGH,
     FAN_LOW,
@@ -53,6 +51,7 @@ from homeassistant.components.climate import (
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from pydantic import BaseModel
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -304,7 +303,7 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
         """
         tp = self._thermalprofile_coordinator.data or {}
         temp = (tp.get("temperature") or {}).get("manualTemperature")
-        if isinstance(temp, int | float):
+        if isinstance(temp, (int, float)):
             return temp
         return None
 
@@ -783,7 +782,7 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
                 scenario_time_left = self.coordinator.data.get("scenarioTimeLeft")
             else:
                 scenario_time_left = None
-            
+
             if scenario_time_left is not None:
                 attrs["scenario_time_left"] = scenario_time_left
                 # Convert to human-readable format
@@ -799,7 +798,7 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
         # For transparency: expose last_manual_temperature from thermal profile if available
         tp = getattr(self._thermalprofile_coordinator, "data", None) or {}
         manual_temp = (tp.get("temperature") or {}).get("manualTemperature")
-        if isinstance(manual_temp, int | float):
+        if isinstance(manual_temp, (int, float)):
             attrs["last_manual_temperature"] = manual_temp
 
         return attrs
