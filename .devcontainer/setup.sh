@@ -1,26 +1,55 @@
 #!/bin/bash
-# Setup script for ComfoClime development container
+# Setup script for ComfoClime development container and local development
 
 set -e
 
 echo "Setting up ComfoClime development environment..."
 
-# Install system dependencies
-echo "Installing system dependencies..."
-sudo apt-get update -qq
-sudo apt-get install -y build-essential python3 python3-dev python3-venv libpcap-dev
+# Determine the project root directory (works in both Dev Container and local)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-# Bootstrap pip for the system Python 3
-echo "Bootstrapping pip for Python 3..."
-python3 -m ensurepip --upgrade || true
-python3 -m pip install --upgrade pip wheel setuptools
+echo "Project root: $PROJECT_ROOT"
+
+# Check if we're in a Dev Container or local environment
+if [ -d "/workspaces/comfoclime" ]; then
+  WORKSPACE_ROOT="/workspaces/comfoclime"
+else
+  WORKSPACE_ROOT="$PROJECT_ROOT"
+fi
+
+echo "Workspace root: $WORKSPACE_ROOT"
+
+# Skip system dependencies installation if not needed or in local environment
+if command -v apt-get &> /dev/null && [ -w /etc ]; then
+  echo "Installing system dependencies..."
+  sudo apt-get update -qq
+  sudo apt-get install -y build-essential python3 python3-dev python3-venv libpcap-dev
+else
+  echo "Skipping system dependencies (not running as root or apt not available)"
+fi
+
+# Create and activate virtual environment if it doesn't exist
+VENV_DIR="$WORKSPACE_ROOT/.venv"
+if [ ! -d "$VENV_DIR" ]; then
+  echo "Creating virtual environment at $VENV_DIR..."
+  python3 -m venv "$VENV_DIR"
+fi
+
+# Activate virtual environment
+echo "Activating virtual environment..."
+source "$VENV_DIR/bin/activate"
+
+# Upgrade pip and install dependencies
+echo "Upgrading pip and setuptools..."
+pip install --upgrade pip wheel setuptools
 
 # Determine config directory
 if [ -d "/config" ]; then
   CONFIG_DIR="/config"
 else
-  # Use workspace-local config directory for non-HA containers
-  CONFIG_DIR="/workspaces/comfoclime/.devcontainer/ha-config"
+  # Use workspace-local config directory for non-HA containers and local dev
+  CONFIG_DIR="$WORKSPACE_ROOT/.devcontainer/ha-config"
   mkdir -p "$CONFIG_DIR"
   echo "Using local config directory: $CONFIG_DIR"
 fi
@@ -32,27 +61,35 @@ mkdir -p "$CONFIG_DIR/custom_components"
 rm -f "$CONFIG_DIR/custom_components/comfoclime"
 
 # Create symbolic link to our custom component
-ln -s /workspaces/comfoclime/custom_components/comfoclime "$CONFIG_DIR/custom_components/comfoclime"
+ln -s "$WORKSPACE_ROOT/custom_components/comfoclime" "$CONFIG_DIR/custom_components/comfoclime"
 
 # Copy configuration files to Home Assistant config directory
-cp /workspaces/comfoclime/.devcontainer/configuration.yaml "$CONFIG_DIR/configuration.yaml"
-cp /workspaces/comfoclime/.devcontainer/automations.yaml "$CONFIG_DIR/automations.yaml"
-cp /workspaces/comfoclime/.devcontainer/scripts.yaml "$CONFIG_DIR/scripts.yaml"
-cp /workspaces/comfoclime/.devcontainer/scenes.yaml "$CONFIG_DIR/scenes.yaml"
+cp "$WORKSPACE_ROOT/.devcontainer/configuration.yaml" "$CONFIG_DIR/configuration.yaml"
+cp "$WORKSPACE_ROOT/.devcontainer/automations.yaml" "$CONFIG_DIR/automations.yaml"
+cp "$WORKSPACE_ROOT/.devcontainer/scripts.yaml" "$CONFIG_DIR/scripts.yaml"
+cp "$WORKSPACE_ROOT/.devcontainer/scenes.yaml" "$CONFIG_DIR/scenes.yaml"
 
-# Install Home Assistant if not already present
-if ! command -v hass &> /dev/null; then
+# Install Home Assistant if not already present in venv
+if ! pip show homeassistant &> /dev/null; then
   echo "Installing Home Assistant Core..."
-  python3 -m pip install --upgrade homeassistant
+  pip install --upgrade homeassistant
 else
-  echo "Home Assistant already installed: $(hass --version 2>/dev/null || echo 'version unknown')"
+  HA_VERSION=$(pip show homeassistant | grep "^Version:" | cut -d' ' -f2)
+  echo "Home Assistant already installed: $HA_VERSION"
 fi
 
 echo ""
+echo "=========================================="
 echo "Setup complete!"
+echo "=========================================="
 echo "Configuration directory: $CONFIG_DIR"
+echo "Virtual environment: $VENV_DIR"
 echo ""
 echo "To start Home Assistant, run:"
+echo "  source $VENV_DIR/bin/activate"
 echo "  python3 -m homeassistant -c $CONFIG_DIR"
+echo ""
+echo "Or use the start script:"
+echo "  $WORKSPACE_ROOT/.devcontainer/start-ha.sh"
 echo ""
 echo "Home Assistant will be available at http://localhost:8123"
