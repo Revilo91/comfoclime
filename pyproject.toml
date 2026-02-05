@@ -2,11 +2,11 @@
 name = "comfoclime"
 version = "1.0.0"
 description = "ComfoClime Home Assistant Integration"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 
 [tool.ruff]
 # Zielversion für Python
-target-version = "py312"
+target-version = "py314"
 
 # Maximale Zeilenlänge
 line-length = 120
