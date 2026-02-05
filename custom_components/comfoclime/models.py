@@ -127,7 +127,7 @@ def fix_signed_temperatures_in_dict(data: dict) -> dict:
         if isinstance(val, dict):
             # Recursively process nested dictionaries
             data[key] = fix_signed_temperatures_in_dict(val)
-        elif "Temperature" in key and val is not None and isinstance(val, int | float):
+        elif "Temperature" in key and val is not None and isinstance(val, (int, float)):
             data[key] = fix_signed_temperature(val)
     return data
 

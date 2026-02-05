@@ -129,8 +129,8 @@ class TestComfoClimeAPI:
     @pytest.mark.asyncio
     async def test_async_get_connected_devices_with_realistic_data(self):
         """Test async getting connected devices with realistic data from actual API.
-        
-        This test validates the fix for the issue where @modelType (string) was 
+
+        This test validates the fix for the issue where @modelType (string) was
         incorrectly being used instead of modelTypeId (integer).
         """
         api = ComfoClimeAPI("http://192.168.1.100")
@@ -183,19 +183,19 @@ class TestComfoClimeAPI:
 
         # All three devices should be successfully parsed
         assert len(devices) == 3
-        
+
         # Verify the first device (ComfoAirQ 350)
         assert devices[0].uuid == "SIT14276877"
         assert devices[0].model_type_id == 1
         assert devices[0].display_name == "ComfoAirQ 350"
         assert devices[0].version is None
-        
+
         # Verify the second device (ComfoClime 24)
         assert devices[1].uuid == "MBE083a8d0146e1"
         assert devices[1].model_type_id == 20
         assert devices[1].display_name == "ComfoClime 24"
         assert devices[1].version == "R1.5.5"
-        
+
         # Verify the third device (ComfoConnectLANC)
         assert devices[2].uuid == "DEM0121153000"
         assert devices[2].model_type_id == 5

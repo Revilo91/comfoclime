@@ -552,7 +552,7 @@ class ComfoClimeAPI:
         cached_value = self._rate_limiter.get_property_from_cache(cache_key)
         if cached_value is not None:
             # Cache stores the final value, reconstruct approximation
-            estimated_raw = int(cached_value / faktor) if faktor != 0 and isinstance(cached_value, int | float) else 0
+            estimated_raw = int(cached_value / faktor) if faktor != 0 and isinstance(cached_value, (int, float)) else 0
             return PropertyReading(
                 device_uuid=device_uuid,
                 path=property_path,

@@ -36,8 +36,6 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
-from pydantic import BaseModel
-
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -49,6 +47,7 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from pydantic import BaseModel
 
 from . import DOMAIN
 from .coordinator import (
@@ -451,23 +450,24 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
     @staticmethod
     def _camel_to_snake(name: str) -> str:
         """Convert camelCase to snake_case for Pydantic field access.
-        
+
         Args:
             name: camelCase field name
-            
+
         Returns:
             snake_case field name
-            
+
         Example:
             >>> ComfoClimeSensor._camel_to_snake("indoorTemperature")
             "indoor_temperature"
         """
         import re
+
         # Insert underscore before uppercase letters and convert to lowercase
-        return re.sub(r'(?<!^)(?=[A-Z])', '_', name).lower()
+        return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
 
     @property
-    def state(self):
+    def native_value(self):
         return self._state
 
     @property
