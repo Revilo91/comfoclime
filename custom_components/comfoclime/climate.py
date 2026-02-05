@@ -66,6 +66,12 @@ if TYPE_CHECKING:
 
 from . import DOMAIN
 from .constants import FanSpeed, ScenarioMode, Season, TemperatureProfile
+from .entity_helper import (
+    get_device_display_name,
+    get_device_model_type,
+    get_device_uuid,
+    get_device_version,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -280,11 +286,11 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
     def device_info(self) -> DeviceInfo:
         """Return device information."""
         return {
-            "identifiers": {(DOMAIN, self._device["uuid"])},
-            "name": self._device.get("displayName", "ComfoClime"),
+            "identifiers": {(DOMAIN, get_device_uuid(self._device))},
+            "name": get_device_display_name(self._device),
             "manufacturer": "Zehnder",
-            "model": self._device.get("@modelType", "ComfoClime"),
-            "sw_version": self._device.get("version"),
+            "model": get_device_model_type(self._device) or "ComfoClime",
+            "sw_version": get_device_version(self._device),
         }
 
     @property
