@@ -27,7 +27,12 @@ from .entities.select_definitions import (
     PropertySelectDefinition,
     SelectDefinition,
 )
-from .entity_helper import is_entity_category_enabled, is_entity_enabled
+from .entity_helper import (
+    get_device_model_type_id,
+    get_device_uuid,
+    is_entity_category_enabled,
+    is_entity_enabled,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -58,8 +63,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
     if is_entity_category_enabled(entry.options, "selects", "connected_properties"):
         for device in devices:
-            model_id = device.get("modelTypeId")
-            dev_uuid = device.get("uuid")
+            model_id = get_device_model_type_id(device)
+            dev_uuid = get_device_uuid(device)
             if dev_uuid == "NULL":
                 continue
 

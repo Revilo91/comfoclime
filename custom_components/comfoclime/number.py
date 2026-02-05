@@ -27,7 +27,12 @@ from .entities.number_definitions import (
     NumberDefinition,
     PropertyNumberDefinition,
 )
-from .entity_helper import is_entity_category_enabled, is_entity_enabled
+from .entity_helper import (
+    get_device_model_type_id,
+    get_device_uuid,
+    is_entity_category_enabled,
+    is_entity_enabled,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -53,8 +58,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
     if is_entity_category_enabled(entry.options, "numbers", "connected_properties"):
         for device in devices:
-            model_id = device.get("modelTypeId")
-            dev_uuid = device.get("uuid")
+            model_id = get_device_model_type_id(device)
+            dev_uuid = get_device_uuid(device)
             if dev_uuid == "NULL":
                 _LOGGER.debug("Skipping device with NULL uuid (model_id: %s)", model_id)
                 continue
@@ -176,16 +181,20 @@ class ComfoClimeTemperatureNumber(CoordinatorEntity, NumberEntity):
         if not self._device:
             return None
 
-        dev_id = self._device.get("uuid")
+        dev_id = get_device_uuid(self._device)
         if not dev_id or dev_id == "NULL":
             return None  # <-- Verhindert fehlerhafte Registrierung
 
         return DeviceInfo(
-            identifiers={(DOMAIN, self._device["uuid"])},
-            name=self._device.get("displayName", "ComfoClime"),
+            identifiers={(DOMAIN, dev_id)},
+            name=self._device.get("displayName", "ComfoClime")
+            if isinstance(self._device, dict)
+            else getattr(self._device, "display_name", "ComfoClime"),
             manufacturer="Zehnder",
-            model=self._device.get("@modelType"),
-            sw_version=self._device.get("version", None),
+            model=self._device.get("@modelType") if isinstance(self._device, dict) else None,
+            sw_version=self._device.get("version", None)
+            if isinstance(self._device, dict)
+            else getattr(self._device, "version", None),
         )
 
     def _handle_coordinator_update(self) -> None:
@@ -289,7 +298,7 @@ class ComfoClimePropertyNumber(CoordinatorEntity, NumberEntity):
         _LOGGER.debug(
             "ComfoClimePropertyNumber initialized: path=%s, device=%s, unique_id=%s",
             self._property_path,
-            device.get("uuid"),
+            get_device_uuid(device),
             self._attr_unique_id,
         )
 

@@ -46,6 +46,44 @@ def _get_attr(entity_def: dict | object, key: str, default=None):
     return getattr(entity_def, key, default)
 
 
+def get_device_uuid(device: dict | object) -> str | None:
+    """Get device UUID from either dict or Pydantic model.
+
+    Supports both legacy dict format with 'uuid' key and
+    Pydantic DeviceConfig models with 'uuid' attribute.
+
+    Args:
+        device: Either a dict or DeviceConfig instance
+
+    Returns:
+        Device UUID string or None if not found
+    """
+    if hasattr(device, "uuid"):
+        return device.uuid
+    if isinstance(device, dict):
+        return device.get("uuid")
+    return None
+
+
+def get_device_model_type_id(device: dict | object) -> int | None:
+    """Get device model type ID from either dict or Pydantic model.
+
+    Supports both legacy dict format with 'modelTypeId' key and
+    Pydantic DeviceConfig models with 'model_type_id' attribute.
+
+    Args:
+        device: Either a dict or DeviceConfig instance
+
+    Returns:
+        Model type ID integer or None if not found
+    """
+    if hasattr(device, "model_type_id"):
+        return device.model_type_id
+    if isinstance(device, dict):
+        return device.get("modelTypeId")
+    return None
+
+
 def _friendly_model_name(model_id) -> str:
     """Return a human-friendly model name for a model_id, safe for strings/ints.
 

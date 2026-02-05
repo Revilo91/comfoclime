@@ -68,7 +68,12 @@ from .entities.sensor_definitions import (
     TELEMETRY_SENSORS,
     THERMALPROFILE_SENSORS,
 )
-from .entity_helper import is_entity_category_enabled, is_entity_enabled
+from .entity_helper import (
+    get_device_model_type_id,
+    get_device_uuid,
+    is_entity_category_enabled,
+    is_entity_enabled,
+)
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -212,7 +217,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
     # Feste Telemetrie-Sensoren für das ComfoClime-Gerät (from TELEMETRY_SENSORS)
     for sensor_def in TELEMETRY_SENSORS:
-        device_uuid = api.uuid or (main_device.get("uuid") if main_device else None)
+        device_uuid = api.uuid or get_device_uuid(main_device)
         if device_uuid:
             await tlcoordinator.register_telemetry(
                 device_uuid=device_uuid,
@@ -247,8 +252,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         devices = []
 
     for device in devices:
-        model_id = device.get("modelTypeId")
-        dev_uuid = device.get("uuid")
+        model_id = get_device_model_type_id(device)
+        dev_uuid = get_device_uuid(device)
         if dev_uuid == "NULL":
             continue
 
