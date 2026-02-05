@@ -105,7 +105,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     try:
         devices = await api.async_get_connected_devices()
         _LOGGER.debug("Connected devices retrieved: %s devices found", len(devices))
-    except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+    except (aiohttp.ClientError, TimeoutError) as err:
         _LOGGER.error(
             "Failed to connect to ComfoClime device at %s: %s",
             host,
