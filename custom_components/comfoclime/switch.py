@@ -6,6 +6,8 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
+from pydantic import BaseModel
+
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -121,6 +123,19 @@ class ComfoClimeSwitch(CoordinatorEntity, SwitchEntity):
         # Parse key path for nested access
         self._key_path = key.split(".")
 
+    @staticmethod
+    def _camel_to_snake(name: str) -> str:
+        """Convert camelCase to snake_case for Pydantic field access.
+        
+        Args:
+            name: camelCase field name
+            
+        Returns:
+            snake_case field name
+        """
+        import re
+        return re.sub(r'(?<!^)(?=[A-Z])', '_', name).lower()
+
     @property
     def is_on(self):
         return self._state
@@ -145,7 +160,15 @@ class ComfoClimeSwitch(CoordinatorEntity, SwitchEntity):
             # Navigate through nested keys
             val = data
             for key in self._key_path:
-                val = val.get(key)
+                if isinstance(val, BaseModel):
+                    # Pydantic model - use getattr with snake_case field name
+                    snake_case_key = self._camel_to_snake(key)
+                    val = getattr(val, snake_case_key, None)
+                elif isinstance(val, dict) and key in val:
+                    val = val[key]
+                else:
+                    val = None
+                    break
 
             # Apply logic based on endpoint
             if self._endpoint == "thermal_profile":

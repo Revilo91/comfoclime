@@ -108,6 +108,36 @@ class TestComfoClimeSensor:
         assert device_info["name"] == "ComfoClime Test"
         assert device_info["manufacturer"] == "Zehnder"
 
+    def test_sensor_handles_pydantic_model(self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry):
+        """Test sensor properly handles DashboardData Pydantic model without AttributeError."""
+        # Ensure coordinator.data is a Pydantic model, not a dict
+        assert hasattr(mock_coordinator.data, 'model_dump'), "Coordinator data should be a Pydantic model"
+
+        sensor = ComfoClimeSensor(
+            hass=mock_hass,
+            coordinator=mock_coordinator,
+            api=mock_api,
+            sensor_type="indoorTemperature",
+            name="Indoor Temperature",
+            translation_key="indoor_temperature",
+            unit="°C",
+            device_class="temperature",
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+
+        # Set hass attribute and mock async_write_ha_state
+        sensor.hass = mock_hass
+        sensor.async_write_ha_state = MagicMock()
+
+        # This should NOT raise AttributeError: 'DashboardData' object has no attribute 'keys'
+        # Trigger coordinator update
+        sensor._handle_coordinator_update()
+
+        # Verify the sensor state was updated correctly from the Pydantic model
+        assert sensor._state == 22.5
+        assert sensor._raw_value == 22.5
+
 
 class TestComfoClimeTelemetrySensor:
     """Test ComfoClimeTelemetrySensor class."""
