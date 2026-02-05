@@ -40,7 +40,17 @@ async def test_telemetry_coordinator_concurrent_registration(hass_with_frame_hel
             signed=True,
             byte_count=2,
         )
-        return 25.5
+        # Return a TelemetryReading model
+        from custom_components.comfoclime.models import TelemetryReading
+
+        return TelemetryReading(
+            device_uuid=args[0] if args else kwargs["device_uuid"],
+            telemetry_id=args[1] if len(args) > 1 else kwargs["telemetry_id"],
+            raw_value=255,
+            faktor=kwargs.get("faktor", 1.0),
+            signed=kwargs.get("signed", False),
+            byte_count=kwargs.get("byte_count", 2),
+        )
 
     mock_api.async_read_telemetry_for_device = AsyncMock(side_effect=mock_read_telemetry)
 
@@ -76,7 +86,17 @@ async def test_property_coordinator_concurrent_registration(hass_with_frame_help
             signed=True,
             byte_count=2,
         )
-        return 100
+        # Return a PropertyReading model
+        from custom_components.comfoclime.models import PropertyReading
+
+        return PropertyReading(
+            device_uuid=args[0] if args else kwargs["device_uuid"],
+            path=args[1] if len(args) > 1 else kwargs["property_path"],
+            raw_value=100,
+            faktor=kwargs.get("faktor", 1.0),
+            signed=kwargs.get("signed", True),
+            byte_count=kwargs.get("byte_count", 2),
+        )
 
     mock_api.async_read_property_for_device = AsyncMock(side_effect=mock_read_property)
 
@@ -85,7 +105,7 @@ async def test_property_coordinator_concurrent_registration(hass_with_frame_help
 
     assert result is not None
     assert "device1" in result
-    assert result["device1"]["29/1/10"] == 100
+    assert result["device1"]["29/1/10"] == 100.0
 
 
 @pytest.mark.asyncio
@@ -110,7 +130,17 @@ async def test_telemetry_coordinator_multiple_devices(hass_with_frame_helper, mo
 
     # Mock API responses
     async def mock_read_telemetry(device_uuid, telemetry_id, **kwargs):
-        return float(telemetry_id) / 10.0
+        # Return a TelemetryReading model
+        from custom_components.comfoclime.models import TelemetryReading
+
+        return TelemetryReading(
+            device_uuid=device_uuid,
+            telemetry_id=telemetry_id,
+            raw_value=int(telemetry_id),
+            faktor=kwargs.get("faktor", 1.0),
+            signed=kwargs.get("signed", False),
+            byte_count=kwargs.get("byte_count", 2),
+        )
 
     mock_api.async_read_telemetry_for_device = AsyncMock(side_effect=mock_read_telemetry)
 
@@ -119,9 +149,10 @@ async def test_telemetry_coordinator_multiple_devices(hass_with_frame_helper, mo
     assert result is not None
     assert "device1" in result
     assert "device2" in result
-    assert result["device1"]["123"] == 12.3
-    assert result["device1"]["456"] == 45.6
-    assert result["device2"]["789"] == 78.9
+    # Values are scaled by faktor (1.0 and 2.0 respectively)
+    assert result["device1"]["123"] == 123.0  # 123 * 1.0
+    assert result["device1"]["456"] == 912.0  # 456 * 2.0
+    assert result["device2"]["789"] == 789.0  # 789 * 1.0
 
 
 @pytest.mark.asyncio
@@ -154,7 +185,17 @@ async def test_property_coordinator_multiple_devices(hass_with_frame_helper, moc
 
     # Mock API responses
     async def mock_read_property(device_uuid, property_path, **kwargs):
-        return len(property_path) * 10
+        # Return a PropertyReading model
+        from custom_components.comfoclime.models import PropertyReading
+
+        return PropertyReading(
+            device_uuid=device_uuid,
+            path=property_path,
+            raw_value=len(property_path) * 10,
+            faktor=kwargs.get("faktor", 1.0),
+            signed=kwargs.get("signed", True),
+            byte_count=kwargs.get("byte_count", 2),
+        )
 
     mock_api.async_read_property_for_device = AsyncMock(side_effect=mock_read_property)
 
@@ -163,9 +204,12 @@ async def test_property_coordinator_multiple_devices(hass_with_frame_helper, moc
     assert result is not None
     assert "device1" in result
     assert "device2" in result
-    assert result["device1"]["29/1/10"] == 70
-    assert result["device1"]["29/1/6"] == 60
-    assert result["device2"]["30/2/5"] == 60
+    # len("29/1/10") * 10 * 1.0 = 7 * 10 * 1.0 = 70.0
+    assert result["device1"]["29/1/10"] == 70.0
+    # len("29/1/6") * 10 * 1.0 = 6 * 10 * 1.0 = 60.0
+    assert result["device1"]["29/1/6"] == 60.0
+    # len("30/2/5") * 10 * 0.1 = 6 * 10 * 0.1 = 6.0
+    assert result["device2"]["30/2/5"] == 6.00
 
 
 @pytest.mark.asyncio
@@ -184,7 +228,17 @@ async def test_telemetry_coordinator_error_handling(hass_with_frame_helper, mock
     async def mock_read_telemetry(device_uuid, telemetry_id, **kwargs):
         if telemetry_id == "456":
             raise aiohttp.ClientError("Test error")
-        return 25.5
+        # Return a TelemetryReading model
+        from custom_components.comfoclime.models import TelemetryReading
+
+        return TelemetryReading(
+            device_uuid=device_uuid,
+            telemetry_id=telemetry_id,
+            raw_value=255,
+            faktor=kwargs.get("faktor", 1.0),
+            signed=kwargs.get("signed", False),
+            byte_count=kwargs.get("byte_count", 2),
+        )
 
     mock_api.async_read_telemetry_for_device = AsyncMock(side_effect=mock_read_telemetry)
 
@@ -192,7 +246,7 @@ async def test_telemetry_coordinator_error_handling(hass_with_frame_helper, mock
 
     assert result is not None
     assert "device1" in result
-    assert result["device1"]["123"] == 25.5
+    assert result["device1"]["123"] == 255.0
     assert result["device1"]["456"] is None
 
 
@@ -220,7 +274,17 @@ async def test_property_coordinator_error_handling(hass_with_frame_helper, mock_
     async def mock_read_property(device_uuid, property_path, **kwargs):
         if property_path == "29/1/6":
             raise aiohttp.ClientError("Test error")
-        return 100
+        # Return a PropertyReading model
+        from custom_components.comfoclime.models import PropertyReading
+
+        return PropertyReading(
+            device_uuid=device_uuid,
+            path=property_path,
+            raw_value=100,
+            faktor=kwargs.get("faktor", 1.0),
+            signed=kwargs.get("signed", True),
+            byte_count=kwargs.get("byte_count", 2),
+        )
 
     mock_api.async_read_property_for_device = AsyncMock(side_effect=mock_read_property)
 
@@ -228,7 +292,7 @@ async def test_property_coordinator_error_handling(hass_with_frame_helper, mock_
 
     assert result is not None
     assert "device1" in result
-    assert result["device1"]["29/1/10"] == 100
+    assert result["device1"]["29/1/10"] == 100.0
     assert result["device1"]["29/1/6"] is None
 
 

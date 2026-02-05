@@ -93,8 +93,8 @@ def fix_signed_temperature(api_value: float) -> float:
     Example:
         >>> fix_signed_temperature(6552.3)  # API value for -1.3°C
         -1.3
-        >>> fix_signed_temperature(235.0)  # Positive temps unchanged
-        23.5
+        >>> fix_signed_temperature(235.0)  # Positive temps remain unchanged
+        235.0
     """
     raw_value = int(api_value * 10)
     # Convert to signed 16-bit using Python's built-in byte conversion
@@ -120,7 +120,7 @@ def fix_signed_temperatures_in_dict(data: dict) -> dict:
     Example:
         >>> data = {"indoorTemperature": 6552.3, "outdoor": {"temperature": 235.0}}
         >>> fix_signed_temperatures_in_dict(data)
-        {"indoorTemperature": -1.3, "outdoor": {"temperature": 23.5}}
+        {"indoorTemperature": -1.3, "outdoor": {"temperature": 235.0}}
     """
     for key in list(data.keys()):
         val = data[key]

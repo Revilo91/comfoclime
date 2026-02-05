@@ -77,13 +77,27 @@ class MockComfoClimeAPI:
             "timestamp": "2024-01-15T10:30:00Z",
         }
 
-    async def async_get_dashboard_data(self) -> dict[str, Any]:
+    async def async_get_dashboard_data(self) -> Any:
         self._record_call("async_get_dashboard_data")
-        return self.responses.dashboard_data.copy()
+        # Return DashboardData model instead of dict
+        from custom_components.comfoclime.models import DashboardData
 
-    async def async_get_connected_devices(self) -> list[dict[str, Any]]:
+        return DashboardData(**self.responses.dashboard_data)
+
+    async def async_get_connected_devices(self):
         self._record_call("async_get_connected_devices")
-        return self.responses.devices.copy()
+        # Return list of DeviceConfig models instead of dicts
+        from custom_components.comfoclime.models import DeviceConfig
+
+        return [
+            DeviceConfig(
+                uuid=device.get("uuid", ""),
+                model_type_id=device.get("modelTypeId", 0),
+                display_name=device.get("displayName", "Unknown Device"),
+                version=device.get("version"),
+            )
+            for device in self.responses.devices
+        ]
 
     async def async_get_thermal_profile(self) -> dict[str, Any]:
         self._record_call("async_get_thermal_profile")
@@ -108,23 +122,45 @@ class MockComfoClimeAPI:
         self.responses.dashboard_data["season"] = season
         self.responses.dashboard_data["hpStandby"] = hpStandby
 
-    async def async_read_telemetry_for_device(self, device_uuid: str, telemetry_id: int, **kwargs: Any) -> float:
+    async def async_read_telemetry_for_device(self, device_uuid: str, telemetry_id: int, **kwargs: Any):
         self._record_call(
             "async_read_telemetry_for_device",
             device_uuid=device_uuid,
             telemetry_id=telemetry_id,
             **kwargs,
         )
-        return self.responses.telemetry_data.get(device_uuid, {}).get(str(telemetry_id), 0.0)
+        # Return TelemetryReading model instead of raw value
+        from custom_components.comfoclime.models import TelemetryReading
 
-    async def async_read_property_for_device(self, device_uuid: str, path: str, **kwargs: Any) -> int:
+        raw_value = int(self.responses.telemetry_data.get(device_uuid, {}).get(str(telemetry_id), 0))
+        return TelemetryReading(
+            device_uuid=device_uuid,
+            telemetry_id=str(telemetry_id),
+            raw_value=raw_value,
+            faktor=kwargs.get("faktor", 1.0),
+            signed=kwargs.get("signed", False),
+            byte_count=kwargs.get("byte_count", 2),
+        )
+
+    async def async_read_property_for_device(self, device_uuid: str, path: str, **kwargs: Any):
         self._record_call(
             "async_read_property_for_device",
             device_uuid=device_uuid,
             path=path,
             **kwargs,
         )
-        return self.responses.property_data.get(device_uuid, {}).get(path, 0)
+        # Return PropertyReading model instead of raw value
+        from custom_components.comfoclime.models import PropertyReading
+
+        raw_value = self.responses.property_data.get(device_uuid, {}).get(path, 0)
+        return PropertyReading(
+            device_uuid=device_uuid,
+            path=path,
+            raw_value=raw_value,
+            faktor=kwargs.get("faktor", 1.0),
+            signed=kwargs.get("signed", True),
+            byte_count=kwargs.get("byte_count", 2),
+        )
 
     async def _async_set_property_for_device(
         self, device_uuid: str, property_path: str, value: int, **kwargs: Any
@@ -237,18 +273,20 @@ def mock_api_with_devices() -> MockComfoClimeAPI:
 @pytest.fixture
 def mock_coordinator():
     """Create a mock coordinator."""
+    from custom_components.comfoclime.models import DashboardData
+
     coordinator = MagicMock()
-    coordinator.data = {
-        "indoorTemperature": 22.5,
-        "outdoorTemperature": 15.0,
-        "fanSpeed": 2,
-        "season": 1,
-        "temperatureProfile": 0,
-        "heatPumpStatus": 3,
-        "hpStandby": False,
-        "exhaustAirFlow": 200,
-        "supplyAirFlow": 200,
-    }
+    coordinator.data = DashboardData(
+        indoor_temperature=22.5,
+        outdoor_temperature=15.0,
+        fan_speed=2,
+        season=1,
+        temperature_profile=0,
+        heat_pump_status=3,
+        hp_standby=False,
+        exhaust_air_flow=200,
+        supply_air_flow=200,
+    )
     coordinator.async_request_refresh = AsyncMock()
     coordinator.async_config_entry_first_refresh = AsyncMock()
     coordinator.async_add_listener = MagicMock(return_value=lambda: None)

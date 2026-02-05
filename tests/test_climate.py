@@ -19,6 +19,7 @@ from custom_components.comfoclime.climate import (
     ComfoClimeClimate,
     async_setup_entry,
 )
+from custom_components.comfoclime.models import DashboardData
 
 
 class TestComfoClimeClimate:
@@ -116,10 +117,10 @@ class TestComfoClimeClimate:
         mock_config_entry,
     ):
         """Test climate HVAC mode for various season and standby combinations."""
-        mock_coordinator.data = {
-            "season": season,
-            "hpStandby": hpStandby,
-        }
+        mock_coordinator.data = DashboardData(
+            season=season,
+            hp_standby=hpStandby,
+        )
 
         climate = ComfoClimeClimate(
             dashboard_coordinator=mock_coordinator,
@@ -153,9 +154,9 @@ class TestComfoClimeClimate:
         mock_config_entry,
     ):
         """Test climate HVAC action for various heat pump statuses."""
-        mock_coordinator.data = {
-            "heatPumpStatus": heatPumpStatus,
-        }
+        mock_coordinator.data = DashboardData(
+            heat_pump_status=heatPumpStatus,
+        )
 
         climate = ComfoClimeClimate(
             dashboard_coordinator=mock_coordinator,
@@ -190,10 +191,10 @@ class TestComfoClimeClimate:
         mock_config_entry,
     ):
         """Test climate preset mode for various temperature profiles."""
-        mock_coordinator.data = {
-            "temperatureProfile": temperatureProfile,
-            "setPointTemperature": setPointTemperature,
-        }
+        mock_coordinator.data = DashboardData(
+            temperature_profile=temperatureProfile,
+            set_point_temperature=setPointTemperature,
+        )
 
         climate = ComfoClimeClimate(
             dashboard_coordinator=mock_coordinator,
@@ -215,7 +216,7 @@ class TestComfoClimeClimate:
         mock_config_entry,
     ):
         """Test climate fan mode."""
-        mock_coordinator.data = {"fanSpeed": 2}
+        mock_coordinator.data = DashboardData(fan_speed=2)
 
         climate = ComfoClimeClimate(
             dashboard_coordinator=mock_coordinator,

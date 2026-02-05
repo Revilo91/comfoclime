@@ -317,7 +317,7 @@ class TestUtilityFunctions:
 
         # Test positive temperature (should remain unchanged)
         result = fix_signed_temperature(235.0)
-        assert abs(result - 23.5) < 0.01
+        assert abs(result - 235.0) < 0.01
 
     def test_fix_signed_temperatures_in_dict(self):
         """Test fix_signed_temperatures_in_dict function."""
@@ -331,7 +331,7 @@ class TestUtilityFunctions:
 
         # Temperature fields should be fixed
         assert abs(result["indoorTemperature"] - (-1.3)) < 0.01
-        assert abs(result["outdoorTemperature"] - 23.5) < 0.01
+        assert abs(result["outdoorTemperature"] - 235.0) < 0.01
 
         # Non-temperature fields should be unchanged
         assert result["fanSpeed"] == 2

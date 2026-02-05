@@ -68,7 +68,7 @@ async def test_telemetry_cache():
         signed=False,
         byte_count=1,
     )
-    assert result1 == 100
+    assert result1.scaled_value == 100.0
     assert mock_session.get.call_count == 1
     print("✅ First telemetry call hit API")
 
@@ -80,7 +80,7 @@ async def test_telemetry_cache():
         signed=False,
         byte_count=1,
     )
-    assert result2 == 100
+    assert result2.scaled_value == 100.0
     assert mock_session.get.call_count == 1, "Cache hit - no additional API call"
     print("✅ Second telemetry call used cache")
 
@@ -103,13 +103,13 @@ async def test_property_cache():
 
     # First call should hit API
     result1 = await api.async_read_property_for_device(device_uuid="device-1", property_path="29/1/10", byte_count=1)
-    assert result1 == 75
+    assert result1.scaled_value == 75.0
     assert api._read_property_for_device_raw.call_count == 1
     print("✅ First property call hit API")
 
     # Second call should use cache
     result2 = await api.async_read_property_for_device(device_uuid="device-1", property_path="29/1/10", byte_count=1)
-    assert result2 == 75
+    assert result2.scaled_value == 75.0
     assert api._read_property_for_device_raw.call_count == 1, "Cache hit - no additional API call"
     print("✅ Second property call used cache")
 
