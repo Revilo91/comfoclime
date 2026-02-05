@@ -257,8 +257,8 @@ async def test_async_setup_entry_connection_error(mock_hass, mock_config_entry):
             await async_setup_entry(mock_hass, mock_config_entry)
 
         # Verify error message contains the host
-        assert "10.0.0.1" in str(exc_info.value)
-        
+        assert "192.168.1.100" in str(exc_info.value)
+
         # Verify API session was closed
         mock_api_instance.close.assert_called_once()
 
@@ -286,7 +286,7 @@ async def test_async_setup_entry_timeout_error(mock_hass, mock_config_entry):
             await async_setup_entry(mock_hass, mock_config_entry)
 
         # Verify error message contains the host
-        assert "10.0.0.1" in str(exc_info.value)
-        
+        assert "192.168.1.100" in str(exc_info.value)
+
         # Verify API session was closed
         mock_api_instance.close.assert_called_once()
