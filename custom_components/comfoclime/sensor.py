@@ -472,17 +472,29 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
         try:
             data = self.coordinator.data
 
+            # Handle both Pydantic models and dicts for logging
+            if hasattr(data, 'model_dump'):
+                # Pydantic v2 model - convert to dict using aliases (camelCase) to match sensor types
+                data_dict = data.model_dump(by_alias=True)
+                data_keys = list(data_dict.keys()) if data_dict else "None"
+            elif isinstance(data, dict):
+                data_dict = data
+                data_keys = list(data.keys()) if data else "None"
+            else:
+                data_dict = {}
+                data_keys = "None"
+
             _LOGGER.debug(
                 "Sensor '%s' (type=%s) handling coordinator update. Data keys: %s",
                 self._name,
                 self._type,
-                list(data.keys()) if data else "None",
+                data_keys,
             )
 
             # Handle nested keys (e.g., "season.status" or "heatingThermalProfileSeasonData.comfortTemperature")
             if "." in self._type:
                 keys = self._type.split(".")
-                raw_value = data
+                raw_value = data_dict
                 for key in keys:
                     if isinstance(raw_value, dict) and key in raw_value:
                         raw_value = raw_value[key]
@@ -490,7 +502,7 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
                         raw_value = None
                         break
             else:
-                raw_value = data.get(self._type)
+                raw_value = data_dict.get(self._type)
 
             _LOGGER.debug("Sensor '%s' (type=%s): raw_value=%s", self._name, self._type, raw_value)
 
