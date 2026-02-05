@@ -256,7 +256,14 @@ def api_put(
                             _LOGGER.debug("Update OK status=%d", response.status)
                             return response.status == 200
 
-                    except (TimeoutError, asyncio.CancelledError, aiohttp.ClientError) as e:
+                    except asyncio.CancelledError:
+                        # CancelledError should not be retried - it means the task was cancelled
+                        # Re-raise immediately to propagate cancellation
+                        raise
+                    except (  # noqa: PERF203
+                        asyncio.TimeoutError,
+                        aiohttp.ClientError,
+                    ) as e:
                         last_exception = e
                         if attempt < self.max_retries:
                             wait_time = 2 ** (attempt + 1)
