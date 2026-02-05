@@ -25,7 +25,25 @@ ComfoClime is a HVAC solution as additional device for the ComfoAir Q series. It
 * restart Home Assistant
 * add the ComfoClime device (connected devices like the ComfoAir Q are detected and added automatically)
 
-## API Documentation
+## 📚 Documentation
+
+### Architecture & Developer Documentation
+
+Comprehensive architecture documentation for developers and maintainers:
+
+* **[ARCHITECTURE.md](ARCHITECTURE.md)** - Complete system architecture documentation
+  - Executive summary with codebase metrics
+  - Architecture diagrams and data flow
+  - Detailed module reference (23 modules, 48 classes, 197 methods)
+  - Call graphs and dependency mapping
+  - Dead code analysis and cleanup recommendations
+* **[docs/](docs/)** - Additional technical documentation
+  - [Class & Method Reference](docs/CLASS_METHOD_REFERENCE.md) - All classes and methods with signatures
+  - [Dependency Matrix](docs/DEPENDENCY_MATRIX.md) - Inter-module dependencies
+  - [Cleanup Recommendations](docs/CLEANUP_RECOMMENDATIONS.md) - Code quality improvements
+  - [Dependency Graph](docs/pydeps_graph.svg) - Visual dependency diagram
+
+### API Documentation
 
 API documentation with practical Python examples:
 
@@ -33,6 +51,12 @@ API documentation with practical Python examples:
 * **[Original documentation](https://github.com/msfuture/comfoclime_api/blob/main/ComfoClimeAPI.md)** - Detailed reverse engineered API knowledge
 * **[PDO Protocol](https://github.com/michaelarnauts/aiocomfoconnect/blob/master/docs/PROTOCOL-PDO.md)** - Telemetry sensor protocol
 * **[RMI Protocol](https://github.com/michaelarnauts/aiocomfoconnect/blob/master/docs/PROTOCOL-RMI.md)** - Property access protocol
+
+### Additional Documentation
+
+* **[SCENARIO_MODES.md](SCENARIO_MODES.md)** - Scenario modes documentation (cooking, party, away, boost)
+* **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues and solutions
+* **[PYDANTIC_MIGRATION.md](PYDANTIC_MIGRATION.md)** - Pydantic v2 migration guide
 
 Feel free to extend!
 
