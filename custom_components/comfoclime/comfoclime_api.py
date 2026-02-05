@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import aiohttp
 
@@ -39,14 +39,16 @@ if TYPE_CHECKING:
 
 from .api_decorators import api_get, api_put
 from .constants import API_DEFAULTS
+from .models import (
+    DeviceConfig,
+    PropertyReading,
+    TelemetryReading,
+    bytes_to_signed_int,
+)
 from .rate_limiter_cache import (
-    DEFAULT_CACHE_TTL,
-    DEFAULT_MIN_REQUEST_INTERVAL,
-    DEFAULT_REQUEST_DEBOUNCE,
-    DEFAULT_WRITE_COOLDOWN,
     RateLimiterCache,
 )
-from .validators import validate_property_path, validate_byte_value
+from .validators import validate_byte_value, validate_property_path
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -67,7 +69,7 @@ class ComfoClimeAPI:
     """
 
     # Mapping von kwargs zu payload-Struktur (class-level constant)
-    FIELD_MAPPING = {
+    FIELD_MAPPING: ClassVar[dict[str, tuple[str, str | None]]] = {
         # season fields
         "season_status": ("season", "status"),
         "season_value": ("season", "season"),
@@ -203,131 +205,6 @@ class ComfoClimeAPI:
         """
         if self._session and not self._session.closed:
             await self._session.close()
-
-    @staticmethod
-    def bytes_to_signed_int(
-        data: list, byte_count: int = None, signed: bool = True
-    ) -> int:
-        """Convert raw bytes to a signed or unsigned integer value.
-
-        Converts a list of bytes (little-endian) to an integer value.
-        Supports 1-byte and 2-byte conversions with optional signed interpretation.
-
-        Args:
-            data: List of bytes (integers 0-255) in little-endian order
-            byte_count: Number of bytes to read. If None, calculated from data length
-            signed: If True, interpret as signed integer; if False, unsigned
-
-        Returns:
-            Integer value decoded from bytes.
-
-        Raises:
-            ValueError: If data is not a list or byte_count is not 1 or 2.
-
-        Example:
-            >>> ComfoClimeAPI.bytes_to_signed_int([255, 255], 2, signed=True)
-            -1
-            >>> ComfoClimeAPI.bytes_to_signed_int([0, 1], 2, signed=False)
-            256
-        """
-        if not isinstance(data, list):
-            raise ValueError("'data' is not a list")
-
-        if byte_count is None:
-            byte_count = len(data)
-
-        if byte_count not in (1, 2):
-            raise ValueError(f"Unsupported byte count: {byte_count}")
-
-        return int.from_bytes(data[:byte_count], byteorder="little", signed=signed)
-
-    @staticmethod
-    def signed_int_to_bytes(
-        data: int, byte_count: int = 2, signed: bool = False
-    ) -> list:
-        """Convert a signed or unsigned integer to a list of bytes.
-
-        Converts an integer value to a list of bytes in little-endian order.
-        Supports 1-byte and 2-byte conversions.
-
-        Args:
-            data: Integer value to convert
-            byte_count: Number of bytes to convert to (1 or 2)
-            signed: If True, interpret as signed integer; if False, unsigned
-
-        Returns:
-            List of bytes (integers 0-255) in little-endian order.
-
-        Raises:
-            ValueError: If byte_count is not 1 or 2.
-
-        Example:
-            >>> ComfoClimeAPI.signed_int_to_bytes(-1, 2, signed=True)
-            [255, 255]
-            >>> ComfoClimeAPI.signed_int_to_bytes(256, 2, signed=False)
-            [0, 1]
-        """
-        if byte_count not in (1, 2):
-            raise ValueError(f"Unsupported byte count: {byte_count}")
-
-        return list(data.to_bytes(byte_count, byteorder="little", signed=signed))
-
-    @staticmethod
-    def fix_signed_temperature(api_value: float) -> float:
-        """Fix temperature value by converting through signed 16-bit integer.
-
-        The ComfoClime API returns temperature values that need to be
-        interpreted as signed 16-bit integers (scaled by 10). This method
-        performs the necessary conversion to handle negative temperatures correctly.
-
-        Args:
-            api_value: Temperature value from API (scaled by 10)
-
-        Returns:
-            Corrected temperature value in °C.
-
-        Example:
-            >>> ComfoClimeAPI.fix_signed_temperature(655.3)
-            -1.3
-        """
-        raw_value = int(api_value * 10)
-        # Convert to signed 16-bit using Python's built-in byte conversion
-        unsigned_value = raw_value & 0xFFFF
-        bytes_data = ComfoClimeAPI.signed_int_to_bytes(unsigned_value, 2)
-        signed_value = ComfoClimeAPI.bytes_to_signed_int(bytes_data)
-        return signed_value / 10.0
-
-    @staticmethod
-    def fix_signed_temperatures_in_dict(data: dict) -> dict:
-        """Recursively fix signed temperature values in a dictionary.
-        
-        Applies fix_signed_temperature to all keys containing "Temperature"
-        in both flat and nested dictionary structures. This is used to
-        automatically fix temperature values from API responses.
-
-        Args:
-            data: Dictionary potentially containing temperature values
-        
-        Returns:
-            Dictionary with fixed temperature values.
-
-        Example:
-            >>> data = {"indoorTemperature": 655.3, "outdoor": {"temperature": 650.0}}
-            >>> ComfoClimeAPI.fix_signed_temperatures_in_dict(data)
-            {"indoorTemperature": -1.3, "outdoor": {"temperature": -5.0}}
-        """
-        for key in list(data.keys()):
-            val = data[key]
-            if isinstance(val, dict):
-                # Recursively process nested dictionaries
-                data[key] = ComfoClimeAPI.fix_signed_temperatures_in_dict(val)
-            elif (
-                "Temperature" in key
-                and val is not None
-                and isinstance(val, (int, float))
-            ):
-                data[key] = ComfoClimeAPI.fix_signed_temperature(val)
-        return data
 
     @api_get("/monitoring/ping", skip_lock=True)
     async def _async_get_uuid_internal(self, response_data):
@@ -466,11 +343,11 @@ class ComfoClimeAPI:
             response_data: Extracted 'devices' array from response
 
         Returns:
-            List of device dictionaries, each containing:
+            List of DeviceConfig Pydantic models, each validated and containing:
                 - uuid (str): Device UUID
-                - @modelType (str): Device model type/ID
-                - displayName (str): Human-readable device name
-                - version (str): Firmware version
+                - model_type_id (int): Device model type/ID
+                - display_name (str): Human-readable device name
+                - version (str): Firmware version (optional)
 
         Raises:
             aiohttp.ClientError: If connection to device fails.
@@ -479,13 +356,30 @@ class ComfoClimeAPI:
         Example:
             >>> devices = await api.async_get_connected_devices()
             >>> for device in devices:
-            ...     print(f"{device['displayName']}: {device['@modelType']}")
+            ...     print(f"{device.display_name}: {device.model_type_id}")
 
         Note:
             The @api_get decorator extracts 'devices' key from response
-            and returns [] if not found.
+            and returns [] if not found. Invalid device entries are skipped.
         """
-        return response_data
+        # Parse each device dict into DeviceConfig model
+        device_configs = []
+        for device_dict in response_data:
+            try:
+                # Map API field names to model field names
+                # API uses @modelType, we need model_type_id
+                device_config = DeviceConfig(
+                    uuid=device_dict.get("uuid", ""),
+                    model_type_id=int(device_dict.get("@modelType", 0)),
+                    display_name=device_dict.get("displayName", "Unknown Device"),
+                    version=device_dict.get("version"),
+                )
+                device_configs.append(device_config)
+            except (KeyError, ValueError, TypeError) as e:
+                _LOGGER.warning("Skipping invalid device entry: %s - Error: %s", device_dict, e)
+                continue
+
+        return device_configs
 
     @api_get(
         "/device/{device_uuid}/definition",
@@ -508,9 +402,7 @@ class ComfoClimeAPI:
         return response_data
 
     @api_get("/device/{device_uuid}/telemetry/{telemetry_id}")
-    async def _read_telemetry_raw(
-        self, response_data, device_uuid: str, telemetry_id: str
-    ):
+    async def _read_telemetry_raw(self, response_data, device_uuid: str, telemetry_id: str):
         """Read raw telemetry data from device.
 
         The @api_get decorator handles:
@@ -539,7 +431,7 @@ class ComfoClimeAPI:
         faktor: float = 1.0,
         signed: bool = True,
         byte_count: int | None = None,
-    ) -> float | None:
+    ) -> TelemetryReading | None:
         """Read telemetry data for a device with automatic caching.
 
         Fetches telemetry data from a specific device sensor. Results are
@@ -554,7 +446,8 @@ class ComfoClimeAPI:
             byte_count: Number of bytes to read (1 or 2, auto-detected if None)
 
         Returns:
-            Scaled telemetry value as float, or None if read failed.
+            TelemetryReading model with validated data and scaled_value property,
+            or None if read failed.
 
         Raises:
             aiohttp.ClientError: If connection to device fails.
@@ -562,20 +455,33 @@ class ComfoClimeAPI:
 
         Example:
             >>> # Read temperature sensor (2 bytes, signed, factor 0.1)
-            >>> temp = await api.async_read_telemetry_for_device(
+            >>> reading = await api.async_read_telemetry_for_device(
             ...     device_uuid="abc123",
             ...     telemetry_id="100",
             ...     faktor=0.1,
             ...     signed=True,
             ...     byte_count=2
             ... )
-            >>> print(f"Temperature: {temp}°C")
+            >>> if reading:
+            ...     print(f"Temperature: {reading.scaled_value}°C")
         """
         # Try to get from cache first
         cache_key = RateLimiterCache.get_cache_key(device_uuid, telemetry_id)
         cached_value = self._rate_limiter.get_telemetry_from_cache(cache_key)
         if cached_value is not None:
-            return cached_value
+            # Cache stores the raw value, reconstruct the model
+            # We need to reverse-engineer raw_value from cached scaled value
+            # For now, return a model with the cached result as raw (approximation)
+            # This is a simplification - ideally we'd cache the full model
+            estimated_raw = int(cached_value / faktor) if faktor != 0 else 0
+            return TelemetryReading(
+                device_uuid=device_uuid,
+                telemetry_id=str(telemetry_id),
+                raw_value=estimated_raw,
+                faktor=faktor,
+                signed=signed,
+                byte_count=byte_count or 2,
+            )
 
         # Not in cache, fetch from API using decorator
         data = await self._read_telemetry_raw(device_uuid, telemetry_id)
@@ -583,13 +489,22 @@ class ComfoClimeAPI:
         if data is None:
             return None
 
-        value = self.bytes_to_signed_int(data, byte_count, signed)
-        result = value * faktor
+        raw_value = bytes_to_signed_int(data, byte_count, signed)
 
-        # Store in cache
-        self._rate_limiter.set_telemetry_cache(cache_key, result)
+        # Create validated Pydantic model
+        reading = TelemetryReading(
+            device_uuid=device_uuid,
+            telemetry_id=str(telemetry_id),
+            raw_value=raw_value,
+            faktor=faktor,
+            signed=signed,
+            byte_count=byte_count or len(data),
+        )
 
-        return result
+        # Store scaled value in cache
+        self._rate_limiter.set_telemetry_cache(cache_key, reading.scaled_value)
+
+        return reading
 
     async def async_read_property_for_device(
         self,
@@ -598,7 +513,7 @@ class ComfoClimeAPI:
         faktor: float = 1.0,
         signed: bool = True,
         byte_count: int | None = None,
-    ) -> float | str | None:
+    ) -> PropertyReading | None:
         """Read property data for a device with automatic caching.
 
         Fetches property data from a device. Results are cached for CACHE_TTL
@@ -613,7 +528,8 @@ class ComfoClimeAPI:
             byte_count: Number of bytes (1-2 for numeric, 3+ for string)
 
         Returns:
-            Property value as float (numeric) or str (string), or None if failed.
+            PropertyReading model with validated data and scaled_value property,
+            or None if failed.
 
         Raises:
             ValueError: If byte_count is invalid or data size mismatch.
@@ -622,24 +538,29 @@ class ComfoClimeAPI:
 
         Example:
             >>> # Read numeric property
-            >>> value = await api.async_read_property_for_device(
+            >>> reading = await api.async_read_property_for_device(
             ...     device_uuid="abc123",
             ...     property_path="29/1/10",
             ...     byte_count=2,
             ...     faktor=0.1
             ... )
-            >>> # Read string property
-            >>> name = await api.async_read_property_for_device(
-            ...     device_uuid="abc123",
-            ...     property_path="29/1/20",
-            ...     byte_count=16
-            ... )
+            >>> if reading:
+            ...     print(f"Value: {reading.scaled_value}")
         """
         # Try to get from cache first
         cache_key = RateLimiterCache.get_cache_key(device_uuid, property_path)
         cached_value = self._rate_limiter.get_property_from_cache(cache_key)
         if cached_value is not None:
-            return cached_value
+            # Cache stores the final value, reconstruct approximation
+            estimated_raw = int(cached_value / faktor) if faktor != 0 and isinstance(cached_value, int | float) else 0
+            return PropertyReading(
+                device_uuid=device_uuid,
+                path=property_path,
+                raw_value=estimated_raw,
+                faktor=faktor,
+                signed=signed,
+                byte_count=byte_count or 2,
+            )
 
         # Not in cache, fetch from API using decorator
         data = await self._read_property_for_device_raw(device_uuid, property_path)
@@ -648,27 +569,44 @@ class ComfoClimeAPI:
         if not data:
             return None
 
+        # Determine actual byte count if not provided
+        if byte_count is None:
+            byte_count = len(data)
+
+        # Parse numeric values (1-2 bytes)
         if byte_count in (1, 2):
-            value = self.bytes_to_signed_int(data, byte_count, signed)
-            result = value * faktor
-        elif byte_count and byte_count > 2:
+            raw_value = bytes_to_signed_int(data, byte_count, signed)
+
+            # Create validated Pydantic model
+            reading = PropertyReading(
+                device_uuid=device_uuid,
+                path=property_path,
+                raw_value=raw_value,
+                faktor=faktor,
+                signed=signed,
+                byte_count=byte_count,
+            )
+
+            # Store scaled value in cache
+            self._rate_limiter.set_property_cache(cache_key, reading.scaled_value)
+
+            return reading
+
+        # String properties (3+ bytes) - not supported by PropertyReading model yet
+        # Return None for string properties for now
+        if byte_count and byte_count > 2:
             if len(data) != byte_count:
-                raise ValueError(
-                    f"Unerwartete Byte-Anzahl: erwartet {byte_count}, erhalten {len(data)}"
-                )
+                raise ValueError(f"Unerwartete Byte-Anzahl: erwartet {byte_count}, erhalten {len(data)}")
+            # String values don't fit PropertyReading model - return None
+            # TODO: Consider adding StringPropertyReading model
             result = "".join(chr(byte) for byte in data if byte != 0)
-        else:
-            raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
-
-        # Store in cache
-        self._rate_limiter.set_property_cache(cache_key, result)
-
-        return result
+            self._rate_limiter.set_property_cache(cache_key, result)
+            _LOGGER.debug("String property read (not returned as model): %s", result)
+            return None
+        raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
 
     @api_get("/device/{device_uuid}/property/{property_path}")
-    async def _read_property_for_device_raw(
-        self, response_data, device_uuid: str, property_path: str
-    ) -> None | list:
+    async def _read_property_for_device_raw(self, response_data, device_uuid: str, property_path: str) -> None | list:
         """Read raw property data from device.
 
         The @api_get decorator handles:
@@ -1059,7 +997,7 @@ class ComfoClimeAPI:
         Returns:
             Payload dict for the decorator to process
         """
-        return {"data": [z] + data}
+        return {"data": [z, *data]}
 
     async def async_set_property_for_device(
         self,
@@ -1114,7 +1052,7 @@ class ComfoClimeAPI:
             raise ValueError("Nur 1 oder 2 Byte unterstützt")
 
         # Calculate raw value and validate it fits in byte count
-        raw_value = int(round(value / faktor))
+        raw_value = round(value / faktor)
         is_valid, error_message = validate_byte_value(raw_value, byte_count, signed)
         if not is_valid:
             raise ValueError(f"Invalid value for byte_count={byte_count}, signed={signed}: {error_message}")

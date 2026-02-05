@@ -1,15 +1,17 @@
 """Tests for ComfoClime select entities."""
 
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock
-from custom_components.comfoclime.select import (
-    ComfoClimeSelect,
-    ComfoClimePropertySelect,
-    async_setup_entry,
-)
+
 from custom_components.comfoclime.entities.select_definitions import (
-    SelectDefinition,
     PropertySelectDefinition,
+    SelectDefinition,
+)
+from custom_components.comfoclime.select import (
+    ComfoClimePropertySelect,
+    ComfoClimeSelect,
+    async_setup_entry,
 )
 
 
@@ -182,9 +184,7 @@ class TestComfoClimeSelect:
         await select.async_select_option("eco")
 
         # Should use async_update_thermal_profile for temperature profile
-        mock_api.async_update_thermal_profile.assert_called_once_with(
-            temperature_profile=2
-        )
+        mock_api.async_update_thermal_profile.assert_called_once_with(temperature_profile=2)
 
     def test_select_device_info(
         self,
@@ -285,9 +285,7 @@ class TestComfoClimePropertySelect:
         select._handle_coordinator_update()
 
         assert select.current_option == "manual"
-        mock_property_coordinator.get_property_value.assert_called_once_with(
-            "test-device-uuid", "29/1/15"
-        )
+        mock_property_coordinator.get_property_value.assert_called_once_with("test-device-uuid", "29/1/15")
 
     @pytest.mark.asyncio
     async def test_property_select_option(

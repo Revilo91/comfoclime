@@ -45,10 +45,9 @@ from .entity_helper import (
     get_connected_device_telemetry_sensors,
     get_dashboard_sensors,
     get_monitoring_sensors,
-    get_sensors,
-    get_switches,
     get_numbers,
     get_selects,
+    get_switches,
     get_thermalprofile_sensors,
 )
 from .validators import validate_host
@@ -74,15 +73,9 @@ def _get_default_entity_options() -> dict[str, Any]:
         "enabled_dashboard": [opt["value"] for opt in get_dashboard_sensors()],
         "enabled_thermalprofile": [opt["value"] for opt in get_thermalprofile_sensors()],
         "enabled_monitoring": [opt["value"] for opt in get_monitoring_sensors()],
-        "enabled_connected_telemetry": [
-            opt["value"] for opt in get_connected_device_telemetry_sensors()
-        ],
-        "enabled_connected_properties": [
-            opt["value"] for opt in get_connected_device_properties_sensors()
-        ],
-        "enabled_connected_device_definition": [
-            opt["value"] for opt in get_connected_device_definition_sensors()
-        ],
+        "enabled_connected_telemetry": [opt["value"] for opt in get_connected_device_telemetry_sensors()],
+        "enabled_connected_properties": [opt["value"] for opt in get_connected_device_properties_sensors()],
+        "enabled_connected_device_definition": [opt["value"] for opt in get_connected_device_definition_sensors()],
         "enabled_access_tracking": [opt["value"] for opt in get_access_tracking_sensors()],
         "enabled_switches": [opt["value"] for opt in get_switches()],
         "enabled_numbers": [opt["value"] for opt in get_numbers()],
@@ -135,16 +128,18 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
                                 # Get default entity options for initial setup
                                 default_options = _get_default_entity_options()
                                 # Add default general settings
-                                default_options.update({
-                                    "read_timeout": DEFAULT_READ_TIMEOUT,
-                                    "write_timeout": DEFAULT_WRITE_TIMEOUT,
-                                    "polling_interval": DEFAULT_POLLING_INTERVAL,
-                                    "cache_ttl": DEFAULT_CACHE_TTL,
-                                    "max_retries": DEFAULT_MAX_RETRIES,
-                                    "min_request_interval": DEFAULT_MIN_REQUEST_INTERVAL,
-                                    "write_cooldown": DEFAULT_WRITE_COOLDOWN,
-                                    "request_debounce": DEFAULT_REQUEST_DEBOUNCE,
-                                })
+                                default_options.update(
+                                    {
+                                        "read_timeout": DEFAULT_READ_TIMEOUT,
+                                        "write_timeout": DEFAULT_WRITE_TIMEOUT,
+                                        "polling_interval": DEFAULT_POLLING_INTERVAL,
+                                        "cache_ttl": DEFAULT_CACHE_TTL,
+                                        "max_retries": DEFAULT_MAX_RETRIES,
+                                        "min_request_interval": DEFAULT_MIN_REQUEST_INTERVAL,
+                                        "write_cooldown": DEFAULT_WRITE_COOLDOWN,
+                                        "request_debounce": DEFAULT_REQUEST_DEBOUNCE,
+                                    }
+                                )
                                 return self.async_create_entry(
                                     title=f"ComfoClime @ {host}",
                                     data={"host": host},
@@ -158,9 +153,7 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="user",
-            data_schema=vol.Schema(
-                {vol.Required("host", default="comfoclime.local"): str}
-            ),
+            data_schema=vol.Schema({vol.Required("host", default="comfoclime.local"): str}),
             errors=errors,
         )
 
@@ -274,34 +267,53 @@ class ComfoClimeOptionsFlow(OptionsFlow):
 
             # Get switch, number, select options
             all_switch_options = get_switches()
-            switch_options = [opt for opt in all_switch_options if opt['value'].startswith('switches_')]
+            switch_options = [opt for opt in all_switch_options if opt["value"].startswith("switches_")]
 
             all_number_options = get_numbers()
-            number_options = [opt for opt in all_number_options if opt['value'].startswith('numbers_')]
+            number_options = [opt for opt in all_number_options if opt["value"].startswith("numbers_")]
 
             all_select_options = get_selects()
-            select_options = [opt for opt in all_select_options if opt['value'].startswith('selects_')]
+            select_options = [opt for opt in all_select_options if opt["value"].startswith("selects_")]
 
             # Get current enabled values - Sensors
-            dashboard_enabled = self._get_current_value("enabled_dashboard", [opt['value'] for opt in dashboard_options])
-            thermalprofile_enabled = self._get_current_value("enabled_thermalprofile", [opt['value'] for opt in thermalprofile_options])
-            monitoring_enabled = self._get_current_value("enabled_monitoring", [opt['value'] for opt in monitoring_options])
-            connected_telemetry_enabled = self._get_current_value("enabled_connected_device_telemetry", [opt['value'] for opt in connected_telemetry_options])
-            connected_properties_enabled = self._get_current_value("enabled_connected_device_properties", [opt['value'] for opt in connected_properties_options])
-            connected_definition_enabled = self._get_current_value("enabled_connected_device_definition", [opt['value'] for opt in connected_definition_options])
-            access_tracking_enabled = self._get_current_value("enabled_access_tracking", [])  # Diagnostic, empty by default
+            dashboard_enabled = self._get_current_value(
+                "enabled_dashboard", [opt["value"] for opt in dashboard_options]
+            )
+            thermalprofile_enabled = self._get_current_value(
+                "enabled_thermalprofile",
+                [opt["value"] for opt in thermalprofile_options],
+            )
+            monitoring_enabled = self._get_current_value(
+                "enabled_monitoring", [opt["value"] for opt in monitoring_options]
+            )
+            connected_telemetry_enabled = self._get_current_value(
+                "enabled_connected_device_telemetry",
+                [opt["value"] for opt in connected_telemetry_options],
+            )
+            connected_properties_enabled = self._get_current_value(
+                "enabled_connected_device_properties",
+                [opt["value"] for opt in connected_properties_options],
+            )
+            connected_definition_enabled = self._get_current_value(
+                "enabled_connected_device_definition",
+                [opt["value"] for opt in connected_definition_options],
+            )
+            access_tracking_enabled = self._get_current_value(
+                "enabled_access_tracking", []
+            )  # Diagnostic, empty by default
 
             # Get current enabled values - Other entities
-            switches_enabled = self._get_current_value("enabled_switches", [opt['value'] for opt in switch_options])
-            numbers_enabled = self._get_current_value("enabled_numbers", [opt['value'] for opt in number_options])
-            selects_enabled = self._get_current_value("enabled_selects", [opt['value'] for opt in select_options])
+            switches_enabled = self._get_current_value("enabled_switches", [opt["value"] for opt in switch_options])
+            numbers_enabled = self._get_current_value("enabled_numbers", [opt["value"] for opt in number_options])
+            selects_enabled = self._get_current_value("enabled_selects", [opt["value"] for opt in select_options])
 
             _LOGGER.info(
                 f"✓ Retrieved entity options: dashboard={len(dashboard_options)}, thermal={len(thermalprofile_options)}, "
                 f"monitoring={len(monitoring_options)}, telemetry={len(connected_telemetry_options)}, "
                 f"properties={len(connected_properties_options)}, definition={len(connected_definition_options)}, "
                 f"access={len(access_tracking_options)}, switches={len(switch_options)}, "
-                f"numbers={len(number_options)}, selects={len(select_options)}")
+                f"numbers={len(number_options)}, selects={len(select_options)}"
+            )
 
             # Build schema with all entity categories
             schema_dict = {}
@@ -317,11 +329,13 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 )
 
             if thermalprofile_options:
-                schema_dict[vol.Optional("enabled_thermalprofile", default=thermalprofile_enabled)] = selector.SelectSelector(
-                    selector.SelectSelectorConfig(
-                        options=thermalprofile_options,
-                        multiple=True,
-                        mode=selector.SelectSelectorMode.DROPDOWN,
+                schema_dict[vol.Optional("enabled_thermalprofile", default=thermalprofile_enabled)] = (
+                    selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=thermalprofile_options,
+                            multiple=True,
+                            mode=selector.SelectSelectorMode.DROPDOWN,
+                        )
                     )
                 )
 
@@ -335,7 +349,12 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 )
 
             if connected_telemetry_options:
-                schema_dict[vol.Optional("enabled_connected_device_telemetry", default=connected_telemetry_enabled)] = selector.SelectSelector(
+                schema_dict[
+                    vol.Optional(
+                        "enabled_connected_device_telemetry",
+                        default=connected_telemetry_enabled,
+                    )
+                ] = selector.SelectSelector(
                     selector.SelectSelectorConfig(
                         options=connected_telemetry_options,
                         multiple=True,
@@ -344,7 +363,12 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 )
 
             if connected_properties_options:
-                schema_dict[vol.Optional("enabled_connected_device_properties", default=connected_properties_enabled)] = selector.SelectSelector(
+                schema_dict[
+                    vol.Optional(
+                        "enabled_connected_device_properties",
+                        default=connected_properties_enabled,
+                    )
+                ] = selector.SelectSelector(
                     selector.SelectSelectorConfig(
                         options=connected_properties_options,
                         multiple=True,
@@ -353,7 +377,12 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 )
 
             if connected_definition_options:
-                schema_dict[vol.Optional("enabled_connected_device_definition", default=connected_definition_enabled)] = selector.SelectSelector(
+                schema_dict[
+                    vol.Optional(
+                        "enabled_connected_device_definition",
+                        default=connected_definition_enabled,
+                    )
+                ] = selector.SelectSelector(
                     selector.SelectSelectorConfig(
                         options=connected_definition_options,
                         multiple=True,
@@ -362,11 +391,13 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 )
 
             if access_tracking_options:
-                schema_dict[vol.Optional("enabled_access_tracking", default=access_tracking_enabled)] = selector.SelectSelector(
-                    selector.SelectSelectorConfig(
-                        options=access_tracking_options,
-                        multiple=True,
-                        mode=selector.SelectSelectorMode.DROPDOWN,
+                schema_dict[vol.Optional("enabled_access_tracking", default=access_tracking_enabled)] = (
+                    selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=access_tracking_options,
+                            multiple=True,
+                            mode=selector.SelectSelectorMode.DROPDOWN,
+                        )
                     )
                 )
 
@@ -446,9 +477,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                     ): bool,
                 }
             ),
-            description_placeholders={
-                "info": "Enable diagnostic sensors for detailed API access tracking."
-            },
+            description_placeholders={"info": "Enable diagnostic sensors for detailed API access tracking."},
         )
 
     async def async_step_general_timeouts(self, user_input: dict[str, Any] | None = None) -> FlowResult:
@@ -466,8 +495,10 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         default=self._get_current_value("read_timeout", DEFAULT_READ_TIMEOUT),
                     ): selector.NumberSelector(
                         selector.NumberSelectorConfig(
-                            min=1, max=120, mode=selector.NumberSelectorMode.BOX,
-                            unit_of_measurement="s"
+                            min=1,
+                            max=120,
+                            mode=selector.NumberSelectorMode.BOX,
+                            unit_of_measurement="s",
                         )
                     ),
                     vol.Optional(
@@ -475,15 +506,15 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         default=self._get_current_value("write_timeout", DEFAULT_WRITE_TIMEOUT),
                     ): selector.NumberSelector(
                         selector.NumberSelectorConfig(
-                            min=1, max=120, mode=selector.NumberSelectorMode.BOX,
-                            unit_of_measurement="s"
+                            min=1,
+                            max=120,
+                            mode=selector.NumberSelectorMode.BOX,
+                            unit_of_measurement="s",
                         )
                     ),
                 }
             ),
-            description_placeholders={
-                "info": "Configure timeout values for read and write operations."
-            },
+            description_placeholders={"info": "Configure timeout values for read and write operations."},
         )
 
     async def async_step_general_polling(self, user_input: dict[str, Any] | None = None) -> FlowResult:
@@ -501,8 +532,10 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         default=self._get_current_value("polling_interval", DEFAULT_POLLING_INTERVAL),
                     ): selector.NumberSelector(
                         selector.NumberSelectorConfig(
-                            min=10, max=600, mode=selector.NumberSelectorMode.BOX,
-                            unit_of_measurement="s"
+                            min=10,
+                            max=600,
+                            mode=selector.NumberSelectorMode.BOX,
+                            unit_of_measurement="s",
                         )
                     ),
                     vol.Optional(
@@ -510,23 +543,21 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         default=self._get_current_value("cache_ttl", DEFAULT_CACHE_TTL),
                     ): selector.NumberSelector(
                         selector.NumberSelectorConfig(
-                            min=0, max=300, mode=selector.NumberSelectorMode.BOX,
-                            unit_of_measurement="s"
+                            min=0,
+                            max=300,
+                            mode=selector.NumberSelectorMode.BOX,
+                            unit_of_measurement="s",
                         )
                     ),
                     vol.Optional(
                         "max_retries",
                         default=self._get_current_value("max_retries", DEFAULT_MAX_RETRIES),
                     ): selector.NumberSelector(
-                        selector.NumberSelectorConfig(
-                            min=0, max=10, mode=selector.NumberSelectorMode.BOX
-                        )
+                        selector.NumberSelectorConfig(min=0, max=10, mode=selector.NumberSelectorMode.BOX)
                     ),
                 }
             ),
-            description_placeholders={
-                "info": "Configure polling intervals, caching, and retry behavior."
-            },
+            description_placeholders={"info": "Configure polling intervals, caching, and retry behavior."},
         )
 
     async def async_step_general_rate_limiting(self, user_input: dict[str, Any] | None = None) -> FlowResult:
@@ -544,8 +575,11 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         default=self._get_current_value("min_request_interval", DEFAULT_MIN_REQUEST_INTERVAL),
                     ): selector.NumberSelector(
                         selector.NumberSelectorConfig(
-                            min=0.0, max=5.0, step=0.1, mode=selector.NumberSelectorMode.BOX,
-                            unit_of_measurement="s"
+                            min=0.0,
+                            max=5.0,
+                            step=0.1,
+                            mode=selector.NumberSelectorMode.BOX,
+                            unit_of_measurement="s",
                         )
                     ),
                     vol.Optional(
@@ -553,8 +587,11 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         default=self._get_current_value("write_cooldown", DEFAULT_WRITE_COOLDOWN),
                     ): selector.NumberSelector(
                         selector.NumberSelectorConfig(
-                            min=0.0, max=10.0, step=0.1, mode=selector.NumberSelectorMode.BOX,
-                            unit_of_measurement="s"
+                            min=0.0,
+                            max=10.0,
+                            step=0.1,
+                            mode=selector.NumberSelectorMode.BOX,
+                            unit_of_measurement="s",
                         )
                     ),
                     vol.Optional(
@@ -562,15 +599,16 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         default=self._get_current_value("request_debounce", DEFAULT_REQUEST_DEBOUNCE),
                     ): selector.NumberSelector(
                         selector.NumberSelectorConfig(
-                            min=0.0, max=2.0, step=0.1, mode=selector.NumberSelectorMode.BOX,
-                            unit_of_measurement="s"
+                            min=0.0,
+                            max=2.0,
+                            step=0.1,
+                            mode=selector.NumberSelectorMode.BOX,
+                            unit_of_measurement="s",
                         )
                     ),
                 }
             ),
-            description_placeholders={
-                "info": "Configure request rate limiting and debouncing."
-            },
+            description_placeholders={"info": "Configure request rate limiting and debouncing."},
         )
 
     async def async_step_entities_sensors(self, user_input: dict[str, Any] | None = None) -> FlowResult:
@@ -604,19 +642,23 @@ class ComfoClimeOptionsFlow(OptionsFlow):
 
     async def async_step_entities_sensors_dashboard(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Handle dashboard sensor entity selection."""
-        _LOGGER.debug(f"===== async_step_entities_sensors_dashboard CALLED =====")
+        _LOGGER.debug("===== async_step_entities_sensors_dashboard CALLED =====")
 
         if user_input is not None:
             # Ensure empty selection is preserved when frontend omits the key
             user_input.setdefault("enabled_dashboard", [])
-            _LOGGER.info(f"User submitted dashboard sensor selection: {len(user_input.get('enabled_dashboard', []))} selected")
+            _LOGGER.info(
+                f"User submitted dashboard sensor selection: {len(user_input.get('enabled_dashboard', []))} selected"
+            )
             self._update_pending(user_input)
             return await self.async_step_entities_sensors()
 
         errors: dict[str, str] = {}
         try:
             dashboard_options = get_dashboard_sensors()
-            dashboard_enabled = self._get_current_value("enabled_dashboard", [opt['value'] for opt in dashboard_options])
+            dashboard_enabled = self._get_current_value(
+                "enabled_dashboard", [opt["value"] for opt in dashboard_options]
+            )
 
             _LOGGER.info(f"✓ Retrieved {len(dashboard_options)} dashboard sensor options")
 
@@ -636,12 +678,10 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         ),
                     }
                 ),
-                description_placeholders={
-                    "info": "Select dashboard sensors to enable."
-                },
+                description_placeholders={"info": "Select dashboard sensors to enable."},
                 errors=errors,
             )
-        except (KeyError, TypeError, ValueError) as e:
+        except (KeyError, TypeError, ValueError):
             _LOGGER.exception("✗ ERROR in async_step_entities_sensors_dashboard")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -652,18 +692,23 @@ class ComfoClimeOptionsFlow(OptionsFlow):
 
     async def async_step_entities_sensors_thermalprofile(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Handle thermal profile sensor entity selection."""
-        _LOGGER.debug(f"===== async_step_entities_sensors_thermalprofile CALLED =====")
+        _LOGGER.debug("===== async_step_entities_sensors_thermalprofile CALLED =====")
 
         if user_input is not None:
             user_input.setdefault("enabled_thermalprofile", [])
-            _LOGGER.info(f"User submitted thermal profile sensor selection: {len(user_input.get('enabled_thermalprofile', []))} selected")
+            _LOGGER.info(
+                f"User submitted thermal profile sensor selection: {len(user_input.get('enabled_thermalprofile', []))} selected"
+            )
             self._update_pending(user_input)
             return await self.async_step_entities_sensors()
 
         errors: dict[str, str] = {}
         try:
             thermalprofile_options = get_thermalprofile_sensors()
-            thermalprofile_enabled = self._get_current_value("enabled_thermalprofile", [opt['value'] for opt in thermalprofile_options])
+            thermalprofile_enabled = self._get_current_value(
+                "enabled_thermalprofile",
+                [opt["value"] for opt in thermalprofile_options],
+            )
 
             _LOGGER.info(f"✓ Retrieved {len(thermalprofile_options)} thermal profile sensor options")
 
@@ -683,12 +728,10 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         ),
                     }
                 ),
-                description_placeholders={
-                    "info": "Select thermal profile sensors to enable."
-                },
+                description_placeholders={"info": "Select thermal profile sensors to enable."},
                 errors=errors,
             )
-        except (KeyError, TypeError, ValueError) as e:
+        except (KeyError, TypeError, ValueError):
             _LOGGER.exception("✗ ERROR in async_step_entities_sensors_thermalprofile")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -699,18 +742,22 @@ class ComfoClimeOptionsFlow(OptionsFlow):
 
     async def async_step_entities_sensors_monitoring(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Handle monitoring sensor entity selection."""
-        _LOGGER.debug(f"===== async_step_entities_sensors_monitoring CALLED =====")
+        _LOGGER.debug("===== async_step_entities_sensors_monitoring CALLED =====")
 
         if user_input is not None:
             user_input.setdefault("enabled_monitoring", [])
-            _LOGGER.info(f"User submitted monitoring sensor selection: {len(user_input.get('enabled_monitoring', []))} selected")
+            _LOGGER.info(
+                f"User submitted monitoring sensor selection: {len(user_input.get('enabled_monitoring', []))} selected"
+            )
             self._update_pending(user_input)
             return await self.async_step_entities_sensors()
 
         errors: dict[str, str] = {}
         try:
             monitoring_options = get_monitoring_sensors()
-            monitoring_enabled = self._get_current_value("enabled_monitoring", [opt['value'] for opt in monitoring_options])
+            monitoring_enabled = self._get_current_value(
+                "enabled_monitoring", [opt["value"] for opt in monitoring_options]
+            )
 
             _LOGGER.info(f"✓ Retrieved {len(monitoring_options)} monitoring sensor options")
 
@@ -730,12 +777,10 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         ),
                     }
                 ),
-                description_placeholders={
-                    "info": "Select monitoring sensors to enable."
-                },
+                description_placeholders={"info": "Select monitoring sensors to enable."},
                 errors=errors,
             )
-        except (KeyError, TypeError, ValueError) as e:
+        except (KeyError, TypeError, ValueError):
             _LOGGER.exception("✗ ERROR in async_step_entities_sensors_monitoring")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -744,22 +789,31 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 errors=errors,
             )
 
-    async def async_step_entities_sensors_connected_telemetry(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_entities_sensors_connected_telemetry(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
         """Handle connected device telemetry sensor entity selection."""
-        _LOGGER.debug(f"===== async_step_entities_sensors_connected_telemetry CALLED =====")
+        _LOGGER.debug("===== async_step_entities_sensors_connected_telemetry CALLED =====")
 
         if user_input is not None:
             user_input.setdefault("enabled_connected_device_telemetry", [])
-            _LOGGER.info(f"User submitted connected device telemetry sensor selection: {len(user_input.get('enabled_connected_device_telemetry', []))} selected")
+            _LOGGER.info(
+                f"User submitted connected device telemetry sensor selection: {len(user_input.get('enabled_connected_device_telemetry', []))} selected"
+            )
             self._update_pending(user_input)
             return await self.async_step_entities_sensors()
 
         errors: dict[str, str] = {}
         try:
             connected_device_telemetry_options = get_connected_device_telemetry_sensors()
-            connected_device_telemetry_enabled = self._get_current_value("enabled_connected_device_telemetry", [opt['value'] for opt in connected_device_telemetry_options])
+            connected_device_telemetry_enabled = self._get_current_value(
+                "enabled_connected_device_telemetry",
+                [opt["value"] for opt in connected_device_telemetry_options],
+            )
 
-            _LOGGER.info(f"✓ Retrieved {len(connected_device_telemetry_options)} connected device telemetry sensor options")
+            _LOGGER.info(
+                f"✓ Retrieved {len(connected_device_telemetry_options)} connected device telemetry sensor options"
+            )
 
             return self.async_show_form(
                 step_id="entities_sensors_connected_telemetry",
@@ -777,12 +831,10 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         ),
                     }
                 ),
-                description_placeholders={
-                    "info": "Select connected device telemetry sensors to enable."
-                },
+                description_placeholders={"info": "Select connected device telemetry sensors to enable."},
                 errors=errors,
             )
-        except (KeyError, TypeError, ValueError) as e:
+        except (KeyError, TypeError, ValueError):
             _LOGGER.exception("✗ ERROR in async_step_entities_sensors_connected_telemetry")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -791,22 +843,31 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 errors=errors,
             )
 
-    async def async_step_entities_sensors_connected_properties(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_entities_sensors_connected_properties(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
         """Handle connected device properties sensor entity selection."""
-        _LOGGER.debug(f"===== async_step_entities_sensors_connected_properties CALLED =====")
+        _LOGGER.debug("===== async_step_entities_sensors_connected_properties CALLED =====")
 
         if user_input is not None:
             user_input.setdefault("enabled_connected_device_properties", [])
-            _LOGGER.info(f"User submitted connected device properties sensor selection: {len(user_input.get('enabled_connected_device_properties', []))} selected")
+            _LOGGER.info(
+                f"User submitted connected device properties sensor selection: {len(user_input.get('enabled_connected_device_properties', []))} selected"
+            )
             self._update_pending(user_input)
             return await self.async_step_entities_sensors()
 
         errors: dict[str, str] = {}
         try:
             connected_device_properties_options = get_connected_device_properties_sensors()
-            connected_device_properties_enabled = self._get_current_value("enabled_connected_device_properties", [opt['value'] for opt in connected_device_properties_options])
+            connected_device_properties_enabled = self._get_current_value(
+                "enabled_connected_device_properties",
+                [opt["value"] for opt in connected_device_properties_options],
+            )
 
-            _LOGGER.info(f"✓ Retrieved {len(connected_device_properties_options)} connected device properties sensor options")
+            _LOGGER.info(
+                f"✓ Retrieved {len(connected_device_properties_options)} connected device properties sensor options"
+            )
 
             return self.async_show_form(
                 step_id="entities_sensors_connected_properties",
@@ -824,12 +885,10 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         ),
                     }
                 ),
-                description_placeholders={
-                    "info": "Select connected device properties sensors to enable."
-                },
+                description_placeholders={"info": "Select connected device properties sensors to enable."},
                 errors=errors,
             )
-        except (KeyError, TypeError, ValueError) as e:
+        except (KeyError, TypeError, ValueError):
             _LOGGER.exception("✗ ERROR in async_step_entities_sensors_connected_properties")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -838,22 +897,31 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 errors=errors,
             )
 
-    async def async_step_entities_sensors_connected_definition(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_entities_sensors_connected_definition(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
         """Handle connected device definition sensor entity selection."""
-        _LOGGER.debug(f"===== async_step_entities_sensors_connected_definition CALLED =====")
+        _LOGGER.debug("===== async_step_entities_sensors_connected_definition CALLED =====")
 
         if user_input is not None:
             user_input.setdefault("enabled_connected_device_definition", [])
-            _LOGGER.info(f"User submitted connected device definition sensor selection: {len(user_input.get('enabled_connected_device_definition', []))} selected")
+            _LOGGER.info(
+                f"User submitted connected device definition sensor selection: {len(user_input.get('enabled_connected_device_definition', []))} selected"
+            )
             self._update_pending(user_input)
             return await self.async_step_entities_sensors()
 
         errors: dict[str, str] = {}
         try:
             connected_device_definition_options = get_connected_device_definition_sensors()
-            connected_device_definition_enabled = self._get_current_value("enabled_connected_device_definition", [opt['value'] for opt in connected_device_definition_options])
+            connected_device_definition_enabled = self._get_current_value(
+                "enabled_connected_device_definition",
+                [opt["value"] for opt in connected_device_definition_options],
+            )
 
-            _LOGGER.info(f"✓ Retrieved {len(connected_device_definition_options)} connected device definition sensor options")
+            _LOGGER.info(
+                f"✓ Retrieved {len(connected_device_definition_options)} connected device definition sensor options"
+            )
 
             return self.async_show_form(
                 step_id="entities_sensors_connected_definition",
@@ -871,12 +939,10 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         ),
                     }
                 ),
-                description_placeholders={
-                    "info": "Select connected device definition sensors to enable."
-                },
+                description_placeholders={"info": "Select connected device definition sensors to enable."},
                 errors=errors,
             )
-        except (KeyError, TypeError, ValueError) as e:
+        except (KeyError, TypeError, ValueError):
             _LOGGER.exception("✗ ERROR in async_step_entities_sensors_connected_definition")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -887,18 +953,23 @@ class ComfoClimeOptionsFlow(OptionsFlow):
 
     async def async_step_entities_sensors_access_tracking(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Handle access tracking sensor entity selection."""
-        _LOGGER.debug(f"===== async_step_entities_sensors_access_tracking CALLED =====")
+        _LOGGER.debug("===== async_step_entities_sensors_access_tracking CALLED =====")
 
         if user_input is not None:
             user_input.setdefault("enabled_access_tracking", [])
-            _LOGGER.info(f"User submitted access tracking sensor selection: {len(user_input.get('enabled_access_tracking', []))} selected")
+            _LOGGER.info(
+                f"User submitted access tracking sensor selection: {len(user_input.get('enabled_access_tracking', []))} selected"
+            )
             self._update_pending(user_input)
             return await self.async_step_entities_sensors()
 
         errors: dict[str, str] = {}
         try:
             access_tracking_options = get_access_tracking_sensors()
-            access_tracking_enabled = self._get_current_value("enabled_access_tracking", [opt['value'] for opt in access_tracking_options])
+            access_tracking_enabled = self._get_current_value(
+                "enabled_access_tracking",
+                [opt["value"] for opt in access_tracking_options],
+            )
 
             _LOGGER.info(f"✓ Retrieved {len(access_tracking_options)} access tracking sensor options")
 
@@ -918,12 +989,10 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         ),
                     }
                 ),
-                description_placeholders={
-                    "info": "Select access tracking sensors to enable (diagnostic only)."
-                },
+                description_placeholders={"info": "Select access tracking sensors to enable (diagnostic only)."},
                 errors=errors,
             )
-        except (KeyError, TypeError, ValueError) as e:
+        except (KeyError, TypeError, ValueError):
             _LOGGER.exception("✗ ERROR in async_step_entities_sensors_access_tracking")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -934,11 +1003,13 @@ class ComfoClimeOptionsFlow(OptionsFlow):
 
     async def async_step_entities_switches(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Handle switch entity selection."""
-        _LOGGER.debug(f"===== async_step_entities_switches CALLED =====")
+        _LOGGER.debug("===== async_step_entities_switches CALLED =====")
 
         if user_input is not None:
             user_input.setdefault("enabled_switches", [])
-            _LOGGER.info(f"User submitted switch selection: {len(user_input.get('enabled_switches', []))} switches selected")
+            _LOGGER.info(
+                f"User submitted switch selection: {len(user_input.get('enabled_switches', []))} switches selected"
+            )
             self._update_pending(user_input)
             return await self.async_step_entities_menu()
 
@@ -946,9 +1017,9 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         try:
             all_options = get_switches()
             # Filter only switch options (start with "switches_")
-            switch_options = [opt for opt in all_options if opt['value'].startswith('switches_')]
+            switch_options = [opt for opt in all_options if opt["value"].startswith("switches_")]
 
-            current_enabled = self._get_current_value("enabled_switches", [opt['value'] for opt in switch_options])
+            current_enabled = self._get_current_value("enabled_switches", [opt["value"] for opt in switch_options])
 
             _LOGGER.info(f"✓ Retrieved {len(switch_options)} switch options")
 
@@ -968,12 +1039,10 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         ),
                     }
                 ),
-                description_placeholders={
-                    "info": "Select switches to enable."
-                },
+                description_placeholders={"info": "Select switches to enable."},
                 errors=errors,
             )
-        except (KeyError, TypeError, ValueError) as e:
+        except (KeyError, TypeError, ValueError):
             _LOGGER.exception("✗ ERROR in async_step_entities_switches")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -984,11 +1053,13 @@ class ComfoClimeOptionsFlow(OptionsFlow):
 
     async def async_step_entities_numbers(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Handle number entity selection."""
-        _LOGGER.debug(f"===== async_step_entities_numbers CALLED =====")
+        _LOGGER.debug("===== async_step_entities_numbers CALLED =====")
 
         if user_input is not None:
             user_input.setdefault("enabled_numbers", [])
-            _LOGGER.info(f"User submitted number selection: {len(user_input.get('enabled_numbers', []))} numbers selected")
+            _LOGGER.info(
+                f"User submitted number selection: {len(user_input.get('enabled_numbers', []))} numbers selected"
+            )
             self._update_pending(user_input)
             return await self.async_step_entities_menu()
 
@@ -996,9 +1067,9 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         try:
             all_options = get_numbers()
             # Filter only number options (start with "numbers_")
-            number_options = [opt for opt in all_options if opt['value'].startswith('numbers_')]
+            number_options = [opt for opt in all_options if opt["value"].startswith("numbers_")]
 
-            current_enabled = self._get_current_value("enabled_numbers", [opt['value'] for opt in number_options])
+            current_enabled = self._get_current_value("enabled_numbers", [opt["value"] for opt in number_options])
 
             _LOGGER.info(f"✓ Retrieved {len(number_options)} number options")
 
@@ -1018,12 +1089,10 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         ),
                     }
                 ),
-                description_placeholders={
-                    "info": "Select number controls to enable."
-                },
+                description_placeholders={"info": "Select number controls to enable."},
                 errors=errors,
             )
-        except (KeyError, TypeError, ValueError) as e:
+        except (KeyError, TypeError, ValueError):
             _LOGGER.exception("✗ ERROR in async_step_entities_numbers")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -1034,11 +1103,13 @@ class ComfoClimeOptionsFlow(OptionsFlow):
 
     async def async_step_entities_selects(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Handle select entity selection."""
-        _LOGGER.debug(f"===== async_step_entities_selects CALLED =====")
+        _LOGGER.debug("===== async_step_entities_selects CALLED =====")
 
         if user_input is not None:
             user_input.setdefault("enabled_selects", [])
-            _LOGGER.info(f"User submitted select selection: {len(user_input.get('enabled_selects', []))} selects selected")
+            _LOGGER.info(
+                f"User submitted select selection: {len(user_input.get('enabled_selects', []))} selects selected"
+            )
             self._update_pending(user_input)
             return await self.async_step_entities_menu()
 
@@ -1046,9 +1117,9 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         try:
             all_options = get_selects()
             # Filter only select options (start with "selects_")
-            select_options = [opt for opt in all_options if opt['value'].startswith('selects_')]
+            select_options = [opt for opt in all_options if opt["value"].startswith("selects_")]
 
-            current_enabled = self._get_current_value("enabled_selects", [opt['value'] for opt in select_options])
+            current_enabled = self._get_current_value("enabled_selects", [opt["value"] for opt in select_options])
 
             _LOGGER.info(f"✓ Retrieved {len(select_options)} select options")
 
@@ -1068,12 +1139,10 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         ),
                     }
                 ),
-                description_placeholders={
-                    "info": "Select list controls to enable."
-                },
+                description_placeholders={"info": "Select list controls to enable."},
                 errors=errors,
             )
-        except (KeyError, TypeError, ValueError) as e:
+        except (KeyError, TypeError, ValueError):
             _LOGGER.exception("✗ ERROR in async_step_entities_selects")
             errors["base"] = "entity_options_error"
             return self.async_show_form(

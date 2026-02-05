@@ -14,6 +14,7 @@ from custom_components.comfoclime.coordinator import (
     ComfoClimeTelemetryCoordinator,
     ComfoClimeThermalprofileCoordinator,
 )
+from custom_components.comfoclime.models import PropertyReading, TelemetryReading
 
 
 @pytest.mark.asyncio
@@ -40,7 +41,15 @@ async def test_telemetry_coordinator_concurrent_registration(hass_with_frame_hel
             signed=True,
             byte_count=2,
         )
-        return 25.5
+        # Return a TelemetryReading model
+        return TelemetryReading(
+            device_uuid=args[0] if args else kwargs["device_uuid"],
+            telemetry_id=args[1] if len(args) > 1 else kwargs["telemetry_id"],
+            raw_value=255,
+            faktor=kwargs.get("faktor", 1.0),
+            signed=kwargs.get("signed", False),
+            byte_count=kwargs.get("byte_count", 2),
+        )
 
     mock_api.async_read_telemetry_for_device = AsyncMock(side_effect=mock_read_telemetry)
 
@@ -76,7 +85,15 @@ async def test_property_coordinator_concurrent_registration(hass_with_frame_help
             signed=True,
             byte_count=2,
         )
-        return 100
+        # Return a PropertyReading model
+        return PropertyReading(
+            device_uuid=args[0] if args else kwargs["device_uuid"],
+            path=args[1] if len(args) > 1 else kwargs["property_path"],
+            raw_value=100,
+            faktor=kwargs.get("faktor", 1.0),
+            signed=kwargs.get("signed", True),
+            byte_count=kwargs.get("byte_count", 2),
+        )
 
     mock_api.async_read_property_for_device = AsyncMock(side_effect=mock_read_property)
 
@@ -85,7 +102,7 @@ async def test_property_coordinator_concurrent_registration(hass_with_frame_help
 
     assert result is not None
     assert "device1" in result
-    assert result["device1"]["29/1/10"] == 100
+    assert result["device1"]["29/1/10"] == 100.0
 
 
 @pytest.mark.asyncio
@@ -101,12 +118,24 @@ async def test_telemetry_coordinator_multiple_devices(hass_with_frame_helper, mo
         device_uuid="device1", telemetry_id="456", faktor=2.0, signed=True, byte_count=2
     )
     await coordinator.register_telemetry(
-        device_uuid="device2", telemetry_id="789", faktor=1.0, signed=False, byte_count=1
+        device_uuid="device2",
+        telemetry_id="789",
+        faktor=1.0,
+        signed=False,
+        byte_count=1,
     )
 
     # Mock API responses
     async def mock_read_telemetry(device_uuid, telemetry_id, **kwargs):
-        return float(telemetry_id) / 10.0
+        # Return a TelemetryReading model
+        return TelemetryReading(
+            device_uuid=device_uuid,
+            telemetry_id=telemetry_id,
+            raw_value=int(telemetry_id),
+            faktor=kwargs.get("faktor", 1.0),
+            signed=kwargs.get("signed", False),
+            byte_count=kwargs.get("byte_count", 2),
+        )
 
     mock_api.async_read_telemetry_for_device = AsyncMock(side_effect=mock_read_telemetry)
 
@@ -115,9 +144,10 @@ async def test_telemetry_coordinator_multiple_devices(hass_with_frame_helper, mo
     assert result is not None
     assert "device1" in result
     assert "device2" in result
-    assert result["device1"]["123"] == 12.3
-    assert result["device1"]["456"] == 45.6
-    assert result["device2"]["789"] == 78.9
+    # Values are scaled by faktor (1.0 and 2.0 respectively)
+    assert result["device1"]["123"] == 123.0  # 123 * 1.0
+    assert result["device1"]["456"] == 912.0  # 456 * 2.0
+    assert result["device2"]["789"] == 789.0  # 789 * 1.0
 
 
 @pytest.mark.asyncio
@@ -127,18 +157,38 @@ async def test_property_coordinator_multiple_devices(hass_with_frame_helper, moc
 
     # Register multiple properties for multiple devices
     await coordinator.register_property(
-        device_uuid="device1", property_path="29/1/10", faktor=1.0, signed=True, byte_count=2
+        device_uuid="device1",
+        property_path="29/1/10",
+        faktor=1.0,
+        signed=True,
+        byte_count=2,
     )
     await coordinator.register_property(
-        device_uuid="device1", property_path="29/1/6", faktor=1.0, signed=True, byte_count=1
+        device_uuid="device1",
+        property_path="29/1/6",
+        faktor=1.0,
+        signed=True,
+        byte_count=1,
     )
     await coordinator.register_property(
-        device_uuid="device2", property_path="30/2/5", faktor=0.1, signed=False, byte_count=2
+        device_uuid="device2",
+        property_path="30/2/5",
+        faktor=0.1,
+        signed=False,
+        byte_count=2,
     )
 
     # Mock API responses
     async def mock_read_property(device_uuid, property_path, **kwargs):
-        return len(property_path) * 10
+        # Return a PropertyReading model
+        return PropertyReading(
+            device_uuid=device_uuid,
+            path=property_path,
+            raw_value=len(property_path) * 10,
+            faktor=kwargs.get("faktor", 1.0),
+            signed=kwargs.get("signed", True),
+            byte_count=kwargs.get("byte_count", 2),
+        )
 
     mock_api.async_read_property_for_device = AsyncMock(side_effect=mock_read_property)
 
@@ -147,9 +197,12 @@ async def test_property_coordinator_multiple_devices(hass_with_frame_helper, moc
     assert result is not None
     assert "device1" in result
     assert "device2" in result
-    assert result["device1"]["29/1/10"] == 70
-    assert result["device1"]["29/1/6"] == 60
-    assert result["device2"]["30/2/5"] == 60
+    # len("29/1/10") * 10 * 1.0 = 7 * 10 * 1.0 = 70.0
+    assert result["device1"]["29/1/10"] == 70.0
+    # len("29/1/6") * 10 * 1.0 = 6 * 10 * 1.0 = 60.0
+    assert result["device1"]["29/1/6"] == 60.0
+    # len("30/2/5") * 10 * 0.1 = 6 * 10 * 0.1 = 6.0
+    assert result["device2"]["30/2/5"] == 6.0
 
 
 @pytest.mark.asyncio
@@ -168,7 +221,15 @@ async def test_telemetry_coordinator_error_handling(hass_with_frame_helper, mock
     async def mock_read_telemetry(device_uuid, telemetry_id, **kwargs):
         if telemetry_id == "456":
             raise aiohttp.ClientError("Test error")
-        return 25.5
+        # Return a TelemetryReading model
+        return TelemetryReading(
+            device_uuid=device_uuid,
+            telemetry_id=telemetry_id,
+            raw_value=255,
+            faktor=kwargs.get("faktor", 1.0),
+            signed=kwargs.get("signed", False),
+            byte_count=kwargs.get("byte_count", 2),
+        )
 
     mock_api.async_read_telemetry_for_device = AsyncMock(side_effect=mock_read_telemetry)
 
@@ -176,7 +237,7 @@ async def test_telemetry_coordinator_error_handling(hass_with_frame_helper, mock
 
     assert result is not None
     assert "device1" in result
-    assert result["device1"]["123"] == 25.5
+    assert result["device1"]["123"] == 255.0
     assert result["device1"]["456"] is None
 
 
@@ -186,17 +247,33 @@ async def test_property_coordinator_error_handling(hass_with_frame_helper, mock_
     coordinator = ComfoClimePropertyCoordinator(hass_with_frame_helper, mock_api, devices=[])
 
     await coordinator.register_property(
-        device_uuid="device1", property_path="29/1/10", faktor=1.0, signed=True, byte_count=2
+        device_uuid="device1",
+        property_path="29/1/10",
+        faktor=1.0,
+        signed=True,
+        byte_count=2,
     )
     await coordinator.register_property(
-        device_uuid="device1", property_path="29/1/6", faktor=1.0, signed=True, byte_count=1
+        device_uuid="device1",
+        property_path="29/1/6",
+        faktor=1.0,
+        signed=True,
+        byte_count=1,
     )
 
     # Mock API to fail for specific property
     async def mock_read_property(device_uuid, property_path, **kwargs):
         if property_path == "29/1/6":
             raise aiohttp.ClientError("Test error")
-        return 100
+        # Return a PropertyReading model
+        return PropertyReading(
+            device_uuid=device_uuid,
+            path=property_path,
+            raw_value=100,
+            faktor=kwargs.get("faktor", 1.0),
+            signed=kwargs.get("signed", True),
+            byte_count=kwargs.get("byte_count", 2),
+        )
 
     mock_api.async_read_property_for_device = AsyncMock(side_effect=mock_read_property)
 
@@ -204,7 +281,7 @@ async def test_property_coordinator_error_handling(hass_with_frame_helper, mock_
 
     assert result is not None
     assert "device1" in result
-    assert result["device1"]["29/1/10"] == 100
+    assert result["device1"]["29/1/10"] == 100.0
     assert result["device1"]["29/1/6"] is None
 
 
@@ -355,7 +432,7 @@ async def test_dashboard_coordinator_custom_interval(hass_with_frame_helper, moc
     """Test dashboard coordinator with custom polling interval."""
     custom_interval = 120
     coordinator = ComfoClimeDashboardCoordinator(hass_with_frame_helper, mock_api, polling_interval=custom_interval)
-    
+
     assert coordinator.update_interval.total_seconds() == custom_interval
     assert coordinator.api == mock_api
 
@@ -364,8 +441,10 @@ async def test_dashboard_coordinator_custom_interval(hass_with_frame_helper, moc
 async def test_thermalprofile_coordinator_custom_interval(hass_with_frame_helper, mock_api):
     """Test thermal profile coordinator with custom polling interval."""
     custom_interval = 90
-    coordinator = ComfoClimeThermalprofileCoordinator(hass_with_frame_helper, mock_api, polling_interval=custom_interval)
-    
+    coordinator = ComfoClimeThermalprofileCoordinator(
+        hass_with_frame_helper, mock_api, polling_interval=custom_interval
+    )
+
     assert coordinator.update_interval.total_seconds() == custom_interval
     assert coordinator.api == mock_api
 
@@ -375,8 +454,10 @@ async def test_telemetry_coordinator_custom_interval(hass_with_frame_helper, moc
     """Test telemetry coordinator with custom polling interval."""
     custom_interval = 45
     devices = [{"uuid": "device-1", "modelTypeId": 20}]
-    coordinator = ComfoClimeTelemetryCoordinator(hass_with_frame_helper, mock_api, devices, polling_interval=custom_interval)
-    
+    coordinator = ComfoClimeTelemetryCoordinator(
+        hass_with_frame_helper, mock_api, devices, polling_interval=custom_interval
+    )
+
     assert coordinator.update_interval.total_seconds() == custom_interval
     assert coordinator.api == mock_api
     assert coordinator.devices == devices
@@ -387,8 +468,10 @@ async def test_property_coordinator_custom_interval(hass_with_frame_helper, mock
     """Test property coordinator with custom polling interval."""
     custom_interval = 75
     devices = [{"uuid": "device-1", "modelTypeId": 20}]
-    coordinator = ComfoClimePropertyCoordinator(hass_with_frame_helper, mock_api, devices, polling_interval=custom_interval)
-    
+    coordinator = ComfoClimePropertyCoordinator(
+        hass_with_frame_helper, mock_api, devices, polling_interval=custom_interval
+    )
+
     assert coordinator.update_interval.total_seconds() == custom_interval
     assert coordinator.api == mock_api
     assert coordinator.devices == devices
@@ -399,8 +482,10 @@ async def test_definition_coordinator_custom_interval(hass_with_frame_helper, mo
     """Test definition coordinator with custom polling interval."""
     custom_interval = 150
     devices = [{"uuid": "device-1", "modelTypeId": 1}]
-    coordinator = ComfoClimeDefinitionCoordinator(hass_with_frame_helper, mock_api, devices, polling_interval=custom_interval)
-    
+    coordinator = ComfoClimeDefinitionCoordinator(
+        hass_with_frame_helper, mock_api, devices, polling_interval=custom_interval
+    )
+
     assert coordinator.update_interval.total_seconds() == custom_interval
     assert coordinator.api == mock_api
     assert coordinator.devices == devices
@@ -410,12 +495,16 @@ async def test_definition_coordinator_custom_interval(hass_with_frame_helper, mo
 async def test_monitoring_coordinator_success(hass_with_frame_helper, mock_api):
     """Test monitoring coordinator successful data fetch."""
     mock_api.async_get_monitoring_ping = AsyncMock(
-        return_value={"uuid": "test-uuid", "uptime": 123456, "timestamp": "2024-01-15T10:30:00Z"}
+        return_value={
+            "uuid": "test-uuid",
+            "uptime": 123456,
+            "timestamp": "2024-01-15T10:30:00Z",
+        }
     )
-    
+
     coordinator = ComfoClimeMonitoringCoordinator(hass_with_frame_helper, mock_api)
     result = await coordinator._async_update_data()
-    
+
     assert result["uuid"] == "test-uuid"
     assert result["uptime"] == 123456
     assert result["timestamp"] == "2024-01-15T10:30:00Z"
@@ -426,9 +515,9 @@ async def test_monitoring_coordinator_success(hass_with_frame_helper, mock_api):
 async def test_monitoring_coordinator_failure(hass_with_frame_helper, mock_api):
     """Test monitoring coordinator handles API errors."""
     mock_api.async_get_monitoring_ping = AsyncMock(side_effect=aiohttp.ClientError("Connection error"))
-    
+
     coordinator = ComfoClimeMonitoringCoordinator(hass_with_frame_helper, mock_api)
-    
+
     with pytest.raises(UpdateFailed):
         await coordinator._async_update_data()
 
@@ -438,6 +527,6 @@ async def test_monitoring_coordinator_custom_interval(hass_with_frame_helper, mo
     """Test monitoring coordinator with custom polling interval."""
     custom_interval = 120
     coordinator = ComfoClimeMonitoringCoordinator(hass_with_frame_helper, mock_api, polling_interval=custom_interval)
-    
+
     assert coordinator.update_interval.total_seconds() == custom_interval
     assert coordinator.api == mock_api

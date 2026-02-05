@@ -19,6 +19,7 @@ from custom_components.comfoclime.climate import (
     ComfoClimeClimate,
     async_setup_entry,
 )
+from custom_components.comfoclime.models import DashboardData
 
 
 class TestComfoClimeClimate:
@@ -49,12 +50,8 @@ class TestComfoClimeClimate:
         assert HVACMode.FAN_ONLY in climate._attr_hvac_modes
         assert HVACMode.OFF in climate._attr_hvac_modes
         # Check that turn_on and turn_off features are supported
-        assert (
-            climate._attr_supported_features & ClimateEntityFeature.TURN_ON
-        ) == ClimateEntityFeature.TURN_ON
-        assert (
-            climate._attr_supported_features & ClimateEntityFeature.TURN_OFF
-        ) == ClimateEntityFeature.TURN_OFF
+        assert (climate._attr_supported_features & ClimateEntityFeature.TURN_ON) == ClimateEntityFeature.TURN_ON
+        assert (climate._attr_supported_features & ClimateEntityFeature.TURN_OFF) == ClimateEntityFeature.TURN_OFF
 
     def test_climate_current_temperature(
         self,
@@ -120,10 +117,10 @@ class TestComfoClimeClimate:
         mock_config_entry,
     ):
         """Test climate HVAC mode for various season and standby combinations."""
-        mock_coordinator.data = {
-            "season": season,
-            "hpStandby": hpStandby,
-        }
+        mock_coordinator.data = DashboardData(
+            season=season,
+            hp_standby=hpStandby,
+        )
 
         climate = ComfoClimeClimate(
             dashboard_coordinator=mock_coordinator,
@@ -140,8 +137,8 @@ class TestComfoClimeClimate:
         [
             (3, HVACAction.HEATING),  # 0000 0011 - active + heating
             (5, HVACAction.COOLING),  # 0000 0101 - active + cooling
-            (1, HVACAction.IDLE),     # 0000 0001 - active but not heating/cooling
-            (0, HVACAction.OFF),      # off
+            (1, HVACAction.IDLE),  # 0000 0001 - active but not heating/cooling
+            (0, HVACAction.OFF),  # off
         ],
         ids=["heating", "cooling", "idle", "off"],
     )
@@ -157,9 +154,9 @@ class TestComfoClimeClimate:
         mock_config_entry,
     ):
         """Test climate HVAC action for various heat pump statuses."""
-        mock_coordinator.data = {
-            "heatPumpStatus": heatPumpStatus,
-        }
+        mock_coordinator.data = DashboardData(
+            heat_pump_status=heatPumpStatus,
+        )
 
         climate = ComfoClimeClimate(
             dashboard_coordinator=mock_coordinator,
@@ -194,10 +191,10 @@ class TestComfoClimeClimate:
         mock_config_entry,
     ):
         """Test climate preset mode for various temperature profiles."""
-        mock_coordinator.data = {
-            "temperatureProfile": temperatureProfile,
-            "setPointTemperature": setPointTemperature,
-        }
+        mock_coordinator.data = DashboardData(
+            temperature_profile=temperatureProfile,
+            set_point_temperature=setPointTemperature,
+        )
 
         climate = ComfoClimeClimate(
             dashboard_coordinator=mock_coordinator,
@@ -219,7 +216,7 @@ class TestComfoClimeClimate:
         mock_config_entry,
     ):
         """Test climate fan mode."""
-        mock_coordinator.data = {"fanSpeed": 2}
+        mock_coordinator.data = DashboardData(fan_speed=2)
 
         climate = ComfoClimeClimate(
             dashboard_coordinator=mock_coordinator,
@@ -289,9 +286,7 @@ class TestComfoClimeClimate:
         await climate.async_set_hvac_mode(HVACMode.HEAT)
 
         # Should call async_set_hvac_season with season=1 and hpStandby=False
-        mock_api.async_set_hvac_season.assert_called_once_with(
-            season=1, hpStandby=False
-        )
+        mock_api.async_set_hvac_season.assert_called_once_with(season=1, hpStandby=False)
 
     @pytest.mark.asyncio
     async def test_climate_set_hvac_mode_off(

@@ -10,6 +10,7 @@ This module provides the RateLimiterCache class that handles:
 """
 
 import asyncio
+import contextlib
 import logging
 
 from .constants import API_DEFAULTS
@@ -87,7 +88,7 @@ class RateLimiterCache:
 
     def signal_write_pending(self) -> None:
         """Signal that a write operation is pending.
-        
+
         This should be called before acquiring the lock for a write operation.
         Read operations will check this flag and yield priority to writes.
         """
@@ -96,7 +97,7 @@ class RateLimiterCache:
 
     def signal_write_complete(self) -> None:
         """Signal that a write operation has completed.
-        
+
         This should be called after a write operation is done.
         """
         self._pending_writes = max(0, self._pending_writes - 1)
@@ -104,7 +105,7 @@ class RateLimiterCache:
 
     def has_pending_writes(self) -> bool:
         """Check if there are pending write operations.
-        
+
         Returns:
             True if there are write operations waiting to be processed.
         """
@@ -112,16 +113,16 @@ class RateLimiterCache:
 
     async def yield_to_writes(self, max_wait: float = 0.5) -> None:
         """Yield to pending write operations.
-        
+
         Read operations call this to allow pending writes to proceed first.
         This ensures writes always have priority over reads.
-        
+
         Args:
             max_wait: Maximum time to wait for writes in seconds (default: 0.5)
         """
         if not self.has_pending_writes():
             return
-        
+
         _LOGGER.debug("Read yielding to %d pending writes", self._pending_writes)
         # Give writes a short window to acquire the lock
         await asyncio.sleep(min(max_wait, 0.1))
@@ -135,7 +136,7 @@ class RateLimiterCache:
 
         For write operations: Only applies minimum request interval.
         For read operations: Also waits for write cooldown period.
-        
+
         Write operations have priority - they skip write cooldown checks.
 
         Args:
@@ -151,9 +152,7 @@ class RateLimiterCache:
 
         # Ensure minimum interval between requests
         if time_since_last_request < self.min_request_interval:
-            wait_time = max(
-                wait_time, self.min_request_interval - time_since_last_request
-            )
+            wait_time = max(wait_time, self.min_request_interval - time_since_last_request)
 
         # If this is a read and we recently wrote, wait for cooldown
         # Write operations skip this check - they always have priority
@@ -164,7 +163,7 @@ class RateLimiterCache:
             _LOGGER.debug(
                 "Rate limiting (%s): waiting %.2fs before request",
                 "write" if is_write else "read",
-                wait_time
+                wait_time,
             )
             await asyncio.sleep(wait_time)
 
@@ -202,10 +201,8 @@ class RateLimiterCache:
             pending_task = self._pending_requests[key]
             if not pending_task.done():
                 pending_task.cancel()
-                try:
+                with contextlib.suppress(asyncio.CancelledError):
                     await pending_task
-                except asyncio.CancelledError:
-                    pass
 
         # Wait for debounce time
         await asyncio.sleep(debounce_time)
@@ -316,16 +313,12 @@ class RateLimiterCache:
             device_uuid: UUID of the device
         """
         # Remove telemetry cache entries for this device
-        keys_to_remove = [
-            k for k in self._telemetry_cache.keys() if k.startswith(f"{device_uuid}:")
-        ]
+        keys_to_remove = [k for k in self._telemetry_cache if k.startswith(f"{device_uuid}:")]
         for k in keys_to_remove:
             del self._telemetry_cache[k]
 
         # Remove property cache entries for this device
-        keys_to_remove = [
-            k for k in self._property_cache.keys() if k.startswith(f"{device_uuid}:")
-        ]
+        keys_to_remove = [k for k in self._property_cache if k.startswith(f"{device_uuid}:")]
         for k in keys_to_remove:
             del self._property_cache[k]
 

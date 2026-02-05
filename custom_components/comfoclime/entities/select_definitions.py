@@ -1,40 +1,44 @@
-"""Entity definitions for ComfoClime select controls using dataclasses."""
+"""Entity definitions for ComfoClime select controls using Pydantic models."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from pydantic import BaseModel, Field
 
 
-@dataclass(frozen=True, slots=True)
-class SelectDefinition:
+class SelectDefinition(BaseModel):
     """Definition of a select entity.
-    
+
     Attributes:
         key: Unique identifier for the select in API responses.
         name: Display name for the select control.
         translation_key: Key for i18n translations.
         options: Dictionary mapping numeric values to string options.
     """
-    key: str
-    name: str
-    translation_key: str
-    options: dict[int, str]
+
+    model_config = {"frozen": True}
+
+    key: str = Field(..., description="Unique identifier for the select in API responses")
+    name: str = Field(..., description="Display name for the select control")
+    translation_key: str = Field(..., description="Key for i18n translations")
+    options: dict[int, str] = Field(..., description="Dictionary mapping numeric values to string options")
 
 
-@dataclass(frozen=True, slots=True)
-class PropertySelectDefinition:
+class PropertySelectDefinition(BaseModel):
     """Definition of a property-based select entity.
-    
+
     Attributes:
         path: Property path in format "X/Y/Z".
         name: Display name for the select control.
         translation_key: Key for i18n translations.
         options: Dictionary mapping numeric values to string options.
     """
-    path: str
-    name: str
-    translation_key: str
-    options: dict[int, str]
+
+    model_config = {"frozen": True}
+
+    path: str = Field(..., description="Property path in format 'X/Y/Z'")
+    name: str = Field(..., description="Display name for the select control")
+    translation_key: str = Field(..., description="Key for i18n translations")
+    options: dict[int, str] = Field(..., description="Dictionary mapping numeric values to string options")
 
 
 SELECT_ENTITIES = [

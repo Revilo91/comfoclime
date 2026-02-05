@@ -20,7 +20,7 @@ Example:
     >>> coordinator = ComfoClimeDashboardCoordinator(hass, api)
     >>> await coordinator.async_config_entry_first_refresh()
     >>> dashboard_data = coordinator.data
-    >>> print(f"Indoor temp: {dashboard_data['indoorTemperature']}°C")
+    >>> print(f"Indoor temp: {dashboard_data.indoor_temperature}°C")
 
 Note:
     All coordinators poll every 60 seconds by default (DEFAULT_POLLING_INTERVAL_SECONDS)
@@ -44,6 +44,7 @@ if TYPE_CHECKING:
     from .comfoclime_api import ComfoClimeAPI
 
 from .constants import API_DEFAULTS
+from .models import DashboardData
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -76,7 +77,7 @@ class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
         hass,
         api,
         polling_interval=DEFAULT_POLLING_INTERVAL_SECONDS,
-        access_tracker: "AccessTracker | None" = None,
+        access_tracker: AccessTracker | None = None,
         config_entry=None,
     ):
         """Initialize the dashboard data coordinator.
@@ -97,19 +98,20 @@ class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
         self.api = api
         self._access_tracker = access_tracker
 
-    async def _async_update_data(self) -> dict[str, Any]:
+    async def _async_update_data(self) -> DashboardData:
         """Fetch dashboard data from the API.
 
         Returns:
-            Dictionary containing dashboard data with keys:
-                - indoorTemperature: Indoor temperature in °C
-                - outdoorTemperature: Outdoor temperature in °C
-                - setPointTemperature: Target temperature in °C
-                - fanSpeed: Fan speed level (0-3)
+            DashboardData model containing validated dashboard data with fields:
+                - indoor_temperature: Indoor temperature in °C
+                - outdoor_temperature: Outdoor temperature in °C
+                - set_point_temperature: Target temperature in °C (manual mode)
+                - exhaust_air_flow: Exhaust air flow in m³/h
+                - supply_air_flow: Supply air flow in m³/h
+                - fan_speed: Fan speed level (0-3)
                 - season: Season mode (0=transition, 1=heating, 2=cooling)
-                - hpStandby: Heat pump standby state
-                - temperatureProfile: Active temperature profile (0-2)
                 - status: Control mode (0=manual, 1=automatic)
+                - and more (see DashboardData model)
 
         Raises:
             UpdateFailed: If API call fails or times out.
@@ -118,8 +120,9 @@ class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
             result = await self.api.async_get_dashboard_data()
             if self._access_tracker:
                 self._access_tracker.record_access("Dashboard")
-            return result
-        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            # Parse the raw dict into a validated DashboardData model
+            return DashboardData(**result)
+        except (TimeoutError, aiohttp.ClientError) as e:
             _LOGGER.warning("Error fetching dashboard data: %s", e)
             raise UpdateFailed(f"Error fetching dashboard data: {e}") from e
 
@@ -185,7 +188,7 @@ class ComfoClimeMonitoringCoordinator(DataUpdateCoordinator):
             if self._access_tracker:
                 self._access_tracker.record_access("Monitoring")
             return result
-        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+        except (TimeoutError, aiohttp.ClientError) as e:
             _LOGGER.warning("Error fetching monitoring data: %s", e)
             raise UpdateFailed(f"Error fetching monitoring data: {e}") from e
 
@@ -251,14 +254,14 @@ class ComfoClimeThermalprofileCoordinator(DataUpdateCoordinator):
             if self._access_tracker:
                 self._access_tracker.record_access("Thermalprofile")
             return result
-        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+        except (TimeoutError, aiohttp.ClientError) as e:
             _LOGGER.warning("Error fetching thermal profile data: %s", e)
             raise UpdateFailed(f"Error fetching thermal profile data: {e}") from e
 
 
 class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
     """Coordinator for batching telemetry requests from all devices.
-    
+
     Instead of each sensor making individual API calls, this coordinator
     collects all telemetry requests and fetches them in a single batched
     update cycle. This significantly reduces API load on the Airduino board.
@@ -358,9 +361,7 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
                 "signed": signed,
                 "byte_count": byte_count,
             }
-            _LOGGER.debug(
-                "Registered telemetry %s for device %s", telemetry_id, device_uuid
-            )
+            _LOGGER.debug("Registered telemetry %s for device %s", telemetry_id, device_uuid)
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         """Fetch all registered telemetry data in a batched manner.
@@ -378,8 +379,7 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
         async with self._registry_lock:
             # Create a snapshot of the registry while holding the lock
             registry_snapshot = {
-                device_uuid: dict(telemetry_items)
-                for device_uuid, telemetry_items in self._telemetry_registry.items()
+                device_uuid: dict(telemetry_items) for device_uuid, telemetry_items in self._telemetry_registry.items()
             }
 
         # Now iterate over the snapshot without holding the lock
@@ -388,18 +388,19 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
 
             for telemetry_id, params in telemetry_items.items():
                 try:
-                    value = await self.api.async_read_telemetry_for_device(
+                    reading = await self.api.async_read_telemetry_for_device(
                         device_uuid=device_uuid,
                         telemetry_id=telemetry_id,
                         faktor=params["faktor"],
                         signed=params["signed"],
                         byte_count=params["byte_count"],
                     )
-                    result[device_uuid][telemetry_id] = value
+                    # Store the scaled value for backward compatibility with sensors
+                    result[device_uuid][telemetry_id] = reading.scaled_value if reading else None
                     # Track each individual API call
                     if self._access_tracker:
                         self._access_tracker.record_access("Telemetry")
-                except (aiohttp.ClientError, asyncio.TimeoutError) as e:  # noqa: PERF203
+                except (TimeoutError, aiohttp.ClientError) as e:
                     _LOGGER.debug(
                         "Error fetching telemetry %s for device %s: %s",
                         telemetry_id,
@@ -438,7 +439,7 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
 
 class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
     """Coordinator for batching property requests from all devices.
-    
+
     Instead of each sensor/number/select making individual API calls,
     this coordinator collects all property requests and fetches them
     in a single batched update cycle. This significantly reduces API
@@ -538,9 +539,7 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
                 "signed": signed,
                 "byte_count": byte_count,
             }
-            _LOGGER.debug(
-                "Registered property %s for device %s", property_path, device_uuid
-            )
+            _LOGGER.debug("Registered property %s for device %s", property_path, device_uuid)
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         """Fetch all registered property data in a batched manner.
@@ -558,8 +557,7 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
         async with self._registry_lock:
             # Create a snapshot of the registry while holding the lock
             registry_snapshot = {
-                device_uuid: dict(property_items)
-                for device_uuid, property_items in self._property_registry.items()
+                device_uuid: dict(property_items) for device_uuid, property_items in self._property_registry.items()
             }
 
         # Now iterate over the snapshot without holding the lock
@@ -568,18 +566,19 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
 
             for property_path, params in property_items.items():
                 try:
-                    value = await self.api.async_read_property_for_device(
+                    reading = await self.api.async_read_property_for_device(
                         device_uuid=device_uuid,
                         property_path=property_path,
                         faktor=params["faktor"],
                         signed=params["signed"],
                         byte_count=params["byte_count"],
                     )
-                    result[device_uuid][property_path] = value
+                    # Store the scaled value for backward compatibility with sensors
+                    result[device_uuid][property_path] = reading.scaled_value if reading else None
                     # Track each individual API call
                     if self._access_tracker:
                         self._access_tracker.record_access("Property")
-                except (aiohttp.ClientError, asyncio.TimeoutError) as e:  # noqa: PERF203
+                except (TimeoutError, aiohttp.ClientError) as e:
                     _LOGGER.debug(
                         "Error fetching property %s for device %s: %s",
                         property_path,
@@ -618,7 +617,7 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
 
 class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
     """Coordinator for fetching device definition data.
-    
+
     Fetches definition data for connected devices, particularly useful
     for ComfoAirQ devices (modelTypeId=1) which provide detailed sensor
     and control point definitions. ComfoClime devices provide less useful
@@ -691,15 +690,13 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
                 continue
 
             try:
-                definition_data = await self.api.async_get_device_definition(
-                    device_uuid=device_uuid
-                )
+                definition_data = await self.api.async_get_device_definition(device_uuid=device_uuid)
                 result[device_uuid] = definition_data
                 # Track each individual API call
                 if self._access_tracker:
                     self._access_tracker.record_access("Definition")
                 _LOGGER.debug("Successfully fetched definition for device %s", device_uuid)
-            except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            except (TimeoutError, aiohttp.ClientError) as e:
                 _LOGGER.debug("Error fetching definition for device %s: %s", device_uuid, e)
                 result[device_uuid] = None
 
@@ -714,7 +711,7 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
 
         Args:
             device_uuid: UUID of the device
-        
+
         Returns:
             Dictionary containing device definition data, or None if not found.
 

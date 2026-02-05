@@ -11,7 +11,8 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/revilo91/comfoclime/issues",
   "requirements": [
-    "aiohttp"
+    "aiohttp",
+    "pydantic>=2.0.0"
   ],
   "version": "2.0.2b12"
 }

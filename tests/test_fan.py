@@ -1,20 +1,21 @@
 """Tests for ComfoClime fan entity."""
 
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock
+
+from custom_components.comfoclime.constants import FanSpeed
 from custom_components.comfoclime.fan import (
     ComfoClimeFan,
     async_setup_entry,
 )
-from custom_components.comfoclime.constants import FanSpeed
+from custom_components.comfoclime.models import DashboardData
 
 
 class TestComfoClimeFan:
     """Test ComfoClimeFan class."""
 
-    def test_fan_initialization(
-        self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry
-    ):
+    def test_fan_initialization(self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry):
         """Test fan entity initialization."""
         fan = ComfoClimeFan(
             hass=mock_hass,
@@ -29,9 +30,7 @@ class TestComfoClimeFan:
         assert fan._attr_speed_count == 3
         assert fan._current_speed == 0
 
-    def test_fan_is_on_when_speed_positive(
-        self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry
-    ):
+    def test_fan_is_on_when_speed_positive(self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry):
         """Test fan is_on property when speed is positive."""
         fan = ComfoClimeFan(
             hass=mock_hass,
@@ -45,9 +44,7 @@ class TestComfoClimeFan:
 
         assert fan.is_on is True
 
-    def test_fan_is_off_when_speed_zero(
-        self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry
-    ):
+    def test_fan_is_off_when_speed_zero(self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry):
         """Test fan is_on property when speed is zero."""
         fan = ComfoClimeFan(
             hass=mock_hass,
@@ -72,7 +69,14 @@ class TestComfoClimeFan:
         ids=["speed_0", "speed_1", "speed_2", "speed_3"],
     )
     def test_fan_percentage_calculation(
-        self, speed, expected_percentage, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry
+        self,
+        speed,
+        expected_percentage,
+        mock_hass,
+        mock_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
     ):
         """Test fan percentage calculation for various speeds."""
         fan = ComfoClimeFan(
@@ -99,7 +103,14 @@ class TestComfoClimeFan:
         ids=["0%", "33%", "50%", "66%", "100%"],
     )
     async def test_fan_percentage_to_step_conversion(
-        self, percentage, expected_step, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry
+        self,
+        percentage,
+        expected_step,
+        mock_hass,
+        mock_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
     ):
         """Test percentage to step conversion for various inputs."""
         mock_hass.add_job = MagicMock()
@@ -152,11 +163,9 @@ class TestComfoClimeFan:
         _, kwargs = calls[0]
         assert kwargs["fan_speed"] in [1, 2]  # 40/33 ≈ 1.2, could round to 1 or 2
 
-    def test_fan_coordinator_update(
-        self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry
-    ):
+    def test_fan_coordinator_update(self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry):
         """Test fan coordinator update."""
-        mock_coordinator.data = {"fanSpeed": 3}
+        mock_coordinator.data = DashboardData(fan_speed=3)
 
         fan = ComfoClimeFan(
             hass=mock_hass,
@@ -176,7 +185,7 @@ class TestComfoClimeFan:
         self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry
     ):
         """Test fan coordinator update with string value."""
-        mock_coordinator.data = {"fanSpeed": "2"}
+        mock_coordinator.data = DashboardData(fan_speed=2)
 
         fan = ComfoClimeFan(
             hass=mock_hass,
@@ -192,9 +201,7 @@ class TestComfoClimeFan:
 
         assert fan._current_speed == 2
 
-    def test_fan_device_info(
-        self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry
-    ):
+    def test_fan_device_info(self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry):
         """Test fan device info."""
         fan = ComfoClimeFan(
             hass=mock_hass,
@@ -213,9 +220,7 @@ class TestComfoClimeFan:
 
 
 @pytest.mark.asyncio
-async def test_async_setup_entry(
-    mock_hass, mock_config_entry, mock_coordinator, mock_device, mock_api
-):
+async def test_async_setup_entry(mock_hass, mock_config_entry, mock_coordinator, mock_device, mock_api):
     """Test async_setup_entry for fan entity."""
     # Setup mock data
     mock_hass.data = {
@@ -238,9 +243,7 @@ async def test_async_setup_entry(
 
 
 @pytest.mark.asyncio
-async def test_async_setup_entry_no_main_device(
-    mock_hass, mock_config_entry, mock_api, mock_coordinator
-):
+async def test_async_setup_entry_no_main_device(mock_hass, mock_config_entry, mock_api, mock_coordinator):
     """Test async_setup_entry when no main device exists."""
     # Setup mock data without main device
     mock_hass.data = {

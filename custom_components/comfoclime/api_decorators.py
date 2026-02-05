@@ -24,9 +24,13 @@ import asyncio
 import functools
 import inspect
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import aiohttp
+
+# Import temperature fixing function from models module
+from .models import fix_signed_temperatures_in_dict
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -104,7 +108,7 @@ def api_get(
                 async with session.get(url, timeout=timeout) as response:
                     response.raise_for_status()
                     data = await response.json()
-                
+
                 _LOGGER.debug("API GET %s returned data: %s", url, data)
 
                 # Extract specific key if specified
@@ -114,7 +118,7 @@ def api_get(
 
                 # Fix temperature values if needed
                 if fix_temperatures:
-                    data = self.fix_signed_temperatures_in_dict(data)
+                    data = fix_signed_temperatures_in_dict(data)
 
                 # Call the original function with the response data and remaining args/kwargs
                 return await func(self, data, *args, **kwargs)
@@ -123,16 +127,16 @@ def api_get(
                 if skip_lock:
                     # Execute without acquiring lock (lock already held by caller)
                     return await _execute()
-                
+
                 # Yield to pending writes before trying to acquire lock
                 # This ensures write operations always have priority
                 await self._rate_limiter.yield_to_writes()
-                
+
                 # Execute with lock acquisition
                 async with self._request_lock:
                     return await _execute()
 
-            except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            except (TimeoutError, aiohttp.ClientError) as e:
                 if on_error is not None:
                     _LOGGER.warning(f"Error fetching {url_template}: {e}")
                     return on_error
@@ -238,11 +242,9 @@ def api_put(
                             attempt + 1,
                             self.max_retries + 1,
                             self.write_timeout,
-                            payload
+                            payload,
                         )
-                        async with session.put(
-                            url, json=payload, headers=headers, timeout=timeout
-                        ) as response:
+                        async with session.put(url, json=payload, headers=headers, timeout=timeout) as response:
                             response.raise_for_status()
                             if is_dashboard:
                                 try:
@@ -258,10 +260,7 @@ def api_put(
                         # CancelledError should not be retried - it means the task was cancelled
                         # Re-raise immediately to propagate cancellation
                         raise
-                    except (  # noqa: PERF203
-                        asyncio.TimeoutError,
-                        aiohttp.ClientError,
-                    ) as e:
+                    except (TimeoutError, aiohttp.ClientError) as e:
                         last_exception = e
                         if attempt < self.max_retries:
                             wait_time = 2 ** (attempt + 1)
@@ -271,14 +270,14 @@ def api_put(
                                 self.max_retries + 1,
                                 wait_time,
                                 type(e).__name__,
-                                e
+                                e,
                             )
                             await asyncio.sleep(wait_time)
                         else:
                             _LOGGER.exception(
                                 "Update failed after %d attempts: %s",
                                 self.max_retries + 1,
-                                type(e).__name__
+                                type(e).__name__,
                             )
 
                 if last_exception:
@@ -288,7 +287,7 @@ def api_put(
             if skip_lock:
                 # Execute without acquiring lock (lock already held by caller)
                 return await _execute()
-            
+
             # Signal write intent before acquiring lock
             # This allows read operations to yield priority to this write
             self._rate_limiter.signal_write_pending()

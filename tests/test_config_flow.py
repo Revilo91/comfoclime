@@ -1,25 +1,22 @@
 """Tests for ComfoClime config_flow."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from homeassistant import config_entries
+
+import pytest
 from homeassistant.data_entry_flow import FlowResultType
-from homeassistant.helpers import selector
 
 from custom_components.comfoclime.config_flow import (
-    ComfoClimeConfigFlow,
-    ComfoClimeOptionsFlow,
-    DOMAIN,
-    DEFAULT_READ_TIMEOUT,
-    DEFAULT_WRITE_TIMEOUT,
-    DEFAULT_POLLING_INTERVAL,
     DEFAULT_CACHE_TTL,
     DEFAULT_MAX_RETRIES,
     DEFAULT_MIN_REQUEST_INTERVAL,
-    DEFAULT_WRITE_COOLDOWN,
+    DEFAULT_POLLING_INTERVAL,
+    DEFAULT_READ_TIMEOUT,
     DEFAULT_REQUEST_DEBOUNCE,
+    DEFAULT_WRITE_COOLDOWN,
+    DEFAULT_WRITE_TIMEOUT,
+    ComfoClimeConfigFlow,
+    ComfoClimeOptionsFlow,
 )
-from custom_components.comfoclime.entity_helper import get_default_enabled_individual_entities
 
 
 @pytest.mark.asyncio
@@ -45,9 +42,7 @@ async def test_user_flow_success():
 
         mock_session_class.return_value = mock_session
 
-        result = await flow.async_step_user(
-            user_input={"host": "192.168.1.100"}
-        )
+        result = await flow.async_step_user(user_input={"host": "192.168.1.100"})
 
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert result["title"] == "ComfoClime @ 192.168.1.100"
@@ -77,9 +72,7 @@ async def test_user_flow_no_uuid():
 
         mock_session_class.return_value = mock_session
 
-        result = await flow.async_step_user(
-            user_input={"host": "192.168.1.100"}
-        )
+        result = await flow.async_step_user(user_input={"host": "192.168.1.100"})
 
     assert result["type"] == FlowResultType.FORM
     assert result["errors"] == {"host": "no_uuid"}
@@ -98,9 +91,7 @@ async def test_user_flow_connection_error():
 
         mock_session_class.return_value = mock_session
 
-        result = await flow.async_step_user(
-            user_input={"host": "192.168.1.100"}
-        )
+        result = await flow.async_step_user(user_input={"host": "192.168.1.100"})
 
     assert result["type"] == FlowResultType.FORM
     assert result["errors"] == {"host": "cannot_connect"}
@@ -157,7 +148,7 @@ async def test_options_flow_general_diagnostics_form():
 
     # Check that schema has the expected field
     schema = result["data_schema"].schema
-    field_names = {key.schema: key for key in schema.keys()}
+    field_names = {key.schema: key for key in schema}
 
     assert "enable_diagnostics" in field_names
 
@@ -177,7 +168,7 @@ async def test_options_flow_entities_step():
 
     # Check that schema has all expected sensor/entity fields
     schema = result["data_schema"].schema
-    field_names = [key.schema for key in schema.keys()]
+    field_names = [key.schema for key in schema]
 
     # Verify all 10 entity selection fields exist
     assert "enabled_dashboard" in field_names
@@ -190,8 +181,6 @@ async def test_options_flow_entities_step():
     assert "enabled_switches" in field_names
     assert "enabled_numbers" in field_names
     assert "enabled_selects" in field_names
-
-
 
 
 @pytest.mark.asyncio
@@ -213,7 +202,7 @@ async def test_options_flow_with_existing_values():
     flow = ComfoClimeOptionsFlow(entry)
 
     # Test that _get_current_value returns saved values
-    assert flow._get_current_value("enable_diagnostics", False) == True
+    assert flow._get_current_value("enable_diagnostics", False)
     assert flow._get_current_value("read_timeout", DEFAULT_READ_TIMEOUT) == 15
 
     # Test init menu
@@ -241,10 +230,10 @@ async def test_options_flow_pending_changes():
 
     # Changes should be in pending_changes
     assert flow._pending_changes == {"enable_diagnostics": True}
-    assert flow._has_changes == True
+    assert flow._has_changes
 
     # Original entry.options should be unchanged
-    assert entry.options["enable_diagnostics"] == False
+    assert not entry.options["enable_diagnostics"]
 
 
 @pytest.mark.asyncio
@@ -290,7 +279,7 @@ async def test_options_flow_validates_timeout_ranges():
     schema = result["data_schema"].schema
 
     # Find the read_timeout field and verify it has a default value
-    for key in schema.keys():
+    for key in schema:
         if key.schema == "read_timeout":
             # Check that the field has a default value set
             assert hasattr(key, "default")

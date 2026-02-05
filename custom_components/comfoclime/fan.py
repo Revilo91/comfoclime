@@ -26,48 +26,48 @@ Note:
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
 from homeassistant.components.fan import FanEntity, FanEntityFeature
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
     from .comfoclime_api import ComfoClimeAPI
     from .coordinator import ComfoClimeDashboardCoordinator
 
-from .constants import FanSpeed
 from . import DOMAIN
+from .constants import FanSpeed
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class ComfoClimeFan(CoordinatorEntity, FanEntity):
     """ComfoClime Fan entity for ventilation fan speed control.
-    
+
     Provides control over the ComfoClime ventilation fan speed with
     3 discrete speed levels (low/medium/high) plus off. The fan speed
     is also controlled by the climate entity's fan_mode attribute.
-    
+
     Attributes:
         is_on: Whether the fan is on (speed > 0)
         percentage: Current fan speed as percentage (0%, 33%, 66%, 100%)
         speed_count: Number of discrete speed levels (3)
-        
+
     Example:
         >>> # Set fan to medium speed (66%)
         >>> await fan.async_set_percentage(66)
         >>> # Turn off fan
         >>> await fan.async_set_percentage(0)
     """
-    
+
     def __init__(
         self,
         hass: HomeAssistant,
@@ -77,7 +77,7 @@ class ComfoClimeFan(CoordinatorEntity, FanEntity):
         entry: ConfigEntry,
     ) -> None:
         """Initialize the ComfoClime fan entity.
-        
+
         Args:
             hass: Home Assistant instance
             coordinator: Dashboard data coordinator
@@ -122,17 +122,17 @@ class ComfoClimeFan(CoordinatorEntity, FanEntity):
 
     async def async_set_percentage(self, percentage: int) -> None:
         """Set the fan speed by percentage.
-        
+
         Converts percentage to discrete speed level (0-3) and updates
         the device. The speed levels are:
             - 0%: Off (speed 0)
             - 33%: Low (speed 1)
             - 66%: Medium (speed 2)
             - 100%: High (speed 3)
-        
+
         Args:
             percentage: Fan speed percentage (0-100)
-            
+
         Raises:
             aiohttp.ClientError: If API call fails
             asyncio.TimeoutError: If API call times out
@@ -144,7 +144,7 @@ class ComfoClimeFan(CoordinatorEntity, FanEntity):
             )
             self._current_speed = fan_speed
             self.async_write_ha_state()
-            
+
             # Schedule background refresh without blocking
             async def safe_refresh() -> None:
                 """Safely refresh coordinator with error handling."""
@@ -152,9 +152,9 @@ class ComfoClimeFan(CoordinatorEntity, FanEntity):
                     await self.coordinator.async_request_refresh()
                 except Exception:
                     _LOGGER.exception("Background refresh failed after fan speed update")
-            
+
             self._hass.async_create_task(safe_refresh())
-        except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+        except (TimeoutError, aiohttp.ClientError) as err:
             _LOGGER.exception("Error setting fan speed")
             raise HomeAssistantError(f"Failed to set fan speed: {err}") from err
 
@@ -173,20 +173,18 @@ class ComfoClimeFan(CoordinatorEntity, FanEntity):
         self.async_write_ha_state()
 
 
-async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
-) -> None:
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     """Set up ComfoClime fan entity from a config entry.
-    
+
     Creates the fan entity for controlling the ComfoClime ventilation
     fan speed. The fan entity provides percentage-based speed control
     with 3 discrete levels.
-    
+
     Args:
         hass: Home Assistant instance
         entry: Config entry for this integration
         async_add_entities: Callback to add entities
-        
+
     Note:
         Only one fan entity is created per integration instance.
     """
@@ -198,7 +196,7 @@ async def async_setup_entry(
         if not main_device:
             _LOGGER.warning("No main device with modelTypeId 20 found")
             return
-        
+
         # Note: Coordinator first refresh is already done in __init__.py
         # We don't need to await it here to avoid blocking fan setup
         fan_entity = ComfoClimeFan(hass, coordinator, api, main_device, entry)

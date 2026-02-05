@@ -33,26 +33,22 @@ Note:
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
-import asyncio
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     EntityCategory,
 )
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .access_tracker import AccessTracker
-from .comfoclime_api import ComfoClimeAPI
+from . import DOMAIN
 from .coordinator import (
     ComfoClimeDashboardCoordinator,
     ComfoClimeDefinitionCoordinator,
@@ -61,8 +57,6 @@ from .coordinator import (
     ComfoClimeTelemetryCoordinator,
     ComfoClimeThermalprofileCoordinator,
 )
-
-from . import DOMAIN
 from .entities.sensor_definitions import (
     ACCESS_TRACKING_SENSORS,
     CONNECTED_DEVICE_DEFINITION_SENSORS,
@@ -74,6 +68,13 @@ from .entities.sensor_definitions import (
     THERMALPROFILE_SENSORS,
 )
 from .entity_helper import is_entity_category_enabled, is_entity_enabled
+
+if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
+    from .access_tracker import AccessTracker
+    from .comfoclime_api import ComfoClimeAPI
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -87,9 +88,7 @@ VALUE_MAPPINGS = {
 }
 
 
-async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
-) -> None:
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     """Set up ComfoClime sensor entities from a config entry.
 
     Creates sensor entities based on configuration options and detected
@@ -118,9 +117,7 @@ async def async_setup_entry(
     coordinator: ComfoClimeDashboardCoordinator = data["coordinator"]
     tlcoordinator: ComfoClimeTelemetryCoordinator = data["tlcoordinator"]
     propcoordinator: ComfoClimePropertyCoordinator = data["propcoordinator"]
-    definitioncoordinator: ComfoClimeDefinitionCoordinator = data[
-        "definitioncoordinator"
-    ]
+    definitioncoordinator: ComfoClimeDefinitionCoordinator = data["definitioncoordinator"]
 
     # Note: Coordinator first refresh is already done in __init__.py
     # We don't need to await it here to avoid blocking sensor setup
@@ -149,9 +146,7 @@ async def async_setup_entry(
                 )
 
     # ThermalProfile-Sensoren
-    thermalprofile_coordinator: ComfoClimeThermalprofileCoordinator = data[
-        "tpcoordinator"
-    ]
+    thermalprofile_coordinator: ComfoClimeThermalprofileCoordinator = data["tpcoordinator"]
     if is_entity_category_enabled(entry.options, "sensors", "thermalprofile"):
         for sensor_def in THERMALPROFILE_SENSORS:
             if is_entity_enabled(entry.options, "sensors", "thermalprofile", sensor_def):
@@ -173,23 +168,21 @@ async def async_setup_entry(
                 )
 
     # Monitoring-Sensoren (uptime, etc.)
-    monitoring_coordinator: ComfoClimeMonitoringCoordinator = data.get(
-        "monitoringcoordinator"
-    )
+    monitoring_coordinator: ComfoClimeMonitoringCoordinator = data.get("monitoringcoordinator")
     _LOGGER.debug(
         "Setting up monitoring sensors. Coordinator available: %s, Category enabled: %s",
         monitoring_coordinator is not None,
-        is_entity_category_enabled(entry.options, "sensors", "monitoring") if monitoring_coordinator else False
+        is_entity_category_enabled(entry.options, "sensors", "monitoring") if monitoring_coordinator else False,
     )
 
-    if monitoring_coordinator and is_entity_category_enabled(
-        entry.options, "sensors", "monitoring"
-    ):
+    if monitoring_coordinator and is_entity_category_enabled(entry.options, "sensors", "monitoring"):
         for sensor_def in MONITORING_SENSORS:
             entity_enabled = is_entity_enabled(entry.options, "sensors", "monitoring", sensor_def)
             _LOGGER.debug(
                 "Monitoring sensor '%s' (key=%s): enabled=%s",
-                sensor_def.name, sensor_def.key, entity_enabled
+                sensor_def.name,
+                sensor_def.key,
+                entity_enabled,
             )
             if entity_enabled:
                 sensors.append(
@@ -210,9 +203,11 @@ async def async_setup_entry(
                 )
                 _LOGGER.debug("Created monitoring sensor: %s", sensor_def.name)
     else:
-        _LOGGER.debug("Monitoring sensors NOT created - coordinator=%s, category_enabled=%s",
-                      monitoring_coordinator is not None,
-                      is_entity_category_enabled(entry.options, "sensors", "monitoring") if monitoring_coordinator else False)
+        _LOGGER.debug(
+            "Monitoring sensors NOT created - coordinator=%s, category_enabled=%s",
+            monitoring_coordinator is not None,
+            is_entity_category_enabled(entry.options, "sensors", "monitoring") if monitoring_coordinator else False,
+        )
 
     # Feste Telemetrie-Sensoren für das ComfoClime-Gerät (from TELEMETRY_SENSORS)
     for sensor_def in TELEMETRY_SENSORS:
@@ -266,9 +261,7 @@ async def async_setup_entry(
                 # Always create entities, but diagnostic ones are disabled by default
                 # unless enable_diagnostics is True
                 is_diagnose = sensor_def.diagnose
-                enabled_default = not is_diagnose or entry.options.get(
-                    "enable_diagnostics", False
-                )
+                enabled_default = not is_diagnose or entry.options.get("enable_diagnostics", False)
 
                 # Register telemetry with coordinator for batched fetching
                 await tlcoordinator.register_telemetry(
@@ -394,12 +387,12 @@ async def async_setup_entry(
         """Background task to refresh coordinators after entities are added."""
         try:
             await tlcoordinator.async_config_entry_first_refresh()
-        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+        except (TimeoutError, aiohttp.ClientError) as e:
             _LOGGER.debug("Telemetry data could not be loaded: %s", e)
 
         try:
             await propcoordinator.async_config_entry_first_refresh()
-        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+        except (TimeoutError, aiohttp.ClientError) as e:
             _LOGGER.debug("Property data could not be loaded: %s", e)
 
     # Run coordinator refresh in background
@@ -410,7 +403,9 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
     def __init__(
         self,
         hass: HomeAssistant,
-        coordinator: ComfoClimeDashboardCoordinator | ComfoClimeThermalprofileCoordinator | ComfoClimeMonitoringCoordinator,
+        coordinator: ComfoClimeDashboardCoordinator
+        | ComfoClimeThermalprofileCoordinator
+        | ComfoClimeMonitoringCoordinator,
         api: ComfoClimeAPI,
         sensor_type: str,
         name: str,
@@ -431,13 +426,9 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
         self._raw_state = None
         self._raw_value = None
         self._attr_native_unit_of_measurement = unit
-        self._attr_device_class = (
-            SensorDeviceClass(device_class) if device_class else None
-        )
+        self._attr_device_class = SensorDeviceClass(device_class) if device_class else None
         self._attr_state_class = SensorStateClass(state_class) if state_class else None
-        self._attr_entity_category = (
-            EntityCategory(entity_category) if entity_category else None
-        )
+        self._attr_entity_category = EntityCategory(entity_category) if entity_category else None
         self._device = device
         self._entry = entry
         self._attr_config_entry_id = entry.entry_id
@@ -448,9 +439,7 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
             prefix = "monitoring"
         else:
             prefix = "dashboard"
-        self._attr_unique_id = (
-            f"{entry.entry_id}_{prefix}_{sensor_type.replace('.', '_')}"
-        )
+        self._attr_unique_id = f"{entry.entry_id}_{prefix}_{sensor_type.replace('.', '_')}"
         if not translation_key:
             self._attr_name = name
         else:
@@ -485,7 +474,9 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
 
             _LOGGER.debug(
                 "Sensor '%s' (type=%s) handling coordinator update. Data keys: %s",
-                self._name, self._type, list(data.keys()) if data else "None"
+                self._name,
+                self._type,
+                list(data.keys()) if data else "None",
             )
 
             # Handle nested keys (e.g., "season.status" or "heatingThermalProfileSeasonData.comfortTemperature")
@@ -501,10 +492,7 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
             else:
                 raw_value = data.get(self._type)
 
-            _LOGGER.debug(
-                "Sensor '%s' (type=%s): raw_value=%s",
-                self._name, self._type, raw_value
-            )
+            _LOGGER.debug("Sensor '%s' (type=%s): raw_value=%s", self._name, self._type, raw_value)
 
             # raw_value wurde ermittelt
             self._raw_value = raw_value
@@ -517,7 +505,9 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
 
             _LOGGER.debug(
                 "Sensor '%s' (type=%s): state set to %s",
-                self._name, self._type, self._state
+                self._name,
+                self._type,
+                self._state,
             )
 
         except (KeyError, TypeError, ValueError) as e:
@@ -527,9 +517,7 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
         self.async_write_ha_state()
 
 
-class ComfoClimeTelemetrySensor(
-    CoordinatorEntity, SensorEntity
-):
+class ComfoClimeTelemetrySensor(CoordinatorEntity, SensorEntity):
     """Sensor for telemetry data using coordinator for batched fetching."""
 
     def __init__(
@@ -560,13 +548,9 @@ class ComfoClimeTelemetrySensor(
         self._signed = signed
         self._state = None
         self._attr_native_unit_of_measurement = unit
-        self._attr_device_class = (
-            SensorDeviceClass(device_class) if device_class else None
-        )
+        self._attr_device_class = SensorDeviceClass(device_class) if device_class else None
         self._attr_state_class = SensorStateClass(state_class) if state_class else None
-        self._attr_entity_category = (
-            EntityCategory(entity_category) if entity_category else None
-        )
+        self._attr_entity_category = EntityCategory(entity_category) if entity_category else None
         self._device = device
         self._override_uuid = override_device_uuid
         self._entry = entry
@@ -603,16 +587,12 @@ class ComfoClimeTelemetrySensor(
             value = self.coordinator.get_telemetry_value(self._override_uuid, self._id)
             self._state = value
         except (KeyError, TypeError, ValueError):
-            _LOGGER.debug(
-                "Error updating telemetry %s", self._id, exc_info=True
-            )
+            _LOGGER.debug("Error updating telemetry %s", self._id, exc_info=True)
             self._state = None
         self.async_write_ha_state()
 
 
-class ComfoClimePropertySensor(
-    CoordinatorEntity, SensorEntity
-):
+class ComfoClimePropertySensor(CoordinatorEntity, SensorEntity):
     """Sensor for property data using coordinator for batched fetching."""
 
     def __init__(
@@ -643,13 +623,9 @@ class ComfoClimePropertySensor(
         self._byte_count = byte_count
         self._signed = signed
         self._attr_native_unit_of_measurement = unit
-        self._attr_device_class = (
-            SensorDeviceClass(device_class) if device_class else None
-        )
+        self._attr_device_class = SensorDeviceClass(device_class) if device_class else None
         self._attr_state_class = SensorStateClass(state_class) if state_class else None
-        self._attr_entity_category = (
-            EntityCategory(entity_category) if entity_category else None
-        )
+        self._attr_entity_category = EntityCategory(entity_category) if entity_category else None
         self._mapping_key = mapping_key
         self._device = device
         self._override_uuid = override_device_uuid
@@ -693,9 +669,7 @@ class ComfoClimePropertySensor(
         self.async_write_ha_state()
 
 
-class ComfoClimeDefinitionSensor(
-    CoordinatorEntity, SensorEntity
-):
+class ComfoClimeDefinitionSensor(CoordinatorEntity, SensorEntity):
     """Sensor for definition data using coordinator for batched fetching."""
 
     def __init__(
@@ -719,20 +693,14 @@ class ComfoClimeDefinitionSensor(
         self._key = key
         self._name = name
         self._attr_native_unit_of_measurement = unit
-        self._attr_device_class = (
-            SensorDeviceClass(device_class) if device_class else None
-        )
+        self._attr_device_class = SensorDeviceClass(device_class) if device_class else None
         self._attr_state_class = SensorStateClass(state_class) if state_class else None
-        self._attr_entity_category = (
-            EntityCategory(entity_category) if entity_category else None
-        )
+        self._attr_entity_category = EntityCategory(entity_category) if entity_category else None
         self._device = device
         self._override_uuid = override_device_uuid
         self._state = None
         self._attr_config_entry_id = entry.entry_id
-        self._attr_unique_id = (
-            f"{entry.entry_id}_definition_{override_device_uuid}_{key}"
-        )
+        self._attr_unique_id = f"{entry.entry_id}_definition_{override_device_uuid}_{key}"
         if not translation_key:
             self._attr_name = name
         else:
@@ -765,9 +733,7 @@ class ComfoClimeDefinitionSensor(
             else:
                 self._state = None
         except (KeyError, TypeError, ValueError):
-            _LOGGER.debug(
-                "Error retrieving definition %s", self._key, exc_info=True
-            )
+            _LOGGER.debug("Error retrieving definition %s", self._key, exc_info=True)
             self._state = None
         self.async_write_ha_state()
 
@@ -814,18 +780,14 @@ class ComfoClimeAccessTrackingSensor(SensorEntity):
         self._name = name
         self._state = 0
         self._attr_state_class = SensorStateClass(state_class) if state_class else None
-        self._attr_entity_category = (
-            EntityCategory(entity_category) if entity_category else None
-        )
+        self._attr_entity_category = EntityCategory(entity_category) if entity_category else None
         self._device = device
         self._entry = entry
         self._attr_config_entry_id = entry.entry_id
 
         # Build unique_id based on coordinator and metric
         if coordinator_name:
-            self._attr_unique_id = (
-                f"{entry.entry_id}_access_{coordinator_name.lower()}_{metric}"
-            )
+            self._attr_unique_id = f"{entry.entry_id}_access_{coordinator_name.lower()}_{metric}"
         else:
             self._attr_unique_id = f"{entry.entry_id}_access_{metric}"
 
@@ -866,13 +828,9 @@ class ComfoClimeAccessTrackingSensor(SensorEntity):
         """Update the sensor state from the access tracker."""
         try:
             if self._metric == "per_minute":
-                self._state = self._access_tracker.get_accesses_per_minute(
-                    self._coordinator_name
-                )
+                self._state = self._access_tracker.get_accesses_per_minute(self._coordinator_name)
             elif self._metric == "per_hour":
-                self._state = self._access_tracker.get_accesses_per_hour(
-                    self._coordinator_name
-                )
+                self._state = self._access_tracker.get_accesses_per_hour(self._coordinator_name)
             elif self._metric == "total_per_minute":
                 self._state = self._access_tracker.get_total_accesses_per_minute()
             elif self._metric == "total_per_hour":
@@ -880,9 +838,7 @@ class ComfoClimeAccessTrackingSensor(SensorEntity):
             else:
                 self._state = 0
         except (KeyError, TypeError, ValueError):
-            _LOGGER.debug(
-                "Error updating access tracking sensor %s", self._name, exc_info=True
-            )
+            _LOGGER.debug("Error updating access tracking sensor %s", self._name, exc_info=True)
             self._state = 0
 
     @property
@@ -892,9 +848,7 @@ class ComfoClimeAccessTrackingSensor(SensorEntity):
             return {
                 "coordinator": self._coordinator_name,
                 "metric": self._metric,
-                "total_accesses": self._access_tracker.get_total_accesses(
-                    self._coordinator_name
-                ),
+                "total_accesses": self._access_tracker.get_total_accesses(self._coordinator_name),
             }
         return {
             "metric": self._metric,

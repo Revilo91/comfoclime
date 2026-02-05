@@ -1,19 +1,19 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
 from homeassistant.components.number import NumberEntity, NumberMode
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
     from .comfoclime_api import ComfoClimeAPI
     from .coordinator import (
         ComfoClimePropertyCoordinator,
@@ -32,9 +32,7 @@ from .entity_helper import is_entity_category_enabled, is_entity_enabled
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
-) -> None:
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     data = hass.data[DOMAIN][entry.entry_id]
     api = data["api"]
     main_device = data["main_device"]
@@ -45,14 +43,12 @@ async def async_setup_entry(
     # Note: Coordinator first refresh is already done in __init__.py
     # We don't need to await it here to avoid blocking number setup
     entities = []
-    
+
     if is_entity_category_enabled(entry.options, "numbers", "thermal_profile"):
         for conf in NUMBER_ENTITIES:
             if is_entity_enabled(entry.options, "numbers", "thermal_profile", conf):
                 entities.append(
-                    ComfoClimeTemperatureNumber(
-                        hass, tpcoordinator, api, conf, device=main_device, entry=entry
-                    )
+                    ComfoClimeTemperatureNumber(hass, tpcoordinator, api, conf, device=main_device, entry=entry)
                 )
 
     if is_entity_category_enabled(entry.options, "numbers", "connected_properties"):
@@ -74,7 +70,7 @@ async def async_setup_entry(
                 # Check if this individual number property is enabled
                 if not is_entity_enabled(entry.options, "numbers", "connected_properties", number_def):
                     continue
-                
+
                 _LOGGER.debug("Creating number entity for property: %s", number_def)
                 # Register property with coordinator for batched fetching
                 await propcoordinator.register_property(
@@ -99,9 +95,7 @@ async def async_setup_entry(
     async_add_entities(entities, True)
 
 
-class ComfoClimeTemperatureNumber(
-    CoordinatorEntity, NumberEntity
-):
+class ComfoClimeTemperatureNumber(CoordinatorEntity, NumberEntity):
     def __init__(
         self,
         hass: HomeAssistant,
@@ -139,21 +133,17 @@ class ComfoClimeTemperatureNumber(
             return False
 
         # For manual temperature setting, check if automatic mode is disabled
-        if (
-            self._key_path[0] == "temperature"
-            and self._key_path[1] == "manualTemperature"
-        ):
+        if self._key_path[0] == "temperature" and self._key_path[1] == "manualTemperature":
             try:
                 coordinator_data = self.coordinator.data
-                automatic_temperature_status = coordinator_data.get(
-                    "temperature", {}
-                ).get("status")
+                automatic_temperature_status = coordinator_data.get("temperature", {}).get("status")
 
                 # Only available if automatic mode is disabled (status = 0)
                 return automatic_temperature_status == 0
             except (KeyError, TypeError, ValueError) as e:
                 _LOGGER.debug(
-                    "Could not check automatic temperature status for availability: %s", e
+                    "Could not check automatic temperature status for availability: %s",
+                    e,
                 )
                 # Return True if we can't determine the status to avoid breaking functionality
                 return True
@@ -212,21 +202,14 @@ class ComfoClimeTemperatureNumber(
 
     async def async_set_native_value(self, value: float) -> None:
         # Check if this is a manual temperature setting
-        if (
-            self._key_path[0] == "temperature"
-            and self._key_path[1] == "manualTemperature"
-        ):
+        if self._key_path[0] == "temperature" and self._key_path[1] == "manualTemperature":
             # Check if automatic comfort temperature is enabled
             try:
                 coordinator_data = self.coordinator.data
-                automatic_temperature_status = coordinator_data.get(
-                    "temperature", {}
-                ).get("status")
+                automatic_temperature_status = coordinator_data.get("temperature", {}).get("status")
 
                 if automatic_temperature_status == 1:
-                    _LOGGER.warning(
-                        "Cannot set manual temperature: automatic comfort temperature is enabled"
-                    )
+                    _LOGGER.warning("Cannot set manual temperature: automatic comfort temperature is enabled")
                     # Don't proceed with setting the temperature
                     return
             except (KeyError, TypeError, ValueError) as e:
@@ -264,14 +247,12 @@ class ComfoClimeTemperatureNumber(
             await self._api.async_update_thermal_profile(**{param_name: value})
             self._value = value
             await self.coordinator.async_request_refresh()
-        except (aiohttp.ClientError, asyncio.TimeoutError):
+        except (TimeoutError, aiohttp.ClientError):
             _LOGGER.exception("Error setting number entity %s", self._name)
             raise HomeAssistantError(f"Error setting {self._name}") from None
 
 
-class ComfoClimePropertyNumber(
-    CoordinatorEntity, NumberEntity
-):
+class ComfoClimePropertyNumber(CoordinatorEntity, NumberEntity):
     """Number entity for property values using coordinator for batched fetching."""
 
     def __init__(
@@ -293,9 +274,7 @@ class ComfoClimePropertyNumber(
 
         self._property_path = config.property
         self._attr_translation_key = config.translation_key
-        self._attr_unique_id = (
-            f"{entry.entry_id}_property_number_{self._property_path.replace('/', '_')}"
-        )
+        self._attr_unique_id = f"{entry.entry_id}_property_number_{self._property_path.replace('/', '_')}"
         self._attr_config_entry_id = entry.entry_id
         self._attr_has_entity_name = True
         self._attr_mode = NumberMode.BOX
@@ -308,8 +287,7 @@ class ComfoClimePropertyNumber(
         self._signed = False  # PropertyNumberDefinition always uses unsigned
 
         _LOGGER.debug(
-            "ComfoClimePropertyNumber initialized: path=%s, "
-            "device=%s, unique_id=%s",
+            "ComfoClimePropertyNumber initialized: path=%s, device=%s, unique_id=%s",
             self._property_path,
             device.get("uuid"),
             self._attr_unique_id,
@@ -339,12 +317,8 @@ class ComfoClimePropertyNumber(
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         try:
-            value = self.coordinator.get_property_value(
-                self._device["uuid"], self._property_path
-            )
-            _LOGGER.debug(
-                "Property %s updated from coordinator: %s", self._property_path, value
-            )
+            value = self.coordinator.get_property_value(self._device["uuid"], self._property_path)
+            _LOGGER.debug("Property %s updated from coordinator: %s", self._property_path, value)
             self._value = value
         except (KeyError, TypeError, ValueError) as e:
             _LOGGER.debug("Error fetching property %s: %s", self._property_path, e)
@@ -363,8 +337,6 @@ class ComfoClimePropertyNumber(
             self._value = value
             # Trigger coordinator refresh to update all entities
             await self.coordinator.async_request_refresh()
-        except (aiohttp.ClientError, asyncio.TimeoutError):
+        except (TimeoutError, aiohttp.ClientError):
             _LOGGER.exception("Error writing property %s", self._property_path)
-            raise HomeAssistantError(
-                f"Error writing property {self._property_path}"
-            ) from None
+            raise HomeAssistantError(f"Error writing property {self._property_path}") from None

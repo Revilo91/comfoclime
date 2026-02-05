@@ -1,19 +1,19 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
 from homeassistant.components.select import SelectEntity
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
     from .comfoclime_api import ComfoClimeAPI
     from .coordinator import (
         ComfoClimePropertyCoordinator,
@@ -23,8 +23,8 @@ if TYPE_CHECKING:
 from . import DOMAIN
 from .entities.select_definitions import (
     PROPERTY_SELECT_ENTITIES,
-    PropertySelectDefinition,
     SELECT_ENTITIES,
+    PropertySelectDefinition,
     SelectDefinition,
 )
 from .entity_helper import is_entity_category_enabled, is_entity_enabled
@@ -32,9 +32,7 @@ from .entity_helper import is_entity_category_enabled, is_entity_enabled
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
-) -> None:
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     data = hass.data[DOMAIN][entry.entry_id]
     api = data["api"]
     main_device = data["main_device"]
@@ -45,15 +43,11 @@ async def async_setup_entry(
     # Note: Coordinator first refresh is already done in __init__.py
     # We don't need to await it here to avoid blocking select setup
     entities = []
-    
+
     if is_entity_category_enabled(entry.options, "selects", "thermal_profile"):
         for conf in SELECT_ENTITIES:
             if is_entity_enabled(entry.options, "selects", "thermal_profile", conf):
-                entities.append(
-                    ComfoClimeSelect(
-                        hass, tpcoordinator, api, conf, device=main_device, entry=entry
-                    )
-                )
+                entities.append(ComfoClimeSelect(hass, tpcoordinator, api, conf, device=main_device, entry=entry))
 
     # Verbundene Geräte abrufen
     try:
@@ -77,7 +71,7 @@ async def async_setup_entry(
                 # Check if this individual select property is enabled
                 if not is_entity_enabled(entry.options, "selects", "connected_properties", select_def):
                     continue
-                
+
                 # Register property with coordinator for batched fetching
                 await propcoordinator.register_property(
                     device_uuid=dev_uuid,
@@ -99,9 +93,7 @@ async def async_setup_entry(
     async_add_entities(entities, True)
 
 
-class ComfoClimeSelect(
-    CoordinatorEntity, SelectEntity
-):
+class ComfoClimeSelect(CoordinatorEntity, SelectEntity):
     def __init__(
         self,
         hass: HomeAssistant,
@@ -190,7 +182,7 @@ class ComfoClimeSelect(
             await self._api.async_update_thermal_profile(**{param_name: value})
 
             self._current = option
-            
+
             # Schedule background refresh without blocking
             async def safe_refresh() -> None:
                 """Safely refresh coordinator with error handling."""
@@ -198,16 +190,14 @@ class ComfoClimeSelect(
                     await self.coordinator.async_request_refresh()
                 except Exception:
                     _LOGGER.exception("Background refresh failed after select update")
-            
+
             self._hass.async_create_task(safe_refresh())
-        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+        except (TimeoutError, aiohttp.ClientError):
             _LOGGER.exception("Error setting select %s", self._name)
             raise HomeAssistantError(f"Error setting {self._name}") from None
 
 
-class ComfoClimePropertySelect(
-    CoordinatorEntity, SelectEntity
-):
+class ComfoClimePropertySelect(CoordinatorEntity, SelectEntity):
     """Select entity for property values using coordinator for batched fetching."""
 
     def __init__(
@@ -230,9 +220,7 @@ class ComfoClimePropertySelect(
         self._entry = entry
         self._path = conf.path
         self._attr_config_entry_id = entry.entry_id
-        self._attr_unique_id = (
-            f"{entry.entry_id}_select_{conf.path.replace('/', '_')}"
-        )
+        self._attr_unique_id = f"{entry.entry_id}_select_{conf.path.replace('/', '_')}"
         self._attr_translation_key = conf.translation_key
         self._attr_has_entity_name = True
 
@@ -284,6 +272,6 @@ class ComfoClimePropertySelect(
             self._current = option
             # Trigger coordinator refresh to update all entities
             await self.coordinator.async_request_refresh()
-        except (aiohttp.ClientError, asyncio.TimeoutError):
+        except (TimeoutError, aiohttp.ClientError):
             _LOGGER.exception("Error setting select %s", self._name)
             raise HomeAssistantError(f"Error setting {self._name}") from None

@@ -1,7 +1,9 @@
 """Tests for ComfoClime integration setup."""
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+
 from custom_components.comfoclime import (
     async_setup,
     async_setup_entry,
@@ -36,29 +38,17 @@ async def test_async_setup_entry(
     mock_hass.services.async_register = MagicMock()
 
     with patch("custom_components.comfoclime.ComfoClimeAPI") as mock_api_class:
-        with patch(
-            "custom_components.comfoclime.ComfoClimeDashboardCoordinator"
-        ) as mock_db_coord:
-            with patch(
-                "custom_components.comfoclime.ComfoClimeThermalprofileCoordinator"
-            ) as mock_tp_coord:
-                with patch(
-                    "custom_components.comfoclime.ComfoClimeMonitoringCoordinator"
-                ) as mock_mon_coord:
-                    with patch(
-                        "custom_components.comfoclime.ComfoClimeTelemetryCoordinator"
-                    ) as mock_tl_coord:
-                        with patch(
-                            "custom_components.comfoclime.ComfoClimePropertyCoordinator"
-                        ) as mock_prop_coord:
+        with patch("custom_components.comfoclime.ComfoClimeDashboardCoordinator") as mock_db_coord:
+            with patch("custom_components.comfoclime.ComfoClimeThermalprofileCoordinator") as mock_tp_coord:
+                with patch("custom_components.comfoclime.ComfoClimeMonitoringCoordinator") as mock_mon_coord:
+                    with patch("custom_components.comfoclime.ComfoClimeTelemetryCoordinator") as mock_tl_coord:
+                        with patch("custom_components.comfoclime.ComfoClimePropertyCoordinator") as mock_prop_coord:
                             with patch(
                                 "custom_components.comfoclime.ComfoClimeDefinitionCoordinator"
                             ) as mock_def_coord:
                                 # Setup mocks
                                 mock_api_instance = MagicMock()
-                                mock_api_instance.async_get_connected_devices = AsyncMock(
-                                    return_value=[mock_device]
-                                )
+                                mock_api_instance.async_get_connected_devices = AsyncMock(return_value=[mock_device])
                                 mock_api_class.return_value = mock_api_instance
 
                                 mock_db_coord_instance = MagicMock()
@@ -95,9 +85,7 @@ async def test_async_setup_entry(
 
                             # Verify platforms were set up
                             mock_hass.config_entries.async_forward_entry_setups.assert_called_once()
-                            platforms = (
-                                mock_hass.config_entries.async_forward_entry_setups.call_args[0][1]
-                            )
+                            platforms = mock_hass.config_entries.async_forward_entry_setups.call_args[0][1]
                             assert "sensor" in platforms
                             assert "switch" in platforms
                             assert "number" in platforms
@@ -137,29 +125,17 @@ async def test_async_setup_entry_with_float_max_retries(
     mock_hass.services.async_register = MagicMock()
 
     with patch("custom_components.comfoclime.ComfoClimeAPI") as mock_api_class:
-        with patch(
-            "custom_components.comfoclime.ComfoClimeDashboardCoordinator"
-        ) as mock_db_coord:
-            with patch(
-                "custom_components.comfoclime.ComfoClimeThermalprofileCoordinator"
-            ) as mock_tp_coord:
-                with patch(
-                    "custom_components.comfoclime.ComfoClimeMonitoringCoordinator"
-                ) as mock_mon_coord:
-                    with patch(
-                        "custom_components.comfoclime.ComfoClimeTelemetryCoordinator"
-                    ) as mock_tl_coord:
-                        with patch(
-                            "custom_components.comfoclime.ComfoClimePropertyCoordinator"
-                        ) as mock_prop_coord:
+        with patch("custom_components.comfoclime.ComfoClimeDashboardCoordinator") as mock_db_coord:
+            with patch("custom_components.comfoclime.ComfoClimeThermalprofileCoordinator") as mock_tp_coord:
+                with patch("custom_components.comfoclime.ComfoClimeMonitoringCoordinator") as mock_mon_coord:
+                    with patch("custom_components.comfoclime.ComfoClimeTelemetryCoordinator") as mock_tl_coord:
+                        with patch("custom_components.comfoclime.ComfoClimePropertyCoordinator") as mock_prop_coord:
                             with patch(
                                 "custom_components.comfoclime.ComfoClimeDefinitionCoordinator"
                             ) as mock_def_coord:
                                 # Setup mocks
                                 mock_api_instance = MagicMock()
-                                mock_api_instance.async_get_connected_devices = AsyncMock(
-                                    return_value=[mock_device]
-                                )
+                                mock_api_instance.async_get_connected_devices = AsyncMock(return_value=[mock_device])
                                 mock_api_class.return_value = mock_api_instance
 
                                 mock_db_coord_instance = MagicMock()
@@ -245,8 +221,7 @@ async def test_async_setup_entry_connection_error(mock_hass, mock_config_entry):
         mock_api_instance = MagicMock()
         mock_api_instance.async_get_connected_devices = AsyncMock(
             side_effect=aiohttp.ClientConnectorError(
-                connection_key=MagicMock(),
-                os_error=OSError(113, "Connect call failed ('10.0.2.27', 80)")
+                connection_key=MagicMock(), os_error=OSError(113, "Connect call failed ('10.0.2.27', 80)")
             )
         )
         mock_api_instance.close = AsyncMock()
@@ -266,7 +241,6 @@ async def test_async_setup_entry_connection_error(mock_hass, mock_config_entry):
 @pytest.mark.asyncio
 async def test_async_setup_entry_timeout_error(mock_hass, mock_config_entry):
     """Test async_setup_entry raises ConfigEntryNotReady on timeout."""
-    import asyncio
     from homeassistant.exceptions import ConfigEntryNotReady
 
     mock_hass.config_entries = MagicMock()
@@ -275,9 +249,7 @@ async def test_async_setup_entry_timeout_error(mock_hass, mock_config_entry):
     with patch("custom_components.comfoclime.ComfoClimeAPI") as mock_api_class:
         # Setup mock to raise timeout error
         mock_api_instance = MagicMock()
-        mock_api_instance.async_get_connected_devices = AsyncMock(
-            side_effect=asyncio.TimeoutError("Connection timeout")
-        )
+        mock_api_instance.async_get_connected_devices = AsyncMock(side_effect=TimeoutError("Connection timeout"))
         mock_api_instance.close = AsyncMock()
         mock_api_class.return_value = mock_api_instance
 

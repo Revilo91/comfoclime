@@ -13,14 +13,13 @@ and optimize API access patterns to the Airduino board.
 import logging
 import time
 from collections import deque
-from dataclasses import dataclass, field
-from typing import Deque
+
+from pydantic import BaseModel, Field
 
 _LOGGER = logging.getLogger(__name__)
 
 
-@dataclass(slots=True)
-class CoordinatorStats:
+class CoordinatorStats(BaseModel):
     """Statistics for a single coordinator's API accesses.
 
     Tracks access timestamps, counts, and timing for monitoring
@@ -38,18 +37,16 @@ class CoordinatorStats:
         1
     """
 
+    model_config = {"validate_assignment": True, "arbitrary_types_allowed": True}
+
     # Deque of timestamps for accesses in the last hour
     # Using deque for efficient removal of old entries
-    access_timestamps: Deque[float] = field(default_factory=deque)
-    total_count: int = field(default=0)
-    last_access_time: float = field(default=0.0)
-
-    def __post_init__(self) -> None:
-        """Validate initial state."""
-        if self.total_count < 0:
-            raise ValueError("total_count cannot be negative")
-        if self.last_access_time < 0:
-            raise ValueError("last_access_time cannot be negative")
+    access_timestamps: deque[float] = Field(
+        default_factory=deque,
+        description="FIFO queue of access timestamps (monotonic time)",
+    )
+    total_count: int = Field(default=0, ge=0, description="Total number of accesses since creation")
+    last_access_time: float = Field(default=0.0, ge=0.0, description="Timestamp of most recent access")
 
     def record_access(self, timestamp: float) -> None:
         """Record a new API access.
@@ -113,14 +110,9 @@ class AccessTracker:
         stats = self._coordinators[coordinator_name]
         stats.record_access(current_time)
 
-        _LOGGER.debug(
-            f"Recorded access for {coordinator_name}, "
-            f"total={stats.total_count}"
-        )
+        _LOGGER.debug(f"Recorded access for {coordinator_name}, total={stats.total_count}")
 
-    def _cleanup_old_entries(
-        self, stats: CoordinatorStats, current_time: float
-    ) -> None:
+    def _cleanup_old_entries(self, stats: CoordinatorStats, current_time: float) -> None:
         """Remove entries older than the hour window.
 
         Args:
@@ -194,10 +186,7 @@ class AccessTracker:
         Returns:
             Total accesses in the last minute.
         """
-        return sum(
-            self.get_accesses_per_minute(name)
-            for name in self._coordinators.keys()
-        )
+        return sum(self.get_accesses_per_minute(name) for name in self._coordinators)
 
     def get_total_accesses_per_hour(self) -> int:
         """Get total accesses per hour across all coordinators.
@@ -205,10 +194,7 @@ class AccessTracker:
         Returns:
             Total accesses in the last hour.
         """
-        return sum(
-            self.get_accesses_per_hour(name)
-            for name in self._coordinators.keys()
-        )
+        return sum(self.get_accesses_per_hour(name) for name in self._coordinators)
 
     def get_summary(self) -> dict:
         """Get a summary of all coordinator access statistics.
@@ -217,7 +203,7 @@ class AccessTracker:
             Dictionary with coordinator statistics.
         """
         summary = {}
-        for name in self._coordinators.keys():
+        for name in self._coordinators:
             summary[name] = {
                 "per_minute": self.get_accesses_per_minute(name),
                 "per_hour": self.get_accesses_per_hour(name),

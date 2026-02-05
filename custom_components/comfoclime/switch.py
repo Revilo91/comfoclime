@@ -1,37 +1,35 @@
-from __future__ import annotations
-
 """Switch platform for ComfoClime integration."""
 
-import asyncio
+from __future__ import annotations
+
 import logging
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
 from homeassistant.components.switch import SwitchEntity
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from . import DOMAIN
+from .entities.switch_definitions import SWITCHES
+from .entity_helper import is_entity_category_enabled, is_entity_enabled
+
 if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
     from .comfoclime_api import ComfoClimeAPI
     from .coordinator import (
         ComfoClimeDashboardCoordinator,
         ComfoClimeThermalprofileCoordinator,
     )
 
-from . import DOMAIN
-from .entities.switch_definitions import SWITCHES
-from .entity_helper import is_entity_category_enabled, is_entity_enabled
-
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
-) -> None:
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     data = hass.data[DOMAIN][entry.entry_id]
     api = data["api"]
     tpcoordinator = data["tpcoordinator"]
@@ -48,11 +46,9 @@ async def async_setup_entry(
             # Check if this individual switch is enabled
             if not is_entity_enabled(entry.options, "switches", "all", s):
                 continue
-            
+
             # Determine which coordinator to use based on endpoint
-            coordinator = (
-                tpcoordinator if s.endpoint == "thermal_profile" else dbcoordinator
-            )
+            coordinator = tpcoordinator if s.endpoint == "thermal_profile" else dbcoordinator
 
             switches.append(
                 ComfoClimeSwitch(
@@ -190,7 +186,7 @@ class ComfoClimeSwitch(CoordinatorEntity, SwitchEntity):
                 await self._set_thermal_profile_status(value)
             else:  # dashboard
                 await self._set_dashboard_status(value)
-        except (aiohttp.ClientError, asyncio.TimeoutError):
+        except (TimeoutError, aiohttp.ClientError):
             _LOGGER.exception("Error setting switch %s", self._name)
             raise HomeAssistantError(f"Error setting {self._name}") from None
 

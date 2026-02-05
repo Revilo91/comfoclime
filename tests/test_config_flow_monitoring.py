@@ -6,12 +6,12 @@ reloading the platform. Finally it re-enables them and ensures the
 monitoring sensor is back.
 """
 
+from custom_components.comfoclime.entities.sensor_definitions import MONITORING_SENSORS
 from custom_components.comfoclime.entity_helper import (
     get_monitoring_sensors,
     is_entity_category_enabled,
     is_entity_enabled,
 )
-from custom_components.comfoclime.entities.sensor_definitions import MONITORING_SENSORS
 
 
 def test_monitoring_enable_disable_via_options(mock_config_entry):

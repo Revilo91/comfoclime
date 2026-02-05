@@ -2,7 +2,6 @@
 
 from custom_components.comfoclime.entities.sensor_definitions import (
     CONNECTED_DEVICE_SENSORS,
-    TelemetrySensorDefinition,
 )
 
 
@@ -11,7 +10,7 @@ class TestTelemetrySensorDefinitions:
 
     def test_all_temperature_sensors_are_signed(self):
         """Test that all temperature telemetry sensors have signed=True.
-        
+
         This is critical for correctly displaying negative temperatures.
         Temperatures can go below 0°C and must be interpreted as signed integers.
         """
@@ -31,25 +30,18 @@ class TestTelemetrySensorDefinitions:
 
     def test_temperature_sensors_have_proper_scaling(self):
         """Test that temperature sensors have proper faktor and byte_count."""
-        for model_id, sensor_defs in CONNECTED_DEVICE_SENSORS.items():
+        for _model_id, sensor_defs in CONNECTED_DEVICE_SENSORS.items():
             for sensor_def in sensor_defs:
                 # Check if this is a temperature sensor
-                if (
-                    sensor_def.device_class == "temperature"
-                    or sensor_def.unit == "°C"
-                ):
+                if sensor_def.device_class == "temperature" or sensor_def.unit == "°C":
                     # Most temperature sensors use faktor=0.1
-                    assert sensor_def.faktor == 0.1, (
-                        f"Temperature sensor '{sensor_def.name}' should use faktor=0.1"
-                    )
+                    assert sensor_def.faktor == 0.1, f"Temperature sensor '{sensor_def.name}' should use faktor=0.1"
                     # Temperature sensors should use 2 bytes for proper range
-                    assert sensor_def.byte_count == 2, (
-                        f"Temperature sensor '{sensor_def.name}' should use byte_count=2"
-                    )
+                    assert sensor_def.byte_count == 2, f"Temperature sensor '{sensor_def.name}' should use byte_count=2"
 
     def test_tpma_temperature_sensor_configuration(self):
         """Test that tpma_temperature sensor is correctly configured.
-        
+
         This is the specific sensor mentioned in the issue.
         """
         # tpma_temperature is in model 20
