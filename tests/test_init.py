@@ -229,3 +229,64 @@ async def test_async_unload_entry(mock_hass, mock_config_entry):
 
     # Verify all platforms were unloaded
     assert mock_hass.config_entries.async_forward_entry_unload.call_count == 6
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_connection_error(mock_hass, mock_config_entry):
+    """Test async_setup_entry raises ConfigEntryNotReady on connection error."""
+    import aiohttp
+    from homeassistant.exceptions import ConfigEntryNotReady
+
+    mock_hass.config_entries = MagicMock()
+    mock_hass.config_entries.async_update_entry = MagicMock()
+
+    with patch("custom_components.comfoclime.ComfoClimeAPI") as mock_api_class:
+        # Setup mock to raise connection error
+        mock_api_instance = MagicMock()
+        mock_api_instance.async_get_connected_devices = AsyncMock(
+            side_effect=aiohttp.ClientConnectorError(
+                connection_key=MagicMock(),
+                os_error=OSError(113, "Connect call failed ('10.0.2.27', 80)")
+            )
+        )
+        mock_api_instance.close = AsyncMock()
+        mock_api_class.return_value = mock_api_instance
+
+        # Call async_setup_entry and expect ConfigEntryNotReady
+        with pytest.raises(ConfigEntryNotReady) as exc_info:
+            await async_setup_entry(mock_hass, mock_config_entry)
+
+        # Verify error message contains the host
+        assert "192.168.1.100" in str(exc_info.value)
+
+        # Verify API session was closed
+        mock_api_instance.close.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_timeout_error(mock_hass, mock_config_entry):
+    """Test async_setup_entry raises ConfigEntryNotReady on timeout."""
+    import asyncio
+    from homeassistant.exceptions import ConfigEntryNotReady
+
+    mock_hass.config_entries = MagicMock()
+    mock_hass.config_entries.async_update_entry = MagicMock()
+
+    with patch("custom_components.comfoclime.ComfoClimeAPI") as mock_api_class:
+        # Setup mock to raise timeout error
+        mock_api_instance = MagicMock()
+        mock_api_instance.async_get_connected_devices = AsyncMock(
+            side_effect=asyncio.TimeoutError("Connection timeout")
+        )
+        mock_api_instance.close = AsyncMock()
+        mock_api_class.return_value = mock_api_instance
+
+        # Call async_setup_entry and expect ConfigEntryNotReady
+        with pytest.raises(ConfigEntryNotReady) as exc_info:
+            await async_setup_entry(mock_hass, mock_config_entry)
+
+        # Verify error message contains the host
+        assert "192.168.1.100" in str(exc_info.value)
+
+        # Verify API session was closed
+        mock_api_instance.close.assert_called_once()

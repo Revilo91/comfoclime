@@ -94,8 +94,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     _LOGGER.debug("ComfoClimeAPI instance created with base_url: http://%s", host)
 
     # Get connected devices before creating coordinators
-    devices = await api.async_get_connected_devices()
-    _LOGGER.debug("Connected devices retrieved: %s devices found", len(devices))
+    try:
+        devices = await api.async_get_connected_devices()
+        _LOGGER.debug("Connected devices retrieved: %s devices found", len(devices))
+    except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+        _LOGGER.error(
+            "Failed to connect to ComfoClime device at %s: %s",
+            host,
+            err,
+        )
+        await api.close()
+        raise ConfigEntryNotReady(
+            f"Unable to connect to ComfoClime device at {host}: {err}"
+        ) from err
 
     # Create Dashboard-Coordinator
     dashboard_coordinator = ComfoClimeDashboardCoordinator(
