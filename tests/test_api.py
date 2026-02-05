@@ -127,6 +127,82 @@ class TestComfoClimeAPI:
         assert devices[0].uuid == "device-1"
 
     @pytest.mark.asyncio
+    async def test_async_get_connected_devices_with_realistic_data(self):
+        """Test async getting connected devices with realistic data from actual API.
+        
+        This test validates the fix for the issue where @modelType (string) was 
+        incorrectly being used instead of modelTypeId (integer).
+        """
+        api = ComfoClimeAPI("http://192.168.1.100")
+        api.uuid = "test-uuid"
+
+        mock_response = AsyncMock()
+        mock_response.json = AsyncMock(
+            return_value={
+                "devices": [
+                    {
+                        "uuid": "SIT14276877",
+                        "modelTypeId": 1,
+                        "variant": 1,
+                        "zoneId": 1,
+                        "@modelType": "ComfoAirQ 350",
+                        "name": "ComfoAirQ 350",
+                        "displayName": "ComfoAirQ 350",
+                        "fanSpeed": 2,
+                    },
+                    {
+                        "uuid": "MBE083a8d0146e1",
+                        "modelTypeId": 20,
+                        "variant": 1,
+                        "zoneId": 1,
+                        "@modelType": "ComfoClime 24",
+                        "name": "ComfoClime 24",
+                        "displayName": "ComfoClime 24",
+                        "version": "R1.5.5",
+                        "setPointTemperature": 21.0,
+                    },
+                    {
+                        "uuid": "DEM0121153000",
+                        "modelTypeId": 5,
+                        "variant": 0,
+                        "zoneId": 255,
+                        "@modelType": "ComfoConnectLANC",
+                        "name": "ComfoConnectLANC",
+                        "displayName": "ComfoConnectLANC",
+                    },
+                ]
+            }
+        )
+        mock_response.raise_for_status = MagicMock()
+
+        mock_session = AsyncMock()
+        mock_session.get = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
+
+        with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
+            devices = await api.async_get_connected_devices()
+
+        # All three devices should be successfully parsed
+        assert len(devices) == 3
+        
+        # Verify the first device (ComfoAirQ 350)
+        assert devices[0].uuid == "SIT14276877"
+        assert devices[0].model_type_id == 1
+        assert devices[0].display_name == "ComfoAirQ 350"
+        assert devices[0].version is None
+        
+        # Verify the second device (ComfoClime 24)
+        assert devices[1].uuid == "MBE083a8d0146e1"
+        assert devices[1].model_type_id == 20
+        assert devices[1].display_name == "ComfoClime 24"
+        assert devices[1].version == "R1.5.5"
+        
+        # Verify the third device (ComfoConnectLANC)
+        assert devices[2].uuid == "DEM0121153000"
+        assert devices[2].model_type_id == 5
+        assert devices[2].display_name == "ComfoConnectLANC"
+        assert devices[2].version is None
+
+    @pytest.mark.asyncio
     async def test_async_get_device_definition(self):
         """Test async getting device definition."""
         api = ComfoClimeAPI("http://192.168.1.100")
