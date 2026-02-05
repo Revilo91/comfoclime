@@ -275,7 +275,6 @@ class TestCancelledErrorPropagation:
         rate_limiter._last_request_time = rate_limiter._get_current_time()
         
         async def test_wait():
-            """Test that wait_for_rate_limit propagates CancelledError."""
             # This should sleep for 1 second due to min_request_interval
             await rate_limiter.wait_for_rate_limit(is_write=False)
         
@@ -299,7 +298,6 @@ class TestCancelledErrorPropagation:
         rate_limiter.signal_write_pending()
         
         async def test_yield():
-            """Test that yield_to_writes propagates CancelledError."""
             await rate_limiter.yield_to_writes()
         
         # Create a task and cancel it while it's sleeping
