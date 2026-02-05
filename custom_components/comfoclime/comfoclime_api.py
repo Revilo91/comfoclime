@@ -367,10 +367,10 @@ class ComfoClimeAPI:
         for device_dict in response_data:
             try:
                 # Map API field names to model field names
-                # API uses @modelType, we need model_type_id
+                # API uses modelTypeId for the numeric ID, @modelType for the name
                 device_config = DeviceConfig(
                     uuid=device_dict.get("uuid", ""),
-                    model_type_id=int(device_dict.get("@modelType", 0)),
+                    model_type_id=int(device_dict.get("modelTypeId", 0)),
                     display_name=device_dict.get("displayName", "Unknown Device"),
                     version=device_dict.get("version"),
                 )
