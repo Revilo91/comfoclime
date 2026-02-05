@@ -8,6 +8,13 @@ import pytest
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
+from custom_components.comfoclime.models import (
+    DashboardData,
+    DeviceConfig,
+    PropertyReading,
+    TelemetryReading,
+)
+
 
 @dataclass
 class MockAPIResponses:
@@ -80,15 +87,11 @@ class MockComfoClimeAPI:
     async def async_get_dashboard_data(self) -> Any:
         self._record_call("async_get_dashboard_data")
         # Return DashboardData model instead of dict
-        from custom_components.comfoclime.models import DashboardData
-
         return DashboardData(**self.responses.dashboard_data)
 
     async def async_get_connected_devices(self):
         self._record_call("async_get_connected_devices")
         # Return list of DeviceConfig models instead of dicts
-        from custom_components.comfoclime.models import DeviceConfig
-
         return [
             DeviceConfig(
                 uuid=device.get("uuid", ""),
@@ -130,8 +133,6 @@ class MockComfoClimeAPI:
             **kwargs,
         )
         # Return TelemetryReading model instead of raw value
-        from custom_components.comfoclime.models import TelemetryReading
-
         raw_value = int(self.responses.telemetry_data.get(device_uuid, {}).get(str(telemetry_id), 0))
         return TelemetryReading(
             device_uuid=device_uuid,
@@ -150,8 +151,6 @@ class MockComfoClimeAPI:
             **kwargs,
         )
         # Return PropertyReading model instead of raw value
-        from custom_components.comfoclime.models import PropertyReading
-
         raw_value = self.responses.property_data.get(device_uuid, {}).get(path, 0)
         return PropertyReading(
             device_uuid=device_uuid,
@@ -273,8 +272,6 @@ def mock_api_with_devices() -> MockComfoClimeAPI:
 @pytest.fixture
 def mock_coordinator():
     """Create a mock coordinator."""
-    from custom_components.comfoclime.models import DashboardData
-
     coordinator = MagicMock()
     coordinator.data = DashboardData(
         indoor_temperature=22.5,

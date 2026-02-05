@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from custom_components.comfoclime.models import DashboardData
 from custom_components.comfoclime.switch import ComfoClimeSwitch, async_setup_entry
 
 
@@ -99,8 +100,6 @@ class TestComfoClimeSwitch:
         self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry
     ):
         """Test switch state update from dashboard without inversion."""
-        from custom_components.comfoclime.models import DashboardData
-
         mock_coordinator.data = DashboardData(fan_speed=1)
 
         switch = ComfoClimeSwitch(
@@ -129,8 +128,6 @@ class TestComfoClimeSwitch:
     ):
         """Test switch state update from dashboard with inverted logic (boolean)."""
         # hpStandby = False means heatpump is ON
-        from custom_components.comfoclime.models import DashboardData
-
         mock_coordinator.data = DashboardData(hp_standby=False)
 
         switch = ComfoClimeSwitch(
@@ -159,8 +156,6 @@ class TestComfoClimeSwitch:
     ):
         """Test switch state update from dashboard with inverted logic (integer)."""
         # hpStandby = 1 means heatpump is in standby (OFF)
-        from custom_components.comfoclime.models import DashboardData
-
         mock_coordinator.data = DashboardData(hp_standby=True)
 
         switch = ComfoClimeSwitch(

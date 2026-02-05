@@ -14,6 +14,7 @@ from custom_components.comfoclime.coordinator import (
     ComfoClimeTelemetryCoordinator,
     ComfoClimeThermalprofileCoordinator,
 )
+from custom_components.comfoclime.models import PropertyReading, TelemetryReading
 
 
 @pytest.mark.asyncio
@@ -41,8 +42,6 @@ async def test_telemetry_coordinator_concurrent_registration(hass_with_frame_hel
             byte_count=2,
         )
         # Return a TelemetryReading model
-        from custom_components.comfoclime.models import TelemetryReading
-
         return TelemetryReading(
             device_uuid=args[0] if args else kwargs["device_uuid"],
             telemetry_id=args[1] if len(args) > 1 else kwargs["telemetry_id"],
@@ -87,8 +86,6 @@ async def test_property_coordinator_concurrent_registration(hass_with_frame_help
             byte_count=2,
         )
         # Return a PropertyReading model
-        from custom_components.comfoclime.models import PropertyReading
-
         return PropertyReading(
             device_uuid=args[0] if args else kwargs["device_uuid"],
             path=args[1] if len(args) > 1 else kwargs["property_path"],
@@ -131,8 +128,6 @@ async def test_telemetry_coordinator_multiple_devices(hass_with_frame_helper, mo
     # Mock API responses
     async def mock_read_telemetry(device_uuid, telemetry_id, **kwargs):
         # Return a TelemetryReading model
-        from custom_components.comfoclime.models import TelemetryReading
-
         return TelemetryReading(
             device_uuid=device_uuid,
             telemetry_id=telemetry_id,
@@ -186,8 +181,6 @@ async def test_property_coordinator_multiple_devices(hass_with_frame_helper, moc
     # Mock API responses
     async def mock_read_property(device_uuid, property_path, **kwargs):
         # Return a PropertyReading model
-        from custom_components.comfoclime.models import PropertyReading
-
         return PropertyReading(
             device_uuid=device_uuid,
             path=property_path,
@@ -209,7 +202,7 @@ async def test_property_coordinator_multiple_devices(hass_with_frame_helper, moc
     # len("29/1/6") * 10 * 1.0 = 6 * 10 * 1.0 = 60.0
     assert result["device1"]["29/1/6"] == 60.0
     # len("30/2/5") * 10 * 0.1 = 6 * 10 * 0.1 = 6.0
-    assert result["device2"]["30/2/5"] == 6.00
+    assert result["device2"]["30/2/5"] == 6.0
 
 
 @pytest.mark.asyncio
@@ -229,8 +222,6 @@ async def test_telemetry_coordinator_error_handling(hass_with_frame_helper, mock
         if telemetry_id == "456":
             raise aiohttp.ClientError("Test error")
         # Return a TelemetryReading model
-        from custom_components.comfoclime.models import TelemetryReading
-
         return TelemetryReading(
             device_uuid=device_uuid,
             telemetry_id=telemetry_id,
@@ -275,8 +266,6 @@ async def test_property_coordinator_error_handling(hass_with_frame_helper, mock_
         if property_path == "29/1/6":
             raise aiohttp.ClientError("Test error")
         # Return a PropertyReading model
-        from custom_components.comfoclime.models import PropertyReading
-
         return PropertyReading(
             device_uuid=device_uuid,
             path=property_path,

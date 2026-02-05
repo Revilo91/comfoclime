@@ -9,6 +9,7 @@ from custom_components.comfoclime.fan import (
     ComfoClimeFan,
     async_setup_entry,
 )
+from custom_components.comfoclime.models import DashboardData
 
 
 class TestComfoClimeFan:
@@ -164,8 +165,6 @@ class TestComfoClimeFan:
 
     def test_fan_coordinator_update(self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry):
         """Test fan coordinator update."""
-        from custom_components.comfoclime.models import DashboardData
-
         mock_coordinator.data = DashboardData(fan_speed=3)
 
         fan = ComfoClimeFan(
@@ -186,8 +185,6 @@ class TestComfoClimeFan:
         self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry
     ):
         """Test fan coordinator update with string value."""
-        from custom_components.comfoclime.models import DashboardData
-
         mock_coordinator.data = DashboardData(fan_speed=2)
 
         fan = ComfoClimeFan(

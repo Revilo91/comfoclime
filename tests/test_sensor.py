@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from custom_components.comfoclime.models import DashboardData
 from custom_components.comfoclime.sensor import (
     ComfoClimeDefinitionSensor,
     ComfoClimePropertySensor,
@@ -65,8 +66,6 @@ class TestComfoClimeSensor:
 
     def test_sensor_value_mapping(self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry):
         """Test sensor value mapping for temperatureProfile."""
-        from custom_components.comfoclime.models import DashboardData
-
         mock_coordinator.data = DashboardData(temperature_profile=0)
 
         sensor = ComfoClimeSensor(
