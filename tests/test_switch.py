@@ -99,7 +99,9 @@ class TestComfoClimeSwitch:
         self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry
     ):
         """Test switch state update from dashboard without inversion."""
-        mock_coordinator.data = {"some_field": 1}
+        from custom_components.comfoclime.models import DashboardData
+
+        mock_coordinator.data = DashboardData(fan_speed=1)
 
         switch = ComfoClimeSwitch(
             hass=mock_hass,
@@ -127,7 +129,9 @@ class TestComfoClimeSwitch:
     ):
         """Test switch state update from dashboard with inverted logic (boolean)."""
         # hpStandby = False means heatpump is ON
-        mock_coordinator.data = {"hpstandby": False}
+        from custom_components.comfoclime.models import DashboardData
+
+        mock_coordinator.data = DashboardData(hp_standby=False)
 
         switch = ComfoClimeSwitch(
             hass=mock_hass,
@@ -155,7 +159,9 @@ class TestComfoClimeSwitch:
     ):
         """Test switch state update from dashboard with inverted logic (integer)."""
         # hpStandby = 1 means heatpump is in standby (OFF)
-        mock_coordinator.data = {"hpstandby": 1}
+        from custom_components.comfoclime.models import DashboardData
+
+        mock_coordinator.data = DashboardData(hp_standby=True)
 
         switch = ComfoClimeSwitch(
             hass=mock_hass,
