@@ -221,8 +221,7 @@ async def test_async_setup_entry_connection_error(mock_hass, mock_config_entry):
         mock_api_instance = MagicMock()
         mock_api_instance.async_get_connected_devices = AsyncMock(
             side_effect=aiohttp.ClientConnectorError(
-                connection_key=MagicMock(),
-                os_error=OSError(113, "Connect call failed ('10.0.2.27', 80)")
+                connection_key=MagicMock(), os_error=OSError(113, "Connect call failed ('10.0.2.27', 80)")
             )
         )
         mock_api_instance.close = AsyncMock()
@@ -250,9 +249,7 @@ async def test_async_setup_entry_timeout_error(mock_hass, mock_config_entry):
     with patch("custom_components.comfoclime.ComfoClimeAPI") as mock_api_class:
         # Setup mock to raise timeout error
         mock_api_instance = MagicMock()
-        mock_api_instance.async_get_connected_devices = AsyncMock(
-            side_effect=TimeoutError("Connection timeout")
-        )
+        mock_api_instance.async_get_connected_devices = AsyncMock(side_effect=TimeoutError("Connection timeout"))
         mock_api_instance.close = AsyncMock()
         mock_api_class.return_value = mock_api_instance
 

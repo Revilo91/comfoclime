@@ -260,10 +260,7 @@ def api_put(
                         # CancelledError should not be retried - it means the task was cancelled
                         # Re-raise immediately to propagate cancellation
                         raise
-                    except (  # noqa: PERF203
-                        asyncio.TimeoutError,
-                        aiohttp.ClientError,
-                    ) as e:
+                    except (TimeoutError, aiohttp.ClientError) as e:
                         last_exception = e
                         if attempt < self.max_retries:
                             wait_time = 2 ** (attempt + 1)

@@ -186,9 +186,9 @@ def test_get_individual_entity_options():
     # Check that some specific entities are present (flat structure)
     all_values = [opt["value"] for opt in options]
 
-    assert any(
-        "sensors_dashboard_indoorTemperature" in v for v in all_values
-    ), "Should contain indoor temperature sensor"
+    assert any("sensors_dashboard_indoorTemperature" in v for v in all_values), (
+        "Should contain indoor temperature sensor"
+    )
     assert any("switches_all_" in v for v in all_values), "Should contain switches"
     assert len(all_values) > 10, "Should have multiple entities"
 

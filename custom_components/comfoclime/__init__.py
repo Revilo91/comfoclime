@@ -112,9 +112,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             err,
         )
         await api.close()
-        raise ConfigEntryNotReady(
-            f"Unable to connect to ComfoClime device at {host}: {err}"
-        ) from err
+        raise ConfigEntryNotReady(f"Unable to connect to ComfoClime device at {host}: {err}") from err
 
     # Create Dashboard-Coordinator
     dashboard_coordinator = ComfoClimeDashboardCoordinator(
