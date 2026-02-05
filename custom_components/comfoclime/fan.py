@@ -30,6 +30,8 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
+from pydantic import BaseModel
+
 from homeassistant.components.fan import FanEntity, FanEntityFeature
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -162,7 +164,7 @@ class ComfoClimeFan(CoordinatorEntity, FanEntity):
         try:
             data = self.coordinator.data
             # Handle both Pydantic models and dicts
-            if hasattr(data, 'fan_speed'):
+            if isinstance(data, BaseModel):
                 # Pydantic model - access attribute directly
                 speed = data.fan_speed
             elif isinstance(data, dict):

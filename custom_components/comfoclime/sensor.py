@@ -36,6 +36,8 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
+from pydantic import BaseModel
+
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -446,6 +448,24 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
             self._attr_translation_key = translation_key
         self._attr_has_entity_name = True
 
+    @staticmethod
+    def _camel_to_snake(name: str) -> str:
+        """Convert camelCase to snake_case for Pydantic field access.
+        
+        Args:
+            name: camelCase field name
+            
+        Returns:
+            snake_case field name
+            
+        Example:
+            >>> ComfoClimeSensor._camel_to_snake("indoorTemperature")
+            "indoor_temperature"
+        """
+        import re
+        # Insert underscore before uppercase letters and convert to lowercase
+        return re.sub(r'(?<!^)(?=[A-Z])', '_', name).lower()
+
     @property
     def state(self):
         return self._state
@@ -472,16 +492,13 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
         try:
             data = self.coordinator.data
 
-            # Handle both Pydantic models and dicts for logging
-            if hasattr(data, 'model_dump'):
-                # Pydantic v2 model - convert to dict using aliases (camelCase) to match sensor types
-                data_dict = data.model_dump(by_alias=True)
-                data_keys = list(data_dict.keys()) if data_dict else "None"
+            # Log data type for debugging
+            if isinstance(data, BaseModel):
+                # Pydantic v2 model - access model_fields from the class, not instance
+                data_keys = list(type(data).model_fields.keys())
             elif isinstance(data, dict):
-                data_dict = data
                 data_keys = list(data.keys()) if data else "None"
             else:
-                data_dict = {}
                 data_keys = "None"
 
             _LOGGER.debug(
@@ -494,15 +511,29 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
             # Handle nested keys (e.g., "season.status" or "heatingThermalProfileSeasonData.comfortTemperature")
             if "." in self._type:
                 keys = self._type.split(".")
-                raw_value = data_dict
+                raw_value = data
                 for key in keys:
-                    if isinstance(raw_value, dict) and key in raw_value:
+                    if isinstance(raw_value, BaseModel):
+                        # Pydantic model - use getattr with snake_case field name
+                        # Convert camelCase key to snake_case for Pydantic attribute access
+                        snake_case_key = self._camel_to_snake(key)
+                        raw_value = getattr(raw_value, snake_case_key, None)
+                    elif isinstance(raw_value, dict) and key in raw_value:
                         raw_value = raw_value[key]
                     else:
                         raw_value = None
                         break
             else:
-                raw_value = data_dict.get(self._type)
+                # Direct attribute access
+                if isinstance(data, BaseModel):
+                    # Pydantic model - use getattr with snake_case field name
+                    # Convert camelCase key to snake_case for Pydantic attribute access
+                    snake_case_key = self._camel_to_snake(self._type)
+                    raw_value = getattr(data, snake_case_key, None)
+                elif isinstance(data, dict):
+                    raw_value = data.get(self._type)
+                else:
+                    raw_value = None
 
             _LOGGER.debug("Sensor '%s' (type=%s): raw_value=%s", self._name, self._type, raw_value)
 
