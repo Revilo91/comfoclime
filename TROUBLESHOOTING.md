@@ -128,8 +128,9 @@ The integration failed to load or initialize.
 ### Solutions
 
 1. **Check Home Assistant version**:
-   - Minimum required version: 2023.x or later
-   - Update Home Assistant if needed
+   - This integration is tested with recent Home Assistant versions
+   - If you're using an older version, consider updating Home Assistant
+   - Check the [releases page](https://github.com/Revilo91/comfoclime/releases) for compatibility notes
 
 2. **Verify installation**:
    - For HACS: Check that the integration is properly installed
@@ -142,6 +143,9 @@ The integration failed to load or initialize.
 4. **Clear cache and restart**:
    ```bash
    # From Home Assistant container/terminal:
+   # WARNING: This will clear entity state history. Consider backing up first:
+   # cp /config/.storage/core.restore_state /config/.storage/core.restore_state.backup
+   
    rm -rf /config/.storage/core.restore_state
    ha core restart
    ```
