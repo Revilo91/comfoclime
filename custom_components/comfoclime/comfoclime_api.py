@@ -40,10 +40,12 @@ if TYPE_CHECKING:
 from .api_decorators import api_get, api_put
 from .constants import API_DEFAULTS
 from .models import (
+    DashboardData,
     DeviceConfig,
     PropertyReading,
     TelemetryReading,
     bytes_to_signed_int,
+    signed_int_to_bytes,
 )
 from .rate_limiter_cache import (
     RateLimiterCache,
@@ -302,14 +304,14 @@ class ComfoClimeAPI:
             response_data: JSON response from /system/{uuid}/dashboard endpoint
 
         Returns:
-            Dictionary containing:
-                - indoorTemperature (float): Current indoor temperature in °C
-                - outdoorTemperature (float): Current outdoor temperature in °C
-                - setPointTemperature (float): Target temperature in °C
-                - fanSpeed (int): Current fan speed level (0-3)
+            DashboardData: Pydantic model containing:
+                - indoor_temperature (float): Current indoor temperature in °C
+                - outdoor_temperature (float): Current outdoor temperature in °C
+                - set_point_temperature (float): Target temperature in °C
+                - fan_speed (int): Current fan speed level (0-3)
                 - season (int): Season mode (0=transition, 1=heating, 2=cooling)
-                - hpStandby (bool): Heat pump standby state
-                - temperatureProfile (int): Active temperature profile (0-2)
+                - hp_standby (bool): Heat pump standby state
+                - temperature_profile (int): Active temperature profile (0-2)
                 - status (int): Control mode (0=manual, 1=automatic)
 
         Raises:
@@ -318,14 +320,14 @@ class ComfoClimeAPI:
 
         Example:
             >>> data = await api.async_get_dashboard_data()
-            >>> if data['season'] == 1:
-            ...     print(f"Heating mode: {data['indoorTemperature']}°C")
+            >>> if data.season == 1:
+            ...     print(f"Heating mode: {data.indoor_temperature}°C")
 
         Note:
             The @api_get decorator handles request locking, rate limiting,
             UUID retrieval, session management, and temperature value fixing.
         """
-        return response_data
+        return DashboardData(**response_data)
 
     @api_get(
         "/system/{uuid}/devices",
@@ -1057,7 +1059,7 @@ class ComfoClimeAPI:
         if not is_valid:
             raise ValueError(f"Invalid value for byte_count={byte_count}, signed={signed}: {error_message}")
 
-        data = self.signed_int_to_bytes(raw_value, byte_count, signed)
+        data = signed_int_to_bytes(raw_value, byte_count, signed)
 
         x, y, z = map(int, property_path.split("/"))
 
