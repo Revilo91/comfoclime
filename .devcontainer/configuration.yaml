@@ -18,10 +18,14 @@ http:
   login_attempts_threshold: -1
 
 # Enable the logger with debug mode for the custom component
+# Suppress warnings from integrations not needed for ComfoClime development
 logger:
   default: info
   logs:
     custom_components.comfoclime: debug
+    # Suppress GitHub integration warnings if you don't need it
+    # Uncomment the following line to reduce log noise:
+    # homeassistant.components.github: error
 
 # Text frontend for development
 lovelace:

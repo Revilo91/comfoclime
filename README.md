@@ -185,3 +185,13 @@ The test suite includes:
 - Mock fixtures for testing without a real device
 
 Tests are automatically run via GitHub Actions on push and pull requests.
+
+## Troubleshooting
+
+Having issues with the integration? Check our [Troubleshooting Guide](TROUBLESHOOTING.md) for common issues and solutions, including:
+
+- GitHub integration timeout errors (not related to ComfoClime)
+- Connection issues with the device
+- Entity update problems
+- Integration loading failures
+- Development environment issues
