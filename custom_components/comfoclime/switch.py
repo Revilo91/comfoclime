@@ -142,8 +142,16 @@ class ComfoClimeSwitch(CoordinatorEntity, SwitchEntity):
         """Update the state from coordinator data."""
         data = self.coordinator.data
         try:
+            # Convert Pydantic model to dict if needed for uniform access
+            if hasattr(data, 'model_dump'):
+                data_dict = data.model_dump(by_alias=True)
+            elif isinstance(data, dict):
+                data_dict = data
+            else:
+                data_dict = {}
+            
             # Navigate through nested keys
-            val = data
+            val = data_dict
             for key in self._key_path:
                 val = val.get(key)
 

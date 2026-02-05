@@ -106,9 +106,9 @@ class TestComfoClimeSwitch:
             hass=mock_hass,
             coordinator=mock_coordinator,
             api=mock_api,
-            key="some_field",
-            translation_key="some_field",
-            name="Some Field",
+            key="fanSpeed",  # Fixed: match the actual data key
+            translation_key="fan_speed",
+            name="Fan Speed",
             invert=False,
             endpoint="dashboard",
             device=mock_device,
@@ -162,7 +162,7 @@ class TestComfoClimeSwitch:
             hass=mock_hass,
             coordinator=mock_coordinator,
             api=mock_api,
-            key="hpstandby",
+            key="hpStandby",  # Fixed: use correct camelCase key
             translation_key="heatpump_onoff",
             name="Heatpump on/off",
             invert=True,
@@ -176,7 +176,7 @@ class TestComfoClimeSwitch:
 
         switch._handle_coordinator_update()
 
-        # Integer 1 with invert=True -> 1 != 1 = False
+        # Boolean True with invert=True -> not True = False
         assert switch._state is False
 
     @pytest.mark.asyncio

@@ -161,8 +161,17 @@ class ComfoClimeFan(CoordinatorEntity, FanEntity):
     def _handle_coordinator_update(self) -> None:
         try:
             data = self.coordinator.data
-            speed = data.get("fanSpeed", 0)
-            speed_int = int(speed)
+            # Handle both Pydantic models and dicts
+            if hasattr(data, 'fan_speed'):
+                # Pydantic model - access attribute directly
+                speed = data.fan_speed
+            elif isinstance(data, dict):
+                # Dictionary - use get method
+                speed = data.get("fanSpeed", 0)
+            else:
+                speed = 0
+            
+            speed_int = int(speed) if speed is not None else 0
             if speed_int in FanSpeed._value2member_map_:
                 self._current_speed = FanSpeed(speed_int)
             else:

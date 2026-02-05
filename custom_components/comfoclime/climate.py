@@ -763,10 +763,22 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
 
         # Add complete dashboard data from Dashboard API interface
         if self.coordinator.data:
-            attrs["dashboard"] = self.coordinator.data
+            # Convert Pydantic model to dict for extra_state_attributes
+            if hasattr(self.coordinator.data, 'model_dump'):
+                attrs["dashboard"] = self.coordinator.data.model_dump(by_alias=True)
+            else:
+                attrs["dashboard"] = self.coordinator.data
 
             # Add scenario time left as a separate attribute for easier access
-            scenario_time_left = self.coordinator.data.get("scenarioTimeLeft")
+            if hasattr(self.coordinator.data, 'scenario_time_left'):
+                # Pydantic model - access attribute directly
+                scenario_time_left = self.coordinator.data.scenario_time_left
+            elif isinstance(self.coordinator.data, dict):
+                # Dictionary - use get method
+                scenario_time_left = self.coordinator.data.get("scenarioTimeLeft")
+            else:
+                scenario_time_left = None
+            
             if scenario_time_left is not None:
                 attrs["scenario_time_left"] = scenario_time_left
                 # Convert to human-readable format
