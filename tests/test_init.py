@@ -242,7 +242,6 @@ async def test_async_setup_entry_connection_error(mock_hass, mock_config_entry):
 @pytest.mark.asyncio
 async def test_async_setup_entry_timeout_error(mock_hass, mock_config_entry):
     """Test async_setup_entry raises ConfigEntryNotReady on timeout."""
-    import asyncio
     from homeassistant.exceptions import ConfigEntryNotReady
 
     mock_hass.config_entries = MagicMock()
@@ -252,7 +251,7 @@ async def test_async_setup_entry_timeout_error(mock_hass, mock_config_entry):
         # Setup mock to raise timeout error
         mock_api_instance = MagicMock()
         mock_api_instance.async_get_connected_devices = AsyncMock(
-            side_effect=asyncio.TimeoutError("Connection timeout")
+            side_effect=TimeoutError("Connection timeout")
         )
         mock_api_instance.close = AsyncMock()
         mock_api_class.return_value = mock_api_instance
