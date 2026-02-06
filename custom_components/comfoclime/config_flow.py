@@ -37,6 +37,7 @@ from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
 
+from .constants import DOMAIN
 from .entity_helper import (
     # get_default_enabled_individual_entities,
     # get_individual_entity_options,
@@ -55,7 +56,6 @@ from .validators import validate_host
 
 _LOGGER = logging.getLogger(__name__)
 
-DOMAIN = "comfoclime"
 
 # Default values for configuration options
 DEFAULT_READ_TIMEOUT = 10

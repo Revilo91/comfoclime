@@ -6,6 +6,54 @@ from enum import IntEnum
 
 from pydantic import BaseModel, Field
 
+# Integration Domain
+DOMAIN = "comfoclime"
+
+# Supported Platforms
+PLATFORMS = ["sensor", "switch", "number", "select", "fan", "climate"]
+
+# Mapping for thermal profile updates (API payload structure)
+# Maps kwargs parameters to (section, key) in the API payload
+# key=None means top-level field in the section
+THERMAL_PROFILE_MAPPING: dict[str, tuple[str, str | None]] = {
+    # season fields
+    "season_status": ("season", "status"),
+    "season_value": ("season", "season"),
+    "heating_threshold_temperature": ("season", "heatingThresholdTemperature"),
+    "cooling_threshold_temperature": ("season", "coolingThresholdTemperature"),
+    # temperature fields
+    "temperature_status": ("temperature", "status"),
+    "manual_temperature": ("temperature", "manualTemperature"),
+    # top-level fields
+    "temperature_profile": ("temperatureProfile", None),
+    # heating profile fields
+    "heating_comfort_temperature": (
+        "heatingThermalProfileSeasonData",
+        "comfortTemperature",
+    ),
+    "heating_knee_point_temperature": (
+        "heatingThermalProfileSeasonData",
+        "kneePointTemperature",
+    ),
+    "heating_reduction_delta_temperature": (
+        "heatingThermalProfileSeasonData",
+        "reductionDeltaTemperature",
+    ),
+    # cooling profile fields
+    "cooling_comfort_temperature": (
+        "coolingThermalProfileSeasonData",
+        "comfortTemperature",
+    ),
+    "cooling_knee_point_temperature": (
+        "coolingThermalProfileSeasonData",
+        "kneePointTemperature",
+    ),
+    "cooling_temperature_limit": (
+        "coolingThermalProfileSeasonData",
+        "temperatureLimit",
+    ),
+}
+
 
 class ScenarioMode(IntEnum):
     """Scenario modes supported by ComfoClime.

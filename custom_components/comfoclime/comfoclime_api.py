@@ -40,7 +40,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 
@@ -48,7 +48,7 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
 from .api_decorators import api_get, api_put
-from .constants import API_DEFAULTS
+from .constants import API_DEFAULTS, THERMAL_PROFILE_MAPPING
 from .models import (
     DashboardData,
     DeviceConfig,
@@ -79,46 +79,6 @@ class ComfoClimeAPI:
         write_timeout: Timeout for write operations in seconds
         max_retries: Maximum number of retries for failed requests
     """
-
-    # Mapping von kwargs zu payload-Struktur (class-level constant)
-    FIELD_MAPPING: ClassVar[dict[str, tuple[str, str | None]]] = {
-        # season fields
-        "season_status": ("season", "status"),
-        "season_value": ("season", "season"),
-        "heating_threshold_temperature": ("season", "heatingThresholdTemperature"),
-        "cooling_threshold_temperature": ("season", "coolingThresholdTemperature"),
-        # temperature fields
-        "temperature_status": ("temperature", "status"),
-        "manual_temperature": ("temperature", "manualTemperature"),
-        # top-level fields
-        "temperature_profile": ("temperatureProfile", None),
-        # heating profile fields
-        "heating_comfort_temperature": (
-            "heatingThermalProfileSeasonData",
-            "comfortTemperature",
-        ),
-        "heating_knee_point_temperature": (
-            "heatingThermalProfileSeasonData",
-            "kneePointTemperature",
-        ),
-        "heating_reduction_delta_temperature": (
-            "heatingThermalProfileSeasonData",
-            "reductionDeltaTemperature",
-        ),
-        # cooling profile fields
-        "cooling_comfort_temperature": (
-            "coolingThermalProfileSeasonData",
-            "comfortTemperature",
-        ),
-        "cooling_knee_point_temperature": (
-            "coolingThermalProfileSeasonData",
-            "kneePointTemperature",
-        ),
-        "cooling_temperature_limit": (
-            "coolingThermalProfileSeasonData",
-            "temperatureLimit",
-        ),
-    }
 
     def __init__(
         self,
@@ -785,8 +745,8 @@ class ComfoClimeAPI:
         Returns:
             Payload dict for the decorator to process.
         """
-        # Use class-level FIELD_MAPPING
-        field_mapping = self.FIELD_MAPPING
+        # Use imported constant
+        field_mapping = THERMAL_PROFILE_MAPPING
 
         # Dynamically build payload
         payload: dict = {}

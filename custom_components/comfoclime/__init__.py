@@ -10,6 +10,7 @@ from homeassistant.helpers import config_validation as cv
 
 from .access_tracker import AccessTracker
 from .comfoclime_api import ComfoClimeAPI
+from .constants import DOMAIN, PLATFORMS
 from .coordinator import (
     ComfoClimeDashboardCoordinator,
     ComfoClimeDefinitionCoordinator,
@@ -20,8 +21,6 @@ from .coordinator import (
 )
 from .entity_helper import get_device_model_type_id
 from .validators import validate_byte_value, validate_duration, validate_property_path
-
-DOMAIN = "comfoclime"
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -107,10 +106,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         devices = await api.async_get_connected_devices()
         _LOGGER.debug("Connected devices retrieved: %s devices found", len(devices))
     except (aiohttp.ClientError, TimeoutError) as err:
-        _LOGGER.error(
-            "Failed to connect to ComfoClime device at %s: %s",
+        _LOGGER.exception(
+            "Failed to connect to ComfoClime device at %s",
             host,
-            err,
         )
         await api.close()
         raise ConfigEntryNotReady(f"Unable to connect to ComfoClime device at {host}: {err}") from err
@@ -223,9 +221,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     # Register update listener to reload integration when options change
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
 
-    await hass.config_entries.async_forward_entry_setups(
-        entry, ["sensor", "switch", "number", "select", "fan", "climate"]
-    )
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     async def handle_set_property_service(call: ServiceCall):
         device_id = call.data["device_id"]
