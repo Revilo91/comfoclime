@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     )
 
 from . import DOMAIN
+from .constants import ENTITY_TO_API_PARAM_MAPPING
 from .entities.number_definitions import (
     CONNECTED_DEVICE_NUMBER_PROPERTIES,
     NUMBER_ENTITIES,
@@ -224,33 +225,12 @@ class ComfoClimeTemperatureNumber(CoordinatorEntity, NumberEntity):
                 _LOGGER.warning("Could not check automatic temperature status: %s", e)
                 # Proceed anyway if we can't determine the status
 
-        # Mapping aller NUMBER_ENTITIES Keys zu thermal_profile Parametern
-        # Basierend auf dem thermalprofile JSON Schema
-        param_mapping = {
-            # season nested fields
-            "season.season": "season_value",
-            "season.status": "season_status",
-            "season.heatingThresholdTemperature": "heating_threshold_temperature",
-            "season.coolingThresholdTemperature": "cooling_threshold_temperature",
-            # temperature nested fields
-            "temperature.status": "temperature_status",
-            "temperature.manualTemperature": "manual_temperature",
-            # heating profile fields
-            "heatingThermalProfileSeasonData.comfortTemperature": "heating_comfort_temperature",
-            "heatingThermalProfileSeasonData.kneePointTemperature": "heating_knee_point_temperature",
-            "heatingThermalProfileSeasonData.reductionDeltaTemperature": "heating_reduction_delta_temperature",
-            # cooling profile fields
-            "coolingThermalProfileSeasonData.comfortTemperature": "cooling_comfort_temperature",
-            "coolingThermalProfileSeasonData.kneePointTemperature": "cooling_knee_point_temperature",
-            "coolingThermalProfileSeasonData.temperatureLimit": "cooling_temperature_limit",
-        }
-
         key_str = ".".join(self._key_path)
-        if key_str not in param_mapping:
+        if key_str not in ENTITY_TO_API_PARAM_MAPPING:
             _LOGGER.warning("Unknown number key: %s", key_str)
             return
 
-        param_name = param_mapping[key_str]
+        param_name = ENTITY_TO_API_PARAM_MAPPING[key_str]
         try:
             await self._api.async_update_thermal_profile(**{param_name: value})
             self._value = value

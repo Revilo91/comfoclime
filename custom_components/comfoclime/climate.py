@@ -35,14 +35,6 @@ from typing import TYPE_CHECKING, Any
 
 import aiohttp
 from homeassistant.components.climate import (
-    FAN_HIGH,
-    FAN_LOW,
-    FAN_MEDIUM,
-    FAN_OFF,
-    PRESET_BOOST,
-    PRESET_COMFORT,
-    PRESET_ECO,
-    PRESET_NONE,
     ClimateEntity,
     ClimateEntityFeature,
     HVACAction,
@@ -65,7 +57,19 @@ if TYPE_CHECKING:
     )
 
 from . import DOMAIN
-from .constants import FanSpeed, ScenarioMode, Season, TemperatureProfile
+from .constants import (
+    FAN_MODE_MAPPING,
+    FAN_MODE_REVERSE_MAPPING,
+    HEAT_PUMP_STATUS_MAPPING,
+    HVAC_MODE_MAPPING,
+    HVAC_MODE_REVERSE_MAPPING,
+    PRESET_MANUAL,
+    PRESET_MAPPING,
+    PRESET_REVERSE_MAPPING,
+    SCENARIO_DEFAULT_DURATIONS,
+    SCENARIO_REVERSE_MAPPING,
+    Season,
+)
 from .entity_helper import (
     get_device_display_name,
     get_device_model_type,
@@ -74,62 +78,6 @@ from .entity_helper import (
 )
 
 _LOGGER = logging.getLogger(__name__)
-
-# Temperature Profile Presets
-# status=0 (manual mode) maps to PRESET_NONE (Manual)
-# status=1 (automatic mode) uses temperatureProfile values:
-PRESET_MAPPING = {
-    TemperatureProfile.COMFORT: PRESET_COMFORT,
-    TemperatureProfile.POWER: PRESET_BOOST,
-    TemperatureProfile.ECO: PRESET_ECO,
-}
-
-PRESET_REVERSE_MAPPING = {v: k for k, v in PRESET_MAPPING.items()}
-
-# Add manual preset mode (status=0)
-PRESET_MANUAL = PRESET_NONE  # "none" preset means manual temperature control
-
-# Scenario mapping - uses unique preset names to avoid conflicts with PRESET_MAPPING
-SCENARIO_MAPPING = {
-    ScenarioMode.COOKING: ScenarioMode.COOKING.preset_name,
-    ScenarioMode.PARTY: ScenarioMode.PARTY.preset_name,
-    ScenarioMode.HOLIDAY: ScenarioMode.HOLIDAY.preset_name,
-    ScenarioMode.BOOST: ScenarioMode.BOOST.preset_name,
-}
-
-SCENARIO_REVERSE_MAPPING = {v: k for k, v in SCENARIO_MAPPING.items()}
-
-# Default durations for scenarios in minutes
-SCENARIO_DEFAULT_DURATIONS = {mode: mode.default_duration_minutes for mode in ScenarioMode}
-
-# Fan Mode Mapping (based on fan.py implementation)
-# fanSpeed from dashboard: 0, 1, 2, 3
-FAN_MODE_MAPPING = {
-    FanSpeed.OFF: FAN_OFF,
-    FanSpeed.LOW: FAN_LOW,
-    FanSpeed.MEDIUM: FAN_MEDIUM,
-    FanSpeed.HIGH: FAN_HIGH,
-}
-
-FAN_MODE_REVERSE_MAPPING = {v: k for k, v in FAN_MODE_MAPPING.items()}
-
-# HVAC Mode Mapping (season values to HVAC modes)
-# Season from dashboard: 0 (transition), 1 (heating), 2 (cooling)
-HVAC_MODE_MAPPING = {
-    Season.TRANSITIONAL: HVACMode.FAN_ONLY,
-    Season.HEATING: HVACMode.HEAT,
-    Season.COOLING: HVACMode.COOL,
-}
-
-# Reverse mapping for setting HVAC modes
-# Maps HVAC mode to season value (0=transition, 1=heating, 2=cooling)
-# OFF mode is handled separately via hpStandby field
-HVAC_MODE_REVERSE_MAPPING = {
-    HVACMode.OFF: None,  # Turn off device via hpStandby=True
-    HVACMode.FAN_ONLY: Season.TRANSITIONAL,
-    HVACMode.HEAT: Season.HEATING,
-    HVACMode.COOL: Season.COOLING,
-}
 
 
 async def async_setup_entry(
@@ -372,17 +320,7 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
         if heat_pump_status in [None, 0]:
             return [HVACAction.OFF]
 
-        status_mapping = {
-            0x02: HVACAction.HEATING,
-            0x04: HVACAction.COOLING,
-            0x08: HVACAction.PREHEATING,  # Not sure
-            0x10: HVACAction.DRYING,  # Not sure
-            0x20: HVACAction.IDLE,  # Unused
-            0x40: HVACAction.DEFROSTING,  # Not sure
-            0x80: HVACAction.IDLE,  # Unused
-        }
-
-        active_flags = [status for mask, status in status_mapping.items() if heat_pump_status & mask]
+        active_flags = [status for mask, status in HEAT_PUMP_STATUS_MAPPING.items() if heat_pump_status & mask]
 
         if not active_flags:
             return [HVACAction.IDLE]

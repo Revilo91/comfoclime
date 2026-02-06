@@ -37,7 +37,7 @@ from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
 
-from .constants import DOMAIN
+from .constants import API_DEFAULTS, DOMAIN
 from .entity_helper import (
     # get_default_enabled_individual_entities,
     # get_individual_entity_options,
@@ -55,17 +55,6 @@ from .entity_helper import (
 from .validators import validate_host
 
 _LOGGER = logging.getLogger(__name__)
-
-
-# Default values for configuration options
-DEFAULT_READ_TIMEOUT = 10
-DEFAULT_WRITE_TIMEOUT = 30
-DEFAULT_POLLING_INTERVAL = 60
-DEFAULT_CACHE_TTL = 30
-DEFAULT_MAX_RETRIES = 3
-DEFAULT_MIN_REQUEST_INTERVAL = 0.1
-DEFAULT_WRITE_COOLDOWN = 2.0
-DEFAULT_REQUEST_DEBOUNCE = 0.3
 
 
 def _get_default_entity_options() -> dict[str, Any]:
@@ -131,14 +120,14 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
                                 # Add default general settings
                                 default_options.update(
                                     {
-                                        "read_timeout": DEFAULT_READ_TIMEOUT,
-                                        "write_timeout": DEFAULT_WRITE_TIMEOUT,
-                                        "polling_interval": DEFAULT_POLLING_INTERVAL,
-                                        "cache_ttl": DEFAULT_CACHE_TTL,
-                                        "max_retries": DEFAULT_MAX_RETRIES,
-                                        "min_request_interval": DEFAULT_MIN_REQUEST_INTERVAL,
-                                        "write_cooldown": DEFAULT_WRITE_COOLDOWN,
-                                        "request_debounce": DEFAULT_REQUEST_DEBOUNCE,
+                                        "read_timeout": API_DEFAULTS.READ_TIMEOUT,
+                                        "write_timeout": API_DEFAULTS.WRITE_TIMEOUT,
+                                        "polling_interval": API_DEFAULTS.POLLING_INTERVAL,
+                                        "cache_ttl": API_DEFAULTS.CACHE_TTL,
+                                        "max_retries": API_DEFAULTS.MAX_RETRIES,
+                                        "min_request_interval": API_DEFAULTS.MIN_REQUEST_INTERVAL,
+                                        "write_cooldown": API_DEFAULTS.WRITE_COOLDOWN,
+                                        "request_debounce": API_DEFAULTS.REQUEST_DEBOUNCE,
                                     }
                                 )
                                 return self.async_create_entry(
@@ -556,7 +545,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 {
                     vol.Optional(
                         "read_timeout",
-                        default=self._get_current_value("read_timeout", DEFAULT_READ_TIMEOUT),
+                        default=self._get_current_value("read_timeout", API_DEFAULTS.READ_TIMEOUT),
                     ): selector.NumberSelector(
                         selector.NumberSelectorConfig(
                             min=1,
@@ -567,7 +556,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                     ),
                     vol.Optional(
                         "write_timeout",
-                        default=self._get_current_value("write_timeout", DEFAULT_WRITE_TIMEOUT),
+                        default=self._get_current_value("write_timeout", API_DEFAULTS.WRITE_TIMEOUT),
                     ): selector.NumberSelector(
                         selector.NumberSelectorConfig(
                             min=1,
@@ -593,7 +582,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 {
                     vol.Optional(
                         "polling_interval",
-                        default=self._get_current_value("polling_interval", DEFAULT_POLLING_INTERVAL),
+                        default=self._get_current_value("polling_interval", API_DEFAULTS.POLLING_INTERVAL),
                     ): selector.NumberSelector(
                         selector.NumberSelectorConfig(
                             min=10,
@@ -604,7 +593,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                     ),
                     vol.Optional(
                         "cache_ttl",
-                        default=self._get_current_value("cache_ttl", DEFAULT_CACHE_TTL),
+                        default=self._get_current_value("cache_ttl", API_DEFAULTS.CACHE_TTL),
                     ): selector.NumberSelector(
                         selector.NumberSelectorConfig(
                             min=0,
@@ -615,7 +604,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                     ),
                     vol.Optional(
                         "max_retries",
-                        default=self._get_current_value("max_retries", DEFAULT_MAX_RETRIES),
+                        default=self._get_current_value("max_retries", API_DEFAULTS.MAX_RETRIES),
                     ): selector.NumberSelector(
                         selector.NumberSelectorConfig(min=0, max=10, mode=selector.NumberSelectorMode.BOX)
                     ),
@@ -636,7 +625,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 {
                     vol.Optional(
                         "min_request_interval",
-                        default=self._get_current_value("min_request_interval", DEFAULT_MIN_REQUEST_INTERVAL),
+                        default=self._get_current_value("min_request_interval", API_DEFAULTS.MIN_REQUEST_INTERVAL),
                     ): selector.NumberSelector(
                         selector.NumberSelectorConfig(
                             min=0.0,
@@ -648,7 +637,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                     ),
                     vol.Optional(
                         "write_cooldown",
-                        default=self._get_current_value("write_cooldown", DEFAULT_WRITE_COOLDOWN),
+                        default=self._get_current_value("write_cooldown", API_DEFAULTS.WRITE_COOLDOWN),
                     ): selector.NumberSelector(
                         selector.NumberSelectorConfig(
                             min=0.0,
@@ -660,7 +649,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                     ),
                     vol.Optional(
                         "request_debounce",
-                        default=self._get_current_value("request_debounce", DEFAULT_REQUEST_DEBOUNCE),
+                        default=self._get_current_value("request_debounce", API_DEFAULTS.REQUEST_DEBOUNCE),
                     ): selector.NumberSelector(
                         selector.NumberSelectorConfig(
                             min=0.0,

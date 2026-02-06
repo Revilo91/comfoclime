@@ -212,3 +212,167 @@ class APIDefaults(BaseModel):
 
 # Create a default instance for easy access
 API_DEFAULTS = APIDefaults()
+
+# --- Climate Constants ---
+
+# Import HA constants here to keep them centralized if needed,
+# or define mappings that use them.
+# Note: This requires 'homeassistant' to be available in the environment.
+try:
+    from homeassistant.components.climate import (
+        FAN_HIGH,
+        FAN_LOW,
+        FAN_MEDIUM,
+        FAN_OFF,
+        PRESET_BOOST,
+        PRESET_COMFORT,
+        PRESET_ECO,
+        PRESET_NONE,
+        HVACAction,
+        HVACMode,
+    )
+except ImportError:
+    # Fallback for testing/standalone usage
+    FAN_HIGH = "high"
+    FAN_LOW = "low"
+    FAN_MEDIUM = "medium"
+    FAN_OFF = "off"
+    PRESET_BOOST = "boost"
+    PRESET_COMFORT = "comfort"
+    PRESET_ECO = "eco"
+    PRESET_NONE = "none"
+
+    class HVACAction(IntEnum):
+        OFF = 0
+        HEATING = 1
+        COOLING = 2
+        DRYING = 3
+        IDLE = 4
+        FAN = 5
+        DEFROSTING = 6
+        PREHEATING = 7
+
+    class HVACMode(IntEnum):
+        OFF = 0
+        HEAT = 1
+        COOL = 2
+        HEAT_COOL = 3
+        AUTO = 4
+        DRY = 5
+        FAN_ONLY = 6
+
+
+# Temperature Profile Presets
+# status=0 (manual mode) maps to PRESET_NONE (Manual)
+# status=1 (automatic mode) uses temperatureProfile values:
+PRESET_MAPPING = {
+    TemperatureProfile.COMFORT: PRESET_COMFORT,
+    TemperatureProfile.POWER: PRESET_BOOST,
+    TemperatureProfile.ECO: PRESET_ECO,
+}
+
+PRESET_REVERSE_MAPPING = {v: k for k, v in PRESET_MAPPING.items()}
+
+# Add manual preset mode (status=0)
+PRESET_MANUAL = PRESET_NONE  # "none" preset means manual temperature control
+
+# Scenario mapping - uses unique preset names to avoid conflicts with PRESET_MAPPING
+SCENARIO_MAPPING = {
+    ScenarioMode.COOKING: ScenarioMode.COOKING.preset_name,
+    ScenarioMode.PARTY: ScenarioMode.PARTY.preset_name,
+    ScenarioMode.HOLIDAY: ScenarioMode.HOLIDAY.preset_name,
+    ScenarioMode.BOOST: ScenarioMode.BOOST.preset_name,
+}
+
+SCENARIO_REVERSE_MAPPING = {v: k for k, v in SCENARIO_MAPPING.items()}
+
+# Default durations for scenarios in minutes
+SCENARIO_DEFAULT_DURATIONS = {mode: mode.default_duration_minutes for mode in ScenarioMode}
+
+# Fan Mode Mapping (based on fan.py implementation)
+# fanSpeed from dashboard: 0, 1, 2, 3
+FAN_MODE_MAPPING = {
+    FanSpeed.OFF: FAN_OFF,
+    FanSpeed.LOW: FAN_LOW,
+    FanSpeed.MEDIUM: FAN_MEDIUM,
+    FanSpeed.HIGH: FAN_HIGH,
+}
+
+FAN_MODE_REVERSE_MAPPING = {v: k for k, v in FAN_MODE_MAPPING.items()}
+
+# HVAC Mode Mapping (season values to HVAC modes)
+# Season from dashboard: 0 (transition), 1 (heating), 2 (cooling)
+HVAC_MODE_MAPPING = {
+    Season.TRANSITIONAL: HVACMode.FAN_ONLY,
+    Season.HEATING: HVACMode.HEAT,
+    Season.COOLING: HVACMode.COOL,
+}
+
+# Reverse mapping for setting HVAC modes
+# Maps HVAC mode to season value (0=transition, 1=heating, 2=cooling)
+# OFF mode is handled separately via hpStandby field
+HVAC_MODE_REVERSE_MAPPING = {
+    HVACMode.OFF: None,  # Turn off device via hpStandby=True
+    HVACMode.FAN_ONLY: Season.TRANSITIONAL,
+    HVACMode.HEAT: Season.HEATING,
+    HVACMode.COOL: Season.COOLING,
+}
+
+
+# Heat pump status codes
+class HeatPumpStatus(IntEnum):
+    """Heat pump status codes bitmask."""
+
+    IDLE_1 = 0x01
+    HEATING = 0x02
+    COOLING = 0x04
+    PREHEATING = 0x08
+    DRYING = 0x10
+    IDLE_2 = 0x20
+    DEFROSTING = 0x40
+    IDLE_3 = 0x80
+
+
+HEAT_PUMP_STATUS_MAPPING = {
+    HeatPumpStatus.HEATING: HVACAction.HEATING,
+    HeatPumpStatus.COOLING: HVACAction.COOLING,
+    HeatPumpStatus.PREHEATING: HVACAction.PREHEATING,  # Not sure
+    HeatPumpStatus.DRYING: HVACAction.DRYING,  # Not sure
+    HeatPumpStatus.IDLE_2: HVACAction.IDLE,  # Unused
+    HeatPumpStatus.DEFROSTING: HVACAction.DEFROSTING,  # Not sure
+    HeatPumpStatus.IDLE_3: HVACAction.IDLE,  # Unused
+}
+
+
+# Sensor Mappings
+VALUE_MAPPINGS = {
+    "temperatureProfile": {0: "comfort", 1: "power", 2: "eco"},
+    "season": {0: "transitional", 1: "heating", 2: "cooling"},
+    "humidityMode": {0: "off", 1: "autoonly", 2: "on"},
+    "hpStandby": {False: "false", True: "true"},
+    "freeCoolingEnabled": {False: "false", True: "true"},
+}
+
+
+# Entity to API Parameter Mapping
+# Maps entity definition keys (dot notation) to API method kwargs parameters
+ENTITY_TO_API_PARAM_MAPPING = {
+    # top-level fields
+    "temperatureProfile": "temperature_profile",
+    # season fields
+    "season.status": "season_status",
+    "season.season": "season_value",
+    "season.heatingThresholdTemperature": "heating_threshold_temperature",
+    "season.coolingThresholdTemperature": "cooling_threshold_temperature",
+    # temperature fields
+    "temperature.status": "temperature_status",
+    "temperature.manualTemperature": "manual_temperature",
+    # heating profile fields
+    "heatingThermalProfileSeasonData.comfortTemperature": "heating_comfort_temperature",
+    "heatingThermalProfileSeasonData.kneePointTemperature": "heating_knee_point_temperature",
+    "heatingThermalProfileSeasonData.reductionDeltaTemperature": "heating_reduction_delta_temperature",
+    # cooling profile fields
+    "coolingThermalProfileSeasonData.comfortTemperature": "cooling_comfort_temperature",
+    "coolingThermalProfileSeasonData.kneePointTemperature": "cooling_knee_point_temperature",
+    "coolingThermalProfileSeasonData.temperatureLimit": "cooling_temperature_limit",
+}

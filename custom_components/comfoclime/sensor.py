@@ -50,6 +50,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from pydantic import BaseModel
 
 from . import DOMAIN
+from .constants import VALUE_MAPPINGS
 from .coordinator import (
     ComfoClimeDashboardCoordinator,
     ComfoClimeDefinitionCoordinator,
@@ -86,15 +87,6 @@ if TYPE_CHECKING:
     from .comfoclime_api import ComfoClimeAPI
 
 _LOGGER = logging.getLogger(__name__)
-
-
-VALUE_MAPPINGS = {
-    "temperatureProfile": {0: "comfort", 1: "power", 2: "eco"},
-    "season": {0: "transitional", 1: "heating", 2: "cooling"},
-    "humidityMode": {0: "off", 1: "autoonly", 2: "on"},
-    "hpStandby": {False: "false", True: "true"},
-    "freeCoolingEnabled": {False: "false", True: "true"},
-}
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:

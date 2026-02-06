@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     )
 
 from . import DOMAIN
+from .constants import ENTITY_TO_API_PARAM_MAPPING
 from .entities.select_definitions import (
     PROPERTY_SELECT_ENTITIES,
     SELECT_ENTITIES,
@@ -167,26 +168,11 @@ class ComfoClimeSelect(CoordinatorEntity, SelectEntity):
         try:
             _LOGGER.debug("Setting %s: %s (value=%s)", self._name, option, value)
 
-            # Mapping aller SELECT_ENTITIES Keys zu thermal_profile Parametern
-            # Basierend auf dem thermalprofile JSON Schema
-            param_mapping = {
-                # Top-level fields
-                "temperatureProfile": "temperature_profile",
-                # season nested fields
-                "season.season": "season_value",
-                "season.status": "season_status",
-                "season.heatingThresholdTemperature": "heating_threshold_temperature",
-                "season.coolingThresholdTemperature": "cooling_threshold_temperature",
-                # temperature nested fields
-                "temperature.status": "temperature_status",
-                "temperature.manualTemperature": "manual_temperature",
-            }
-
-            if self._key not in param_mapping:
+            if self._key not in ENTITY_TO_API_PARAM_MAPPING:
                 _LOGGER.warning("Unknown select key: %s", self._key)
                 return
 
-            param_name = param_mapping[self._key]
+            param_name = ENTITY_TO_API_PARAM_MAPPING[self._key]
             await self._api.async_update_thermal_profile(**{param_name: value})
 
             self._current = option

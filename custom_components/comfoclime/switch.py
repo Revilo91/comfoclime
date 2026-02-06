@@ -13,6 +13,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from pydantic import BaseModel
 
 from . import DOMAIN
+from .constants import ENTITY_TO_API_PARAM_MAPPING
 from .entities.switch_definitions import SWITCHES
 from .entity_helper import (
     get_device_display_name,
@@ -222,18 +223,14 @@ class ComfoClimeSwitch(CoordinatorEntity, SwitchEntity):
 
     async def _set_thermal_profile_status(self, value: int) -> None:
         """Set thermal profile switch status via API."""
-        # Mapping aller SWITCHES Keys zu thermal_profile Parametern
-        param_mapping = {
-            "season.status": "season_status",
-            "temperature.status": "temperature_status",
-        }
+        # Use centralized mapping from constants
 
         key_str = ".".join(self._key_path)
-        if key_str not in param_mapping:
+        if key_str not in ENTITY_TO_API_PARAM_MAPPING:
             _LOGGER.warning("Unknown switch key: %s", key_str)
             return
 
-        param_name = param_mapping[key_str]
+        param_name = ENTITY_TO_API_PARAM_MAPPING[key_str]
         _LOGGER.debug("Setting %s: value=%s", self._name, value)
         await self._api.async_update_thermal_profile(**{param_name: value})
         self._state = value == 1
