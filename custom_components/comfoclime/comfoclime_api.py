@@ -14,6 +14,16 @@ The API client supports:
     - Request caching to reduce load on device
     - Rate limiting to prevent API overload
 
+API Endpoints Reference (from msfuture/comfoclime_api):
+    - /monitoring/ping          : UUID, uptime, timestamp
+    - /monitoring/health        : System health data
+    - /system/{uuid}/dashboard  : Dashboard data (temps, fan, season)
+    - /system/{uuid}/devices    : Connected devices list
+    - /system/{uuid}/thermalprofile : Thermal settings
+    - /device/{uuid}/property/X/Y/Z : Read property (Unit/Subunit/Property)
+    - /device/{uuid}/telemetry/N    : Read sensor N
+    - /device/{uuid}/method/X/Y/3   : Write property (data=[Z, value...])
+
 Example:
     >>> api = ComfoClimeAPI("http://192.168.1.100")
     >>> async with api:
@@ -248,6 +258,10 @@ class ComfoClimeAPI:
         async with self._request_lock:
             return await self._async_get_uuid_internal()
 
+    # =========================================================================
+    # MONITORING ENDPOINTS (/monitoring/*)
+    # =========================================================================
+
     @api_get("/monitoring/ping")
     async def async_get_monitoring_ping(self, response_data):
         """Get monitoring/ping data including device uptime.
@@ -291,6 +305,10 @@ class ComfoClimeAPI:
             _LOGGER.debug("Could not normalize monitoring ping keys: %s", response_data)
 
         return response_data
+
+    # =========================================================================
+    # SYSTEM ENDPOINTS (/system/{uuid}/*)
+    # =========================================================================
 
     @api_get("/system/{uuid}/dashboard", requires_uuid=True, fix_temperatures=True)
     async def async_get_dashboard_data(self, response_data):
@@ -382,6 +400,10 @@ class ComfoClimeAPI:
                 continue
 
         return device_configs
+
+    # =========================================================================
+    # DEVICE ENDPOINTS (/device/{uuid}/*)
+    # =========================================================================
 
     @api_get(
         "/device/{device_uuid}/definition",
@@ -670,52 +692,6 @@ class ComfoClimeAPI:
             integration failures.
         """
         return response_data
-
-    @api_put("/system/{uuid}/thermalprofile", requires_uuid=True)
-    async def _update_thermal_profile(self, **kwargs) -> dict:
-        """Update thermal profile settings via API.
-
-        Modern method for thermal profile updates. Only fields that are provided
-        will be included in the update payload.
-
-        The @api_put decorator handles:
-        - UUID retrieval
-        - Rate limiting
-        - Retry with exponential backoff
-        - Error handling
-
-        Supported kwargs:
-            - season_status, season_value, heating_threshold_temperature, cooling_threshold_temperature
-            - temperature_status, manual_temperature
-            - temperature_profile
-            - heating_comfort_temperature, heating_knee_point_temperature, heating_reduction_delta_temperature
-            - cooling_comfort_temperature, cooling_knee_point_temperature, cooling_temperature_limit
-
-        Returns:
-            Payload dict for the decorator to process.
-        """
-        # Use class-level FIELD_MAPPING
-        field_mapping = self.FIELD_MAPPING
-
-        # Dynamically build payload
-        payload: dict = {}
-
-        for param_name, value in kwargs.items():
-            if value is None or param_name not in field_mapping:
-                continue
-
-            section, key = field_mapping[param_name]
-
-            if key is None:
-                # Top-level field
-                payload[section] = value
-            else:
-                # Nested field
-                if section not in payload:
-                    payload[section] = {}
-                payload[section][key] = value
-
-        return payload
 
     @api_put("/system/{uuid}/dashboard", requires_uuid=True, is_dashboard=True)
     async def async_update_dashboard(
