@@ -326,35 +326,35 @@ def _format_per_model_entities(
     return options
 
 
-def _get_sensor_options() -> list[dict]:
+def get_sensors() -> list[dict]:
     """Get all sensor entity options (dashboard, thermal, telemetry, properties, etc.)."""
     options = []
-    options.extend(_get_dashboard_sensors())
-    options.extend(_get_thermalprofile_sensors())
-    options.extend(_get_monitoring_sensors())
-    options.extend(_get_connected_device_telemetry_sensors())
-    options.extend(_get_connected_device_properties_sensors())
-    options.extend(_get_connected_device_definition_sensors())
-    options.extend(_get_access_tracking_sensors())
+    options.extend(get_dashboard_sensors())
+    options.extend(get_thermalprofile_sensors())
+    options.extend(get_monitoring_sensors())
+    options.extend(get_connected_device_telemetry_sensors())
+    options.extend(get_connected_device_properties_sensors())
+    options.extend(get_connected_device_definition_sensors())
+    options.extend(get_access_tracking_sensors())
     return options
 
 
-def _get_dashboard_sensors() -> list[dict]:
+def get_dashboard_sensors() -> list[dict]:
     """Get all dashboard sensor entity options."""
     return _format_simple_entities(DASHBOARD_SENSORS, "sensors", "dashboard", "📊")
 
 
-def _get_thermalprofile_sensors() -> list[dict]:
+def get_thermalprofile_sensors() -> list[dict]:
     """Get all thermal profile sensor entity options."""
     return _format_simple_entities(THERMALPROFILE_SENSORS, "sensors", "thermalprofile", "🌡️")
 
 
-def _get_monitoring_sensors() -> list[dict]:
+def get_monitoring_sensors() -> list[dict]:
     """Get all monitoring sensor entity options."""
     return _format_simple_entities(MONITORING_SENSORS, "sensors", "monitoring", "⏱️")
 
 
-def _get_connected_device_telemetry_sensors() -> list[dict]:
+def get_connected_device_telemetry_sensors() -> list[dict]:
     """Get all connected device telemetry sensor entity options."""
     return _format_per_model_entities(
         CONNECTED_DEVICE_SENSORS,
@@ -365,7 +365,7 @@ def _get_connected_device_telemetry_sensors() -> list[dict]:
     )
 
 
-def _get_connected_device_properties_sensors() -> list[dict]:
+def get_connected_device_properties_sensors() -> list[dict]:
     """Get all connected device properties sensor entity options."""
     return _format_per_model_entities(
         CONNECTED_DEVICE_PROPERTIES,
@@ -376,22 +376,22 @@ def _get_connected_device_properties_sensors() -> list[dict]:
     )
 
 
-def _get_connected_device_definition_sensors() -> list[dict]:
+def get_connected_device_definition_sensors() -> list[dict]:
     """Get all connected device definition sensor entity options."""
     return _format_per_model_entities(CONNECTED_DEVICE_DEFINITION_SENSORS, "sensors", "connected_definition", "📋")
 
 
-def _get_access_tracking_sensors() -> list[dict]:
+def get_access_tracking_sensors() -> list[dict]:
     """Get all access tracking sensor entity options."""
     return _format_simple_entities(ACCESS_TRACKING_SENSORS, "sensors", "access_tracking", "🔍")
 
 
-def _get_switch_options() -> list[dict]:
+def get_switches() -> list[dict]:
     """Get all switch entity options."""
     return _format_simple_entities(SWITCHES, "switches", "all", "🔌")
 
 
-def _get_number_options() -> list[dict]:
+def get_numbers() -> list[dict]:
     """Get all number entity options (thermal profile and connected device properties)."""
     options = []
     # Thermal profile numbers
@@ -410,7 +410,7 @@ def _get_number_options() -> list[dict]:
     return options
 
 
-def _get_select_options() -> list[dict]:
+def get_selects() -> list[dict]:
     """Get all select entity options (thermal profile and connected device properties)."""
     options = []
     # Thermal profile selects
@@ -429,61 +429,6 @@ def _get_select_options() -> list[dict]:
     return options
 
 
-def get_sensors() -> list[dict]:
-    """Get all sensor entity options."""
-    return _get_sensor_options()
-
-
-def get_dashboard_sensors() -> list[dict]:
-    """Get all dashboard sensor entity options."""
-    return _get_dashboard_sensors()
-
-
-def get_thermalprofile_sensors() -> list[dict]:
-    """Get all thermal profile sensor entity options."""
-    return _get_thermalprofile_sensors()
-
-
-def get_monitoring_sensors() -> list[dict]:
-    """Get all monitoring sensor entity options."""
-    return _get_monitoring_sensors()
-
-
-def get_connected_device_telemetry_sensors() -> list[dict]:
-    """Get all connected device telemetry sensor entity options."""
-    return _get_connected_device_telemetry_sensors()
-
-
-def get_connected_device_properties_sensors() -> list[dict]:
-    """Get all connected device properties sensor entity options."""
-    return _get_connected_device_properties_sensors()
-
-
-def get_connected_device_definition_sensors() -> list[dict]:
-    """Get all connected device definition sensor entity options."""
-    return _get_connected_device_definition_sensors()
-
-
-def get_access_tracking_sensors() -> list[dict]:
-    """Get all access tracking sensor entity options."""
-    return _get_access_tracking_sensors()
-
-
-def get_switches() -> list[dict]:
-    """Get all switch entity options."""
-    return _get_switch_options()
-
-
-def get_numbers() -> list[dict]:
-    """Get all number entity options."""
-    return _get_number_options()
-
-
-def get_selects() -> list[dict]:
-    """Get all select entity options."""
-    return _get_select_options()
-
-
 def get_individual_entity_options() -> list[dict]:
     """Get list of individual entities for user selection in config flow.
 
@@ -497,10 +442,10 @@ def get_individual_entity_options() -> list[dict]:
 
     _LOGGER.debug("🔍 get_individual_entity_options() called - start building flat options")
 
-    options.extend(_get_sensor_options())
-    options.extend(_get_switch_options())
-    options.extend(_get_number_options())
-    options.extend(_get_select_options())
+    options.extend(get_sensors())
+    options.extend(get_switches())
+    options.extend(get_numbers())
+    options.extend(get_selects())
 
     _LOGGER.debug(f"✅ get_individual_entity_options() finished - created {len(options)} total options")
 
