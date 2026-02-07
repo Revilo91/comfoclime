@@ -24,25 +24,26 @@ echo "Workspace root: $WORKSPACE_ROOT"
 if command -v apt-get &> /dev/null && [ -w /etc ]; then
   echo "Installing system dependencies..."
   sudo apt-get update -qq
-  sudo apt-get install -y build-essential python3 python3-dev python3-venv libpcap-dev
+  sudo apt-get install -y build-essential python3 python3-dev libpcap-dev
 else
   echo "Skipping system dependencies (not running as root or apt not available)"
 fi
 
-# Create and activate virtual environment if it doesn't exist
-VENV_DIR="$WORKSPACE_ROOT/.venv"
-if [ ! -d "$VENV_DIR" ]; then
-  echo "Creating virtual environment at $VENV_DIR..."
-  python3 -m venv "$VENV_DIR"
+# Install uv if not already available
+if ! command -v uv &> /dev/null; then
+  echo "Installing uv..."
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  export PATH="$HOME/.local/bin:$PATH"
 fi
 
-# Activate virtual environment
-echo "Activating virtual environment..."
-source "$VENV_DIR/bin/activate"
+echo "uv version: $(uv --version)"
 
-# Upgrade pip and install dependencies
-echo "Upgrading pip and setuptools..."
-pip install --upgrade pip wheel setuptools
+# Create virtual environment and install dependencies
+cd "$WORKSPACE_ROOT"
+echo "Syncing dependencies with uv..."
+uv sync
+
+VENV_DIR="$WORKSPACE_ROOT/.venv"
 
 # Determine config directory
 if [ -d "/config" ]; then
@@ -69,13 +70,12 @@ cp "$WORKSPACE_ROOT/.devcontainer/automations.yaml" "$CONFIG_DIR/automations.yam
 cp "$WORKSPACE_ROOT/.devcontainer/scripts.yaml" "$CONFIG_DIR/scripts.yaml"
 cp "$WORKSPACE_ROOT/.devcontainer/scenes.yaml" "$CONFIG_DIR/scenes.yaml"
 
-# Install Home Assistant if not already present in venv
-if ! pip show homeassistant &> /dev/null; then
-  echo "Installing Home Assistant Core..."
-  pip install --upgrade homeassistant
+# Verify Home Assistant is installed
+HA_VERSION=$(uv run python -c "from importlib.metadata import version; print(version('homeassistant'))" 2>/dev/null || echo "")
+if [ -n "$HA_VERSION" ]; then
+  echo "Home Assistant installed: $HA_VERSION"
 else
-  HA_VERSION=$(pip show homeassistant | grep "^Version:" | cut -d' ' -f2)
-  echo "Home Assistant already installed: $HA_VERSION"
+  echo "Warning: Home Assistant not found. Run 'uv sync' to install dependencies."
 fi
 
 echo ""
