@@ -29,7 +29,7 @@ echo "================================"
 # Prüfen ob ruff installiert ist
 if ! command -v ruff &> /dev/null; then
     echo -e "${RED}❌ Ruff ist nicht installiert.${NC}"
-    echo "Installiere mit: pip install ruff"
+    echo "Installiere mit: uv tool install ruff"
     exit 1
 fi
 

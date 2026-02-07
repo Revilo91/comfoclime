@@ -13,13 +13,6 @@ else
 fi
 
 CONFIG_DIR="$WORKSPACE_ROOT/.devcontainer/ha-config"
-VENV_DIR="$WORKSPACE_ROOT/.venv"
-
-# Activate virtual environment if it exists
-if [ -d "$VENV_DIR" ]; then
-  echo "Activating virtual environment..."
-  source "$VENV_DIR/bin/activate"
-fi
 
 echo "Starting Home Assistant..."
 echo "Configuration: $CONFIG_DIR"
@@ -28,4 +21,5 @@ echo ""
 echo "Press Ctrl+C to stop Home Assistant"
 echo ""
 
-python3 -m homeassistant -c "$CONFIG_DIR"
+cd "$WORKSPACE_ROOT"
+uv run python -m homeassistant -c "$CONFIG_DIR"
