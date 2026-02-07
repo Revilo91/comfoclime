@@ -70,13 +70,12 @@ cp "$WORKSPACE_ROOT/.devcontainer/automations.yaml" "$CONFIG_DIR/automations.yam
 cp "$WORKSPACE_ROOT/.devcontainer/scripts.yaml" "$CONFIG_DIR/scripts.yaml"
 cp "$WORKSPACE_ROOT/.devcontainer/scenes.yaml" "$CONFIG_DIR/scenes.yaml"
 
-# Install Home Assistant if not already present in venv
-if ! uv run python -c "import homeassistant" 2>/dev/null; then
-  echo "Installing Home Assistant Core..."
-  uv pip install homeassistant
+# Verify Home Assistant is installed
+HA_VERSION=$(uv run python -c "from importlib.metadata import version; print(version('homeassistant'))" 2>/dev/null || echo "")
+if [ -n "$HA_VERSION" ]; then
+  echo "Home Assistant installed: $HA_VERSION"
 else
-  HA_VERSION=$(uv run python -c "from importlib.metadata import version; print(version('homeassistant'))")
-  echo "Home Assistant already installed: $HA_VERSION"
+  echo "Warning: Home Assistant not found. Run 'uv sync' to install dependencies."
 fi
 
 echo ""
