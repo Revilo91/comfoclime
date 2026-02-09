@@ -82,8 +82,8 @@ if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-    from .access_tracker import AccessTracker
     from .comfoclime_api import ComfoClimeAPI
+    from .infrastructure import AccessTracker
 
 _LOGGER = logging.getLogger(__name__)
 

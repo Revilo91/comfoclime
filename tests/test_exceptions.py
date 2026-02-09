@@ -2,7 +2,7 @@
 
 import pytest
 
-from custom_components.comfoclime.exceptions import (
+from custom_components.comfoclime.infrastructure import (
     ComfoClimeAPIError,
     ComfoClimeConnectionError,
     ComfoClimeError,

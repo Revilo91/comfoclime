@@ -8,7 +8,6 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 
-from .access_tracker import AccessTracker
 from .comfoclime_api import ComfoClimeAPI
 from .coordinator import (
     ComfoClimeDashboardCoordinator,
@@ -19,7 +18,7 @@ from .coordinator import (
     ComfoClimeThermalprofileCoordinator,
 )
 from .entity_helper import get_device_model_type_id
-from .validators import validate_byte_value, validate_duration, validate_property_path
+from .infrastructure import AccessTracker, validate_byte_value, validate_duration, validate_property_path
 
 DOMAIN = "comfoclime"
 
