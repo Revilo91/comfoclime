@@ -711,17 +711,12 @@ handle_set_property_service (call)
 
 **Potenziell ungenutzte/veraltete Elemente:**
 
-1. **test.py**
-   - **Status:** Entwicklungs-/Debug-Datei
-   - **Empfehlung:** Kann in `.gitignore` aufgenommen werden, wenn nicht für Tests benötigt
-   - **Risiko:** Niedrig
-
-2. **Migration-Logik in __init__.py** (Zeilen 40-62)
+1. **Migration-Logik in __init__.py** (Zeilen 40-62)
    - **Status:** Wird für Backward-Kompatibilität benötigt
    - **Empfehlung:** Kann in zukünftigen Major-Versionen entfernt werden
    - **Risiko:** Niedrig (sollte beibehalten werden)
 
-3. **Ungenutzte Decorator-Args in api_decorators.py**
+2. **Ungenutzte Decorator-Args in api_decorators.py**
    - **Status:** Einige Decorator-Parameter werden möglicherweise nicht genutzt
    - **Empfehlung:** Review, ob alle Parameter benötigt werden
    - **Risiko:** Sehr niedrig

@@ -181,21 +181,15 @@ api = data["api"]  # Now with type hints!
 
 ---
 
-#### 5. test.py bereinigen
+#### 5. test.py bereinigen ✅ ERLEDIGT
 
-**Problem:** `test.py` ist eine Debug-/Entwicklungsdatei im Produktionscode.
+**Problem:** `test.py` war eine Debug-/Entwicklungsdatei im Produktionscode.
 
-**Empfehlung:**
-- Entweder in `.gitignore` aufnehmen
-- Oder in `tests/` Verzeichnis verschieben
-- Oder umbenennen zu `debug_tools.py` mit klarem Hinweis
+**Lösung (2026-02-09):**
+- test.py wurde aus der Codebase entfernt
+- test.py wurde zu `.gitignore` hinzugefügt
 
-**Aufwand:** 5 Minuten  
 **Nutzen:** Klarere Trennung zwischen Produktions- und Debug-Code
-
-**Action Items:**
-- [ ] Entscheiden: Behalten, verschieben oder ignorieren
-- [ ] `.gitignore` aktualisieren falls nötig
 
 ---
 
@@ -435,7 +429,8 @@ from .models import DashboardData
 ## 🎯 Zusammenfassung & Roadmap
 
 ### Sofort (Woche 1-2)
-- [ ] `.gitignore` für test.py anpassen
+- [x] `.gitignore` für test.py anpassen
+- [x] test.py aus Codebase entfernen
 - [ ] README.md mit Links zur neuen Dokumentation aktualisieren
 
 ### Kurzfristig (Monat 1-2)
