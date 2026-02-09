@@ -1,0 +1,1 @@
+"""ComfoClime entity definitions package."""
