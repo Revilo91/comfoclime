@@ -169,6 +169,11 @@ class TestComfoClimeTelemetryByteCount:
             4208,
         }
         model_20_sensors = CONNECTED_DEVICE_SENSORS.get(20, [])
+        found_ids = {sensor.telemetry_id for sensor in model_20_sensors}
+        missing_ids = two_byte_ids - found_ids
+        assert not missing_ids, (
+            f"The following expected telemetry IDs are missing from model 20 sensors: {sorted(missing_ids)}"
+        )
         for sensor in model_20_sensors:
             if sensor.telemetry_id in two_byte_ids:
                 assert sensor.byte_count == 2, (
