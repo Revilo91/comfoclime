@@ -14,7 +14,7 @@ from custom_components.comfoclime.coordinator import (
     ComfoClimeTelemetryCoordinator,
     ComfoClimeThermalprofileCoordinator,
 )
-from custom_components.comfoclime.models import PropertyReading, TelemetryReading
+from custom_components.comfoclime.models import DashboardData, PropertyReading, TelemetryReading
 
 
 @pytest.mark.asyncio
@@ -334,16 +334,18 @@ async def test_dashboard_coordinator(hass_with_frame_helper, mock_api):
     """Test DashboardCoordinator basic functionality."""
     coordinator = ComfoClimeDashboardCoordinator(hass_with_frame_helper, mock_api)
 
-    mock_dashboard_data = {
-        "indoorTemperature": 22.5,
-        "outdoorTemperature": 15.0,
-        "fanSpeed": 2,
-    }
+    mock_dashboard_data = DashboardData(
+        indoor_temperature=22.5,
+        outdoor_temperature=15.0,
+        fan_speed=2,
+    )
     mock_api.async_get_dashboard_data = AsyncMock(return_value=mock_dashboard_data)
 
     result = await coordinator._async_update_data()
 
     assert result == mock_dashboard_data
+    assert result.indoor_temperature == 22.5
+    assert result.fan_speed == 2
     mock_api.async_get_dashboard_data.assert_called_once()
 
 
