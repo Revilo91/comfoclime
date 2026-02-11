@@ -8,7 +8,15 @@ This package contains core infrastructure components:
 """
 
 # Re-export commonly used components for backward compatibility
-from .api import RateLimiterCache, api_get, api_put
+from .api import (
+    DEFAULT_CACHE_TTL,
+    DEFAULT_MIN_REQUEST_INTERVAL,
+    DEFAULT_REQUEST_DEBOUNCE,
+    DEFAULT_WRITE_COOLDOWN,
+    RateLimiterCache,
+    api_get,
+    api_put,
+)
 from .errors import (
     ComfoClimeAPIError,
     ComfoClimeConnectionError,
@@ -29,6 +37,11 @@ __all__ = [
     "api_get",
     "api_put",
     "RateLimiterCache",
+    # API constants
+    "DEFAULT_MIN_REQUEST_INTERVAL",
+    "DEFAULT_WRITE_COOLDOWN",
+    "DEFAULT_REQUEST_DEBOUNCE",
+    "DEFAULT_CACHE_TTL",
     # Errors
     "ComfoClimeError",
     "ComfoClimeConnectionError",
