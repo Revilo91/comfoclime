@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 # Utility functions for byte and temperature value processing
@@ -410,3 +410,28 @@ class DashboardData(BaseModel):
     def is_auto_mode(self) -> bool:
         """Check if system is in automatic temperature control mode."""
         return self.status == 1
+
+
+class MonitoringPing(BaseModel):
+    """Monitoring ping response from device.
+
+    Normalizes common uptime field names returned by different firmware
+    variants and exposes a consistent `up_time_seconds` attribute.
+    """
+
+    model_config = {"frozen": True, "extra": "allow", "populate_by_name": True}
+
+    uuid: str | None = Field(default=None, description="Device UUID")
+    up_time_seconds: int | None = Field(default=None, description="Device uptime in seconds")
+    timestamp: int | None = Field(default=None, description="Timestamp from device")
+
+    @model_validator(mode="before")
+    def _normalize_uptime(cls, v):
+        # Accept multiple possible uptime field names and normalize to up_time_seconds
+        if isinstance(v, dict):
+            if "up_time_seconds" not in v:
+                if "uptime" in v:
+                    v["up_time_seconds"] = v.get("uptime")
+                elif "upTimeSeconds" in v:
+                    v["up_time_seconds"] = v.get("upTimeSeconds")
+        return v
