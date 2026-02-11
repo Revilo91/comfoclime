@@ -182,6 +182,14 @@ DASHBOARD_SENSORS = [
         state_class="measurement",
     ),
     SensorDefinition(
+        key="setPointTemperature",
+        name="Set Point Temperature",
+        translation_key="set_point_temperature",
+        unit="°C",
+        device_class="temperature",
+        state_class="measurement",
+    ),
+    SensorDefinition(
         key="exhaustAirFlow",
         name="Exhaust Air Flow",
         translation_key="exhaust_air_flow",
@@ -202,6 +210,13 @@ DASHBOARD_SENSORS = [
         name="Fan Speed",
         translation_key="fan_speed",
         device_class="enum",
+    ),
+    SensorDefinition(
+        key="seasonProfile",
+        name="Season Profile",
+        translation_key="season_profile",
+        device_class="enum",
+        entity_category="diagnostic",
     ),
     SensorDefinition(
         key="temperatureProfile",
@@ -242,6 +257,12 @@ DASHBOARD_SENSORS = [
         key="freeCoolingEnabled",
         name="Free Cooling Status",
         translation_key="free_cooling_status",
+        entity_category="diagnostic",
+    ),
+    SensorDefinition(
+        key="caqFreeCoolingAvailable",
+        name="ComfoAirQ Free Cooling Available",
+        translation_key="caq_free_cooling_available",
         entity_category="diagnostic",
     ),
     SensorDefinition(
