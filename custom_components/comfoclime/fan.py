@@ -170,7 +170,10 @@ class ComfoClimeFan(CoordinatorEntity, FanEntity):
     def _handle_coordinator_update(self) -> None:
         try:
             data = self.coordinator.data
-            speed = data.get("fanSpeed", 0)
+            if isinstance(data, BaseModel):
+                speed = getattr(data, "fan_speed", 0)
+            else:
+                speed = data.get("fanSpeed", 0)
             speed_int = int(speed)
             if speed_int in FanSpeed._value2member_map_:
                 self._current_speed = FanSpeed(speed_int)

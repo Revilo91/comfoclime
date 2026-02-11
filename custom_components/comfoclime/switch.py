@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
@@ -130,6 +131,11 @@ class ComfoClimeSwitch(CoordinatorEntity, SwitchEntity):
 
         # Parse key path for nested access
         self._key_path = key.split(".")
+
+    @staticmethod
+    def _camel_to_snake(name: str) -> str:
+        """Convert camelCase to snake_case for Pydantic attribute access."""
+        return re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", name).lower()
 
     @property
     def is_on(self):

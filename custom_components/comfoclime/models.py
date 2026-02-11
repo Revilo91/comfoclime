@@ -679,6 +679,8 @@ class ThermalProfileUpdate(BaseModel):
 class DashboardUpdate(BaseModel):
     """Model for partial dashboard updates."""
 
+    model_config = {"populate_by_name": True}
+
     set_point_temperature: float | None = Field(default=None, alias="setPointTemperature")
     fan_speed: int | None = Field(default=None, ge=0, le=3, alias="fanSpeed")
     season: int | None = Field(default=None, ge=0, le=2)

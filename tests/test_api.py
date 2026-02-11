@@ -565,8 +565,8 @@ class TestComfoClimeAPIDashboardSignedTemperatures:
             data = await api.async_get_dashboard_data()
 
         # Temperature values should be fixed
-        assert data["indoorTemperature"] == 22.5  # Positive stays same
-        assert data["outdoorTemperature"] == -0.5  # Converted from unsigned
+        assert data.indoor_temperature == 22.5  # Positive stays same
+        assert data.outdoor_temperature == -0.5  # Converted from unsigned
         # Non-temperature values should be unchanged
         assert data.fan_speed == 2
         assert data.season == 1

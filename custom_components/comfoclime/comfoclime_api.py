@@ -282,7 +282,7 @@ class ComfoClimeAPI:
             The @api_get decorator handles request locking, rate limiting,
             UUID retrieval, session management, and temperature value fixing.
         """
-        return response_data
+        return DashboardData(**response_data)
 
     @api_get(
         "/system/{uuid}/devices",
@@ -624,8 +624,7 @@ class ComfoClimeAPI:
             The @api_get decorator returns {} on any error to prevent
             integration failures.
         """
-        # Parse the raw dict into a validated ThermalProfileData model
-        return ThermalProfileData.from_api_response(response_data)
+        return response_data
 
     @api_put("/system/{uuid}/thermalprofile", requires_uuid=True)
     async def _update_thermal_profile(self, **kwargs) -> dict:
