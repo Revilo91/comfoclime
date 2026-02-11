@@ -40,6 +40,8 @@ if TYPE_CHECKING:
 from .constants import API_DEFAULTS
 from .infrastructure import RateLimiterCache, api_get, api_put, validate_byte_value, validate_property_path
 from .models import (
+    DashboardData,
+    DashboardUpdate,
     DeviceConfig,
     MonitoringPing,
     PropertyReading,
