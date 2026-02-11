@@ -410,3 +410,158 @@ class DashboardData(BaseModel):
     def is_auto_mode(self) -> bool:
         """Check if system is in automatic temperature control mode."""
         return self.status == 1
+
+
+class SeasonData(BaseModel):
+    """Season configuration data for thermal profile.
+
+    Attributes:
+        status: Season detection mode (0=manual, 1=automatic)
+        season: Current season (0=transition, 1=heating, 2=cooling)
+        heating_threshold_temperature: Temperature threshold for heating mode in °C
+        cooling_threshold_temperature: Temperature threshold for cooling mode in °C
+    """
+
+    model_config = {"frozen": True, "populate_by_name": True}
+
+    status: int | None = Field(default=None, ge=0, le=1, description="Season detection mode (0=manual, 1=automatic)")
+    season: int | None = Field(
+        default=None,
+        ge=0,
+        le=2,
+        description="Current season (0=transition, 1=heating, 2=cooling)",
+    )
+    heating_threshold_temperature: float | None = Field(
+        default=None,
+        alias="heatingThresholdTemperature",
+        description="Temperature threshold for heating mode in °C",
+    )
+    cooling_threshold_temperature: float | None = Field(
+        default=None,
+        alias="coolingThresholdTemperature",
+        description="Temperature threshold for cooling mode in °C",
+    )
+
+
+class TemperatureControlData(BaseModel):
+    """Temperature control configuration data.
+
+    Attributes:
+        status: Temperature control mode (0=manual, 1=automatic)
+        manual_temperature: Manual target temperature in °C (when status=0)
+    """
+
+    model_config = {"frozen": True, "populate_by_name": True}
+
+    status: int | None = Field(
+        default=None,
+        ge=0,
+        le=1,
+        description="Temperature control mode (0=manual, 1=automatic)",
+    )
+    manual_temperature: float | None = Field(
+        default=None,
+        alias="manualTemperature",
+        description="Manual target temperature in °C (when status=0)",
+    )
+
+
+class ThermalProfileSeasonData(BaseModel):
+    """Thermal profile configuration for heating or cooling season.
+
+    Attributes:
+        comfort_temperature: Comfort target temperature in °C
+        knee_point_temperature: Knee point temperature for curve calculation in °C
+        reduction_delta_temperature: Temperature reduction delta in °C (heating only)
+        temperature_limit: Maximum temperature limit in °C (cooling only)
+    """
+
+    model_config = {"frozen": True, "populate_by_name": True}
+
+    comfort_temperature: float | None = Field(
+        default=None,
+        alias="comfortTemperature",
+        description="Comfort target temperature in °C",
+    )
+    knee_point_temperature: float | None = Field(
+        default=None,
+        alias="kneePointTemperature",
+        description="Knee point temperature for curve calculation in °C",
+    )
+    reduction_delta_temperature: float | None = Field(
+        default=None,
+        alias="reductionDeltaTemperature",
+        description="Temperature reduction delta in °C (heating only)",
+    )
+    temperature_limit: float | None = Field(
+        default=None,
+        alias="temperatureLimit",
+        description="Maximum temperature limit in °C (cooling only)",
+    )
+
+
+class ThermalProfileData(BaseModel):
+    """Thermal profile configuration from ComfoClime device.
+
+    Contains heating and cooling parameters, season settings, and temperature
+    control configuration. Not frozen to allow for mutable updates from coordinator.
+
+    Attributes:
+        season: Season configuration (status, season value, thresholds)
+        temperature: Temperature control settings (status, manual temperature)
+        temperature_profile: Active profile (0=comfort, 1=power, 2=eco)
+        heating_thermal_profile_season_data: Heating season parameters
+        cooling_thermal_profile_season_data: Cooling season parameters
+
+    Example:
+        >>> # Parse from API response
+        >>> data = ThermalProfileData(
+        ...     season={"status": 1, "season": 1},
+        ...     temperature_profile=0,
+        ...     heating_thermal_profile_season_data={"comfortTemperature": 21.5}
+        ... )
+        >>> data.is_heating_season
+        True
+    """
+
+    model_config = {"validate_assignment": True, "populate_by_name": True}
+
+    season: SeasonData | None = Field(default=None, description="Season configuration")
+    temperature: TemperatureControlData | None = Field(default=None, description="Temperature control settings")
+    temperature_profile: int | None = Field(
+        default=None,
+        ge=0,
+        le=2,
+        alias="temperatureProfile",
+        description="Active profile (0=comfort, 1=power, 2=eco)",
+    )
+    heating_thermal_profile_season_data: ThermalProfileSeasonData | None = Field(
+        default=None,
+        alias="heatingThermalProfileSeasonData",
+        description="Heating season parameters",
+    )
+    cooling_thermal_profile_season_data: ThermalProfileSeasonData | None = Field(
+        default=None,
+        alias="coolingThermalProfileSeasonData",
+        description="Cooling season parameters",
+    )
+
+    @property
+    def is_heating_season(self) -> bool:
+        """Check if system is in heating season."""
+        return self.season is not None and self.season.season == 1
+
+    @property
+    def is_cooling_season(self) -> bool:
+        """Check if system is in cooling season."""
+        return self.season is not None and self.season.season == 2
+
+    @property
+    def is_automatic_season(self) -> bool:
+        """Check if season detection is automatic."""
+        return self.season is not None and self.season.status == 1
+
+    @property
+    def is_automatic_temperature(self) -> bool:
+        """Check if temperature control is automatic."""
+        return self.temperature is not None and self.temperature.status == 1
