@@ -144,32 +144,32 @@
             "scenario": {
                 "name": "Aktives Szenario"
             },
-            "unknown_temp_4194": {
-                "name": "Unbekannte Temperatur 4194"
+            "comfoclime_exhaust_temperature": {
+                "name": "Fortluft Temperatur"
             },
-            "unknown_temp_4197": {
-                "name": "Unbekannte Temperatur 4197"
+            "compressor_temperature": {
+                "name": "Kompressor Temperatur"
             },
             "unknown_value_4198": {
                 "name": "Unbekannter Wert 4198"
             },
-            "unknown_temp_4202": {
-                "name": "Unbekannte Temp 4202"
+            "high_pressure": {
+                "name": "Hochdruck (Warmseite)"
             },
-            "unknown_value_4203": {
-                "name": "Unbekannter Wert 4203"
+            "expansion_valve": {
+                "name": "Expansionsventil"
             },
             "unknown_value_4204": {
                 "name": "Unbekannter Wert 4204"
             },
-            "unknown_value_4205": {
-                "name": "Unbekannter Wert 4205"
+            "low_pressure": {
+                "name": "Niederdruck (Kaltseite)"
             },
             "unknown_value_4206": {
                 "name": "Unbekannter Wert 4206"
             },
-            "unknown_value_4207": {
-                "name": "Unbekannter Wert 4207"
+            "four_way_valve_position": {
+                "name": "4-Wege-Ventil Position"
             },
             "unknown_value_4208": {
                 "name": "Unbekannter Wert 4208"

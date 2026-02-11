@@ -144,32 +144,32 @@
             "scenario": {
                 "name": "Active Scenario"
             },
-            "unknown_temp_4194": {
-                "name": "Unknown Temperature 4194"
+            "comfoclime_exhaust_temperature": {
+                "name": "Exhaust Temperature"
             },
-            "unknown_temp_4197": {
-                "name": "Unknown Temperature 4197"
+            "compressor_temperature": {
+                "name": "Compressor Temperature"
             },
             "unknown_value_4198": {
                 "name": "Unknown Value 4198"
             },
-            "unknown_temp_4202": {
-                "name": "Unknown Temp 4202"
+            "high_pressure": {
+                "name": "High Pressure (Hot Side)"
             },
-            "unknown_value_4203": {
-                "name": "Unknown Value 4203"
+            "expansion_valve": {
+                "name": "Expansion Valve"
             },
             "unknown_value_4204": {
                 "name": "Unknown Value 4204"
             },
-            "unknown_value_4205": {
-                "name": "Unknown Value 4205"
+            "low_pressure": {
+                "name": "Low Pressure (Cold Side)"
             },
             "unknown_value_4206": {
                 "name": "Unknown Value 4206"
             },
-            "unknown_value_4207": {
-                "name": "Unknown Value 4207"
+            "four_way_valve_position": {
+                "name": "Four Way Valve Position"
             },
             "unknown_value_4208": {
                 "name": "Unknown Value 4208"
