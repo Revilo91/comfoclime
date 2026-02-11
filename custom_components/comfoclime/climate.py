@@ -34,6 +34,8 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
+from pydantic import BaseModel
+
 from homeassistant.components.climate import (
     FAN_HIGH,
     FAN_LOW,
@@ -779,16 +781,7 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
                 attrs["dashboard"] = self.coordinator.data
 
             # Add scenario time left as a separate attribute for easier access
-            # Use Pydantic attribute access instead of dict methods
-            if isinstance(self.coordinator.data, BaseModel):
-                # Pydantic model - access attribute directly
-                scenario_time_left = self.coordinator.data.scenario_time_left
-            elif isinstance(self.coordinator.data, dict):
-                # Dictionary - use get method
-                scenario_time_left = self.coordinator.data.get("scenarioTimeLeft")
-            else:
-                scenario_time_left = None
-
+            scenario_time_left = self.coordinator.data.get("scenarioTimeLeft")
             if scenario_time_left is not None:
                 attrs["scenario_time_left"] = scenario_time_left
                 # Convert to human-readable format

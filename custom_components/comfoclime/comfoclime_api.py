@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 
@@ -40,10 +40,13 @@ if TYPE_CHECKING:
 from .constants import API_DEFAULTS
 from .infrastructure import RateLimiterCache, api_get, api_put, validate_byte_value, validate_property_path
 from .models import (
-    DashboardData,
     DeviceConfig,
+    MonitoringPing,
     PropertyReading,
+    PropertyWriteRequest,
     TelemetryReading,
+    ThermalProfileData,
+    ThermalProfileUpdate,
     bytes_to_signed_int,
     signed_int_to_bytes,
 )
@@ -57,6 +60,10 @@ class ComfoClimeAPI:
     Provides methods for reading and writing device data with automatic
     rate limiting, caching, retry logic, and session management.
 
+    The API client is responsible only for HTTP communication with the device.
+    All data transformation and validation logic is handled by Pydantic models
+    in the models.py module.
+
     Attributes:
         base_url: Base URL of the ComfoClime device
         hass: Home Assistant instance (optional)
@@ -65,46 +72,6 @@ class ComfoClimeAPI:
         write_timeout: Timeout for write operations in seconds
         max_retries: Maximum number of retries for failed requests
     """
-
-    # Mapping von kwargs zu payload-Struktur (class-level constant)
-    FIELD_MAPPING: ClassVar[dict[str, tuple[str, str | None]]] = {
-        # season fields
-        "season_status": ("season", "status"),
-        "season_value": ("season", "season"),
-        "heating_threshold_temperature": ("season", "heatingThresholdTemperature"),
-        "cooling_threshold_temperature": ("season", "coolingThresholdTemperature"),
-        # temperature fields
-        "temperature_status": ("temperature", "status"),
-        "manual_temperature": ("temperature", "manualTemperature"),
-        # top-level fields
-        "temperature_profile": ("temperatureProfile", None),
-        # heating profile fields
-        "heating_comfort_temperature": (
-            "heatingThermalProfileSeasonData",
-            "comfortTemperature",
-        ),
-        "heating_knee_point_temperature": (
-            "heatingThermalProfileSeasonData",
-            "kneePointTemperature",
-        ),
-        "heating_reduction_delta_temperature": (
-            "heatingThermalProfileSeasonData",
-            "reductionDeltaTemperature",
-        ),
-        # cooling profile fields
-        "cooling_comfort_temperature": (
-            "coolingThermalProfileSeasonData",
-            "comfortTemperature",
-        ),
-        "cooling_knee_point_temperature": (
-            "coolingThermalProfileSeasonData",
-            "kneePointTemperature",
-        ),
-        "cooling_temperature_limit": (
-            "coolingThermalProfileSeasonData",
-            "temperatureLimit",
-        ),
-    }
 
     def __init__(
         self,
@@ -255,10 +222,11 @@ class ComfoClimeAPI:
             response_data: JSON response from /monitoring/ping endpoint
 
         Returns:
-            Dictionary containing:
+            MonitoringPing model containing:
                 - uuid (str): Device UUID
-                - up_time_seconds (int): Device uptime in seconds
-                - timestamp (int): Current timestamp
+                - uptime (int): Device uptime in seconds
+                - up_time_seconds (int): Device uptime in seconds (alias)
+                - timestamp: Current timestamp
 
         Raises:
             aiohttp.ClientError: If connection to device fails.
@@ -266,27 +234,16 @@ class ComfoClimeAPI:
 
         Example:
             >>> data = await api.async_get_monitoring_ping()
-            >>> hours = data['up_time_seconds'] / 3600
+            >>> hours = data.uptime / 3600
             >>> print(f"Device has been running for {hours:.1f} hours")
 
         Note:
             The @api_get decorator handles request locking, rate limiting,
             and session management automatically.
         """
-        # Backwards/forward compatibility: some devices return 'uptime',
-        # others return 'up_time_seconds'. Normalize both keys so callers
-        # can rely on either key being present.
-        try:
-            if isinstance(response_data, dict):
-                if "up_time_seconds" in response_data and "uptime" not in response_data:
-                    response_data["uptime"] = response_data["up_time_seconds"]
-                elif "uptime" in response_data and "up_time_seconds" not in response_data:
-                    response_data["up_time_seconds"] = response_data["uptime"]
-        except Exception:
-            # Keep original response on any unexpected structure/errors
-            _LOGGER.debug("Could not normalize monitoring ping keys: %s", response_data)
-
-        return response_data
+        # Parse the raw dict into a validated MonitoringPing model
+        # The model handles uptime/up_time_seconds normalization
+        return MonitoringPing(**response_data)
 
     @api_get("/system/{uuid}/dashboard", requires_uuid=True, fix_temperatures=True)
     async def async_get_dashboard_data(self, response_data):
@@ -316,14 +273,14 @@ class ComfoClimeAPI:
 
         Example:
             >>> data = await api.async_get_dashboard_data()
-            >>> if data.season == 1:
-            ...     print(f"Heating mode: {data.indoor_temperature}°C")
+            >>> if data['season'] == 1:
+            ...     print(f"Heating mode: {data['indoorTemperature']}°C")
 
         Note:
             The @api_get decorator handles request locking, rate limiting,
             UUID retrieval, session management, and temperature value fixing.
         """
-        return DashboardData(**response_data)
+        return response_data
 
     @api_get(
         "/system/{uuid}/devices",
@@ -665,14 +622,16 @@ class ComfoClimeAPI:
             The @api_get decorator returns {} on any error to prevent
             integration failures.
         """
-        return response_data
+        # Parse the raw dict into a validated ThermalProfileData model
+        return ThermalProfileData.from_api_response(response_data)
 
     @api_put("/system/{uuid}/thermalprofile", requires_uuid=True)
     async def _update_thermal_profile(self, **kwargs) -> dict:
         """Update thermal profile settings via API.
 
         Modern method for thermal profile updates. Only fields that are provided
-        will be included in the update payload.
+        will be included in the update payload. Uses ThermalProfileUpdate model
+        for payload generation.
 
         The @api_put decorator handles:
         - UUID retrieval
@@ -690,28 +649,9 @@ class ComfoClimeAPI:
         Returns:
             Payload dict for the decorator to process.
         """
-        # Use class-level FIELD_MAPPING
-        field_mapping = self.FIELD_MAPPING
-
-        # Dynamically build payload
-        payload: dict = {}
-
-        for param_name, value in kwargs.items():
-            if value is None or param_name not in field_mapping:
-                continue
-
-            section, key = field_mapping[param_name]
-
-            if key is None:
-                # Top-level field
-                payload[section] = value
-            else:
-                # Nested field
-                if section not in payload:
-                    payload[section] = {}
-                payload[section][key] = value
-
-        return payload
+        # Use ThermalProfileUpdate model to build payload
+        update = ThermalProfileUpdate(**kwargs)
+        return update.to_api_payload()
 
     @api_put("/system/{uuid}/dashboard", requires_uuid=True, is_dashboard=True)
     async def async_update_dashboard(
@@ -731,7 +671,8 @@ class ComfoClimeAPI:
         """Update dashboard settings via API.
 
         Modern method for dashboard updates. Only fields that are provided
-        (not None) will be included in the update payload.
+        (not None) will be included in the update payload. Uses DashboardUpdate
+        model for payload generation.
 
         The @api_put decorator handles:
         - UUID retrieval
@@ -756,32 +697,21 @@ class ComfoClimeAPI:
         Returns:
             Payload dict for the decorator to process.
         """
-        # Dynamically build payload; only include keys explicitly provided.
-        payload: dict = {}
-        if set_point_temperature is not None:
-            payload["setPointTemperature"] = set_point_temperature
-        if fan_speed is not None:
-            payload["fanSpeed"] = fan_speed
-        if season is not None:
-            payload["season"] = season
-        if schedule is not None:
-            payload["schedule"] = schedule
-        if temperature_profile is not None:
-            payload["temperatureProfile"] = temperature_profile
-        if season_profile is not None:
-            payload["seasonProfile"] = season_profile
-        if status is not None:
-            payload["status"] = status
-        if hpStandby is not None:
-            payload["hpStandby"] = hpStandby
-        if scenario is not None:
-            payload["scenario"] = scenario
-        if scenario_time_left is not None:
-            payload["scenarioTimeLeft"] = scenario_time_left
-        if scenario_start_delay is not None:
-            payload["scenarioStartDelay"] = scenario_start_delay
-
-        return payload
+        # Use DashboardUpdate model to build payload (timestamp added by decorator)
+        update = DashboardUpdate(
+            set_point_temperature=set_point_temperature,
+            fan_speed=fan_speed,
+            season=season,
+            hp_standby=hpStandby,
+            schedule=schedule,
+            temperature_profile=temperature_profile,
+            season_profile=season_profile,
+            status=status,
+            scenario=scenario,
+            scenario_time_left=scenario_time_left,
+            scenario_start_delay=scenario_start_delay,
+        )
+        return update.to_api_payload(include_timestamp=False)
 
     @api_put("/system/{uuid}/thermalprofile", requires_uuid=True)
     async def _async_update_thermal_profile(self, **kwargs) -> dict:
@@ -794,6 +724,7 @@ class ComfoClimeAPI:
         - Error handling
 
         Only called from async_update_thermal_profile wrapper to avoid duplication.
+        Uses ThermalProfileUpdate model for payload generation.
 
         Supported kwargs:
             - season_status, season_value, heating_threshold_temperature, cooling_threshold_temperature
@@ -805,28 +736,9 @@ class ComfoClimeAPI:
         Returns:
             Payload dict for the decorator to process.
         """
-        # Use class-level FIELD_MAPPING
-        field_mapping = self.FIELD_MAPPING
-
-        # Dynamically build payload
-        payload: dict = {}
-
-        for param_name, value in kwargs.items():
-            if value is None or param_name not in field_mapping:
-                continue
-
-            section, key = field_mapping[param_name]
-
-            if key is None:
-                # Top-level field
-                payload[section] = value
-            else:
-                # Nested field
-                if section not in payload:
-                    payload[section] = {}
-                payload[section][key] = value
-
-        return payload
+        # Use ThermalProfileUpdate model to build payload
+        update = ThermalProfileUpdate(**kwargs)
+        return update.to_api_payload()
 
     async def async_update_thermal_profile(self, updates: dict[str, Any] | None = None, **kwargs) -> dict[str, Any]:
         """Update thermal profile settings on the device.
@@ -880,6 +792,7 @@ class ComfoClimeAPI:
 
         Internal method that translates nested dict structure to modern
         kwargs format for calling _async_update_thermal_profile.
+        Uses ThermalProfileUpdate.from_dict() for the conversion.
 
         Args:
             updates: Nested dict structure with thermal profile updates
@@ -887,57 +800,9 @@ class ComfoClimeAPI:
         Returns:
             Response from _async_update_thermal_profile.
         """
-        # Mapping von nested dict-Struktur zu kwargs
-        conversion_map = {
-            ("season", "status"): "season_status",
-            ("season", "season"): "season_value",
-            ("season", "heatingThresholdTemperature"): "heating_threshold_temperature",
-            ("season", "coolingThresholdTemperature"): "cooling_threshold_temperature",
-            ("temperature", "status"): "temperature_status",
-            ("temperature", "manualTemperature"): "manual_temperature",
-            ("temperatureProfile",): "temperature_profile",
-            (
-                "heatingThermalProfileSeasonData",
-                "comfortTemperature",
-            ): "heating_comfort_temperature",
-            (
-                "heatingThermalProfileSeasonData",
-                "kneePointTemperature",
-            ): "heating_knee_point_temperature",
-            (
-                "heatingThermalProfileSeasonData",
-                "reductionDeltaTemperature",
-            ): "heating_reduction_delta_temperature",
-            (
-                "coolingThermalProfileSeasonData",
-                "comfortTemperature",
-            ): "cooling_comfort_temperature",
-            (
-                "coolingThermalProfileSeasonData",
-                "kneePointTemperature",
-            ): "cooling_knee_point_temperature",
-            (
-                "coolingThermalProfileSeasonData",
-                "temperatureLimit",
-            ): "cooling_temperature_limit",
-        }
-
-        kwargs = {}
-
-        # Process nested dictionaries
-        for section, value in updates.items():
-            if isinstance(value, dict):
-                for key, field_value in value.items():
-                    mapping_key = (section, key)
-                    if mapping_key in conversion_map:
-                        kwargs[conversion_map[mapping_key]] = field_value
-            else:
-                # Top-level field
-                mapping_key = (section,)
-                if mapping_key in conversion_map:
-                    kwargs[conversion_map[mapping_key]] = value
-
-        return await self._async_update_thermal_profile(**kwargs)
+        # Use ThermalProfileUpdate model to convert dict to kwargs
+        update = ThermalProfileUpdate.from_dict(updates)
+        return await self._async_update_thermal_profile(**update.model_dump(exclude_none=True))
 
     async def async_set_hvac_season(self, season: int, hpStandby: bool = False) -> None:
         """Set HVAC season and heat pump standby state atomically.

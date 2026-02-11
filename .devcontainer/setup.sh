@@ -20,6 +20,9 @@ fi
 
 echo "Workspace root: $WORKSPACE_ROOT"
 
+# Ensure user's local bin is on PATH so tools like `uv` are discoverable
+export PATH="$HOME/.local/bin:$PATH"
+
 # Skip system dependencies installation if not needed or in local environment
 if command -v apt-get &> /dev/null && [ -w /etc ]; then
   echo "Installing system dependencies..."
@@ -33,7 +36,6 @@ fi
 if ! command -v uv &> /dev/null; then
   echo "Installing uv..."
   curl -LsSf https://astral.sh/uv/install.sh | sh
-  export PATH="$HOME/.local/bin:$PATH"
 fi
 
 echo "uv version: $(uv --version)"
@@ -41,6 +43,47 @@ echo "uv version: $(uv --version)"
 # Create virtual environment and install dependencies
 cd "$WORKSPACE_ROOT"
 echo "Syncing dependencies with uv..."
+
+# Verify presence of Python C headers required for building some dependencies
+check_python_headers() {
+  if python3 - <<'PY' 2>/dev/null
+import sysconfig, os
+inc = sysconfig.get_paths().get("include")
+print(os.path.exists(os.path.join(inc or "", "Python.h")))
+PY
+  then
+    return 0
+  fi
+  echo "\nERROR: Python C headers not found (Python.h)." >&2
+  if command -v apt-get &> /dev/null; then
+    if [ "$(id -u)" -eq 0 ]; then
+      echo "Attempting to install build dependencies (apt)..."
+      apt-get update -qq
+      apt-get install -y build-essential python3-dev || true
+      # Re-check
+      if python3 - <<'PY' 2>/dev/null
+import sysconfig, os
+inc = sysconfig.get_paths().get("include")
+print(os.path.exists(os.path.join(inc or "", "Python.h")))
+PY
+      then
+        return 0
+      fi
+    else
+      echo "Please install the Python development headers and build tools." >&2
+      echo "On Debian/Ubuntu run:" >&2
+      echo "  sudo apt-get update && sudo apt-get install -y build-essential python3-dev" >&2
+      exit 1
+    fi
+  else
+    echo "Unable to automatically install build dependencies on this system." >&2
+    echo "Install the Python dev headers and a C compiler for your distribution." >&2
+    exit 1
+  fi
+}
+
+check_python_headers
+
 uv sync
 
 VENV_DIR="$WORKSPACE_ROOT/.venv"

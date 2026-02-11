@@ -120,10 +120,7 @@ class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
             result = await self.api.async_get_dashboard_data()
             if self._access_tracker:
                 self._access_tracker.record_access("Dashboard")
-            # API already returns a validated DashboardData model
-            if isinstance(result, DashboardData):
-                return result
-            # Fallback for dict response (legacy compatibility)
+            # Parse the raw dict into a validated DashboardData model
             return DashboardData(**result)
         except (TimeoutError, aiohttp.ClientError) as e:
             _LOGGER.warning("Error fetching dashboard data: %s", e)
