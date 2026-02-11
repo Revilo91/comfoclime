@@ -7,7 +7,11 @@ from custom_components.comfoclime.models import (
     DashboardData,
     DeviceConfig,
     PropertyReading,
+    SeasonData,
     TelemetryReading,
+    TemperatureControlData,
+    ThermalProfileData,
+    ThermalProfileSeasonData,
     bytes_to_signed_int,
     fix_signed_temperature,
     fix_signed_temperatures_in_dict,
@@ -335,3 +339,226 @@ class TestUtilityFunctions:
 
         # Non-temperature fields should be unchanged
         assert result["fanSpeed"] == 2
+
+
+class TestSeasonData:
+    """Tests for SeasonData Pydantic model."""
+
+    def test_create_season_data(self):
+        """Test creating a valid SeasonData."""
+        data = SeasonData(
+            status=1,
+            season=1,
+            heating_threshold_temperature=14.0,
+            cooling_threshold_temperature=17.0,
+        )
+
+        assert data.status == 1
+        assert data.season == 1
+        assert data.heating_threshold_temperature == 14.0
+        assert data.cooling_threshold_temperature == 17.0
+
+    def test_season_data_field_aliases(self):
+        """Test that field aliases work with camelCase API responses."""
+        data = SeasonData(
+            status=1,
+            season=2,
+            heatingThresholdTemperature=12.0,
+            coolingThresholdTemperature=18.0,
+        )
+
+        assert data.heating_threshold_temperature == 12.0
+        assert data.cooling_threshold_temperature == 18.0
+
+    def test_season_data_invalid_status(self):
+        """Test that invalid status raises ValidationError."""
+        with pytest.raises(ValidationError):
+            SeasonData(status=-1)
+
+        with pytest.raises(ValidationError):
+            SeasonData(status=2)  # Max is 1
+
+    def test_season_data_invalid_season(self):
+        """Test that invalid season raises ValidationError."""
+        with pytest.raises(ValidationError):
+            SeasonData(season=-1)
+
+        with pytest.raises(ValidationError):
+            SeasonData(season=3)  # Max is 2
+
+    def test_season_data_immutable(self):
+        """Test that SeasonData is immutable (frozen)."""
+        data = SeasonData(status=1, season=1)
+
+        with pytest.raises(ValidationError):
+            data.status = 0
+
+
+class TestTemperatureControlData:
+    """Tests for TemperatureControlData Pydantic model."""
+
+    def test_create_temperature_control_data(self):
+        """Test creating a valid TemperatureControlData."""
+        data = TemperatureControlData(status=0, manual_temperature=22.0)
+
+        assert data.status == 0
+        assert data.manual_temperature == 22.0
+
+    def test_temperature_control_field_aliases(self):
+        """Test that field aliases work with camelCase API responses."""
+        data = TemperatureControlData(status=1, manualTemperature=23.5)
+
+        assert data.manual_temperature == 23.5
+
+    def test_temperature_control_immutable(self):
+        """Test that TemperatureControlData is immutable (frozen)."""
+        data = TemperatureControlData(status=1)
+
+        with pytest.raises(ValidationError):
+            data.status = 0
+
+
+class TestThermalProfileSeasonData:
+    """Tests for ThermalProfileSeasonData Pydantic model."""
+
+    def test_create_thermal_profile_season_data(self):
+        """Test creating valid ThermalProfileSeasonData for heating."""
+        data = ThermalProfileSeasonData(
+            comfort_temperature=21.5,
+            knee_point_temperature=12.5,
+            reduction_delta_temperature=1.5,
+        )
+
+        assert data.comfort_temperature == 21.5
+        assert data.knee_point_temperature == 12.5
+        assert data.reduction_delta_temperature == 1.5
+        assert data.temperature_limit is None  # Not used in heating
+
+    def test_create_thermal_profile_season_data_cooling(self):
+        """Test creating valid ThermalProfileSeasonData for cooling."""
+        data = ThermalProfileSeasonData(
+            comfort_temperature=24.0,
+            knee_point_temperature=18.0,
+            temperature_limit=26.0,
+        )
+
+        assert data.comfort_temperature == 24.0
+        assert data.knee_point_temperature == 18.0
+        assert data.temperature_limit == 26.0
+        assert data.reduction_delta_temperature is None  # Not used in cooling
+
+    def test_thermal_profile_season_data_field_aliases(self):
+        """Test that field aliases work with camelCase API responses."""
+        data = ThermalProfileSeasonData(
+            comfortTemperature=22.0,
+            kneePointTemperature=13.0,
+            reductionDeltaTemperature=2.0,
+        )
+
+        assert data.comfort_temperature == 22.0
+        assert data.knee_point_temperature == 13.0
+        assert data.reduction_delta_temperature == 2.0
+
+    def test_thermal_profile_season_data_immutable(self):
+        """Test that ThermalProfileSeasonData is immutable (frozen)."""
+        data = ThermalProfileSeasonData(comfort_temperature=22.0)
+
+        with pytest.raises(ValidationError):
+            data.comfort_temperature = 23.0
+
+
+class TestThermalProfileData:
+    """Tests for ThermalProfileData Pydantic model."""
+
+    def test_create_thermal_profile_data(self):
+        """Test creating a valid ThermalProfileData."""
+        season = SeasonData(status=1, season=1)
+        temperature = TemperatureControlData(status=1)
+        heating_data = ThermalProfileSeasonData(
+            comfort_temperature=21.5,
+            knee_point_temperature=12.5,
+            reduction_delta_temperature=1.5,
+        )
+
+        data = ThermalProfileData(
+            season=season,
+            temperature=temperature,
+            temperature_profile=0,
+            heating_thermal_profile_season_data=heating_data,
+        )
+
+        assert data.season == season
+        assert data.temperature == temperature
+        assert data.temperature_profile == 0
+        assert data.heating_thermal_profile_season_data == heating_data
+
+    def test_thermal_profile_data_from_api_response(self):
+        """Test creating ThermalProfileData from API-like dict."""
+        api_response = {
+            "season": {"status": 1, "season": 2, "heatingThresholdTemperature": 14.0, "coolingThresholdTemperature": 17.0},
+            "temperature": {"status": 1, "manualTemperature": 26.0},
+            "temperatureProfile": 0,
+            "heatingThermalProfileSeasonData": {
+                "comfortTemperature": 21.5,
+                "kneePointTemperature": 12.5,
+                "reductionDeltaTemperature": 1.5,
+            },
+            "coolingThermalProfileSeasonData": {
+                "comfortTemperature": 24.0,
+                "kneePointTemperature": 18.0,
+                "temperatureLimit": 26.0,
+            },
+        }
+
+        data = ThermalProfileData(**api_response)
+
+        assert data.season.status == 1
+        assert data.season.season == 2
+        assert data.temperature.status == 1
+        assert data.temperature_profile == 0
+        assert data.heating_thermal_profile_season_data.comfort_temperature == 21.5
+        assert data.cooling_thermal_profile_season_data.comfort_temperature == 24.0
+
+    def test_thermal_profile_helper_properties(self):
+        """Test helper properties for season detection."""
+        # Test heating season
+        data_heating = ThermalProfileData(season=SeasonData(season=1))
+        assert data_heating.is_heating_season is True
+        assert data_heating.is_cooling_season is False
+
+        # Test cooling season
+        data_cooling = ThermalProfileData(season=SeasonData(season=2))
+        assert data_cooling.is_heating_season is False
+        assert data_cooling.is_cooling_season is True
+
+        # Test automatic season
+        data_auto = ThermalProfileData(season=SeasonData(status=1))
+        assert data_auto.is_automatic_season is True
+
+        # Test manual season
+        data_manual = ThermalProfileData(season=SeasonData(status=0))
+        assert data_manual.is_automatic_season is False
+
+        # Test automatic temperature
+        data_auto_temp = ThermalProfileData(temperature=TemperatureControlData(status=1))
+        assert data_auto_temp.is_automatic_temperature is True
+
+        # Test manual temperature
+        data_manual_temp = ThermalProfileData(temperature=TemperatureControlData(status=0))
+        assert data_manual_temp.is_automatic_temperature is False
+
+    def test_thermal_profile_data_mutable(self):
+        """Test that ThermalProfileData is mutable (not frozen)."""
+        data = ThermalProfileData(temperature_profile=0)
+
+        # Should be able to update values
+        data.temperature_profile = 1
+        assert data.temperature_profile == 1
+
+    def test_thermal_profile_data_invalid_temperature_profile(self):
+        """Test that invalid temperature_profile raises ValidationError."""
+        with pytest.raises(ValidationError):
+            ThermalProfileData(temperature_profile=-1)
+
+        with pytest.raises(ValidationError):
+            ThermalProfileData(temperature_profile=3)  # Max is 2
