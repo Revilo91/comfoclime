@@ -382,7 +382,7 @@ class TestComfoClimeAPIRateLimiting:
 
     def test_rate_limit_constants(self):
         """Test that rate limiting constants are defined."""
-        from custom_components.comfoclime.rate_limiter_cache import (
+        from custom_components.comfoclime.infrastructure import (
             DEFAULT_MIN_REQUEST_INTERVAL,
             DEFAULT_REQUEST_DEBOUNCE,
             DEFAULT_WRITE_COOLDOWN,

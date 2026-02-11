@@ -1,6 +1,6 @@
 """Tests for the AccessTracker module."""
 
-from custom_components.comfoclime.access_tracker import AccessTracker
+from custom_components.comfoclime.infrastructure import AccessTracker
 
 
 class TestAccessTracker:

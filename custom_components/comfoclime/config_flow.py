@@ -50,7 +50,7 @@ from .entity_helper import (
     get_switches,
     get_thermalprofile_sensors,
 )
-from .validators import validate_host
+from .infrastructure import validate_host
 
 _LOGGER = logging.getLogger(__name__)
 

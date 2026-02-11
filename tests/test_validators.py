@@ -1,6 +1,6 @@
 """Tests for validators module."""
 
-from custom_components.comfoclime.validators import (
+from custom_components.comfoclime.infrastructure import (
     validate_byte_value,
     validate_duration,
     validate_host,

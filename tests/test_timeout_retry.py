@@ -256,7 +256,7 @@ class TestCancelledErrorPropagation:
     @pytest.mark.asyncio
     async def test_rate_limiter_propagates_cancelled_error(self):
         """Test that CancelledError from asyncio.sleep in rate limiter is propagated."""
-        from custom_components.comfoclime.rate_limiter_cache import RateLimiterCache
+        from custom_components.comfoclime.infrastructure import RateLimiterCache
 
         rate_limiter = RateLimiterCache(
             min_request_interval=1.0,  # Set a long interval to force sleep
@@ -284,7 +284,7 @@ class TestCancelledErrorPropagation:
     @pytest.mark.asyncio
     async def test_yield_to_writes_propagates_cancelled_error(self):
         """Test that CancelledError from asyncio.sleep in yield_to_writes is propagated."""
-        from custom_components.comfoclime.rate_limiter_cache import RateLimiterCache
+        from custom_components.comfoclime.infrastructure import RateLimiterCache
 
         rate_limiter = RateLimiterCache()
 

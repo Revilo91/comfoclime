@@ -18,5 +18,9 @@ htmlcov/
 # Home Assistant development files
 .devcontainer/ha-config/
 
+# Development/debug files
+custom_components/*/test.py
+test.py
+
 # uv
 uv.lock

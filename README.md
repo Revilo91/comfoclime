@@ -57,9 +57,9 @@ API documentation with practical Python examples:
 
 ### Additional Documentation
 
-- **[SCENARIO_MODES.md](SCENARIO_MODES.md)** - Scenario modes documentation (cooking, party, away, boost)
-- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues and solutions
-- **[PYDANTIC_MIGRATION.md](PYDANTIC_MIGRATION.md)** - Pydantic v2 migration guide
+* **[SCENARIO_MODES.md](SCENARIO_MODES.md)** - Scenario modes documentation (cooking, party, away, boost)
+* **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues and solutions
+* **[Pydantic Migration Guide](docs/migration/PYDANTIC_MIGRATION.md)** - Pydantic v2 migration documentation
 
 Feel free to extend!
 

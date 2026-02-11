@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from custom_components.comfoclime.api_decorators import (
+from custom_components.comfoclime.infrastructure import (
     api_get,
     api_put,
 )

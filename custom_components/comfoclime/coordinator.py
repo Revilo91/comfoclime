@@ -40,8 +40,8 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
-    from .access_tracker import AccessTracker
     from .comfoclime_api import ComfoClimeAPI
+    from .infrastructure import AccessTracker
 
 from .constants import API_DEFAULTS
 from .models import DashboardData

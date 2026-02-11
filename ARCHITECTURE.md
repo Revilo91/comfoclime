@@ -888,7 +888,7 @@ handle_set_property_service (call)
 - **README.md** - Projekt-Übersicht, Installation, Konfiguration
 - **ComfoClimeAPI.md** - Detaillierte API-Dokumentation mit Beispielen
 - **SCENARIO_MODES.md** - Dokumentation der Szenario-Modi
-- **PYDANTIC_MIGRATION.md** - Migration zu Pydantic v2
+- **docs/migration/PYDANTIC_MIGRATION.md** - Migration zu Pydantic v2 (historisch)
 - **TROUBLESHOOTING.md** - Fehlerbehebung und häufige Probleme
 
 ### Home Assistant Dokumentation
