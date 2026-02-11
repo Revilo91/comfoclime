@@ -49,6 +49,7 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from pydantic import BaseModel
 
 from . import DOMAIN
 from .coordinator import (
@@ -69,7 +70,15 @@ from .entities.sensor_definitions import (
     TELEMETRY_SENSORS,
     THERMALPROFILE_SENSORS,
 )
-from .entity_helper import is_entity_category_enabled, is_entity_enabled
+from .entity_helper import (
+    get_device_display_name,
+    get_device_model_type,
+    get_device_model_type_id,
+    get_device_uuid,
+    get_device_version,
+    is_entity_category_enabled,
+    is_entity_enabled,
+)
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -213,7 +222,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
     # Feste Telemetrie-Sensoren für das ComfoClime-Gerät (from TELEMETRY_SENSORS)
     for sensor_def in TELEMETRY_SENSORS:
-        device_uuid = api.uuid or (main_device.get("uuid") if main_device else None)
+        device_uuid = api.uuid or get_device_uuid(main_device)
         if device_uuid:
             await tlcoordinator.register_telemetry(
                 device_uuid=device_uuid,
@@ -248,8 +257,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         devices = []
 
     for device in devices:
-        model_id = device.get("modelTypeId")
-        dev_uuid = device.get("uuid")
+        model_id = get_device_model_type_id(device)
+        dev_uuid = get_device_uuid(device)
         if dev_uuid == "NULL":
             continue
 
@@ -448,26 +457,8 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
             self._attr_translation_key = translation_key
         self._attr_has_entity_name = True
 
-    @staticmethod
-    def _camel_to_snake(name: str) -> str:
-        """Convert camelCase to snake_case for Pydantic field access.
-        
-        Args:
-            name: camelCase field name
-            
-        Returns:
-            snake_case field name
-            
-        Example:
-            >>> ComfoClimeSensor._camel_to_snake("indoorTemperature")
-            "indoor_temperature"
-        """
-        import re
-        # Insert underscore before uppercase letters and convert to lowercase
-        return re.sub(r'(?<!^)(?=[A-Z])', '_', name).lower()
-
     @property
-    def state(self):
+    def native_value(self):
         return self._state
 
     @property
@@ -481,11 +472,11 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
             return None
 
         return DeviceInfo(
-            identifiers={(DOMAIN, self._device["uuid"])},
-            name=self._device.get("displayName", "ComfoClime"),
+            identifiers={(DOMAIN, get_device_uuid(self._device))},
+            name=get_device_display_name(self._device),
             manufacturer="Zehnder",
-            model=self._device.get("@modelType"),
-            sw_version=self._device.get("version", None),
+            model=get_device_model_type(self._device),
+            sw_version=get_device_version(self._device),
         )
 
     def _handle_coordinator_update(self) -> None:
@@ -616,11 +607,11 @@ class ComfoClimeTelemetrySensor(CoordinatorEntity, SensorEntity):
             return None
 
         return DeviceInfo(
-            identifiers={(DOMAIN, self._device["uuid"])},
-            name=self._device.get("displayName", "ComfoClime Device"),
+            identifiers={(DOMAIN, get_device_uuid(self._device))},
+            name=get_device_display_name(self._device, "ComfoClime Device"),
             manufacturer="Zehnder",
-            model=self._device.get("@modelType"),
-            sw_version=self._device.get("version", None),
+            model=get_device_model_type(self._device),
+            sw_version=get_device_version(self._device),
         )
 
     @callback
@@ -690,11 +681,11 @@ class ComfoClimePropertySensor(CoordinatorEntity, SensorEntity):
         if not self._device:
             return None
         return DeviceInfo(
-            identifiers={(DOMAIN, self._device["uuid"])},
-            name=self._device.get("displayName", "ComfoClime"),
+            identifiers={(DOMAIN, get_device_uuid(self._device))},
+            name=get_device_display_name(self._device),
             manufacturer="Zehnder",
-            model=self._device.get("@modelType"),
-            sw_version=self._device.get("version"),
+            model=get_device_model_type(self._device),
+            sw_version=get_device_version(self._device),
         )
 
     @callback
@@ -759,11 +750,11 @@ class ComfoClimeDefinitionSensor(CoordinatorEntity, SensorEntity):
         if not self._device:
             return None
         return DeviceInfo(
-            identifiers={(DOMAIN, self._device["uuid"])},
-            name=self._device.get("displayName", "ComfoClime"),
+            identifiers={(DOMAIN, get_device_uuid(self._device))},
+            name=get_device_display_name(self._device),
             manufacturer="Zehnder",
-            model=self._device.get("@modelType"),
-            sw_version=self._device.get("version"),
+            model=get_device_model_type(self._device),
+            sw_version=get_device_version(self._device),
         )
 
     @callback
@@ -855,11 +846,11 @@ class ComfoClimeAccessTrackingSensor(SensorEntity):
             return None
 
         return DeviceInfo(
-            identifiers={(DOMAIN, self._device["uuid"])},
-            name=self._device.get("displayName", "ComfoClime"),
+            identifiers={(DOMAIN, get_device_uuid(self._device))},
+            name=get_device_display_name(self._device),
             manufacturer="Zehnder",
-            model=self._device.get("@modelType"),
-            sw_version=self._device.get("version", None),
+            model=get_device_model_type(self._device),
+            sw_version=get_device_version(self._device),
         )
 
     @property

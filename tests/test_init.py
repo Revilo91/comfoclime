@@ -186,9 +186,10 @@ async def test_async_setup_entry_with_float_max_retries(
                                 assert api_kwargs["request_debounce"] == 0.3
 
                                 # Verify polling_interval was passed as int to coordinators
-                                db_coord_kwargs = mock_db_coord.call_args[1]
-                                assert isinstance(db_coord_kwargs["polling_interval"], int)
-                                assert db_coord_kwargs["polling_interval"] == 60
+                                # polling_interval is passed as positional argument (args[2])
+                                db_coord_args = mock_db_coord.call_args[0]
+                                assert isinstance(db_coord_args[2], int)
+                                assert db_coord_args[2] == 60
 
 
 @pytest.mark.asyncio

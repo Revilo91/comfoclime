@@ -36,6 +36,7 @@ from homeassistant.components.fan import FanEntity, FanEntityFeature
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from pydantic import BaseModel
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -47,6 +48,12 @@ if TYPE_CHECKING:
 
 from . import DOMAIN
 from .constants import FanSpeed
+from .entity_helper import (
+    get_device_display_name,
+    get_device_model_type,
+    get_device_uuid,
+    get_device_version,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -107,11 +114,11 @@ class ComfoClimeFan(CoordinatorEntity, FanEntity):
     @property
     def device_info(self) -> DeviceInfo:
         return DeviceInfo(
-            identifiers={(DOMAIN, self._device["uuid"])},
-            name=self._device.get("displayName", "ComfoClime"),
+            identifiers={(DOMAIN, get_device_uuid(self._device))},
+            name=get_device_display_name(self._device),
             manufacturer="Zehnder",
-            model=self._device.get("@modelType"),
-            sw_version=self._device.get("version"),
+            model=get_device_model_type(self._device),
+            sw_version=get_device_version(self._device),
         )
 
     @property
@@ -163,17 +170,8 @@ class ComfoClimeFan(CoordinatorEntity, FanEntity):
     def _handle_coordinator_update(self) -> None:
         try:
             data = self.coordinator.data
-            # Handle both Pydantic models and dicts
-            if isinstance(data, BaseModel):
-                # Pydantic model - access attribute directly
-                speed = data.fan_speed
-            elif isinstance(data, dict):
-                # Dictionary - use get method
-                speed = data.get("fanSpeed", 0)
-            else:
-                speed = 0
-            
-            speed_int = int(speed) if speed is not None else 0
+            speed = data.get("fanSpeed", 0)
+            speed_int = int(speed)
             if speed_int in FanSpeed._value2member_map_:
                 self._current_speed = FanSpeed(speed_int)
             else:

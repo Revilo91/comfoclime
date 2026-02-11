@@ -12,10 +12,18 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from pydantic import BaseModel
 
 from . import DOMAIN
 from .entities.switch_definitions import SWITCHES
-from .entity_helper import is_entity_category_enabled, is_entity_enabled
+from .entity_helper import (
+    get_device_display_name,
+    get_device_model_type,
+    get_device_uuid,
+    get_device_version,
+    is_entity_category_enabled,
+    is_entity_enabled,
+)
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -123,19 +131,6 @@ class ComfoClimeSwitch(CoordinatorEntity, SwitchEntity):
         # Parse key path for nested access
         self._key_path = key.split(".")
 
-    @staticmethod
-    def _camel_to_snake(name: str) -> str:
-        """Convert camelCase to snake_case for Pydantic field access.
-        
-        Args:
-            name: camelCase field name
-            
-        Returns:
-            snake_case field name
-        """
-        import re
-        return re.sub(r'(?<!^)(?=[A-Z])', '_', name).lower()
-
     @property
     def is_on(self):
         return self._state
@@ -146,11 +141,11 @@ class ComfoClimeSwitch(CoordinatorEntity, SwitchEntity):
             return None
 
         return DeviceInfo(
-            identifiers={(DOMAIN, self._device["uuid"])},
-            name=self._device.get("displayName", "ComfoClime"),
+            identifiers={(DOMAIN, get_device_uuid(self._device))},
+            name=get_device_display_name(self._device),
             manufacturer="Zehnder",
-            model=self._device.get("@modelType"),
-            sw_version=self._device.get("version", None),
+            model=get_device_model_type(self._device),
+            sw_version=get_device_version(self._device),
         )
 
     def _handle_coordinator_update(self) -> None:

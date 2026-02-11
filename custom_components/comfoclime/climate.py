@@ -53,6 +53,7 @@ from homeassistant.components.climate import (
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from pydantic import BaseModel
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -67,6 +68,12 @@ if TYPE_CHECKING:
 
 from . import DOMAIN
 from .constants import FanSpeed, ScenarioMode, Season, TemperatureProfile
+from .entity_helper import (
+    get_device_display_name,
+    get_device_model_type,
+    get_device_uuid,
+    get_device_version,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -281,11 +288,11 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
     def device_info(self) -> DeviceInfo:
         """Return device information."""
         return {
-            "identifiers": {(DOMAIN, self._device["uuid"])},
-            "name": self._device.get("displayName", "ComfoClime"),
+            "identifiers": {(DOMAIN, get_device_uuid(self._device))},
+            "name": get_device_display_name(self._device),
             "manufacturer": "Zehnder",
-            "model": self._device.get("@modelType", "ComfoClime"),
-            "sw_version": self._device.get("version"),
+            "model": get_device_model_type(self._device) or "ComfoClime",
+            "sw_version": get_device_version(self._device),
         }
 
     @property
@@ -304,7 +311,7 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
         """
         tp = self._thermalprofile_coordinator.data or {}
         temp = (tp.get("temperature") or {}).get("manualTemperature")
-        if isinstance(temp, int | float):
+        if isinstance(temp, (int, float)):
             return temp
         return None
 
@@ -774,16 +781,7 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
                 attrs["dashboard"] = self.coordinator.data
 
             # Add scenario time left as a separate attribute for easier access
-            # Use Pydantic attribute access instead of dict methods
-            if isinstance(self.coordinator.data, BaseModel):
-                # Pydantic model - access attribute directly
-                scenario_time_left = self.coordinator.data.scenario_time_left
-            elif isinstance(self.coordinator.data, dict):
-                # Dictionary - use get method
-                scenario_time_left = self.coordinator.data.get("scenarioTimeLeft")
-            else:
-                scenario_time_left = None
-            
+            scenario_time_left = self.coordinator.data.get("scenarioTimeLeft")
             if scenario_time_left is not None:
                 attrs["scenario_time_left"] = scenario_time_left
                 # Convert to human-readable format
@@ -799,7 +797,7 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
         # For transparency: expose last_manual_temperature from thermal profile if available
         tp = getattr(self._thermalprofile_coordinator, "data", None) or {}
         manual_temp = (tp.get("temperature") or {}).get("manualTemperature")
-        if isinstance(manual_temp, int | float):
+        if isinstance(manual_temp, (int, float)):
             attrs["last_manual_temperature"] = manual_temp
 
         return attrs

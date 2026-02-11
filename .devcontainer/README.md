@@ -161,10 +161,11 @@ python3 -m homeassistant -c .devcontainer/ha-config
 
 Beim ersten Start des Containers wird automatisch das `setup.sh` Script ausgeführt:
 
-1. **Home Assistant Installation**: Installiert Home Assistant Core
-2. **Symbolischer Link**: Verlinkt `/workspaces/comfoclime/custom_components/comfoclime` nach `/config/custom_components/comfoclime`
-3. **Konfigurationsdateien**: Kopiert die Test-Konfiguration nach `/config/`
-4. **Fertig**: Home Assistant startet automatisch und lädt die ComfoClime Integration
+1. **uv Installation**: Installiert uv als Paketmanager falls nicht vorhanden
+2. **Dependency Sync**: Installiert alle Abhängigkeiten über `uv sync`
+3. **Symbolischer Link**: Verlinkt `/workspaces/comfoclime/custom_components/comfoclime` nach `/config/custom_components/comfoclime`
+4. **Konfigurationsdateien**: Kopiert die Test-Konfiguration nach `/config/`
+5. **Fertig**: Home Assistant startet automatisch und lädt die ComfoClime Integration
 
 Das bedeutet: Alle Änderungen am Code im Workspace werden sofort in Home Assistant sichtbar (nach einem Neustart).
 

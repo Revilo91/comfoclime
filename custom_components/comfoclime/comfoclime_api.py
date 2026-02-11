@@ -40,8 +40,6 @@ if TYPE_CHECKING:
 from .api_decorators import api_get, api_put
 from .constants import API_DEFAULTS
 from .models import (
-    DashboardData,
-    DashboardUpdate,
     DeviceConfig,
     MonitoringPing,
     PropertyReading,
@@ -263,14 +261,14 @@ class ComfoClimeAPI:
             response_data: JSON response from /system/{uuid}/dashboard endpoint
 
         Returns:
-            Dictionary containing:
-                - indoorTemperature (float): Current indoor temperature in °C
-                - outdoorTemperature (float): Current outdoor temperature in °C
-                - setPointTemperature (float): Target temperature in °C
-                - fanSpeed (int): Current fan speed level (0-3)
+            DashboardData: Pydantic model containing:
+                - indoor_temperature (float): Current indoor temperature in °C
+                - outdoor_temperature (float): Current outdoor temperature in °C
+                - set_point_temperature (float): Target temperature in °C
+                - fan_speed (int): Current fan speed level (0-3)
                 - season (int): Season mode (0=transition, 1=heating, 2=cooling)
-                - hpStandby (bool): Heat pump standby state
-                - temperatureProfile (int): Active temperature profile (0-2)
+                - hp_standby (bool): Heat pump standby state
+                - temperature_profile (int): Active temperature profile (0-2)
                 - status (int): Control mode (0=manual, 1=automatic)
 
         Raises:
@@ -279,15 +277,14 @@ class ComfoClimeAPI:
 
         Example:
             >>> data = await api.async_get_dashboard_data()
-            >>> if data.is_heating_mode:
-            ...     print(f"Heating mode: {data.indoor_temperature}°C")
+            >>> if data['season'] == 1:
+            ...     print(f"Heating mode: {data['indoorTemperature']}°C")
 
         Note:
             The @api_get decorator handles request locking, rate limiting,
             UUID retrieval, session management, and temperature value fixing.
         """
-        # Parse the raw dict into a validated DashboardData model
-        return DashboardData(**response_data)
+        return response_data
 
     @api_get(
         "/system/{uuid}/devices",
@@ -329,10 +326,10 @@ class ComfoClimeAPI:
         for device_dict in response_data:
             try:
                 # Map API field names to model field names
-                # API uses @modelType, we need model_type_id
+                # API uses modelTypeId for the numeric ID, @modelType for the name
                 device_config = DeviceConfig(
                     uuid=device_dict.get("uuid", ""),
-                    model_type_id=int(device_dict.get("@modelType", 0)),
+                    model_type_id=int(device_dict.get("modelTypeId", 0)),
                     display_name=device_dict.get("displayName", "Unknown Device"),
                     version=device_dict.get("version"),
                 )
@@ -514,7 +511,7 @@ class ComfoClimeAPI:
         cached_value = self._rate_limiter.get_property_from_cache(cache_key)
         if cached_value is not None:
             # Cache stores the final value, reconstruct approximation
-            estimated_raw = int(cached_value / faktor) if faktor != 0 and isinstance(cached_value, int | float) else 0
+            estimated_raw = int(cached_value / faktor) if faktor != 0 and isinstance(cached_value, (int, float)) else 0
             return PropertyReading(
                 device_uuid=device_uuid,
                 path=property_path,

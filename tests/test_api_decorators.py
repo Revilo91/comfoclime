@@ -180,14 +180,13 @@ async def test_api_get_with_response_key():
 @pytest.mark.asyncio
 async def test_api_get_with_fix_temperatures():
     """Test api_get decorator with fix_temperatures=True."""
-    mock_response = {"temperature": 22.5}
+    mock_response = {"indoorTemperature": 6553.1}  # Unsigned representation of -0.5°C
 
     @api_get("/test/endpoint", fix_temperatures=True)
     async def test_method(self, response_data):
         return response_data
 
     api = MockAPI()
-    api.fix_signed_temperatures_in_dict = MagicMock(return_value={"temperature": 23.0})
 
     # Mock session and response
     mock_session = MagicMock()
@@ -201,9 +200,8 @@ async def test_api_get_with_fix_temperatures():
 
     result = await test_method(api)
 
-    # Should have called fix_signed_temperatures_in_dict
-    api.fix_signed_temperatures_in_dict.assert_called_once_with(mock_response)
-    assert result == {"temperature": 23.0}
+    # Temperature should be fixed (6553.1 -> -0.5)
+    assert result["indoorTemperature"] == -0.5
 
 
 @pytest.mark.asyncio

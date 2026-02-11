@@ -120,8 +120,8 @@ class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
             result = await self.api.async_get_dashboard_data()
             if self._access_tracker:
                 self._access_tracker.record_access("Dashboard")
-            # API already returns a validated DashboardData model
-            return result
+            # Parse the raw dict into a validated DashboardData model
+            return DashboardData(**result)
         except (TimeoutError, aiohttp.ClientError) as e:
             _LOGGER.warning("Error fetching dashboard data: %s", e)
             raise UpdateFailed(f"Error fetching dashboard data: {e}") from e
@@ -676,8 +676,13 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
         result: dict[str, dict] = {}
 
         for device in self.devices:
-            device_uuid = device.get("uuid")
-            model_type_id = device.get("modelTypeId")
+            # Support both Pydantic models (DeviceConfig) and dicts
+            if hasattr(device, "uuid"):
+                device_uuid = device.uuid
+                model_type_id = device.model_type_id
+            else:
+                device_uuid = device.get("uuid")
+                model_type_id = device.get("modelTypeId")
 
             # Only fetch definition for ComfoAirQ devices (modelTypeId = 1)
             # ComfoClime devices don't provide much useful info

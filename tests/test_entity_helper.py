@@ -5,11 +5,50 @@ from custom_components.comfoclime.entity_helper import (
     get_all_entity_categories,
     get_default_enabled_entities,
     get_default_enabled_individual_entities,
+    get_device_model_type_id,
+    get_device_uuid,
     get_entity_selection_options,
     get_individual_entity_options,
     is_entity_category_enabled,
     is_entity_enabled,
 )
+from custom_components.comfoclime.models import DeviceConfig
+
+
+def test_get_device_uuid_from_dict():
+    """Test get_device_uuid with a dictionary."""
+    device = {"uuid": "test-uuid-123", "modelTypeId": 1}
+    assert get_device_uuid(device) == "test-uuid-123"
+
+
+def test_get_device_uuid_from_pydantic_model():
+    """Test get_device_uuid with a Pydantic DeviceConfig model."""
+    device = DeviceConfig(uuid="pydantic-uuid-456", model_type_id=20, display_name="Test Device")
+    assert get_device_uuid(device) == "pydantic-uuid-456"
+
+
+def test_get_device_uuid_with_none():
+    """Test get_device_uuid returns None for invalid input."""
+    assert get_device_uuid(None) is None
+    assert get_device_uuid({}) is None
+
+
+def test_get_device_model_type_id_from_dict():
+    """Test get_device_model_type_id with a dictionary."""
+    device = {"uuid": "test-uuid", "modelTypeId": 20}
+    assert get_device_model_type_id(device) == 20
+
+
+def test_get_device_model_type_id_from_pydantic_model():
+    """Test get_device_model_type_id with a Pydantic DeviceConfig model."""
+    device = DeviceConfig(uuid="test-uuid", model_type_id=1, display_name="ComfoAirQ")
+    assert get_device_model_type_id(device) == 1
+
+
+def test_get_device_model_type_id_with_none():
+    """Test get_device_model_type_id returns None for invalid input."""
+    assert get_device_model_type_id(None) is None
+    assert get_device_model_type_id({}) is None
 
 
 def test_get_all_entity_categories():

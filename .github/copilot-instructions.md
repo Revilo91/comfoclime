@@ -43,6 +43,64 @@ Kurze, präzise Hinweise für KI-Coding-Agenten, damit sie sofort produktiv an d
 - Entitäten registrieren sich automatisch beim TelemetryCoordinator/PropertyCoordinator für den Batch-Abruf.
 - Keine manuelle Konfiguration erforderlich – `sensor.py` instanziiert Sensoren automatisch basierend auf erkannten Geräten.
 
+## Korrekte byte_count und Datentypen (WICHTIG!)
+
+Die `byte_count`-Werte in Entity-Definitionen **müssen** exakt mit der API-Dokumentation übereinstimmen. Falsche `byte_count`-Werte führen zu fehlerhaften Sensorwerten!
+
+- **Upstream-Referenz für ComfoClime (modelTypeId=20) Telemetrie**: [ComfoClimeAPI.md](https://github.com/msfuture/comfoclime_api/blob/main/ComfoClimeAPI.md) → Abschnitt „ComfoClime Sensors"
+- **Upstream-Referenz für ComfoAir (modelTypeId=1) Telemetrie**: [PROTOCOL-PDO.md](https://github.com/michaelarnauts/aiocomfoconnect/blob/master/docs/PROTOCOL-PDO.md)
+- **Upstream-Referenz für Properties**: [ComfoClimeAPI.md](https://github.com/msfuture/comfoclime_api/blob/main/ComfoClimeAPI.md) → Abschnitt „Properties of subunits"
+
+### Regeln für byte_count:
+- `UINT8` / `CN_UINT8` / `CN_INT8` / `CN_BOOL` → `byte_count=1`
+- `UINT16` / `CN_UINT16` / `CN_INT16` → `byte_count=2`
+- `UINT32` / `CN_UINT32` → `byte_count=4`
+- Temperaturen mit Faktor 0.1 sind fast immer `INT16` (2 Bytes, `signed=True`)
+- Prozent-Werte (Fan Duty, Bypass, Humidity) sind fast immer `UINT8` (1 Byte)
+- Fan Speed (rpm), Power (W), Energy (kWh) sind fast immer `UINT16` (2 Bytes)
+
+### Bekannte ComfoClime (modelTypeId=20) Telemetrie-IDs:
+| ID | byte_count | signed | faktor | Beschreibung |
+|----|-----------|--------|--------|-------------|
+| 4145 | 2 | ✅ | 0.1 | TPMA Temperatur |
+| 4149 | 1 | ❌ | 1.0 | Betriebsmodus (0=Aus, 1=Heizen, 2=Kühlen) |
+| 4151 | 2 | ✅ | 0.1 | Aktuelle Komforttemperatur |
+| 4154 | 2 | ✅ | 0.1 | Innentemperatur |
+| 4193 | 2 | ✅ | 0.1 | Zulufttemperatur |
+| 4194 | 2 | ✅ | 0.1 | Fortlufttemperatur |
+| 4195 | 2 | ✅ | 0.1 | Zuluft Gastemperatur |
+| 4196 | 2 | ✅ | 0.1 | Abluft Gastemperatur |
+| 4197 | 2 | ✅ | 0.1 | Kompressor Temperatur |
+| 4198 | 1 | ❌ | 1.0 | Wärmepumpe Leistungsfaktor (%) |
+| 4201 | 2 | ❌ | 1.0 | Aktuelle Leistung (W) |
+| 4202 | 2 | ❌ | 1.0 | Hochdruck / Warmseite (kPa) |
+| 4203 | 2 | ❌ | 1.0 | Expansionsventil (%) |
+| 4205 | 2 | ❌ | 1.0 | Niederdruck / Kaltseite (kPa) |
+| 4207 | 2 | ❌ | 1.0 | 4-Wege-Ventil Position |
+
+### Bekannte ComfoAir (modelTypeId=1) Telemetrie-IDs:
+| ID | byte_count | signed | faktor | Beschreibung |
+|----|-----------|--------|--------|-------------|
+| 117 | 1 | ❌ | 1.0 | Abluft Lüfter Ansteuerung (%) |
+| 118 | 1 | ❌ | 1.0 | Zuluft Lüfter Ansteuerung (%) |
+| 121 | 2 | ❌ | 1.0 | Abluft Lüfter Drehzahl (rpm) |
+| 122 | 2 | ❌ | 1.0 | Zuluft Lüfter Drehzahl (rpm) |
+| 128 | 2 | ❌ | 1.0 | Lüftung Leistungsaufnahme (W) |
+| 129 | 2 | ❌ | 1.0 | Lüftung Energie Jahr (kWh) |
+| 130 | 2 | ❌ | 1.0 | Lüftung Energie gesamt (kWh) |
+| 209 | 2 | ✅ | 0.1 | Mittlere Außentemperatur RMOT (°C) |
+| 227 | 1 | ❌ | 1.0 | Bypass Zustand (%) |
+| 275 | 2 | ✅ | 0.1 | Fortluft Temperatur (°C) |
+| 278 | 2 | ✅ | 0.1 | Zuluft Temperatur (°C) |
+| 290 | 1 | ❌ | 1.0 | Abluft Feuchtigkeit (%) |
+| 291 | 1 | ❌ | 1.0 | Fortluft Feuchtigkeit (%) |
+| 292 | 1 | ❌ | 1.0 | Außenluft Feuchtigkeit (%) |
+| 294 | 1 | ❌ | 1.0 | Zuluft Feuchtigkeit (%) |
+
+### Tests:
+- `tests/test_sensor_definitions.py` enthält umfassende Tests für korrekte `byte_count`, `signed` und `faktor` Werte
+- Bei **jeder** Änderung an Entity-Definitionen: Tests in `test_sensor_definitions.py` prüfen und erweitern
+
 ## Dienste
 
 - `comfoclime.set_property` – Geräteeigenschaften festlegen. Erforderlich: `device_id`, `path` (X/Y/Z), `value`, `byte_count` (1 oder 2). Optional: `signed`, `faktor`.

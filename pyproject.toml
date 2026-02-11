@@ -4,9 +4,21 @@ version = "1.0.0"
 description = "ComfoClime Home Assistant Integration"
 requires-python = ">=3.14"
 
+[dependency-groups]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "pytest-homeassistant-custom-component>=0.13.0",
+    "homeassistant>=2025.12.5",
+    "pydantic>=2.0.0",
+    "ruff>=0.8.0",
+    "pre-commit>=4.0.0",
+]
+
 [tool.ruff]
-# Zielversion für Python
-target-version = "py314"
+# Zielversion für Python (py313 ist max. von Ruff unterstützt, Python 3.14 wird trotzdem verwendet)
+target-version = "py313"
 
 # Maximale Zeilenlänge
 line-length = 120
@@ -45,6 +57,7 @@ ignore = [
     "B008",   # Function calls in argument defaults (für FastAPI/Pydantic)
     "ARG001", # Unused function argument (manchmal nötig für Callbacks)
     "ARG002", # Unused method argument
+    "UP038",  # isinstance(x, (int, float)) ist Python 3.12 kompatibel
 ]
 
 # Automatisch behebbare Regeln

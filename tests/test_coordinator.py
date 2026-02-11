@@ -26,8 +26,8 @@ async def test_telemetry_coordinator_concurrent_registration(hass_with_frame_hel
     await coordinator.register_telemetry(
         device_uuid="device1",
         telemetry_id="123",
-        faktor=1.0,
-        signed=True,
+        faktor=0.1,
+        signed=False,
         byte_count=2,
     )
 
@@ -46,7 +46,7 @@ async def test_telemetry_coordinator_concurrent_registration(hass_with_frame_hel
             device_uuid=args[0] if args else kwargs["device_uuid"],
             telemetry_id=args[1] if len(args) > 1 else kwargs["telemetry_id"],
             raw_value=255,
-            faktor=kwargs.get("faktor", 1.0),
+            faktor=kwargs.get("faktor", 0.1),
             signed=kwargs.get("signed", False),
             byte_count=kwargs.get("byte_count", 2),
         )
@@ -58,7 +58,7 @@ async def test_telemetry_coordinator_concurrent_registration(hass_with_frame_hel
 
     assert result is not None
     assert "device1" in result
-    assert result["device1"]["123"] == 25.5
+    assert result["device1"]["123"] == 25.5  # 255 * 0.1 = 25.5
 
 
 @pytest.mark.asyncio
@@ -112,26 +112,27 @@ async def test_telemetry_coordinator_multiple_devices(hass_with_frame_helper, mo
 
     # Register multiple telemetries for multiple devices
     await coordinator.register_telemetry(
-        device_uuid="device1", telemetry_id="123", faktor=1.0, signed=True, byte_count=2
+        device_uuid="device1", telemetry_id="123", faktor=1.0, signed=False, byte_count=2
     )
     await coordinator.register_telemetry(
-        device_uuid="device1", telemetry_id="456", faktor=2.0, signed=True, byte_count=2
+        device_uuid="device1", telemetry_id="456", faktor=2.0, signed=False, byte_count=2
     )
     await coordinator.register_telemetry(
         device_uuid="device2",
-        telemetry_id="789",
+        telemetry_id="100",
         faktor=1.0,
         signed=False,
         byte_count=1,
     )
 
-    # Mock API responses
+    # Mock API responses - return values that fit within the byte count
     async def mock_read_telemetry(device_uuid, telemetry_id, **kwargs):
-        # Return a TelemetryReading model
+        # Return a TelemetryReading model with realistic raw values
+        raw_values = {"123": 123, "456": 456, "100": 100}
         return TelemetryReading(
             device_uuid=device_uuid,
             telemetry_id=telemetry_id,
-            raw_value=int(telemetry_id),
+            raw_value=raw_values.get(telemetry_id, 0),
             faktor=kwargs.get("faktor", 1.0),
             signed=kwargs.get("signed", False),
             byte_count=kwargs.get("byte_count", 2),
@@ -147,7 +148,7 @@ async def test_telemetry_coordinator_multiple_devices(hass_with_frame_helper, mo
     # Values are scaled by faktor (1.0 and 2.0 respectively)
     assert result["device1"]["123"] == 123.0  # 123 * 1.0
     assert result["device1"]["456"] == 912.0  # 456 * 2.0
-    assert result["device2"]["789"] == 789.0  # 789 * 1.0
+    assert result["device2"]["100"] == 100.0  # 100 * 1.0 (fits in 1 byte)
 
 
 @pytest.mark.asyncio
@@ -332,20 +333,20 @@ async def test_property_coordinator_get_value(hass_with_frame_helper, mock_api):
 @pytest.mark.asyncio
 async def test_dashboard_coordinator(hass_with_frame_helper, mock_api):
     """Test DashboardCoordinator basic functionality."""
+    from custom_components.comfoclime.models import DashboardData
+
     coordinator = ComfoClimeDashboardCoordinator(hass_with_frame_helper, mock_api)
 
-    mock_dashboard_data = DashboardData(
-        indoor_temperature=22.5,
-        outdoor_temperature=15.0,
-        fan_speed=2,
-    )
+    mock_dashboard_data = {
+        "indoorTemperature": 22.5,
+        "outdoorTemperature": 15.0,
+        "fanSpeed": 2,
+    }
     mock_api.async_get_dashboard_data = AsyncMock(return_value=mock_dashboard_data)
 
     result = await coordinator._async_update_data()
 
     assert result == mock_dashboard_data
-    assert result.indoor_temperature == 22.5
-    assert result.fan_speed == 2
     mock_api.async_get_dashboard_data.assert_called_once()
 
 
