@@ -6,6 +6,8 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
+from pydantic import BaseModel
+
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -128,20 +130,6 @@ class ComfoClimeSwitch(CoordinatorEntity, SwitchEntity):
 
         # Parse key path for nested access
         self._key_path = key.split(".")
-
-    @staticmethod
-    def _camel_to_snake(name: str) -> str:
-        """Convert camelCase to snake_case for Pydantic field access.
-
-        Args:
-            name: camelCase field name
-
-        Returns:
-            snake_case field name
-        """
-        import re
-
-        return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
 
     @property
     def is_on(self):
