@@ -16,7 +16,9 @@ from custom_components.comfoclime.models import (
     DeviceDefinitionData,
     MonitoringPing,
     PropertyReading,
+    SeasonData,
     TelemetryReading,
+    TemperatureControlData,
     ThermalProfileData,
 )
 
@@ -110,11 +112,19 @@ class MockComfoClimeAPI:
         self._record_call("async_get_thermal_profile")
         return ThermalProfileData(**self.responses.thermal_profile)
 
-    async def async_update_dashboard(self, update: DashboardUpdate) -> dict:
-        """Mock async_update_dashboard accepting DashboardUpdate object."""
-        # Convert to dict for call recording
-        update_dict = update.model_dump(exclude_none=True)
+    async def _async_update_dashboard(self, update: Any = None, **kwargs: Any):
+        """Internal method called via AsyncMock side_effect."""
+        # If called with DashboardUpdate object as first positional argument
+        if update is not None and hasattr(update, "model_dump"):
+            update_dict = update.model_dump(exclude_none=True)
+        else:
+            # If called with kwargs only, construct DashboardUpdate
+            from custom_components.comfoclime.models import DashboardUpdate
+            update_obj = DashboardUpdate(**kwargs)
+            update_dict = update_obj.model_dump(exclude_none=True)
+
         self._record_call("async_update_dashboard", **update_dict)
+
         # Simulate updating the state (map hp_standby back to hpStandby for internal state)
         for key, value in update_dict.items():
             if key == "hp_standby":
@@ -132,7 +142,8 @@ class MockComfoClimeAPI:
             else:
                 self.responses.thermal_profile[key] = value
 
-    async def async_set_hvac_season(self, season: int, hpStandby: bool) -> None:
+    async def _async_set_hvac_season(self, season: int, hpStandby: bool) -> None:
+        """Internal method called via AsyncMock side_effect."""
         self._record_call("async_set_hvac_season", season=season, hpStandby=hpStandby)
         self.responses.dashboard_data["season"] = season
         self.responses.dashboard_data["hpStandby"] = hpStandby
@@ -317,13 +328,14 @@ def mock_thermalprofile_coordinator():
     """Create a mock thermal profile coordinator."""
     coordinator = MagicMock()
     coordinator.data = ThermalProfileData(
-        temperature={
-            "status": 0,
-            "manualTemperature": 22.0,
-        },
-        season={
-            "status": 0,
-        },
+        temperature=TemperatureControlData(
+            status=0,
+            manual_temperature=22.0,
+        ),
+        season=SeasonData(
+            status=0,
+            season=0,
+        ),
         temperature_profile=0,
     )
     coordinator.async_request_refresh = AsyncMock()

@@ -308,10 +308,9 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
         Uses manualTemperature from thermal profile as the display value.
         This represents the last set temperature.
         """
-        tp = self._thermalprofile_coordinator.data or {}
-        temp = (tp.get("temperature") or {}).get("manualTemperature")
-        if isinstance(temp, (int, float)):
-            return temp
+        tp = self._thermalprofile_coordinator.data
+        if tp:
+            return tp.temperature.manual_temperature
         return None
 
     @property
@@ -796,7 +795,7 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
                 attrs["dashboard"] = self.coordinator.data
 
             # Add scenario time left as a separate attribute for easier access
-            scenario_time_left = self.coordinator.data.get("scenarioTimeLeft")
+            scenario_time_left = self.coordinator.data.scenario_time_left
             if scenario_time_left is not None:
                 attrs["scenario_time_left"] = scenario_time_left
                 # Convert to human-readable format
@@ -810,10 +809,11 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
                     attrs["scenario_time_left_formatted"] = f"{int(seconds)}s"
 
         # For transparency: expose last_manual_temperature from thermal profile if available
-        tp = getattr(self._thermalprofile_coordinator, "data", None) or {}
-        manual_temp = (tp.get("temperature") or {}).get("manualTemperature")
-        if isinstance(manual_temp, (int, float)):
-            attrs["last_manual_temperature"] = manual_temp
+        tp = getattr(self._thermalprofile_coordinator, "data", None)
+        if tp:
+            manual_temp = tp.temperature.manual_temperature
+            if isinstance(manual_temp, (int, float)):
+                attrs["last_manual_temperature"] = manual_temp
 
         return attrs
 

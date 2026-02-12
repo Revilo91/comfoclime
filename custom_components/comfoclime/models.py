@@ -7,6 +7,7 @@ byte conversion and temperature value processing.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
@@ -459,6 +460,18 @@ class MonitoringPing(BaseModel):
                     v["up_time_seconds"] = v.get("uptime")
                 elif "upTimeSeconds" in v:
                     v["up_time_seconds"] = v.get("upTimeSeconds")
+
+            # Convert ISO timestamp string to Unix timestamp integer
+            if "timestamp" in v and isinstance(v["timestamp"], str):
+                try:
+                    # Parse ISO format and convert to Unix timestamp
+                    # Handle both with and without milliseconds, and with 'Z' suffix
+                    timestamp_str = v["timestamp"].replace(".0Z", "Z").replace("Z", "+00:00")
+                    dt = datetime.fromisoformat(timestamp_str)
+                    v["timestamp"] = int(dt.timestamp())
+                except (ValueError, AttributeError):
+                    # Remove invalid timestamp to avoid validation error
+                    v.pop("timestamp", None)
         return v
 
 

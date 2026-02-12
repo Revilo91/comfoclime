@@ -255,9 +255,11 @@ class TestComfoClimeClimate:
 
         # Should call async_update_dashboard with temperature and status
         mock_api.async_update_dashboard.assert_called_once()
-        call_kwargs = mock_api.async_update_dashboard.call_args[1]
-        assert call_kwargs["set_point_temperature"] == 23.5
-        assert call_kwargs["status"] == 0  # Manual mode
+        # Get the DashboardUpdate object passed as first positional argument
+        call_args = mock_api.async_update_dashboard.call_args[0]
+        update = call_args[0]
+        assert update.set_point_temperature == 23.5
+        assert update.status == 0  # Manual mode
 
     @pytest.mark.asyncio
     async def test_climate_set_hvac_mode_heat(
@@ -315,7 +317,10 @@ class TestComfoClimeClimate:
         await climate.async_set_hvac_mode(HVACMode.OFF)
 
         # Should call async_update_dashboard with hpStandby=True
-        mock_api.async_update_dashboard.assert_called_once_with(hpStandby=True)
+        mock_api.async_update_dashboard.assert_called_once()
+        call_args = mock_api.async_update_dashboard.call_args[0]
+        update = call_args[0]
+        assert update.hp_standby is True
 
     @pytest.mark.asyncio
     async def test_climate_set_preset_mode_comfort(
@@ -344,10 +349,11 @@ class TestComfoClimeClimate:
 
         # Should call async_update_dashboard with profiles and status
         mock_api.async_update_dashboard.assert_called_once()
-        call_kwargs = mock_api.async_update_dashboard.call_args[1]
-        assert call_kwargs["temperature_profile"] == 0
-        assert call_kwargs["season_profile"] == 0
-        assert call_kwargs["status"] == 1  # Automatic mode
+        call_args = mock_api.async_update_dashboard.call_args[0]
+        update = call_args[0]
+        assert update.temperature_profile == 0
+        assert update.season_profile == 0
+        assert update.status == 1  # Automatic mode
 
     @pytest.mark.asyncio
     async def test_climate_set_preset_mode_manual(
@@ -376,8 +382,9 @@ class TestComfoClimeClimate:
 
         # Should call async_update_dashboard with status=0
         mock_api.async_update_dashboard.assert_called_once()
-        call_kwargs = mock_api.async_update_dashboard.call_args[1]
-        assert call_kwargs["status"] == 0  # Manual mode
+        call_args = mock_api.async_update_dashboard.call_args[0]
+        update = call_args[0]
+        assert update.status == 0  # Manual mode
 
     @pytest.mark.asyncio
     async def test_climate_set_fan_mode(
@@ -406,8 +413,9 @@ class TestComfoClimeClimate:
 
         # Should call async_update_dashboard with fan_speed=3
         mock_api.async_update_dashboard.assert_called_once()
-        call_kwargs = mock_api.async_update_dashboard.call_args[1]
-        assert call_kwargs["fan_speed"] == 3
+        call_args = mock_api.async_update_dashboard.call_args[0]
+        update = call_args[0]
+        assert update.fan_speed == 3
 
     @pytest.mark.asyncio
     async def test_climate_turn_off(
@@ -436,7 +444,10 @@ class TestComfoClimeClimate:
         await climate.async_turn_off()
 
         # Should call async_update_dashboard with hpStandby=True
-        mock_api.async_update_dashboard.assert_called_once_with(hpStandby=True)
+        mock_api.async_update_dashboard.assert_called_once()
+        call_args = mock_api.async_update_dashboard.call_args[0]
+        update = call_args[0]
+        assert update.hp_standby is True
 
     @pytest.mark.asyncio
     async def test_climate_turn_on_with_heating_season(
@@ -465,7 +476,10 @@ class TestComfoClimeClimate:
         await climate.async_turn_on()
 
         # Should call async_update_dashboard with hpStandby=False only
-        mock_api.async_update_dashboard.assert_called_once_with(hpStandby=False)
+        mock_api.async_update_dashboard.assert_called_once()
+        call_args = mock_api.async_update_dashboard.call_args[0]
+        update = call_args[0]
+        assert update.hp_standby is False
 
     @pytest.mark.asyncio
     async def test_climate_turn_on_with_cooling_season(
@@ -500,7 +514,10 @@ class TestComfoClimeClimate:
         await climate.async_turn_on()
 
         # Should call async_update_dashboard with hpStandby=False only, season unchanged
-        mock_api.async_update_dashboard.assert_called_once_with(hpStandby=False)
+        mock_api.async_update_dashboard.assert_called_once()
+        call_args = mock_api.async_update_dashboard.call_args[0]
+        update = call_args[0]
+        assert update.hp_standby is False
 
     @pytest.mark.asyncio
     async def test_climate_turn_on_with_transition_season(
@@ -535,7 +552,10 @@ class TestComfoClimeClimate:
         await climate.async_turn_on()
 
         # Should call async_update_dashboard with hpStandby=False only, season unchanged
-        mock_api.async_update_dashboard.assert_called_once_with(hpStandby=False)
+        mock_api.async_update_dashboard.assert_called_once()
+        call_args = mock_api.async_update_dashboard.call_args[0]
+        update = call_args[0]
+        assert update.hp_standby is False
 
     def test_climate_device_info(
         self,
@@ -601,9 +621,9 @@ class TestComfoClimeClimate:
 
         # Verify API was called with correct scenario mode
         assert mock_api.async_update_dashboard.called
-        call_kwargs = mock_api.async_update_dashboard.call_args[1]
-        assert "scenario" in call_kwargs
-        assert call_kwargs["scenario"] == expected_scenario_id
+        call_args = mock_api.async_update_dashboard.call_args[0]
+        update = call_args[0]
+        assert update.scenario == expected_scenario_id
 
 
 @pytest.mark.asyncio
