@@ -44,7 +44,7 @@ if TYPE_CHECKING:
     from .infrastructure import AccessTracker
 
 from .constants import API_DEFAULTS
-from .models import DashboardData
+from .models import DashboardData, DeviceDefinitionData, MonitoringPing, ThermalProfileData
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -120,8 +120,7 @@ class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
             result = await self.api.async_get_dashboard_data()
             if self._access_tracker:
                 self._access_tracker.record_access("Dashboard")
-            # Parse the raw dict into a validated DashboardData model
-            return DashboardData(**result)
+            return result
         except (TimeoutError, aiohttp.ClientError) as e:
             _LOGGER.warning("Error fetching dashboard data: %s", e)
             raise UpdateFailed(f"Error fetching dashboard data: {e}") from e
@@ -169,7 +168,7 @@ class ComfoClimeMonitoringCoordinator(DataUpdateCoordinator):
         self.api = api
         self._access_tracker = access_tracker
 
-    async def _async_update_data(self) -> dict[str, Any]:
+    async def _async_update_data(self) -> MonitoringPing:
         """Fetch monitoring data from the API.
 
         Returns:
@@ -235,7 +234,7 @@ class ComfoClimeThermalprofileCoordinator(DataUpdateCoordinator):
         self.api = api
         self._access_tracker = access_tracker
 
-    async def _async_update_data(self) -> dict[str, Any]:
+    async def _async_update_data(self) -> ThermalProfileData:
         """Fetch thermal profile data from the API.
 
         Returns:
@@ -363,7 +362,7 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
             }
             _LOGGER.debug("Registered telemetry %s for device %s", telemetry_id, device_uuid)
 
-    async def _async_update_data(self) -> dict[str, dict[str, Any]]:
+    async def _async_update_data(self) -> dict[str, DeviceDefinitionData]:
         """Fetch all registered telemetry data in a batched manner.
 
         Iterates through all registered telemetry sensors and fetches
@@ -673,7 +672,7 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
             Dictionary mapping device_uuid to definition data.
             Values are None if read failed or device skipped.
         """
-        result: dict[str, dict] = {}
+        result: dict[str, DeviceDefinitionData] = {}
 
         for device in self.devices:
             # Support both Pydantic models (DeviceConfig) and dicts
@@ -707,7 +706,7 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
 
         return result
 
-    def get_definition_data(self, device_uuid: str) -> dict | None:
+    def get_definition_data(self, device_uuid: str) -> DeviceDefinitionData | None:
         """Get cached definition data for a device.
 
         Retrieves definition data that was fetched during the last

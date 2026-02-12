@@ -55,14 +55,14 @@ async def test_uuid_no_deadlock_on_connected_devices():
         # This should complete without deadlock
         # Set a timeout to catch if there's a deadlock
         try:
-            devices = await asyncio.wait_for(
+            devices_response = await asyncio.wait_for(
                 api.async_get_connected_devices(),
                 timeout=5.0,  # 5 seconds should be plenty
             )
 
             # Verify we got the expected result
-            assert len(devices) == 1
-            assert devices[0].uuid == "device-1"
+            assert len(devices_response.devices) == 1
+            assert devices_response.devices[0].uuid == "device-1"
             assert api.uuid == "test-uuid-123"
 
         except TimeoutError:

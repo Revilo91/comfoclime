@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from custom_components.comfoclime.comfoclime_api import ComfoClimeAPI
-from custom_components.comfoclime.models import DashboardData
+from custom_components.comfoclime.models import DashboardData, DeviceDefinitionData
 
 
 class TestComfoClimeAPI:
@@ -121,10 +121,10 @@ class TestComfoClimeAPI:
         mock_session.get = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
 
         with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
-            devices = await api.async_get_connected_devices()
+            devices_response = await api.async_get_connected_devices()
 
-        assert len(devices) == 2
-        assert devices[0].uuid == "device-1"
+        assert len(devices_response.devices) == 2
+        assert devices_response.devices[0].uuid == "device-1"
 
     @pytest.mark.asyncio
     async def test_async_get_connected_devices_with_realistic_data(self):
@@ -179,28 +179,28 @@ class TestComfoClimeAPI:
         mock_session.get = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
 
         with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
-            devices = await api.async_get_connected_devices()
+            devices_response = await api.async_get_connected_devices()
 
         # All three devices should be successfully parsed
-        assert len(devices) == 3
+        assert len(devices_response.devices) == 3
 
         # Verify the first device (ComfoAirQ 350)
-        assert devices[0].uuid == "SIT14276877"
-        assert devices[0].model_type_id == 1
-        assert devices[0].display_name == "ComfoAirQ 350"
-        assert devices[0].version is None
+        assert devices_response.devices[0].uuid == "SIT14276877"
+        assert devices_response.devices[0].model_type_id == 1
+        assert devices_response.devices[0].display_name == "ComfoAirQ 350"
+        assert devices_response.devices[0].version is None
 
         # Verify the second device (ComfoClime 24)
-        assert devices[1].uuid == "MBE083a8d0146e1"
-        assert devices[1].model_type_id == 20
-        assert devices[1].display_name == "ComfoClime 24"
-        assert devices[1].version == "R1.5.5"
+        assert devices_response.devices[1].uuid == "MBE083a8d0146e1"
+        assert devices_response.devices[1].model_type_id == 20
+        assert devices_response.devices[1].display_name == "ComfoClime 24"
+        assert devices_response.devices[1].version == "R1.5.5"
 
         # Verify the third device (ComfoConnectLANC)
-        assert devices[2].uuid == "DEM0121153000"
-        assert devices[2].model_type_id == 5
-        assert devices[2].display_name == "ComfoConnectLANC"
-        assert devices[2].version is None
+        assert devices_response.devices[2].uuid == "DEM0121153000"
+        assert devices_response.devices[2].model_type_id == 5
+        assert devices_response.devices[2].display_name == "ComfoConnectLANC"
+        assert devices_response.devices[2].version is None
 
     @pytest.mark.asyncio
     async def test_async_get_device_definition(self):
@@ -224,8 +224,9 @@ class TestComfoClimeAPI:
         with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
             definition = await api.async_get_device_definition("SIT14276877")
 
-        assert definition["deviceType"] == "ComfoAirQ"
-        assert definition["modelTypeId"] == 1
+        assert isinstance(definition, DeviceDefinitionData)
+        assert definition.model_dump()["deviceType"] == "ComfoAirQ"
+        assert definition.model_dump()["modelTypeId"] == 1
 
     @pytest.mark.asyncio
     async def test_async_read_telemetry_1_byte_unsigned(self):
@@ -359,6 +360,8 @@ class TestComfoClimeAPIWriteOperations:
     @pytest.mark.asyncio
     async def test_async_update_dashboard(self):
         """Test async updating dashboard."""
+        from custom_components.comfoclime.models import DashboardUpdate
+
         api = ComfoClimeAPI("http://192.168.1.100")
         api.uuid = "test-uuid"
         api.hass = MagicMock()
@@ -372,7 +375,8 @@ class TestComfoClimeAPIWriteOperations:
         mock_session.put = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
 
         with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
-            result = await api.async_update_dashboard(fan_speed=3)
+            update = DashboardUpdate(fan_speed=3)
+            result = await api.async_update_dashboard(update)
 
         assert result == {"status": "ok"}
 
@@ -433,7 +437,10 @@ class TestComfoClimeAPIRateLimiting:
         mock_session.put = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
 
         with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
-            await api.async_update_dashboard(fan_speed=2)
+            from custom_components.comfoclime.models import DashboardUpdate
+
+            update = DashboardUpdate(fan_speed=2)
+            await api.async_update_dashboard(update)
 
         # After write, last_write_time should be updated
         assert api._rate_limiter._last_write_time > 0.0
@@ -565,8 +572,8 @@ class TestComfoClimeAPIDashboardSignedTemperatures:
             data = await api.async_get_dashboard_data()
 
         # Temperature values should be fixed
-        assert data["indoorTemperature"] == 22.5  # Positive stays same
-        assert data["outdoorTemperature"] == -0.5  # Converted from unsigned
+        assert data.indoor_temperature == 22.5  # Positive stays same
+        assert data.outdoor_temperature == -0.5  # Converted from unsigned
         # Non-temperature values should be unchanged
         assert data.fan_speed == 2
         assert data.season == 1
@@ -703,10 +710,10 @@ class TestComfoClimeAPIThermalProfileSignedTemperatures:
             data = await api.async_get_thermal_profile()
 
         # Temperature values should be fixed
-        assert data["season"]["heatingThresholdTemperature"] == 14.0
-        assert data["season"]["coolingThresholdTemperature"] == -0.5  # Fixed from unsigned
-        assert data["temperature"]["manualTemperature"] == 22.0
-        assert data["heatingThermalProfileSeasonData"]["comfortTemperature"] == 21.5
+        assert data.season.heating_threshold_temperature == 14.0
+        assert data.season.cooling_threshold_temperature == -0.5  # Fixed from unsigned
+        assert data.temperature.manual_temperature == 22.0
+        assert data.heating_thermal_profile_season_data.comfort_temperature == 21.5
         # Non-temperature values should be unchanged
-        assert data["season"]["status"] == 1
-        assert data["temperatureProfile"] == 0
+        assert data.season.status == 1
+        assert data.temperature_profile == 0

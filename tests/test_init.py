@@ -9,6 +9,7 @@ from custom_components.comfoclime import (
     async_setup_entry,
     async_unload_entry,
 )
+from custom_components.comfoclime.models import ConnectedDevicesResponse, DeviceConfig
 
 
 @pytest.mark.asyncio
@@ -48,7 +49,18 @@ async def test_async_setup_entry(
                             ) as mock_def_coord:
                                 # Setup mocks
                                 mock_api_instance = MagicMock()
-                                mock_api_instance.async_get_connected_devices = AsyncMock(return_value=[mock_device])
+                                mock_api_instance.async_get_connected_devices = AsyncMock(
+                                    return_value=ConnectedDevicesResponse(
+                                        devices=[
+                                            DeviceConfig(
+                                                uuid=mock_device["uuid"],
+                                                model_type_id=mock_device["modelTypeId"],
+                                                display_name=mock_device["displayName"],
+                                                version=mock_device["version"],
+                                            )
+                                        ]
+                                    )
+                                )
                                 mock_api_class.return_value = mock_api_instance
 
                                 mock_db_coord_instance = MagicMock()
@@ -135,7 +147,18 @@ async def test_async_setup_entry_with_float_max_retries(
                             ) as mock_def_coord:
                                 # Setup mocks
                                 mock_api_instance = MagicMock()
-                                mock_api_instance.async_get_connected_devices = AsyncMock(return_value=[mock_device])
+                                mock_api_instance.async_get_connected_devices = AsyncMock(
+                                    return_value=ConnectedDevicesResponse(
+                                        devices=[
+                                            DeviceConfig(
+                                                uuid=mock_device["uuid"],
+                                                model_type_id=mock_device["modelTypeId"],
+                                                display_name=mock_device["displayName"],
+                                                version=mock_device["version"],
+                                            )
+                                        ]
+                                    )
+                                )
                                 mock_api_class.return_value = mock_api_instance
 
                                 mock_db_coord_instance = MagicMock()

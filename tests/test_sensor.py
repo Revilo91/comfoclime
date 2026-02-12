@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from custom_components.comfoclime.models import DashboardData
+from custom_components.comfoclime.models import DashboardData, DeviceDefinitionData, MonitoringPing
 from custom_components.comfoclime.sensor import (
     ComfoClimeDefinitionSensor,
     ComfoClimePropertySensor,
@@ -336,7 +336,11 @@ async def test_async_setup_entry(
 
     # Create a mock monitoring coordinator
     mock_monitoring_coordinator = MagicMock()
-    mock_monitoring_coordinator.data = {"uptime": 123456, "uuid": "test-uuid"}
+    mock_monitoring_coordinator.data = MonitoringPing(
+        uuid="test-uuid",
+        up_time_seconds=123456,
+        timestamp=1705314600,
+    )
 
     # Create a mock access tracker
     mock_access_tracker = MagicMock()
@@ -424,9 +428,9 @@ class TestComfoClimeDefinitionSensor:
     ):
         """Test definition sensor update with missing key in definition data."""
         # Create a mock that returns definition data without the requested key
-        mock_definition_coordinator.get_definition_data.return_value = {
-            "outdoorTemperature": 1.1,
-        }
+        mock_definition_coordinator.get_definition_data.return_value = DeviceDefinitionData(
+            outdoorTemperature=1.1,
+        )
 
         sensor = ComfoClimeDefinitionSensor(
             hass=mock_hass,

@@ -7,9 +7,10 @@ byte conversion and temperature value processing.
 
 from __future__ import annotations
 
-from typing import Literal
+from datetime import datetime
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 # Utility functions for byte and temperature value processing
@@ -159,6 +160,30 @@ class DeviceConfig(BaseModel):
     model_type_id: int = Field(..., ge=0, description="Model type identifier (numeric)")
     display_name: str = Field(default="Unknown Device", description="Human-readable device name")
     version: str | None = Field(default=None, description="Optional firmware version")
+
+
+class ConnectedDevicesResponse(BaseModel):
+    """Response model for /system/{uuid}/devices."""
+
+    model_config = {"frozen": True}
+
+    devices: list[DeviceConfig] = Field(default_factory=list, description="Connected devices")
+
+
+class DeviceDefinitionData(BaseModel):
+    """Device definition payload from /device/{device_uuid}/definition.
+
+    The response shape varies by device model. Known temperature fields are
+    modeled explicitly and all other fields are preserved via extra=allow.
+    """
+
+    model_config = {"populate_by_name": True, "extra": "allow"}
+
+    indoor_temperature: float | None = Field(default=None, alias="indoorTemperature")
+    outdoor_temperature: float | None = Field(default=None, alias="outdoorTemperature")
+    extract_temperature: float | None = Field(default=None, alias="extractTemperature")
+    supply_temperature: float | None = Field(default=None, alias="supplyTemperature")
+    exhaust_temperature: float | None = Field(default=None, alias="exhaustTemperature")
 
 
 class TelemetryReading(BaseModel):
@@ -410,3 +435,309 @@ class DashboardData(BaseModel):
     def is_auto_mode(self) -> bool:
         """Check if system is in automatic temperature control mode."""
         return self.status == 1
+
+
+class MonitoringPing(BaseModel):
+    """Monitoring ping response from device.
+
+    Normalizes common uptime field names returned by different firmware
+    variants and exposes a consistent `up_time_seconds` attribute.
+    """
+
+    model_config = {"frozen": True, "extra": "allow", "populate_by_name": True}
+
+    uuid: str | None = Field(default=None, description="Device UUID")
+    up_time_seconds: int | None = Field(default=None, description="Device uptime in seconds")
+    timestamp: int | None = Field(default=None, description="Timestamp from device")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_uptime(cls, v):
+        # Accept multiple possible uptime field names and normalize to up_time_seconds
+        if isinstance(v, dict):
+            if "up_time_seconds" not in v:
+                if "uptime" in v:
+                    v["up_time_seconds"] = v.get("uptime")
+                elif "upTimeSeconds" in v:
+                    v["up_time_seconds"] = v.get("upTimeSeconds")
+
+            # Convert ISO timestamp string to Unix timestamp integer
+            if "timestamp" in v and isinstance(v["timestamp"], str):
+                try:
+                    # Parse ISO format and convert to Unix timestamp
+                    # Handle both with and without milliseconds, and with 'Z' suffix
+                    timestamp_str = v["timestamp"].replace(".0Z", "Z").replace("Z", "+00:00")
+                    dt = datetime.fromisoformat(timestamp_str)
+                    v["timestamp"] = int(dt.timestamp())
+                except (ValueError, AttributeError):
+                    # Remove invalid timestamp to avoid validation error
+                    v.pop("timestamp", None)
+        return v
+
+
+class PropertyWriteRequest(BaseModel):
+    """Request to write a device property."""
+
+    model_config = {"frozen": True}
+
+    device_uuid: str = Field(..., min_length=1)
+    path: str = Field(..., min_length=1)
+    value: float
+    byte_count: Literal[1, 2, 4] = Field(default=2)
+    signed: bool = Field(default=True)
+    faktor: float = Field(default=1.0, gt=0)
+
+
+class SeasonData(BaseModel):
+    """Season configuration within thermal profile."""
+
+    model_config = {"frozen": True, "populate_by_name": True}
+
+    status: int = Field(default=1, ge=0, le=1, description="Mode (0=Manual, 1=Auto)")
+    season: int = Field(default=0, ge=0, le=2, description="Season (0=Transition, 1=Heating, 2=Cooling)")
+    heating_threshold_temperature: float = Field(
+        default=14.0,
+        alias="heatingThresholdTemperature",
+        description="Heating threshold temperature",
+    )
+    cooling_threshold_temperature: float = Field(
+        default=17.0,
+        alias="coolingThresholdTemperature",
+        description="Cooling threshold temperature",
+    )
+
+
+class TemperatureControlData(BaseModel):
+    """Temperature control settings."""
+
+    model_config = {"frozen": True, "populate_by_name": True}
+
+    status: int = Field(default=1, ge=0, le=1, description="Mode (0=Manual, 1=Auto)")
+    manual_temperature: float = Field(
+        default=21.0,
+        alias="manualTemperature",
+        description="Manual setpoint temperature",
+    )
+
+
+class ThermalProfileSeasonData(BaseModel):
+    """Season-specific parameters (heating or cooling)."""
+
+    model_config = {"frozen": True, "populate_by_name": True}
+
+    comfort_temperature: float = Field(default=21.0, alias="comfortTemperature")
+    knee_point_temperature: float = Field(default=12.0, alias="kneePointTemperature")
+    reduction_delta_temperature: float | None = Field(default=None, alias="reductionDeltaTemperature")
+    temperature_limit: float | None = Field(default=None, alias="temperatureLimit")
+
+
+class ThermalProfileData(BaseModel):
+    """Full thermal profile from device."""
+
+    model_config = {"validate_assignment": True, "populate_by_name": True}
+
+    season: SeasonData = Field(default_factory=lambda: SeasonData(status=1, season=0))
+    temperature: TemperatureControlData = Field(default_factory=TemperatureControlData)
+    temperature_profile: int = Field(default=0, ge=0, le=2, alias="temperatureProfile")
+    heating_thermal_profile_season_data: ThermalProfileSeasonData = Field(
+        default_factory=ThermalProfileSeasonData,
+        alias="heatingThermalProfileSeasonData",
+    )
+    cooling_thermal_profile_season_data: ThermalProfileSeasonData = Field(
+        default_factory=ThermalProfileSeasonData,
+        alias="coolingThermalProfileSeasonData",
+    )
+
+    @property
+    def is_heating_season(self) -> bool:
+        """Check if current active season is heating."""
+        return self.season.season == 1
+
+    @property
+    def is_cooling_season(self) -> bool:
+        """Check if current active season is cooling."""
+        return self.season.season == 2
+
+    @property
+    def is_automatic_season(self) -> bool:
+        """Check if season control is automatic."""
+        return self.season.status == 1
+
+    @property
+    def is_automatic_temperature(self) -> bool:
+        """Check if temperature control is automatic."""
+        return self.temperature.status == 1
+
+
+class ThermalProfileUpdate(BaseModel):
+    """Model for partial thermal profile updates."""
+
+    season_status: int | None = None
+    season_value: int | None = None
+    heating_threshold_temperature: float | None = None
+    cooling_threshold_temperature: float | None = None
+    temperature_status: int | None = None
+    manual_temperature: float | None = None
+    temperature_profile: int | None = None
+    heating_comfort_temperature: float | None = None
+    heating_knee_point_temperature: float | None = None
+    heating_reduction_delta_temperature: float | None = None
+    cooling_comfort_temperature: float | None = None
+    cooling_knee_point_temperature: float | None = None
+    cooling_temperature_limit: float | None = None
+
+    def to_api_payload(self) -> dict[str, Any]:
+        """Convert flat fields to nested API format."""
+        payload: dict[str, Any] = {}
+
+        # Season
+        if any(
+            v is not None
+            for v in [
+                self.season_status,
+                self.season_value,
+                self.heating_threshold_temperature,
+                self.cooling_threshold_temperature,
+            ]
+        ):
+            payload["season"] = {
+                k: v
+                for k, v in {
+                    "status": self.season_status,
+                    "season": self.season_value,
+                    "heatingThresholdTemperature": self.heating_threshold_temperature,
+                    "coolingThresholdTemperature": self.cooling_threshold_temperature,
+                }.items()
+                if v is not None
+            }
+
+        # Temperature
+        if any(v is not None for v in [self.temperature_status, self.manual_temperature]):
+            payload["temperature"] = {
+                k: v
+                for k, v in {
+                    "status": self.temperature_status,
+                    "manualTemperature": self.manual_temperature,
+                }.items()
+                if v is not None
+            }
+
+        # Profile
+        if self.temperature_profile is not None:
+            payload["temperatureProfile"] = self.temperature_profile
+
+        # Heating details
+        if any(
+            v is not None
+            for v in [
+                self.heating_comfort_temperature,
+                self.heating_knee_point_temperature,
+                self.heating_reduction_delta_temperature,
+            ]
+        ):
+            payload["heatingThermalProfileSeasonData"] = {
+                k: v
+                for k, v in {
+                    "comfortTemperature": self.heating_comfort_temperature,
+                    "kneePointTemperature": self.heating_knee_point_temperature,
+                    "reductionDeltaTemperature": self.heating_reduction_delta_temperature,
+                }.items()
+                if v is not None
+            }
+
+        # Cooling details
+        if any(
+            v is not None
+            for v in [
+                self.cooling_comfort_temperature,
+                self.cooling_knee_point_temperature,
+                self.cooling_temperature_limit,
+            ]
+        ):
+            payload["coolingThermalProfileSeasonData"] = {
+                k: v
+                for k, v in {
+                    "comfortTemperature": self.cooling_comfort_temperature,
+                    "kneePointTemperature": self.cooling_knee_point_temperature,
+                    "temperatureLimit": self.cooling_temperature_limit,
+                }.items()
+                if v is not None
+            }
+
+        return payload
+
+    @classmethod
+    def from_dict(cls, updates: dict[str, Any]) -> "ThermalProfileUpdate":
+        """Convert nested legacy dict to flat update model."""
+        flat_updates: dict[str, Any] = {}
+
+        if "season" in updates:
+            s = updates["season"]
+            if "status" in s:
+                flat_updates["season_status"] = s["status"]
+            if "season" in s:
+                flat_updates["season_value"] = s["season"]
+            if "heatingThresholdTemperature" in s:
+                flat_updates["heating_threshold_temperature"] = s["heatingThresholdTemperature"]
+            if "coolingThresholdTemperature" in s:
+                flat_updates["cooling_threshold_temperature"] = s["coolingThresholdTemperature"]
+
+        if "temperature" in updates:
+            t = updates["temperature"]
+            if "status" in t:
+                flat_updates["temperature_status"] = t["status"]
+            if "manualTemperature" in t:
+                flat_updates["manual_temperature"] = t["manualTemperature"]
+
+        if "temperatureProfile" in updates:
+            flat_updates["temperature_profile"] = updates["temperatureProfile"]
+
+        if "heatingThermalProfileSeasonData" in updates:
+            h = updates["heatingThermalProfileSeasonData"]
+            if "comfortTemperature" in h:
+                flat_updates["heating_comfort_temperature"] = h["comfortTemperature"]
+            if "kneePointTemperature" in h:
+                flat_updates["heating_knee_point_temperature"] = h["kneePointTemperature"]
+            if "reductionDeltaTemperature" in h:
+                flat_updates["heating_reduction_delta_temperature"] = h["reductionDeltaTemperature"]
+
+        if "coolingThermalProfileSeasonData" in updates:
+            c = updates["coolingThermalProfileSeasonData"]
+            if "comfortTemperature" in c:
+                flat_updates["cooling_comfort_temperature"] = c["comfortTemperature"]
+            if "kneePointTemperature" in c:
+                flat_updates["cooling_knee_point_temperature"] = c["kneePointTemperature"]
+            if "temperatureLimit" in c:
+                flat_updates["cooling_temperature_limit"] = c["temperatureLimit"]
+
+        return cls(**flat_updates)
+
+
+class DashboardUpdate(BaseModel):
+    """Model for partial dashboard updates."""
+
+    model_config = {"populate_by_name": True}
+
+    set_point_temperature: float | None = Field(default=None, alias="setPointTemperature")
+    fan_speed: int | None = Field(default=None, ge=0, le=3, alias="fanSpeed")
+    season: int | None = Field(default=None, ge=0, le=2)
+    hp_standby: bool | None = Field(default=None, alias="hpStandby")
+    schedule: int | None = None
+    temperature_profile: int | None = Field(default=None, ge=0, le=2, alias="temperatureProfile")
+    season_profile: int | None = Field(default=None, ge=0, le=2, alias="seasonProfile")
+    status: int | None = Field(default=None, ge=0, le=1)
+    scenario: int | None = None
+    scenario_time_left: int | None = Field(default=None, alias="scenarioTimeLeft")
+    scenario_start_delay: int | None = Field(default=None, alias="scenarioStartDelay")
+
+    def to_api_payload(self, include_timestamp: bool = False) -> dict[str, Any]:
+        """Convert flat fields to API payload.
+
+        Timestamp is usually added by the @api_put decorator.
+        """
+        payload = {
+            self.model_fields[field].alias or field: value
+            for field, value in self.model_dump(exclude_none=True).items()
+            if field != "timestamp" or include_timestamp
+        }
+        return payload

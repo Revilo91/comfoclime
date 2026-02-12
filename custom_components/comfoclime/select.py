@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
@@ -36,8 +37,15 @@ from .entity_helper import (
     is_entity_category_enabled,
     is_entity_enabled,
 )
+from .models import PropertyWriteRequest
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _camel_to_snake(name: str) -> str:
+    """Convert camelCase to snake_case."""
+    # Insert underscore before uppercase letters and convert to lowercase
+    return re.sub(r'(?<!^)(?=[A-Z])', '_', name).lower()
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
@@ -153,9 +161,15 @@ class ComfoClimeSelect(CoordinatorEntity, SelectEntity):
             data = self.coordinator.data
             val = data
             for k in self._key_path:
-                val = val.get(k)
+                # Try to get attribute with original key name first
+                try:
+                    val = getattr(val, k)
+                except AttributeError:
+                    # If that fails, try snake_case version
+                    snake_key = _camel_to_snake(k)
+                    val = getattr(val, snake_key)
             self._current = self._options_map.get(val)
-        except (KeyError, TypeError, ValueError):
+        except (AttributeError, TypeError, ValueError):
             _LOGGER.debug("Error loading select %s", self._name, exc_info=True)
         self.async_write_ha_state()
 
@@ -270,13 +284,14 @@ class ComfoClimePropertySelect(CoordinatorEntity, SelectEntity):
             return
 
         try:
-            await self._api.async_set_property_for_device(
+            request = PropertyWriteRequest(
                 device_uuid=get_device_uuid(self._device),
-                property_path=self._path,
+                path=self._path,
                 value=value,
                 byte_count=1,
                 faktor=1.0,
             )
+            await self._api.async_set_property_for_device(request=request)
             self._current = option
             # Trigger coordinator refresh to update all entities
             await self.coordinator.async_request_refresh()

@@ -8,6 +8,12 @@ from custom_components.comfoclime.entities.number_definitions import (
     NumberDefinition,
     PropertyNumberDefinition,
 )
+from custom_components.comfoclime.models import (
+    PropertyWriteRequest,
+    SeasonData,
+    TemperatureControlData,
+    ThermalProfileData,
+)
 from custom_components.comfoclime.number import (
     ComfoClimePropertyNumber,
     ComfoClimeTemperatureNumber,
@@ -70,7 +76,14 @@ class TestComfoClimeTemperatureNumber:
             step=0.5,
         )
 
-        mock_thermalprofile_coordinator.data = {"temperature": {"manualTemperature": 22.5}}
+        mock_thermalprofile_coordinator.data = ThermalProfileData(
+            temperature=TemperatureControlData(
+                status=0,
+                manual_temperature=22.5,
+            ),
+            season=SeasonData(status=0, season=0),
+            temperature_profile=0,
+        )
 
         number = ComfoClimeTemperatureNumber(
             hass=mock_hass,
@@ -109,7 +122,14 @@ class TestComfoClimeTemperatureNumber:
         )
 
         # Set manual mode (status = 0)
-        mock_thermalprofile_coordinator.data = {"temperature": {"status": 0, "manualTemperature": 22.0}}
+        mock_thermalprofile_coordinator.data = ThermalProfileData(
+            temperature=TemperatureControlData(
+                status=0,
+                manual_temperature=22.0,
+            ),
+            season=SeasonData(status=0, season=0),
+            temperature_profile=0,
+        )
 
         mock_hass.add_job = MagicMock()
 
@@ -146,7 +166,14 @@ class TestComfoClimeTemperatureNumber:
         )
 
         # Set automatic mode (status = 1)
-        mock_thermalprofile_coordinator.data = {"temperature": {"status": 1, "manualTemperature": 22.0}}
+        mock_thermalprofile_coordinator.data = ThermalProfileData(
+            temperature=TemperatureControlData(
+                status=1,
+                manual_temperature=22.0,
+            ),
+            season=SeasonData(status=0, season=0),
+            temperature_profile=0,
+        )
 
         number = ComfoClimeTemperatureNumber(
             hass=mock_hass,
@@ -179,7 +206,14 @@ class TestComfoClimeTemperatureNumber:
         )
 
         # Set manual mode (status = 0)
-        mock_thermalprofile_coordinator.data = {"temperature": {"status": 0, "manualTemperature": 22.0}}
+        mock_thermalprofile_coordinator.data = ThermalProfileData(
+            temperature=TemperatureControlData(
+                status=0,
+                manual_temperature=22.0,
+            ),
+            season=SeasonData(status=0, season=0),
+            temperature_profile=0,
+        )
 
         number = ComfoClimeTemperatureNumber(
             hass=mock_hass,
@@ -343,11 +377,13 @@ class TestComfoClimePropertyNumber:
 
         # The actual implementation doesn't pass signed parameter
         mock_api.async_set_property_for_device.assert_called_once_with(
-            device_uuid="test-device-uuid",
-            property_path="29/1/20",
-            value=80,
-            byte_count=1,
-            faktor=1.0,
+            request=PropertyWriteRequest(
+                device_uuid="test-device-uuid",
+                path="29/1/20",
+                value=80,
+                byte_count=1,
+                faktor=1.0,
+            )
         )
 
     def test_property_number_device_info(

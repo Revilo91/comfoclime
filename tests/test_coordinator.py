@@ -14,7 +14,14 @@ from custom_components.comfoclime.coordinator import (
     ComfoClimeTelemetryCoordinator,
     ComfoClimeThermalprofileCoordinator,
 )
-from custom_components.comfoclime.models import DashboardData, PropertyReading, TelemetryReading
+from custom_components.comfoclime.models import (
+    DashboardData,
+    DeviceDefinitionData,
+    MonitoringPing,
+    PropertyReading,
+    TelemetryReading,
+    ThermalProfileData,
+)
 
 
 @pytest.mark.asyncio
@@ -337,11 +344,11 @@ async def test_dashboard_coordinator(hass_with_frame_helper, mock_api):
 
     coordinator = ComfoClimeDashboardCoordinator(hass_with_frame_helper, mock_api)
 
-    mock_dashboard_data = {
-        "indoorTemperature": 22.5,
-        "outdoorTemperature": 15.0,
-        "fanSpeed": 2,
-    }
+    mock_dashboard_data = DashboardData(
+        indoor_temperature=22.5,
+        outdoor_temperature=15.0,
+        fan_speed=2,
+    )
     mock_api.async_get_dashboard_data = AsyncMock(return_value=mock_dashboard_data)
 
     result = await coordinator._async_update_data()
@@ -366,10 +373,10 @@ async def test_thermalprofile_coordinator(hass_with_frame_helper, mock_api):
     """Test ThermalprofileCoordinator basic functionality."""
     coordinator = ComfoClimeThermalprofileCoordinator(hass_with_frame_helper, mock_api)
 
-    mock_thermal_data = {
-        "temperature": {"status": 0, "manualTemperature": 22.0},
-        "season": {"status": 0},
-    }
+    mock_thermal_data = ThermalProfileData(
+        temperature={"status": 0, "manualTemperature": 22.0},
+        season={"status": 0},
+    )
     mock_api.async_get_thermal_profile = AsyncMock(return_value=mock_thermal_data)
 
     result = await coordinator._async_update_data()
@@ -398,7 +405,7 @@ async def test_definition_coordinator(hass_with_frame_helper, mock_api):
     ]
     coordinator = ComfoClimeDefinitionCoordinator(hass_with_frame_helper, mock_api, devices=devices)
 
-    mock_definition_data = {"name": "ComfoAir Q350", "version": "2.0"}
+    mock_definition_data = DeviceDefinitionData(name="ComfoAir Q350", version="2.0")
     mock_api.async_get_device_definition = AsyncMock(return_value=mock_definition_data)
 
     result = await coordinator._async_update_data()
@@ -420,12 +427,12 @@ async def test_definition_coordinator_get_value(hass_with_frame_helper, mock_api
 
     # Set data
     coordinator.data = {
-        "device1": {"name": "Device 1"},
+        "device1": DeviceDefinitionData(name="Device 1"),
         "device2": None,
     }
 
     # Test retrieval
-    assert coordinator.get_definition_data("device1") == {"name": "Device 1"}
+    assert coordinator.get_definition_data("device1").name == "Device 1"
     assert coordinator.get_definition_data("device2") is None
     assert coordinator.get_definition_data("device3") is None
 
@@ -498,19 +505,19 @@ async def test_definition_coordinator_custom_interval(hass_with_frame_helper, mo
 async def test_monitoring_coordinator_success(hass_with_frame_helper, mock_api):
     """Test monitoring coordinator successful data fetch."""
     mock_api.async_get_monitoring_ping = AsyncMock(
-        return_value={
-            "uuid": "test-uuid",
-            "uptime": 123456,
-            "timestamp": "2024-01-15T10:30:00Z",
-        }
+        return_value=MonitoringPing(
+            uuid="test-uuid",
+            up_time_seconds=123456,
+            timestamp=1705314600,
+        )
     )
 
     coordinator = ComfoClimeMonitoringCoordinator(hass_with_frame_helper, mock_api)
     result = await coordinator._async_update_data()
 
-    assert result["uuid"] == "test-uuid"
-    assert result["uptime"] == 123456
-    assert result["timestamp"] == "2024-01-15T10:30:00Z"
+    assert result.uuid == "test-uuid"
+    assert result.up_time_seconds == 123456
+    assert result.timestamp == 1705314600
     mock_api.async_get_monitoring_ping.assert_called_once()
 
 

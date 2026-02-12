@@ -6,6 +6,7 @@ from pydantic import ValidationError
 from custom_components.comfoclime.models import (
     DashboardData,
     DeviceConfig,
+    MonitoringPing,
     PropertyReading,
     SeasonData,
     TelemetryReading,
@@ -562,3 +563,98 @@ class TestThermalProfileData:
 
         with pytest.raises(ValidationError):
             ThermalProfileData(temperature_profile=3)  # Max is 2
+
+
+class TestMonitoringPing:
+    """Tests for MonitoringPing model."""
+
+    def test_create_monitoring_ping_with_integer_timestamp(self):
+        """Test creating MonitoringPing with integer timestamp."""
+        ping = MonitoringPing(
+            uuid="test-uuid",
+            up_time_seconds=123456,
+            timestamp=1705314600,
+        )
+
+        assert ping.uuid == "test-uuid"
+        assert ping.up_time_seconds == 123456
+        assert ping.timestamp == 1705314600
+
+    def test_create_monitoring_ping_with_iso_timestamp(self):
+        """Test creating MonitoringPing with ISO string timestamp."""
+        ping = MonitoringPing(
+            uuid="test-uuid",
+            up_time_seconds=123456,
+            timestamp="2026-02-12T12:18:02.0Z",
+        )
+
+        assert ping.uuid == "test-uuid"
+        assert ping.up_time_seconds == 123456
+        # Should be converted to Unix timestamp
+        assert isinstance(ping.timestamp, int)
+        assert ping.timestamp > 0
+
+    def test_create_monitoring_ping_with_iso_timestamp_without_milliseconds(self):
+        """Test creating MonitoringPing with ISO string timestamp without milliseconds."""
+        ping = MonitoringPing(
+            uuid="test-uuid",
+            up_time_seconds=123456,
+            timestamp="2024-01-15T10:30:00Z",
+        )
+
+        assert ping.uuid == "test-uuid"
+        assert ping.up_time_seconds == 123456
+        # Should be converted to Unix timestamp (approximately 1705314600)
+        assert isinstance(ping.timestamp, int)
+        assert 1705314000 < ping.timestamp < 1705315000
+
+    def test_normalize_uptime_field(self):
+        """Test that 'uptime' field is normalized to 'up_time_seconds'."""
+        # Using 'uptime' instead of 'up_time_seconds'
+        ping = MonitoringPing(
+            uuid="test-uuid",
+            uptime=123456,
+            timestamp=1705314600,
+        )
+
+        assert ping.up_time_seconds == 123456
+
+    def test_normalize_upTimeSeconds_field(self):
+        """Test that 'upTimeSeconds' field is normalized to 'up_time_seconds'."""
+        # Using camelCase 'upTimeSeconds'
+        ping = MonitoringPing(
+            uuid="test-uuid",
+            upTimeSeconds=123456,
+            timestamp=1705314600,
+        )
+
+        assert ping.up_time_seconds == 123456
+
+    def test_monitoring_ping_optional_fields(self):
+        """Test that all fields are optional."""
+        ping = MonitoringPing()
+
+        assert ping.uuid is None
+        assert ping.up_time_seconds is None
+        assert ping.timestamp is None
+
+    def test_monitoring_ping_immutable(self):
+        """Test that MonitoringPing is immutable (frozen)."""
+        ping = MonitoringPing(uuid="test-uuid")
+
+        with pytest.raises(ValidationError):
+            ping.uuid = "new-uuid"
+
+    def test_monitoring_ping_invalid_timestamp_string(self):
+        """Test that invalid timestamp string is removed (set to None)."""
+        # Invalid timestamp should be removed to avoid validation error
+        ping = MonitoringPing(
+            uuid="test-uuid",
+            up_time_seconds=123456,
+            timestamp="invalid-timestamp",
+        )
+
+        assert ping.uuid == "test-uuid"
+        assert ping.up_time_seconds == 123456
+        # Invalid timestamp should be removed
+        assert ping.timestamp is None

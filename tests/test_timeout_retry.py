@@ -8,6 +8,7 @@ import pytest
 
 from custom_components.comfoclime.comfoclime_api import ComfoClimeAPI
 from custom_components.comfoclime.constants import API_DEFAULTS
+from custom_components.comfoclime.models import DashboardUpdate
 
 
 class TestTimeoutConfiguration:
@@ -39,7 +40,8 @@ class TestDashboardUpdateRetry:
         mock_session.put = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
 
         with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
-            result = await api.async_update_dashboard(set_point_temperature=22.0)
+            update = DashboardUpdate(set_point_temperature=22.0)
+            result = await api.async_update_dashboard(update)
 
         assert result == {"status": "ok"}
         # Should only be called once (no retries needed)
@@ -70,7 +72,8 @@ class TestDashboardUpdateRetry:
         )
 
         with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
-            result = await api.async_update_dashboard(set_point_temperature=22.0)
+            update = DashboardUpdate(set_point_temperature=22.0)
+            result = await api.async_update_dashboard(update)
 
         assert result == {"status": "ok"}
         # Should be called twice (1 failure + 1 success)
@@ -93,7 +96,8 @@ class TestDashboardUpdateRetry:
 
         with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
             with pytest.raises(asyncio.TimeoutError):
-                await api.async_update_dashboard(set_point_temperature=22.0)
+                update = DashboardUpdate(set_point_temperature=22.0)
+                await api.async_update_dashboard(update)
 
         # Should be called API_DEFAULTS.MAX_RETRIES + 1 times (4 total: initial + 3 retries)
         assert mock_session.put.call_count == API_DEFAULTS.MAX_RETRIES + 1
@@ -123,7 +127,8 @@ class TestDashboardUpdateRetry:
         )
 
         with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
-            result = await api.async_update_dashboard(set_point_temperature=22.0)
+            update = DashboardUpdate(set_point_temperature=22.0)
+            result = await api.async_update_dashboard(update)
 
         assert result == {"status": "ok"}
         # Should be called twice (1 failure + 1 success)
@@ -150,7 +155,8 @@ class TestDashboardUpdateRetry:
 
         with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
             with pytest.raises(asyncio.CancelledError):
-                await api.async_update_dashboard(set_point_temperature=22.0)
+                update = DashboardUpdate(set_point_temperature=22.0)
+                await api.async_update_dashboard(update)
 
         # Should only be called once (no retries on CancelledError)
         assert mock_session.put.call_count == 1

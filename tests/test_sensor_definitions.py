@@ -129,8 +129,8 @@ class TestThermalProfileSensorDefinitions:
 
     def test_thermalprofile_sensors_count(self):
         """Test that we have the expected number of thermal profile sensors."""
-        # 12 sensors defined
-        assert len(THERMALPROFILE_SENSORS) == 12, "Thermal profile should have 12 sensor definitions"
+        # 13 sensors defined
+        assert len(THERMALPROFILE_SENSORS) == 13, "Thermal profile should have 13 sensor definitions"
 
     def test_thermalprofile_sensors_have_valid_keys(self):
         """Test that all thermal profile sensor keys use valid nested notation."""
@@ -235,14 +235,12 @@ class TestComfoClimeTelemetryByteCount:
         """Verify all sensors that should be 2 bytes are correctly set.
 
         Per upstream API docs, these telemetry IDs return 2-byte values:
-        4145, 4148, 4151, 4154, 4193, 4194, 4195, 4196, 4197, 4201,
+        4145, 4151, 4193, 4194, 4195, 4196, 4197, 4201,
         4202, 4203, 4204, 4205, 4206, 4207, 4208
         """
         two_byte_ids = {
             4145,
-            4148,
             4151,
-            4154,
             4193,
             4194,
             4195,

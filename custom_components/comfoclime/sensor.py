@@ -33,6 +33,7 @@ Note:
 from __future__ import annotations
 
 import logging
+import re
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
@@ -457,6 +458,11 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
             self._attr_translation_key = translation_key
         self._attr_has_entity_name = True
 
+    @staticmethod
+    def _camel_to_snake(name: str) -> str:
+        """Convert camelCase to snake_case for Pydantic attribute access."""
+        return re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", name).lower()
+
     @property
     def native_value(self):
         return self._state
@@ -745,6 +751,11 @@ class ComfoClimeDefinitionSensor(CoordinatorEntity, SensorEntity):
     def native_value(self):
         return self._state
 
+    @staticmethod
+    def _camel_to_snake(name: str) -> str:
+        """Convert camelCase to snake_case for Pydantic attribute access."""
+        return re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", name).lower()
+
     @property
     def device_info(self) -> DeviceInfo:
         if not self._device:
@@ -763,7 +774,11 @@ class ComfoClimeDefinitionSensor(CoordinatorEntity, SensorEntity):
         try:
             definition_data = self.coordinator.get_definition_data(self._override_uuid)
             if definition_data:
-                self._state = definition_data.get(self._key)
+                if isinstance(definition_data, BaseModel):
+                    snake_case_key = self._camel_to_snake(self._key)
+                    self._state = getattr(definition_data, snake_case_key, None)
+                else:
+                    self._state = definition_data.get(self._key)
             else:
                 self._state = None
         except (KeyError, TypeError, ValueError):

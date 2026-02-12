@@ -34,8 +34,6 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
-from pydantic import BaseModel
-
 from homeassistant.components.climate import (
     FAN_HIGH,
     FAN_LOW,
@@ -74,6 +72,7 @@ from .entity_helper import (
     get_device_uuid,
     get_device_version,
 )
+from .models import DashboardUpdate
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -309,10 +308,9 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
         Uses manualTemperature from thermal profile as the display value.
         This represents the last set temperature.
         """
-        tp = self._thermalprofile_coordinator.data or {}
-        temp = (tp.get("temperature") or {}).get("manualTemperature")
-        if isinstance(temp, (int, float)):
-            return temp
+        tp = self._thermalprofile_coordinator.data
+        if tp:
+            return tp.temperature.manual_temperature
         return None
 
     @property
@@ -528,11 +526,27 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
         This ensures all dashboard updates go through the centralized API method.
 
         Args:
-            **kwargs: Dashboard fields to update (set_point_temperature, fan_speed,
-                     season, hpStandby, schedule, temperature_profile,
-                     season_profile, status)
+            **kwargs: Dashboard fields to update. Supported fields:
+                     - set_point_temperature: float
+                     - fan_speed: int
+                     - season: int
+                     - hpStandby: bool (note camelCase for backward compatibility)
+                     - hp_standby: bool
+                     - schedule: int
+                     - temperature_profile: int
+                     - season_profile: int
+                     - status: int
+                     - scenario: int
+                     - scenario_time_left: int
+                     - scenario_start_delay: int
         """
-        await self._api.async_update_dashboard(**kwargs)
+        # Map hpStandby to hp_standby for backward compatibility
+        if "hpStandby" in kwargs:
+            kwargs["hp_standby"] = kwargs.pop("hpStandby")
+
+        # Create DashboardUpdate from kwargs
+        update = DashboardUpdate(**kwargs)
+        await self._api.async_update_dashboard(update)
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new HVAC mode by updating season via thermal profile API.
@@ -781,7 +795,7 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
                 attrs["dashboard"] = self.coordinator.data
 
             # Add scenario time left as a separate attribute for easier access
-            scenario_time_left = self.coordinator.data.get("scenarioTimeLeft")
+            scenario_time_left = self.coordinator.data.scenario_time_left
             if scenario_time_left is not None:
                 attrs["scenario_time_left"] = scenario_time_left
                 # Convert to human-readable format
@@ -795,10 +809,11 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
                     attrs["scenario_time_left_formatted"] = f"{int(seconds)}s"
 
         # For transparency: expose last_manual_temperature from thermal profile if available
-        tp = getattr(self._thermalprofile_coordinator, "data", None) or {}
-        manual_temp = (tp.get("temperature") or {}).get("manualTemperature")
-        if isinstance(manual_temp, (int, float)):
-            attrs["last_manual_temperature"] = manual_temp
+        tp = getattr(self._thermalprofile_coordinator, "data", None)
+        if tp:
+            manual_temp = tp.temperature.manual_temperature
+            if isinstance(manual_temp, (int, float)):
+                attrs["last_manual_temperature"] = manual_temp
 
         return attrs
 
