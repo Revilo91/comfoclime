@@ -382,3 +382,46 @@ class TestComfoAirTelemetryByteCount:
                     f"Sensor '{sensor.name}' (telemetry_id={sensor.telemetry_id}) "
                     f"should have byte_count=2 per PDO protocol, got {sensor.byte_count}"
                 )
+
+
+class TestMonitoringSensorDefinitions:
+    """Test Monitoring sensor definitions for correctness and consistency with model."""
+
+    def test_monitoring_sensors_count(self):
+        """Test that we have the expected number of monitoring sensors."""
+        from custom_components.comfoclime.entities.sensor_definitions import MONITORING_SENSORS
+
+        assert len(MONITORING_SENSORS) == 1, "Monitoring should have 1 sensor definition"
+
+    def test_monitoring_sensors_match_model_fields(self):
+        """Test that all monitoring sensor keys correspond to MonitoringPing model fields."""
+        from custom_components.comfoclime.entities.sensor_definitions import MONITORING_SENSORS
+        from custom_components.comfoclime.models import MonitoringPing
+
+        # Get all field names from MonitoringPing model
+        model_fields = set(MonitoringPing.model_fields.keys())
+
+        # Check that each sensor key exists in the model
+        for sensor_def in MONITORING_SENSORS:
+            assert sensor_def.key in model_fields, (
+                f"Sensor key '{sensor_def.key}' not found in MonitoringPing model fields: {model_fields}"
+            )
+
+    def test_uptime_sensor_configuration(self):
+        """Test that uptime sensor is correctly configured.
+
+        This is the specific sensor mentioned in the issue.
+        The key must be 'up_time_seconds' to match the MonitoringPing model field.
+        """
+        from custom_components.comfoclime.entities.sensor_definitions import MONITORING_SENSORS
+
+        uptime_sensor = MONITORING_SENSORS[0]
+        assert uptime_sensor.key == "up_time_seconds", (
+            "Uptime sensor key must be 'up_time_seconds' to match MonitoringPing model field. "
+            "The model normalizes 'uptime' and 'upTimeSeconds' to 'up_time_seconds'."
+        )
+        assert uptime_sensor.translation_key == "uptime"
+        assert uptime_sensor.unit == "s"
+        assert uptime_sensor.device_class == "duration"
+        assert uptime_sensor.state_class == "measurement"
+        assert uptime_sensor.entity_category == "diagnostic"
