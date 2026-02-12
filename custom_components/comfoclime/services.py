@@ -135,24 +135,26 @@ async def async_register_services(hass: HomeAssistant, api: ComfoClimeAPI, domai
                 climate_entities = data.get("climate_entities", [])
 
                 for climate_entity in climate_entities:
-                    if climate_entity.entity_id == entity_id:
-
-                        if climate_entity and hasattr(climate_entity, "async_set_scenario_mode"):
-                            try:
-                                await climate_entity.async_set_scenario_mode(
-                                    scenario_mode=scenario,
-                                    duration=duration,
-                                    start_delay=start_delay,
-                                )
-                            except (TimeoutError, aiohttp.ClientError, ValueError) as e:
-                                _LOGGER.exception("Error setting scenario mode '%s' on %s", scenario, entity_id)
-                                raise HomeAssistantError(f"Failed to set scenario mode '{scenario}'") from e
-                            else:
-                                _LOGGER.info(
-                                    f"Scenario mode '{scenario}' activated for {entity_id} "
-                                    f"with duration {duration} and start_delay {start_delay}"
-                                )
-                                return
+                    if (
+                        climate_entity.entity_id == entity_id
+                        and climate_entity
+                        and hasattr(climate_entity, "async_set_scenario_mode")
+                    ):
+                        try:
+                            await climate_entity.async_set_scenario_mode(
+                                scenario_mode=scenario,
+                                duration=duration,
+                                start_delay=start_delay,
+                            )
+                        except (TimeoutError, aiohttp.ClientError, ValueError) as e:
+                            _LOGGER.exception("Error setting scenario mode '%s' on %s", scenario, entity_id)
+                            raise HomeAssistantError(f"Failed to set scenario mode '{scenario}'") from e
+                        else:
+                            _LOGGER.info(
+                                f"Scenario mode '{scenario}' activated for {entity_id} "
+                                f"with duration {duration} and start_delay {start_delay}"
+                            )
+                            return
 
         # Entity not found or doesn't support scenarios
         raise HomeAssistantError(

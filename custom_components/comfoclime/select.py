@@ -45,7 +45,7 @@ _LOGGER = logging.getLogger(__name__)
 def _camel_to_snake(name: str) -> str:
     """Convert camelCase to snake_case."""
     # Insert underscore before uppercase letters and convert to lowercase
-    return re.sub(r'(?<!^)(?=[A-Z])', '_', name).lower()
+    return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:

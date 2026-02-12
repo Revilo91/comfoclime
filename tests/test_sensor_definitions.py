@@ -116,12 +116,12 @@ class TestDashboardSensorDefinitions:
 
             # Temperature sensors should have proper metadata
             if sensor_def.unit == "°C":
-                assert (
-                    sensor_def.device_class == "temperature"
-                ), f"Temperature sensor {sensor_def.key} should have device_class='temperature'"
-                assert (
-                    sensor_def.state_class == "measurement"
-                ), f"Temperature sensor {sensor_def.key} should have state_class='measurement'"
+                assert sensor_def.device_class == "temperature", (
+                    f"Temperature sensor {sensor_def.key} should have device_class='temperature'"
+                )
+                assert sensor_def.state_class == "measurement", (
+                    f"Temperature sensor {sensor_def.key} should have state_class='measurement'"
+                )
 
 
 class TestThermalProfileSensorDefinitions:
@@ -145,12 +145,12 @@ class TestThermalProfileSensorDefinitions:
         """Test that temperature sensors in thermal profile have proper metadata."""
         for sensor_def in THERMALPROFILE_SENSORS:
             if sensor_def.unit == "°C":
-                assert (
-                    sensor_def.device_class == "temperature"
-                ), f"Temperature sensor {sensor_def.key} should have device_class='temperature'"
-                assert (
-                    sensor_def.state_class == "measurement"
-                ), f"Temperature sensor {sensor_def.key} should have state_class='measurement'"
+                assert sensor_def.device_class == "temperature", (
+                    f"Temperature sensor {sensor_def.key} should have device_class='temperature'"
+                )
+                assert sensor_def.state_class == "measurement", (
+                    f"Temperature sensor {sensor_def.key} should have state_class='measurement'"
+                )
 
 
 class TestComfoClimeTelemetryByteCount:
