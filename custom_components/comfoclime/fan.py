@@ -30,8 +30,6 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
-from pydantic import BaseModel
-
 from homeassistant.components.fan import FanEntity, FanEntityFeature
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -170,10 +168,7 @@ class ComfoClimeFan(CoordinatorEntity, FanEntity):
     def _handle_coordinator_update(self) -> None:
         try:
             data = self.coordinator.data
-            if isinstance(data, BaseModel):
-                speed = getattr(data, "fan_speed", 0)
-            else:
-                speed = data.get("fanSpeed", 0)
+            speed = getattr(data, "fan_speed", 0) if isinstance(data, BaseModel) else data.get("fanSpeed", 0)
             speed_int = int(speed)
             if speed_int in FanSpeed._value2member_map_:
                 self._current_speed = FanSpeed(speed_int)

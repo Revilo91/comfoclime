@@ -37,8 +37,6 @@ import re
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
-from pydantic import BaseModel
-
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,

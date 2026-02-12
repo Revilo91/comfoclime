@@ -11,7 +11,6 @@ from homeassistant.core import HomeAssistant
 from custom_components.comfoclime.models import (
     ConnectedDevicesResponse,
     DashboardData,
-    DashboardUpdate,
     DeviceConfig,
     DeviceDefinitionData,
     MonitoringPing,

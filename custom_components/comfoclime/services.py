@@ -14,8 +14,8 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
 
 from .comfoclime_api import ComfoClimeAPI
-from .models import PropertyWriteRequest
 from .infrastructure import validate_byte_value, validate_duration, validate_property_path
+from .models import PropertyWriteRequest
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -130,7 +130,7 @@ async def async_register_services(hass: HomeAssistant, api: ComfoClimeAPI, domai
                 raise HomeAssistantError(f"Invalid start_delay: {error_message}")
 
         # Find climate entity with matching entity_id in all ComfoClime integrations
-        for entry_id, data in hass.data[domain].items():
+        for _entry_id, data in hass.data[domain].items():
             if isinstance(data, dict):  # Skip non-dict entries
                 climate_entities = data.get("climate_entities", [])
 

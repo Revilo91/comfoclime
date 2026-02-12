@@ -42,9 +42,9 @@ if TYPE_CHECKING:
 
     from .comfoclime_api import ComfoClimeAPI
     from .infrastructure import AccessTracker
+    from .models import DashboardData, DeviceDefinitionData, MonitoringPing, ThermalProfileData
 
 from .constants import API_DEFAULTS
-from .models import DashboardData, DeviceDefinitionData, MonitoringPing, ThermalProfileData
 
 _LOGGER = logging.getLogger(__name__)
 

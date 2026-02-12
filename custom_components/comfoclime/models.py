@@ -667,7 +667,7 @@ class ThermalProfileUpdate(BaseModel):
         return payload
 
     @classmethod
-    def from_dict(cls, updates: dict[str, Any]) -> "ThermalProfileUpdate":
+    def from_dict(cls, updates: dict[str, Any]) -> ThermalProfileUpdate:
         """Convert nested legacy dict to flat update model."""
         flat_updates: dict[str, Any] = {}
 
