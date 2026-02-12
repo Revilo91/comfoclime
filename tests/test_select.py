@@ -8,7 +8,12 @@ from custom_components.comfoclime.entities.select_definitions import (
     PropertySelectDefinition,
     SelectDefinition,
 )
-from custom_components.comfoclime.models import PropertyWriteRequest
+from custom_components.comfoclime.models import (
+    PropertyWriteRequest,
+    SeasonData,
+    TemperatureControlData,
+    ThermalProfileData,
+)
 from custom_components.comfoclime.select import (
     ComfoClimePropertySelect,
     ComfoClimeSelect,
@@ -65,7 +70,11 @@ class TestComfoClimeSelect:
             options={0: "comfort", 1: "power", 2: "eco"},
         )
 
-        mock_thermalprofile_coordinator.data = {"temperatureProfile": 1}
+        mock_thermalprofile_coordinator.data = ThermalProfileData(
+            temperature=TemperatureControlData(status=0, manual_temperature=22.0),
+            season=SeasonData(status=0, season=0),
+            temperature_profile=1,
+        )
 
         select = ComfoClimeSelect(
             hass=mock_hass,
@@ -94,13 +103,17 @@ class TestComfoClimeSelect:
     ):
         """Test select entity with nested key."""
         config = SelectDefinition(
-            key="season.mode",
+            key="season.status",
             name="Season Mode",
             translation_key="season_mode",
-            options={0: "auto", 1: "manual"},
+            options={0: "manual", 1: "auto"},
         )
 
-        mock_thermalprofile_coordinator.data = {"season": {"mode": 0}}
+        mock_thermalprofile_coordinator.data = ThermalProfileData(
+            temperature=TemperatureControlData(status=0, manual_temperature=22.0),
+            season=SeasonData(status=0, season=1),
+            temperature_profile=0,
+        )
 
         select = ComfoClimeSelect(
             hass=mock_hass,
@@ -117,7 +130,7 @@ class TestComfoClimeSelect:
 
         select._handle_coordinator_update()
 
-        assert select.current_option == "auto"
+        assert select.current_option == "manual"
 
     @pytest.mark.asyncio
     async def test_select_option(

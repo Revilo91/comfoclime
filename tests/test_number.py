@@ -8,7 +8,12 @@ from custom_components.comfoclime.entities.number_definitions import (
     NumberDefinition,
     PropertyNumberDefinition,
 )
-from custom_components.comfoclime.models import PropertyWriteRequest
+from custom_components.comfoclime.models import (
+    PropertyWriteRequest,
+    SeasonData,
+    TemperatureControlData,
+    ThermalProfileData,
+)
 from custom_components.comfoclime.number import (
     ComfoClimePropertyNumber,
     ComfoClimeTemperatureNumber,
@@ -71,7 +76,14 @@ class TestComfoClimeTemperatureNumber:
             step=0.5,
         )
 
-        mock_thermalprofile_coordinator.data = {"temperature": {"manualTemperature": 22.5}}
+        mock_thermalprofile_coordinator.data = ThermalProfileData(
+            temperature=TemperatureControlData(
+                status=0,
+                manual_temperature=22.5,
+            ),
+            season=SeasonData(status=0, season=0),
+            temperature_profile=0,
+        )
 
         number = ComfoClimeTemperatureNumber(
             hass=mock_hass,
@@ -110,7 +122,14 @@ class TestComfoClimeTemperatureNumber:
         )
 
         # Set manual mode (status = 0)
-        mock_thermalprofile_coordinator.data = {"temperature": {"status": 0, "manualTemperature": 22.0}}
+        mock_thermalprofile_coordinator.data = ThermalProfileData(
+            temperature=TemperatureControlData(
+                status=0,
+                manual_temperature=22.0,
+            ),
+            season=SeasonData(status=0, season=0),
+            temperature_profile=0,
+        )
 
         mock_hass.add_job = MagicMock()
 
@@ -147,7 +166,14 @@ class TestComfoClimeTemperatureNumber:
         )
 
         # Set automatic mode (status = 1)
-        mock_thermalprofile_coordinator.data = {"temperature": {"status": 1, "manualTemperature": 22.0}}
+        mock_thermalprofile_coordinator.data = ThermalProfileData(
+            temperature=TemperatureControlData(
+                status=1,
+                manual_temperature=22.0,
+            ),
+            season=SeasonData(status=0, season=0),
+            temperature_profile=0,
+        )
 
         number = ComfoClimeTemperatureNumber(
             hass=mock_hass,
@@ -180,7 +206,14 @@ class TestComfoClimeTemperatureNumber:
         )
 
         # Set manual mode (status = 0)
-        mock_thermalprofile_coordinator.data = {"temperature": {"status": 0, "manualTemperature": 22.0}}
+        mock_thermalprofile_coordinator.data = ThermalProfileData(
+            temperature=TemperatureControlData(
+                status=0,
+                manual_temperature=22.0,
+            ),
+            season=SeasonData(status=0, season=0),
+            temperature_profile=0,
+        )
 
         number = ComfoClimeTemperatureNumber(
             hass=mock_hass,

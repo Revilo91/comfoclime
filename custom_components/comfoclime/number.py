@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
@@ -39,6 +40,12 @@ from .entity_helper import (
 from .models import PropertyWriteRequest
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _camel_to_snake(name: str) -> str:
+    """Convert camelCase to snake_case."""
+    # Insert underscore before uppercase letters and convert to lowercase
+    return re.sub(r'(?<!^)(?=[A-Z])', '_', name).lower()
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
@@ -145,7 +152,7 @@ class ComfoClimeTemperatureNumber(CoordinatorEntity, NumberEntity):
         if self._key_path[0] == "temperature" and self._key_path[1] == "manualTemperature":
             try:
                 coordinator_data = self.coordinator.data
-                automatic_temperature_status = coordinator_data.get("temperature", {}).get("status")
+                automatic_temperature_status = coordinator_data.temperature.status
 
                 # Only available if automatic mode is disabled (status = 0)
                 return automatic_temperature_status == 0
@@ -202,9 +209,15 @@ class ComfoClimeTemperatureNumber(CoordinatorEntity, NumberEntity):
             data = self.coordinator.data
             val = data
             for k in self._key_path:
-                val = val.get(k)
+                # Try to get attribute with original key name first
+                try:
+                    val = getattr(val, k)
+                except AttributeError:
+                    # If that fails, try snake_case version
+                    snake_key = _camel_to_snake(k)
+                    val = getattr(val, snake_key)
             self._value = val
-        except (KeyError, TypeError, ValueError):
+        except (AttributeError, TypeError, ValueError):
             _LOGGER.debug("Error updating number entity %s", self._name, exc_info=True)
             self._value = None  # besser als Absturz
         self.async_write_ha_state()
@@ -215,7 +228,7 @@ class ComfoClimeTemperatureNumber(CoordinatorEntity, NumberEntity):
             # Check if automatic comfort temperature is enabled
             try:
                 coordinator_data = self.coordinator.data
-                automatic_temperature_status = coordinator_data.get("temperature", {}).get("status")
+                automatic_temperature_status = coordinator_data.temperature.status
 
                 if automatic_temperature_status == 1:
                     _LOGGER.warning("Cannot set manual temperature: automatic comfort temperature is enabled")
