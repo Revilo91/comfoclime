@@ -34,8 +34,6 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
-from pydantic import BaseModel
-
 from homeassistant.components.climate import (
     FAN_HIGH,
     FAN_LOW,
@@ -74,6 +72,7 @@ from .entity_helper import (
     get_device_uuid,
     get_device_version,
 )
+from .models import DashboardUpdate
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -528,11 +527,27 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
         This ensures all dashboard updates go through the centralized API method.
 
         Args:
-            **kwargs: Dashboard fields to update (set_point_temperature, fan_speed,
-                     season, hpStandby, schedule, temperature_profile,
-                     season_profile, status)
+            **kwargs: Dashboard fields to update. Supported fields:
+                     - set_point_temperature: float
+                     - fan_speed: int
+                     - season: int
+                     - hpStandby: bool (note camelCase for backward compatibility)
+                     - hp_standby: bool
+                     - schedule: int
+                     - temperature_profile: int
+                     - season_profile: int
+                     - status: int
+                     - scenario: int
+                     - scenario_time_left: int
+                     - scenario_start_delay: int
         """
-        await self._api.async_update_dashboard(**kwargs)
+        # Map hpStandby to hp_standby for backward compatibility
+        if "hpStandby" in kwargs:
+            kwargs["hp_standby"] = kwargs.pop("hpStandby")
+
+        # Create DashboardUpdate from kwargs
+        update = DashboardUpdate(**kwargs)
+        await self._api.async_update_dashboard(update)
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new HVAC mode by updating season via thermal profile API.

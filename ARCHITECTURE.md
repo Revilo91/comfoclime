@@ -2,8 +2,8 @@
 
 Dieses Dokument bietet eine vollständige Übersicht über die Systemarchitektur, Klassenstruktur, Abhängigkeiten und Datenflussmuster der ComfoClime Home Assistant Integration.
 
-**Generiert am:** 2026-02-05  
-**Version:** 1.0  
+**Generiert am:** 2026-02-05
+**Version:** 1.0
 **Analyse-Tools:** Vulture, Pydeps, AST-basierte Code-Analyse
 
 ---
@@ -142,6 +142,7 @@ Die ComfoClime Integration ist eine vollständig asynchrone Home Assistant Custo
 - Cache mit 30s TTL für Telemetrie/Properties
 - Retry-Logik mit exponential backoff
 - Session-Management
+- Pydantic-Modelle pro Endpunkt (z.B. DashboardData, ThermalProfileData, DeviceDefinitionData)
 
 **Verwendete Konstanten:**
 - `MIN_REQUEST_INTERVAL = 0.1s`
@@ -405,7 +406,7 @@ ComfoClimeError (BaseException)
 #### 15. `rate_limiter_cache.py` - Rate Limiting & Caching
 **Klasse:** `RateLimiterCache`
 
-**Verantwortlichkeit:** 
+**Verantwortlichkeit:**
 - Rate-Limiting für API-Requests
 - Caching von Responses
 
@@ -950,7 +951,7 @@ Für Fragen zur Architektur oder Implementierung:
 
 ---
 
-**Dokumentationsversion:** 1.0  
-**Letzte Aktualisierung:** 2026-02-05  
-**Generiert von:** Automated Architecture Analysis Tool  
+**Dokumentationsversion:** 1.0
+**Letzte Aktualisierung:** 2026-02-05
+**Generiert von:** Automated Architecture Analysis Tool
 **Reviewed by:** GitHub Copilot

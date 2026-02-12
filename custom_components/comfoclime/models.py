@@ -161,6 +161,30 @@ class DeviceConfig(BaseModel):
     version: str | None = Field(default=None, description="Optional firmware version")
 
 
+class ConnectedDevicesResponse(BaseModel):
+    """Response model for /system/{uuid}/devices."""
+
+    model_config = {"frozen": True}
+
+    devices: list[DeviceConfig] = Field(default_factory=list, description="Connected devices")
+
+
+class DeviceDefinitionData(BaseModel):
+    """Device definition payload from /device/{device_uuid}/definition.
+
+    The response shape varies by device model. Known temperature fields are
+    modeled explicitly and all other fields are preserved via extra=allow.
+    """
+
+    model_config = {"populate_by_name": True, "extra": "allow"}
+
+    indoor_temperature: float | None = Field(default=None, alias="indoorTemperature")
+    outdoor_temperature: float | None = Field(default=None, alias="outdoorTemperature")
+    extract_temperature: float | None = Field(default=None, alias="extractTemperature")
+    supply_temperature: float | None = Field(default=None, alias="supplyTemperature")
+    exhaust_temperature: float | None = Field(default=None, alias="exhaustTemperature")
+
+
 class TelemetryReading(BaseModel):
     """A single telemetry reading from a device.
 

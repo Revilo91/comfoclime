@@ -8,6 +8,7 @@ from custom_components.comfoclime.entities.number_definitions import (
     NumberDefinition,
     PropertyNumberDefinition,
 )
+from custom_components.comfoclime.models import PropertyWriteRequest
 from custom_components.comfoclime.number import (
     ComfoClimePropertyNumber,
     ComfoClimeTemperatureNumber,
@@ -343,11 +344,13 @@ class TestComfoClimePropertyNumber:
 
         # The actual implementation doesn't pass signed parameter
         mock_api.async_set_property_for_device.assert_called_once_with(
-            device_uuid="test-device-uuid",
-            property_path="29/1/20",
-            value=80,
-            byte_count=1,
-            faktor=1.0,
+            request=PropertyWriteRequest(
+                device_uuid="test-device-uuid",
+                path="29/1/20",
+                value=80,
+                byte_count=1,
+                faktor=1.0,
+            )
         )
 
     def test_property_number_device_info(

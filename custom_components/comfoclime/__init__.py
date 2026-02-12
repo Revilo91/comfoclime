@@ -104,7 +104,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     # Get connected devices before creating coordinators
     try:
-        devices = await api.async_get_connected_devices()
+        devices_response = await api.async_get_connected_devices()
+        devices = devices_response.devices
         _LOGGER.debug("Connected devices retrieved: %s devices found", len(devices))
     except (aiohttp.ClientError, TimeoutError) as err:
         _LOGGER.error(
@@ -229,7 +230,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     # Register services
     await async_register_services(hass, api, DOMAIN)
-    
+
     return True
 
 

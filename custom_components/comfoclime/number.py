@@ -36,6 +36,7 @@ from .entity_helper import (
     is_entity_category_enabled,
     is_entity_enabled,
 )
+from .models import PropertyWriteRequest
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -335,13 +336,14 @@ class ComfoClimePropertyNumber(CoordinatorEntity, NumberEntity):
 
     async def async_set_native_value(self, value: float) -> None:
         try:
-            await self._api.async_set_property_for_device(
+            request = PropertyWriteRequest(
                 device_uuid=get_device_uuid(self._device),
-                property_path=self._property_path,
+                path=self._property_path,
                 value=value,
                 byte_count=self._byte_count,
                 faktor=self._faktor,
             )
+            await self._api.async_set_property_for_device(request=request)
             self._value = value
             # Trigger coordinator refresh to update all entities
             await self.coordinator.async_request_refresh()

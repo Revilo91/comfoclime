@@ -2,7 +2,7 @@
 
 This module contains all service call handlers:
 - set_property: Set device properties
-- reset_system: Restart ComfoClime system  
+- reset_system: Restart ComfoClime system
 - set_scenario_mode: Activate scenario modes (cooking, party, away, boost)
 """
 
@@ -14,6 +14,7 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
 
 from .comfoclime_api import ComfoClimeAPI
+from .models import PropertyWriteRequest
 from .infrastructure import validate_byte_value, validate_duration, validate_property_path
 
 _LOGGER = logging.getLogger(__name__)
@@ -23,7 +24,7 @@ DOMAIN = "comfoclime"
 
 async def async_register_services(hass: HomeAssistant, api: ComfoClimeAPI, domain: str = DOMAIN):
     """Register all ComfoClime services.
-    
+
     Args:
         hass: Home Assistant instance
         api: ComfoClimeAPI instance for API calls
@@ -74,14 +75,15 @@ async def async_register_services(hass: HomeAssistant, api: ComfoClimeAPI, domai
             _LOGGER.error(f"Gerät gehört nicht zur Integration {domain}")
             raise HomeAssistantError(f"Gerät gehört nicht zur Integration {domain}")
         try:
-            await api.async_set_property_for_device(
+            request = PropertyWriteRequest(
                 device_uuid=device_uuid,
-                property_path=path,
+                path=path,
                 value=value,
                 byte_count=byte_count,
                 signed=signed,
                 faktor=faktor,
             )
+            await api.async_set_property_for_device(request=request)
             _LOGGER.info(f"Property {path} auf {value} gesetzt für {device_uuid}")
         except (TimeoutError, aiohttp.ClientError) as e:
             _LOGGER.exception("Fehler beim Setzen von Property %s", path)
@@ -162,5 +164,5 @@ async def async_register_services(hass: HomeAssistant, api: ComfoClimeAPI, domai
     hass.services.async_register(domain, "set_property", handle_set_property_service)
     hass.services.async_register(domain, "reset_system", handle_reset_system_service)
     hass.services.async_register(domain, "set_scenario_mode", handle_set_scenario_mode_service)
-    
+
     _LOGGER.debug("Registered ComfoClime services: set_property, reset_system, set_scenario_mode")

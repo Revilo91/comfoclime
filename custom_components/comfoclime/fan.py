@@ -54,6 +54,7 @@ from .entity_helper import (
     get_device_uuid,
     get_device_version,
 )
+from .models import DashboardUpdate
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -148,9 +149,8 @@ class ComfoClimeFan(CoordinatorEntity, FanEntity):
         """
         fan_speed = FanSpeed.from_percentage(percentage)
         try:
-            await self._api.async_update_dashboard(
-                fan_speed=fan_speed,
-            )
+            update = DashboardUpdate(fan_speed=fan_speed)
+            await self._api.async_update_dashboard(update)
             self._current_speed = fan_speed
             self.async_write_ha_state()
 

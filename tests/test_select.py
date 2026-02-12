@@ -8,6 +8,7 @@ from custom_components.comfoclime.entities.select_definitions import (
     PropertySelectDefinition,
     SelectDefinition,
 )
+from custom_components.comfoclime.models import PropertyWriteRequest
 from custom_components.comfoclime.select import (
     ComfoClimePropertySelect,
     ComfoClimeSelect,
@@ -319,11 +320,13 @@ class TestComfoClimePropertySelect:
 
         # Verify API was called
         mock_api.async_set_property_for_device.assert_called_once_with(
-            device_uuid="test-device-uuid",
-            property_path="29/1/15",
-            value=2,
-            byte_count=1,
-            faktor=1.0,
+            request=PropertyWriteRequest(
+                device_uuid="test-device-uuid",
+                path="29/1/15",
+                value=2,
+                byte_count=1,
+                faktor=1.0,
+            )
         )
 
 

@@ -1246,6 +1246,11 @@ Special operating modes activated through the `comfoclime.set_scenario_mode` ser
 
 The Home Assistant integration uses these patterns:
 
+**Pydantic Models:**
+GET calls return validated Pydantic models (e.g. `DashboardData`, `ThermalProfileData`,
+`MonitoringPing`, `DeviceDefinitionData`). PUT calls build payloads from
+Pydantic request models (`DashboardUpdate`, `ThermalProfileUpdate`, `PropertyWriteRequest`).
+
 **Setting HVAC Mode to Heat:**
 
 ```python

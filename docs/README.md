@@ -66,6 +66,10 @@ Coordinators  API Client     Entities
             (Local HTTP API)
 ```
 
+Hinweis: Die Integration liefert für jeden Endpunkt Pydantic-Modelle
+(z.B. `DashboardData`, `ThermalProfileData`, `DeviceDefinitionData`) und
+verwendet Pydantic-Request-Modelle für PUT-Aufrufe.
+
 ### Entity-Typen
 
 1. **Climate** - Haupt-Steuerung (HVAC, Temperatur, Szenario-Modi)
@@ -106,6 +110,13 @@ Diese Dokumentation wurde mit folgenden Tools erstellt:
 - [../SCENARIO_MODES.md](../SCENARIO_MODES.md) - Szenario-Modi
 - [../PYDANTIC_MIGRATION.md](../PYDANTIC_MIGRATION.md) - Pydantic v2 Migration
 - [../TROUBLESHOOTING.md](../TROUBLESHOOTING.md) - Fehlerbehebung
+
+### Spezialisten-Rollen
+
+- [specialists/integration-specialist.md](specialists/integration-specialist.md) - Integrations-Spezialist
+- [specialists/security-auditor.md](specialists/security-auditor.md) - Security Auditor
+- [specialists/technical-writer.md](specialists/technical-writer.md) - Technical Writer
+- [specialists/qa-automation.md](specialists/qa-automation.md) - Automatisierter Tester (QA)
 
 ### External Links
 
@@ -151,6 +162,6 @@ Verbesserungsvorschläge für diese Dokumentation sind willkommen!
 
 ---
 
-**Letzte Aktualisierung:** 2026-02-05  
-**Version:** 1.0  
+**Letzte Aktualisierung:** 2026-02-05
+**Version:** 1.0
 **Maintainer:** Revilo91 / GitHub Copilot
