@@ -7,8 +7,6 @@ import re
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
-from pydantic import BaseModel
-
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo

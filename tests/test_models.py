@@ -496,7 +496,12 @@ class TestThermalProfileData:
     def test_thermal_profile_data_from_api_response(self):
         """Test creating ThermalProfileData from API-like dict."""
         api_response = {
-            "season": {"status": 1, "season": 2, "heatingThresholdTemperature": 14.0, "coolingThresholdTemperature": 17.0},
+            "season": {
+                "status": 1,
+                "season": 2,
+                "heatingThresholdTemperature": 14.0,
+                "coolingThresholdTemperature": 17.0,
+            },
             "temperature": {"status": 1, "manualTemperature": 26.0},
             "temperatureProfile": 0,
             "heatingThermalProfileSeasonData": {

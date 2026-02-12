@@ -5,7 +5,7 @@ from custom_components.comfoclime.entities.sensor_definitions import (
     DASHBOARD_SENSORS,
     THERMALPROFILE_SENSORS,
 )
-from custom_components.comfoclime.models import DashboardData, ThermalProfileData
+from custom_components.comfoclime.models import DashboardData
 
 
 class TestTelemetrySensorDefinitions:
@@ -110,18 +110,18 @@ class TestDashboardSensorDefinitions:
         """Test that all dashboard sensors have required metadata fields."""
         for sensor_def in DASHBOARD_SENSORS:
             # All sensors must have these basic fields
-            assert sensor_def.key, f"Sensor must have a key"
+            assert sensor_def.key, "Sensor must have a key"
             assert sensor_def.name, f"Sensor {sensor_def.key} must have a name"
             assert sensor_def.translation_key, f"Sensor {sensor_def.key} must have a translation_key"
 
             # Temperature sensors should have proper metadata
             if sensor_def.unit == "°C":
-                assert (
-                    sensor_def.device_class == "temperature"
-                ), f"Temperature sensor {sensor_def.key} should have device_class='temperature'"
-                assert (
-                    sensor_def.state_class == "measurement"
-                ), f"Temperature sensor {sensor_def.key} should have state_class='measurement'"
+                assert sensor_def.device_class == "temperature", (
+                    f"Temperature sensor {sensor_def.key} should have device_class='temperature'"
+                )
+                assert sensor_def.state_class == "measurement", (
+                    f"Temperature sensor {sensor_def.key} should have state_class='measurement'"
+                )
 
 
 class TestThermalProfileSensorDefinitions:
@@ -145,12 +145,12 @@ class TestThermalProfileSensorDefinitions:
         """Test that temperature sensors in thermal profile have proper metadata."""
         for sensor_def in THERMALPROFILE_SENSORS:
             if sensor_def.unit == "°C":
-                assert (
-                    sensor_def.device_class == "temperature"
-                ), f"Temperature sensor {sensor_def.key} should have device_class='temperature'"
-                assert (
-                    sensor_def.state_class == "measurement"
-                ), f"Temperature sensor {sensor_def.key} should have state_class='measurement'"
+                assert sensor_def.device_class == "temperature", (
+                    f"Temperature sensor {sensor_def.key} should have device_class='temperature'"
+                )
+                assert sensor_def.state_class == "measurement", (
+                    f"Temperature sensor {sensor_def.key} should have state_class='measurement'"
+                )
 
 
 class TestComfoClimeTelemetryByteCount:

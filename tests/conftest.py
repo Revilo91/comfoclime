@@ -11,7 +11,6 @@ from homeassistant.core import HomeAssistant
 from custom_components.comfoclime.models import (
     ConnectedDevicesResponse,
     DashboardData,
-    DashboardUpdate,
     DeviceConfig,
     DeviceDefinitionData,
     MonitoringPing,
@@ -120,6 +119,7 @@ class MockComfoClimeAPI:
         else:
             # If called with kwargs only, construct DashboardUpdate
             from custom_components.comfoclime.models import DashboardUpdate
+
             update_obj = DashboardUpdate(**kwargs)
             update_dict = update_obj.model_dump(exclude_none=True)
 

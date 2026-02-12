@@ -340,7 +340,6 @@ async def test_property_coordinator_get_value(hass_with_frame_helper, mock_api):
 @pytest.mark.asyncio
 async def test_dashboard_coordinator(hass_with_frame_helper, mock_api):
     """Test DashboardCoordinator basic functionality."""
-    from custom_components.comfoclime.models import DashboardData
 
     coordinator = ComfoClimeDashboardCoordinator(hass_with_frame_helper, mock_api)
 

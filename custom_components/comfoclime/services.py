@@ -14,8 +14,8 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
 
 from .comfoclime_api import ComfoClimeAPI
-from .models import PropertyWriteRequest
 from .infrastructure import validate_byte_value, validate_duration, validate_property_path
+from .models import PropertyWriteRequest
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -130,29 +130,31 @@ async def async_register_services(hass: HomeAssistant, api: ComfoClimeAPI, domai
                 raise HomeAssistantError(f"Invalid start_delay: {error_message}")
 
         # Find climate entity with matching entity_id in all ComfoClime integrations
-        for entry_id, data in hass.data[domain].items():
+        for _entry_id, data in hass.data[domain].items():
             if isinstance(data, dict):  # Skip non-dict entries
                 climate_entities = data.get("climate_entities", [])
 
                 for climate_entity in climate_entities:
-                    if climate_entity.entity_id == entity_id:
-
-                        if climate_entity and hasattr(climate_entity, "async_set_scenario_mode"):
-                            try:
-                                await climate_entity.async_set_scenario_mode(
-                                    scenario_mode=scenario,
-                                    duration=duration,
-                                    start_delay=start_delay,
-                                )
-                            except (TimeoutError, aiohttp.ClientError, ValueError) as e:
-                                _LOGGER.exception("Error setting scenario mode '%s' on %s", scenario, entity_id)
-                                raise HomeAssistantError(f"Failed to set scenario mode '{scenario}'") from e
-                            else:
-                                _LOGGER.info(
-                                    f"Scenario mode '{scenario}' activated for {entity_id} "
-                                    f"with duration {duration} and start_delay {start_delay}"
-                                )
-                                return
+                    if (
+                        climate_entity.entity_id == entity_id
+                        and climate_entity
+                        and hasattr(climate_entity, "async_set_scenario_mode")
+                    ):
+                        try:
+                            await climate_entity.async_set_scenario_mode(
+                                scenario_mode=scenario,
+                                duration=duration,
+                                start_delay=start_delay,
+                            )
+                        except (TimeoutError, aiohttp.ClientError, ValueError) as e:
+                            _LOGGER.exception("Error setting scenario mode '%s' on %s", scenario, entity_id)
+                            raise HomeAssistantError(f"Failed to set scenario mode '{scenario}'") from e
+                        else:
+                            _LOGGER.info(
+                                f"Scenario mode '{scenario}' activated for {entity_id} "
+                                f"with duration {duration} and start_delay {start_delay}"
+                            )
+                            return
 
         # Entity not found or doesn't support scenarios
         raise HomeAssistantError(
