@@ -131,7 +131,3 @@ async def test_user_flow_invalid_host():
     assert result["type"] == FlowResultType.FORM
     assert result["step_id"] == "user"
     assert result["errors"]["host"] == "invalid_host"
-
-
-
-

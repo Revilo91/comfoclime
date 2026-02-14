@@ -108,9 +108,7 @@ class TestComfoClimeSensor:
         assert device_info["name"] == "ComfoClime Test"
         assert device_info["manufacturer"] == "Zehnder"
 
-    def test_monitoring_sensor_update(
-        self, mock_hass, mock_config_entry
-    ):
+    def test_monitoring_sensor_update(self, mock_hass, mock_config_entry):
         """Test monitoring sensor state update from MonitoringPing coordinator."""
         # Create a mock monitoring coordinator with MonitoringPing data
         mock_monitoring_coordinator = MagicMock()
