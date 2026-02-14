@@ -283,7 +283,7 @@ DASHBOARD_SENSORS = [
 
 MONITORING_SENSORS = [
     SensorDefinition(
-        key="uptime",
+        key="up_time_seconds",
         name="Uptime",
         translation_key="uptime",
         unit="s",
