@@ -15,6 +15,17 @@ from pydantic import BaseModel, Field, model_validator
 from .infrastructure.validation import validate_byte_value, validate_property_path
 
 
+# Base model for all ComfoClime data models
+class ComfoClimeModel(BaseModel):
+    """Base model for all ComfoClime data structures.
+
+    Provides common configuration and utilities for all Pydantic models
+    used in the ComfoClime integration.
+    """
+
+    model_config = {"validate_assignment": True, "populate_by_name": True}
+
+
 # Utility functions for byte and temperature value processing
 def bytes_to_signed_int(data: list, byte_count: int | None = None, signed: bool = True) -> int:
     """Convert raw bytes to a signed or unsigned integer value.
@@ -135,7 +146,7 @@ def fix_signed_temperatures_in_dict(data: dict) -> dict:
     return data
 
 
-class DeviceConfig(BaseModel):
+class DeviceConfig(ComfoClimeModel):
     """Configuration for a connected device.
 
     Immutable Pydantic model representing device configuration from API responses.
@@ -156,7 +167,7 @@ class DeviceConfig(BaseModel):
         'abc123'
     """
 
-    model_config = {"frozen": True, "validate_assignment": True}
+    model_config = {"frozen": True}
 
     uuid: str = Field(..., min_length=1, description="Device unique identifier")
     model_type_id: int = Field(..., ge=0, description="Model type identifier (numeric)")
@@ -177,7 +188,7 @@ class DeviceConfig(BaseModel):
             return None
 
 
-class ConnectedDevicesResponse(BaseModel):
+class ConnectedDevicesResponse(ComfoClimeModel):
     """Response model for /system/{uuid}/devices."""
 
     model_config = {"frozen": True}
@@ -196,14 +207,14 @@ class ConnectedDevicesResponse(BaseModel):
         return cls(devices=device_configs)
 
 
-class DeviceDefinitionData(BaseModel):
+class DeviceDefinitionData(ComfoClimeModel):
     """Device definition payload from /device/{device_uuid}/definition.
 
     The response shape varies by device model. Known temperature fields are
     modeled explicitly and all other fields are preserved via extra=allow.
     """
 
-    model_config = {"populate_by_name": True, "extra": "allow"}
+    model_config = {"extra": "allow"}
 
     indoor_temperature: float | None = Field(default=None, alias="indoorTemperature")
     outdoor_temperature: float | None = Field(default=None, alias="outdoorTemperature")
@@ -212,7 +223,7 @@ class DeviceDefinitionData(BaseModel):
     exhaust_temperature: float | None = Field(default=None, alias="exhaustTemperature")
 
 
-class TelemetryReading(BaseModel):
+class TelemetryReading(ComfoClimeModel):
     """A single telemetry reading from a device.
 
     Represents a telemetry value with its metadata for scaling and interpretation.
@@ -235,8 +246,6 @@ class TelemetryReading(BaseModel):
         >>> reading.scaled_value
         25.0
     """
-
-    model_config = {"validate_assignment": True}
 
     device_uuid: str = Field(..., min_length=1, description="UUID of the device providing the reading")
     telemetry_id: str = Field(..., min_length=1, description="Telemetry identifier (path or ID)")
@@ -324,7 +333,7 @@ class TelemetryReading(BaseModel):
         )
 
 
-class PropertyReading(BaseModel):
+class PropertyReading(ComfoClimeModel):
     """A property reading from a device.
 
     Similar to TelemetryReading but for property-based data access.
@@ -347,8 +356,6 @@ class PropertyReading(BaseModel):
         >>> prop.scaled_value
         123.0
     """
-
-    model_config = {"validate_assignment": True}
 
     device_uuid: str = Field(..., min_length=1, description="UUID of the device")
     path: str = Field(..., min_length=1, description="Property path (e.g., '29/1/10')")
@@ -408,7 +415,7 @@ class PropertyReading(BaseModel):
         )
 
 
-class PropertyReadResult(BaseModel):
+class PropertyReadResult(ComfoClimeModel):
     """Parsed result for a property read operation."""
 
     model_config = {"frozen": True}
@@ -454,7 +461,7 @@ class PropertyReadResult(BaseModel):
         raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
 
 
-class DashboardData(BaseModel):
+class DashboardData(ComfoClimeModel):
     """Dashboard data from ComfoClime device.
 
     Contains key operational data from the device dashboard endpoint.
@@ -494,8 +501,6 @@ class DashboardData(BaseModel):
         >>> data.is_heating_mode
         True
     """
-
-    model_config = {"validate_assignment": True, "populate_by_name": True}
 
     # Temperature readings
     indoor_temperature: float | None = Field(
@@ -605,14 +610,14 @@ class DashboardData(BaseModel):
         return self.status == 1
 
 
-class MonitoringPing(BaseModel):
+class MonitoringPing(ComfoClimeModel):
     """Monitoring ping response from device.
 
     Normalizes common uptime field names returned by different firmware
     variants and exposes a consistent `up_time_seconds` attribute.
     """
 
-    model_config = {"frozen": True, "extra": "allow", "populate_by_name": True}
+    model_config = {"frozen": True, "extra": "allow"}
 
     uuid: str | None = Field(default=None, description="Device UUID")
     up_time_seconds: int | None = Field(default=None, description="Device uptime in seconds")
@@ -643,7 +648,7 @@ class MonitoringPing(BaseModel):
         return v
 
 
-class PropertyWriteRequest(BaseModel):
+class PropertyWriteRequest(ComfoClimeModel):
     """Request to write a device property."""
 
     model_config = {"frozen": True}
@@ -676,10 +681,10 @@ class PropertyWriteRequest(BaseModel):
         return x, y, z, data
 
 
-class SeasonData(BaseModel):
+class SeasonData(ComfoClimeModel):
     """Season configuration within thermal profile."""
 
-    model_config = {"frozen": True, "populate_by_name": True}
+    model_config = {"frozen": True}
 
     status: int = Field(default=1, ge=0, le=1, description="Mode (0=Manual, 1=Auto)")
     season: int = Field(default=0, ge=0, le=2, description="Season (0=Transition, 1=Heating, 2=Cooling)")
@@ -695,10 +700,10 @@ class SeasonData(BaseModel):
     )
 
 
-class TemperatureControlData(BaseModel):
+class TemperatureControlData(ComfoClimeModel):
     """Temperature control settings."""
 
-    model_config = {"frozen": True, "populate_by_name": True}
+    model_config = {"frozen": True}
 
     status: int = Field(default=1, ge=0, le=1, description="Mode (0=Manual, 1=Auto)")
     manual_temperature: float = Field(
@@ -708,10 +713,10 @@ class TemperatureControlData(BaseModel):
     )
 
 
-class ThermalProfileSeasonData(BaseModel):
+class ThermalProfileSeasonData(ComfoClimeModel):
     """Season-specific parameters (heating or cooling)."""
 
-    model_config = {"frozen": True, "populate_by_name": True}
+    model_config = {"frozen": True}
 
     comfort_temperature: float = Field(default=21.0, alias="comfortTemperature")
     knee_point_temperature: float = Field(default=12.0, alias="kneePointTemperature")
@@ -719,10 +724,8 @@ class ThermalProfileSeasonData(BaseModel):
     temperature_limit: float | None = Field(default=None, alias="temperatureLimit")
 
 
-class ThermalProfileData(BaseModel):
+class ThermalProfileData(ComfoClimeModel):
     """Full thermal profile from device."""
-
-    model_config = {"validate_assignment": True, "populate_by_name": True}
 
     season: SeasonData = Field(default_factory=lambda: SeasonData(status=1, season=0))
     temperature: TemperatureControlData = Field(default_factory=TemperatureControlData)
@@ -757,7 +760,7 @@ class ThermalProfileData(BaseModel):
         return self.temperature.status == 1
 
 
-class ThermalProfileUpdate(BaseModel):
+class ThermalProfileUpdate(ComfoClimeModel):
     """Model for partial thermal profile updates."""
 
     season_status: int | None = None
@@ -901,10 +904,8 @@ class ThermalProfileUpdate(BaseModel):
         return cls(**flat_updates)
 
 
-class DashboardUpdate(BaseModel):
+class DashboardUpdate(ComfoClimeModel):
     """Model for partial dashboard updates."""
-
-    model_config = {"populate_by_name": True}
 
     set_point_temperature: float | None = Field(default=None, alias="setPointTemperature")
     fan_speed: int | None = Field(default=None, ge=0, le=3, alias="fanSpeed")
@@ -932,7 +933,7 @@ class DashboardUpdate(BaseModel):
 
 
 # API Response Models
-class DashboardUpdateResponse(BaseModel):
+class DashboardUpdateResponse(ComfoClimeModel):
     """Response model from dashboard update endpoint.
 
     Represents the server's acknowledgment of a dashboard update request.
@@ -944,7 +945,7 @@ class DashboardUpdateResponse(BaseModel):
     status: int | str | None = Field(default=200, description="HTTP status code from API")
 
 
-class ThermalProfileUpdateResponse(BaseModel):
+class ThermalProfileUpdateResponse(ComfoClimeModel):
     """Response model from thermal profile update endpoint.
 
     Represents the server's acknowledgment of a thermal profile update.
@@ -956,7 +957,7 @@ class ThermalProfileUpdateResponse(BaseModel):
     status: int | str | None = Field(default=200, description="HTTP status code from API")
 
 
-class PropertyWriteResponse(BaseModel):
+class PropertyWriteResponse(ComfoClimeModel):
     """Response model from property write endpoint.
 
     Represents the server's acknowledgment of a property write request.
@@ -969,7 +970,7 @@ class PropertyWriteResponse(BaseModel):
     data: list[int] | None = Field(default=None, description="Response data bytes if any")
 
 
-class TelemetryDataResponse(BaseModel):
+class TelemetryDataResponse(ComfoClimeModel):
     """Structured response model for batch telemetry readings.
 
     Maps device UUIDs to their telemetry readings.
@@ -982,7 +983,7 @@ class TelemetryDataResponse(BaseModel):
     )
 
 
-class PropertyDataResponse(BaseModel):
+class PropertyDataResponse(ComfoClimeModel):
     """Structured response model for batch property readings.
 
     Maps device UUIDs to their property readings.
@@ -995,7 +996,7 @@ class PropertyDataResponse(BaseModel):
     )
 
 
-class EntityCategoriesResponse(BaseModel):
+class EntityCategoriesResponse(ComfoClimeModel):
     """Response model for entity category organization.
 
     Maps entity types to categories to entity definitions.
@@ -1008,7 +1009,7 @@ class EntityCategoriesResponse(BaseModel):
     )
 
 
-class SelectionOption(BaseModel):
+class SelectionOption(ComfoClimeModel):
     """A single option in a selection dropdown.
 
     Represents one choice in a select entity.
@@ -1019,7 +1020,7 @@ class SelectionOption(BaseModel):
 
 
 # Registry Models for Coordinator Data Structures
-class TelemetryRegistryEntry(BaseModel):
+class TelemetryRegistryEntry(ComfoClimeModel):
     """Single telemetry metadata entry in the telemetry registry.
 
     Stores configuration for a single telemetry sensor that the coordinator
@@ -1045,7 +1046,7 @@ class TelemetryRegistryEntry(BaseModel):
     byte_count: int | None = Field(default=None, description="Number of bytes to read (1, 2, or None)")
 
 
-class PropertyRegistryEntry(BaseModel):
+class PropertyRegistryEntry(ComfoClimeModel):
     """Single property metadata entry in the property registry.
 
     Stores configuration for a single property that the coordinator
@@ -1071,7 +1072,7 @@ class PropertyRegistryEntry(BaseModel):
     byte_count: int | None = Field(default=None, description="Number of bytes (1-2 for numeric, 3+ for string)")
 
 
-class TelemetryRegistry(BaseModel):
+class TelemetryRegistry(ComfoClimeModel):
     """Full telemetry registry for the coordinator.
 
     Maps device UUIDs to their registered telemetry sensors.
@@ -1094,7 +1095,7 @@ class TelemetryRegistry(BaseModel):
     )
 
 
-class PropertyRegistry(BaseModel):
+class PropertyRegistry(ComfoClimeModel):
     """Full property registry for the coordinator.
 
     Maps device UUIDs to their registered properties.
