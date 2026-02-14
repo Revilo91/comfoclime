@@ -549,9 +549,7 @@ class TestTelemetryCoordinatorRegistry:
     """Tests for TelemetryCoordinator registry functionality."""
 
     @pytest.mark.asyncio
-    async def test_telemetry_coordinator_registry_entries_are_pydantic_models(
-        self, hass_with_frame_helper, mock_api
-    ):
+    async def test_telemetry_coordinator_registry_entries_are_pydantic_models(self, hass_with_frame_helper, mock_api):
         """Test that TelemetryRegistry entries are TelemetryRegistryEntry Pydantic models."""
         coordinator = ComfoClimeTelemetryCoordinator(hass_with_frame_helper, mock_api, devices=[])
 
@@ -576,9 +574,7 @@ class TestTelemetryCoordinatorRegistry:
         assert entry.byte_count == 2
 
     @pytest.mark.asyncio
-    async def test_telemetry_coordinator_multiple_entries_in_registry(
-        self, hass_with_frame_helper, mock_api
-    ):
+    async def test_telemetry_coordinator_multiple_entries_in_registry(self, hass_with_frame_helper, mock_api):
         """Test TelemetryRegistry with multiple entries per device."""
         coordinator = ComfoClimeTelemetryCoordinator(hass_with_frame_helper, mock_api, devices=[])
 
@@ -608,9 +604,7 @@ class TestPropertyCoordinatorRegistry:
     """Tests for PropertyCoordinator registry functionality."""
 
     @pytest.mark.asyncio
-    async def test_property_coordinator_registry_entries_are_pydantic_models(
-        self, hass_with_frame_helper, mock_api
-    ):
+    async def test_property_coordinator_registry_entries_are_pydantic_models(self, hass_with_frame_helper, mock_api):
         """Test that PropertyRegistry entries are PropertyRegistryEntry Pydantic models."""
         coordinator = ComfoClimePropertyCoordinator(hass_with_frame_helper, mock_api, devices=[])
 
@@ -635,9 +629,7 @@ class TestPropertyCoordinatorRegistry:
         assert entry.byte_count == 2
 
     @pytest.mark.asyncio
-    async def test_property_coordinator_multiple_entries_in_registry(
-        self, hass_with_frame_helper, mock_api
-    ):
+    async def test_property_coordinator_multiple_entries_in_registry(self, hass_with_frame_helper, mock_api):
         """Test PropertyRegistry with multiple entries per device."""
         coordinator = ComfoClimePropertyCoordinator(hass_with_frame_helper, mock_api, devices=[])
 

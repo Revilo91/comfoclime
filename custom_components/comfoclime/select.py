@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import aiohttp
 from homeassistant.components.select import SelectEntity
@@ -37,7 +37,7 @@ from .entity_helper import (
     is_entity_category_enabled,
     is_entity_enabled,
 )
-from .models import PropertyWriteRequest, DeviceConfig
+from .models import DeviceConfig, PropertyWriteRequest
 
 _LOGGER = logging.getLogger(__name__)
 

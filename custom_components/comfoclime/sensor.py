@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import aiohttp
 from homeassistant.components.sensor import (
@@ -78,7 +78,6 @@ from .entity_helper import (
     is_entity_category_enabled,
     is_entity_enabled,
 )
-from .models import DeviceConfig
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -86,6 +85,7 @@ if TYPE_CHECKING:
 
     from .comfoclime_api import ComfoClimeAPI
     from .infrastructure import AccessTracker
+    from .models import DeviceConfig
 
 _LOGGER = logging.getLogger(__name__)
 

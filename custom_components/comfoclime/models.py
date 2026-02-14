@@ -790,8 +790,7 @@ class TelemetryDataResponse(BaseModel):
     model_config = {"extra": "allow"}
 
     readings: dict[str, dict[str, TelemetryReading]] = Field(
-        default_factory=dict,
-        description="Device UUID -> Telemetry readings"
+        default_factory=dict, description="Device UUID -> Telemetry readings"
     )
 
 
@@ -804,8 +803,7 @@ class PropertyDataResponse(BaseModel):
     model_config = {"extra": "allow"}
 
     readings: dict[str, dict[str, PropertyReading]] = Field(
-        default_factory=dict,
-        description="Device UUID -> Property readings"
+        default_factory=dict, description="Device UUID -> Property readings"
     )
 
 
@@ -818,8 +816,7 @@ class EntityCategoriesResponse(BaseModel):
     model_config = {"extra": "allow"}
 
     categories: dict[str, dict[str, list[str]]] = Field(
-        default_factory=dict,
-        description="Category structure for entities"
+        default_factory=dict, description="Category structure for entities"
     )
 
 
@@ -852,6 +849,7 @@ class TelemetryRegistryEntry(BaseModel):
         ...     byte_count=2
         ... )
     """
+
     model_config = {"frozen": True}
 
     faktor: float = Field(default=1.0, gt=0, description="Multiplicative scaling factor (must be > 0)")
@@ -877,6 +875,7 @@ class PropertyRegistryEntry(BaseModel):
         ...     byte_count=2
         ... )
     """
+
     model_config = {"frozen": True}
 
     faktor: float = Field(default=1.0, gt=0, description="Multiplicative scaling factor (must be > 0)")
@@ -899,11 +898,11 @@ class TelemetryRegistry(BaseModel):
         ...     "4145": TelemetryRegistryEntry(faktor=0.1, signed=True)
         ... }
     """
+
     model_config = {"frozen": True}
 
     entries: dict[str, dict[str, TelemetryRegistryEntry]] = Field(
-        default_factory=dict,
-        description="device_uuid -> telemetry_id -> entry"
+        default_factory=dict, description="device_uuid -> telemetry_id -> entry"
     )
 
 
@@ -922,9 +921,9 @@ class PropertyRegistry(BaseModel):
         ...     "29/1/10": PropertyRegistryEntry(faktor=0.1, signed=True, byte_count=2)
         ... }
     """
+
     model_config = {"frozen": True}
 
     entries: dict[str, dict[str, PropertyRegistryEntry]] = Field(
-        default_factory=dict,
-        description="device_uuid -> path -> entry"
+        default_factory=dict, description="device_uuid -> path -> entry"
     )

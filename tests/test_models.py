@@ -5,7 +5,6 @@ from pydantic import ValidationError
 
 from custom_components.comfoclime.models import (
     DashboardData,
-    DashboardUpdate,
     DashboardUpdateResponse,
     DeviceConfig,
     MonitoringPing,
@@ -20,7 +19,6 @@ from custom_components.comfoclime.models import (
     TemperatureControlData,
     ThermalProfileData,
     ThermalProfileSeasonData,
-    ThermalProfileUpdate,
     ThermalProfileUpdateResponse,
     bytes_to_signed_int,
     fix_signed_temperature,

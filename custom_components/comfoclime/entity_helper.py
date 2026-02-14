@@ -2,7 +2,6 @@
 
 import logging
 
-from .models import DeviceConfig
 from .entities.number_definitions import (
     CONNECTED_DEVICE_NUMBER_PROPERTIES,
     NUMBER_ENTITIES,
@@ -21,6 +20,7 @@ from .entities.sensor_definitions import (
     THERMALPROFILE_SENSORS,
 )
 from .entities.switch_definitions import SWITCHES
+from .models import DeviceConfig
 
 _LOGGER = logging.getLogger(__name__)
 

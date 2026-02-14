@@ -11,8 +11,6 @@ from custom_components.comfoclime.models import (
     DashboardUpdateResponse,
     DeviceDefinitionData,
     PropertyWriteResponse,
-    ThermalProfileUpdate,
-    ThermalProfileUpdateResponse,
 )
 
 
@@ -765,9 +763,7 @@ class TestComfoClimeAPIResponseModels:
         mock_session.put = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
 
         with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
-            response = await api.async_set_property_for_device(
-                "device-uuid", "29/1/10", value=100, byte_count=2
-            )
+            response = await api.async_set_property_for_device("device-uuid", "29/1/10", value=100, byte_count=2)
 
         assert isinstance(response, PropertyWriteResponse)
         assert response.status == 200

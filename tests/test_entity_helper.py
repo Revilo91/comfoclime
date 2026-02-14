@@ -1,5 +1,11 @@
 """Tests for entity_helper module."""
 
+from custom_components.comfoclime.entities.sensor_definitions import (
+    AccessTrackingSensorDefinition,
+    PropertySensorDefinition,
+    SensorDefinition,
+    TelemetrySensorDefinition,
+)
 from custom_components.comfoclime.entity_helper import (
     _make_sensor_id,
     get_all_entity_categories,
@@ -13,13 +19,6 @@ from custom_components.comfoclime.entity_helper import (
     is_entity_enabled,
 )
 from custom_components.comfoclime.models import DeviceConfig
-from custom_components.comfoclime.entities.sensor_definitions import (
-    SensorDefinition,
-    TelemetrySensorDefinition,
-    PropertySensorDefinition,
-    AccessTrackingSensorDefinition,
-)
-from custom_components.comfoclime.entities.switch_definitions import SwitchDefinition
 
 
 def test_get_device_uuid():
@@ -193,10 +192,12 @@ def test_make_sensor_id_with_path():
 
 def test_make_sensor_id_with_property():
     """Test _make_sensor_id with property field."""
+
     # Use PropertySensorDefinition but rename to property for this test
     # Since PropertySensorDefinition uses 'path' not 'property', we use a different approach
     class PropertyDef:
         """Minimal property definition for testing."""
+
         def __init__(self):
             self.property = "29/1/2"
             self.name = "RMOT Heating Threshold"

@@ -23,7 +23,6 @@ from .entity_helper import (
     is_entity_category_enabled,
     is_entity_enabled,
 )
-from .models import DeviceConfig
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -35,6 +34,7 @@ if TYPE_CHECKING:
         ComfoClimeDashboardCoordinator,
         ComfoClimeThermalprofileCoordinator,
     )
+    from .models import DeviceConfig
 
 _LOGGER = logging.getLogger(__name__)
 
