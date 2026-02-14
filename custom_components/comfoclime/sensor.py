@@ -78,6 +78,7 @@ from .entity_helper import (
     is_entity_category_enabled,
     is_entity_enabled,
 )
+from .models import DeviceConfig
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -424,7 +425,7 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
         device_class: str | None = None,
         state_class: str | None = None,
         entity_category: str | None = None,
-        device: dict[str, Any] | None = None,
+        device: DeviceConfig | None = None,
         entry: ConfigEntry | None = None,
     ) -> None:
         super().__init__(coordinator)
@@ -572,7 +573,7 @@ class ComfoClimeTelemetrySensor(CoordinatorEntity, SensorEntity):
         device_class: str | None = None,
         state_class: str | None = None,
         entity_category: str | None = None,
-        device: dict[str, Any] | None = None,
+        device: DeviceConfig | None = None,
         override_device_uuid: str | None = None,
         entry: ConfigEntry | None = None,
         entity_registry_enabled_default: bool = True,
@@ -649,7 +650,7 @@ class ComfoClimePropertySensor(CoordinatorEntity, SensorEntity):
         state_class: str | None = None,
         entity_category: str | None = None,
         mapping_key: str | None = None,
-        device: dict[str, Any] | None = None,
+        device: DeviceConfig | None = None,
         override_device_uuid: str | None = None,
         entry: ConfigEntry,
     ) -> None:
@@ -722,7 +723,7 @@ class ComfoClimeDefinitionSensor(CoordinatorEntity, SensorEntity):
         device_class: str | None = None,
         state_class: str | None = None,
         entity_category: str | None = None,
-        device: dict[str, Any] | None = None,
+        device: DeviceConfig | None = None,
         override_device_uuid: str | None = None,
         entry: ConfigEntry,
     ) -> None:
@@ -803,7 +804,7 @@ class ComfoClimeAccessTrackingSensor(SensorEntity):
         *,
         state_class: str | None = None,
         entity_category: str | None = None,
-        device: dict[str, Any] | None = None,
+        device: DeviceConfig | None = None,
         entry: ConfigEntry,
     ) -> None:
         """Initialize the access tracking sensor.

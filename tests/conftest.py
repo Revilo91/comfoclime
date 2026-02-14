@@ -12,14 +12,17 @@ from custom_components.comfoclime.models import (
     ConnectedDevicesResponse,
     DashboardData,
     DashboardUpdate,
+    DashboardUpdateResponse,
     DeviceConfig,
     DeviceDefinitionData,
     MonitoringPing,
     PropertyReading,
+    PropertyWriteResponse,
     SeasonData,
     TelemetryReading,
     TemperatureControlData,
     ThermalProfileData,
+    ThermalProfileUpdateResponse,
 )
 
 
@@ -130,9 +133,9 @@ class MockComfoClimeAPI:
                 self.responses.dashboard_data["hpStandby"] = value
             else:
                 self.responses.dashboard_data[key] = value
-        return {"status": "ok"}
+        return DashboardUpdateResponse(status=200)
 
-    async def _async_update_thermal_profile(self, **kwargs: Any) -> None:
+    async def _async_update_thermal_profile(self, **kwargs: Any) -> ThermalProfileUpdateResponse:
         self._record_call("async_update_thermal_profile", **kwargs)
         # Simulate updating the thermal profile
         for key, value in kwargs.items():
@@ -140,6 +143,7 @@ class MockComfoClimeAPI:
                 self.responses.thermal_profile[key] = value
             else:
                 self.responses.thermal_profile[key] = value
+        return ThermalProfileUpdateResponse(status=200)
 
     async def _async_set_hvac_season(self, season: int, hpStandby: bool) -> None:
         """Internal method called via AsyncMock side_effect."""
@@ -189,7 +193,7 @@ class MockComfoClimeAPI:
         property_path: str | None = None,
         value: int | None = None,
         **kwargs: Any,
-    ) -> None:
+    ) -> PropertyWriteResponse:
         self._record_call(
             "async_set_property_for_device",
             device_uuid=device_uuid,
@@ -205,6 +209,7 @@ class MockComfoClimeAPI:
         if device_uuid not in self.responses.property_data:
             self.responses.property_data[device_uuid] = {}
         self.responses.property_data[device_uuid][property_path] = value
+        return PropertyWriteResponse(status=200)
 
     async def async_reset_system(self) -> None:
         self._record_call("async_reset_system")
@@ -414,22 +419,20 @@ def mock_definition_coordinator():
 @pytest.fixture
 def mock_device():
     """Create a mock ComfoClime device."""
-    return {
-        "uuid": "test-device-uuid",
-        "displayName": "ComfoClime Test",
-        "@modelType": "ComfoClime 200",
-        "modelTypeId": 20,
-        "version": "1.2.3",
-    }
+    return DeviceConfig(
+        uuid="test-device-uuid",
+        display_name="ComfoClime Test",
+        model_type_id=20,
+        version="1.2.3",
+    )
 
 
 @pytest.fixture
 def mock_connected_device():
     """Create a mock connected device (e.g., ComfoAir Q)."""
-    return {
-        "uuid": "connected-device-uuid",
-        "displayName": "ComfoAir Q",
-        "@modelType": "ComfoAir Q350",
-        "modelTypeId": 21,
-        "version": "2.0.0",
-    }
+    return DeviceConfig(
+        uuid="connected-device-uuid",
+        display_name="ComfoAir Q",
+        model_type_id=21,
+        version="2.0.0",
+    )

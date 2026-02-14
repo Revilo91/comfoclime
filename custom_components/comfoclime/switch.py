@@ -23,6 +23,7 @@ from .entity_helper import (
     is_entity_category_enabled,
     is_entity_enabled,
 )
+from .models import DeviceConfig
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -94,7 +95,7 @@ class ComfoClimeSwitch(CoordinatorEntity, SwitchEntity):
         name: str,
         invert: bool = False,
         endpoint: str = "thermal_profile",
-        device: dict[str, Any] | None = None,
+        device: DeviceConfig | None = None,
         entry: ConfigEntry | None = None,
     ) -> None:
         """Initialize the switch entity.

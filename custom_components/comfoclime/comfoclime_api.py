@@ -43,14 +43,21 @@ from .models import (
     ConnectedDevicesResponse,
     DashboardData,
     DashboardUpdate,
+    DashboardUpdateResponse,
     DeviceConfig,
     DeviceDefinitionData,
+    EntityCategoriesResponse,
     MonitoringPing,
+    PropertyDataResponse,
     PropertyReading,
     PropertyWriteRequest,
+    PropertyWriteResponse,
+    SelectionOption,
+    TelemetryDataResponse,
     TelemetryReading,
     ThermalProfileData,
     ThermalProfileUpdate,
+    ThermalProfileUpdateResponse,
     bytes_to_signed_int,
     signed_int_to_bytes,
 )
@@ -645,14 +652,10 @@ class ComfoClimeAPI:
         return update.to_api_payload()
 
     @api_put("/system/{uuid}/dashboard", requires_uuid=True, is_dashboard=True)
-    async def async_update_dashboard(self, update: DashboardUpdate) -> dict:
-        """Update dashboard settings via API.
+    async def _async_update_dashboard_internal(self, update: DashboardUpdate) -> dict:
+        """Internal decorated method for dashboard updates.
 
-        Modern method for dashboard updates. Only fields that are provided
-        (not None) will be included in the update payload. Uses DashboardUpdate
-        model for payload generation.
-
-        The @api_put decorator handles:
+        This method is decorated with @api_put which handles:
         - UUID retrieval
         - Rate limiting
         - Timestamp addition (is_dashboard=True)
@@ -661,16 +664,44 @@ class ComfoClimeAPI:
 
         Args:
             update: DashboardUpdate model containing the fields to update.
+
+        Returns:
+            Payload dict for the decorator to process
+        """
+        return update.to_api_payload(include_timestamp=False)
+
+    async def async_update_dashboard(self, update: DashboardUpdate) -> DashboardUpdateResponse:
+        """Update dashboard settings via API.
+
+        Modern method for dashboard updates. Only fields that are provided
+        (not None) will be included in the update payload. Uses DashboardUpdate
+        model for payload generation.
+
+        The internal decorator handles:
+        - UUID retrieval
+        - Rate limiting
+        - Timestamp addition
+        - Retry with exponential backoff
+        - Error handling
+
+        Args:
+            update: DashboardUpdate model containing the fields to update.
                    Only non-None fields will be included in the payload.
 
         Returns:
-            Payload dict for the decorator to process.
+            DashboardUpdateResponse model with status and response data.
 
         Example:
             update = DashboardUpdate(set_point_temperature=22.0, status=0)
-            await api.async_update_dashboard(update)
+            response = await api.async_update_dashboard(update)
+            print(response.status)
         """
-        return update.to_api_payload(include_timestamp=False)
+        response_dict = await self._async_update_dashboard_internal(update)
+        # Wrap decorator's dict response to DashboardUpdateResponse
+        if isinstance(response_dict, dict):
+            response_dict.setdefault("status", 200)
+            return DashboardUpdateResponse(**response_dict)
+        return DashboardUpdateResponse(status=200)
 
     @api_put("/system/{uuid}/thermalprofile", requires_uuid=True)
     async def _async_update_thermal_profile(self, update: ThermalProfileUpdate | None = None, **kwargs) -> dict:
@@ -705,7 +736,7 @@ class ComfoClimeAPI:
         updates: dict[str, Any] | None = None,
         update: ThermalProfileUpdate | None = None,
         **kwargs,
-    ) -> dict[str, Any]:
+    ) -> ThermalProfileUpdateResponse:
         """Update thermal profile settings on the device.
 
         Provides backward compatibility with legacy dict-based calls while
@@ -734,7 +765,7 @@ class ComfoClimeAPI:
                 - cooling_temperature_limit (float): Cooling temperature limit
 
         Returns:
-            Response from device API.
+            ThermalProfileUpdateResponse model with status and response data.
 
         Raises:
             aiohttp.ClientError: If connection to device fails.
@@ -742,20 +773,27 @@ class ComfoClimeAPI:
 
         Example:
             >>> # Modern style - set season to heating
-            >>> await api.async_update_thermal_profile(season_value=1)
+            >>> response = await api.async_update_thermal_profile(season_value=1)
             >>> # Modern style - set heating comfort temperature
-            >>> await api.async_update_thermal_profile(heating_comfort_temperature=22.0)
+            >>> response = await api.async_update_thermal_profile(heating_comfort_temperature=22.0)
             >>> # Legacy style
-            >>> await api.async_update_thermal_profile({"season": {"season": 1}})
+            >>> response = await api.async_update_thermal_profile({"season": {"season": 1}})
         """
         # If updates dict is provided, convert it to kwargs
         if updates is not None:
-            return await self._convert_dict_to_kwargs_and_update(updates)
-        if update is not None:
-            return await self._async_update_thermal_profile(update=update)
-        return await self._async_update_thermal_profile(**kwargs)
+            response_dict = await self._convert_dict_to_kwargs_and_update(updates)
+        elif update is not None:
+            response_dict = await self._async_update_thermal_profile(update=update)
+        else:
+            response_dict = await self._async_update_thermal_profile(**kwargs)
+        
+        # Wrap the decorator's dict response to ThermalProfileUpdateResponse
+        if isinstance(response_dict, dict):
+            response_dict.setdefault("status", 200)
+            return ThermalProfileUpdateResponse(**response_dict)
+        return ThermalProfileUpdateResponse(status=200)
 
-    async def _convert_dict_to_kwargs_and_update(self, updates: dict[str, Any]) -> dict[str, Any]:
+    async def _convert_dict_to_kwargs_and_update(self, updates: dict[str, Any]) -> dict:
         """Convert legacy dict-based thermal profile updates to kwargs format.
 
         Internal method that translates nested dict structure to modern
@@ -766,7 +804,7 @@ class ComfoClimeAPI:
             updates: Nested dict structure with thermal profile updates
 
         Returns:
-            Response from _async_update_thermal_profile.
+            Response dict from _async_update_thermal_profile.
         """
         # Use ThermalProfileUpdate model to convert dict to kwargs
         update = ThermalProfileUpdate.from_dict(updates)
@@ -841,7 +879,7 @@ class ComfoClimeAPI:
         signed: bool = True,
         faktor: float = 1.0,
         request: PropertyWriteRequest | None = None,
-    ) -> dict[str, Any]:
+    ) -> PropertyWriteResponse:
         """Set property value for a device.
 
         Writes a property value to a device. The decorator handles all
@@ -858,7 +896,7 @@ class ComfoClimeAPI:
             request: Optional PropertyWriteRequest model (preferred)
 
         Returns:
-            Response from device API.
+            PropertyWriteResponse model with status and response data.
 
         Raises:
             ValueError: If byte_count is not 1 or 2.
@@ -867,7 +905,7 @@ class ComfoClimeAPI:
 
         Example:
             >>> # Set property to 22.5°C (factor 0.1, so raw value = 225)
-            >>> await api.async_set_property_for_device(
+            >>> response = await api.async_set_property_for_device(
             ...     device_uuid="abc123",
             ...     property_path="29/1/10",
             ...     value=22.5,
@@ -875,6 +913,7 @@ class ComfoClimeAPI:
             ...     signed=True,
             ...     faktor=0.1
             ... )
+            >>> print(response.status)
         """
         if request is None:
             if device_uuid is None or property_path is None or value is None or byte_count is None:
@@ -909,10 +948,15 @@ class ComfoClimeAPI:
 
         x, y, z = map(int, request.path.split("/"))
 
-        result = await self._set_property_internal(request.device_uuid, x, y, z, data)
+        response_dict = await self._set_property_internal(request.device_uuid, x, y, z, data)
         # Invalidate cache for this device after successful write
         self._rate_limiter.invalidate_cache_for_device(request.device_uuid)
-        return result
+        
+        # Wrap the decorator's dict response to PropertyWriteResponse
+        if isinstance(response_dict, dict):
+            response_dict.setdefault("status", 200)
+            return PropertyWriteResponse(**response_dict)
+        return PropertyWriteResponse(status=200)
 
     @api_put("/system/reset")
     async def async_reset_system(self):

@@ -51,14 +51,7 @@ async def test_async_setup_entry(
                                 mock_api_instance = MagicMock()
                                 mock_api_instance.async_get_connected_devices = AsyncMock(
                                     return_value=ConnectedDevicesResponse(
-                                        devices=[
-                                            DeviceConfig(
-                                                uuid=mock_device["uuid"],
-                                                model_type_id=mock_device["modelTypeId"],
-                                                display_name=mock_device["displayName"],
-                                                version=mock_device["version"],
-                                            )
-                                        ]
+                                        devices=[mock_device]
                                     )
                                 )
                                 mock_api_class.return_value = mock_api_instance
@@ -149,14 +142,7 @@ async def test_async_setup_entry_with_float_max_retries(
                                 mock_api_instance = MagicMock()
                                 mock_api_instance.async_get_connected_devices = AsyncMock(
                                     return_value=ConnectedDevicesResponse(
-                                        devices=[
-                                            DeviceConfig(
-                                                uuid=mock_device["uuid"],
-                                                model_type_id=mock_device["modelTypeId"],
-                                                display_name=mock_device["displayName"],
-                                                version=mock_device["version"],
-                                            )
-                                        ]
+                                        devices=[mock_device]
                                     )
                                 )
                                 mock_api_class.return_value = mock_api_instance

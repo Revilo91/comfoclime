@@ -52,7 +52,7 @@ from .entity_helper import (
     get_device_uuid,
     get_device_version,
 )
-from .models import DashboardUpdate
+from .models import DashboardUpdate, DeviceConfig
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -81,7 +81,7 @@ class ComfoClimeFan(CoordinatorEntity, FanEntity):
         hass: HomeAssistant,
         coordinator: ComfoClimeDashboardCoordinator,
         api: ComfoClimeAPI,
-        device: dict[str, Any],
+        device: DeviceConfig,
         entry: ConfigEntry,
     ) -> None:
         """Initialize the ComfoClime fan entity.

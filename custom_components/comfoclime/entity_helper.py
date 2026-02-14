@@ -2,6 +2,7 @@
 
 import logging
 
+from .models import DeviceConfig
 from .entities.number_definitions import (
     CONNECTED_DEVICE_NUMBER_PROPERTIES,
     NUMBER_ENTITIES,
@@ -30,116 +31,67 @@ MODEL_TYPE_NAMES = {
 }
 
 
-def _get_attr(entity_def: dict | object, key: str, default=None):
-    """Get attribute from either dict or dataclass instance.
+def get_device_uuid(device: DeviceConfig) -> str | None:
+    """Get device UUID from Pydantic DeviceConfig model.
 
     Args:
-        entity_def: Either a dict or dataclass instance
-        key: Attribute/key name
-        default: Default value if not found
-
-    Returns:
-        Value of attribute/key or default
-    """
-    if isinstance(entity_def, dict):
-        return entity_def.get(key, default)
-    return getattr(entity_def, key, default)
-
-
-def get_device_uuid(device: dict | object) -> str | None:
-    """Get device UUID from either dict or Pydantic model.
-
-    Supports both legacy dict format with 'uuid' key and
-    Pydantic DeviceConfig models with 'uuid' attribute.
-
-    Args:
-        device: Either a dict or DeviceConfig instance
+        device: DeviceConfig instance
 
     Returns:
         Device UUID string or None if not found
     """
-    if hasattr(device, "uuid"):
-        return device.uuid
-    if isinstance(device, dict):
-        return device.get("uuid")
-    return None
+    return device.uuid
 
 
-def get_device_model_type_id(device: dict | object) -> int | None:
-    """Get device model type ID from either dict or Pydantic model.
-
-    Supports both legacy dict format with 'modelTypeId' key and
-    Pydantic DeviceConfig models with 'model_type_id' attribute.
+def get_device_model_type_id(device: DeviceConfig) -> int | None:
+    """Get device model type ID from Pydantic DeviceConfig model.
 
     Args:
-        device: Either a dict or DeviceConfig instance
+        device: DeviceConfig instance
 
     Returns:
         Model type ID integer or None if not found
     """
-    if hasattr(device, "model_type_id"):
-        return device.model_type_id
-    if isinstance(device, dict):
-        return device.get("modelTypeId")
-    return None
+    return device.model_type_id
 
 
-def get_device_display_name(device: dict | object, default: str = "ComfoClime") -> str:
-    """Get device display name from either dict or Pydantic model.
-
-    Supports both legacy dict format with 'displayName' key and
-    Pydantic DeviceConfig models with 'display_name' attribute.
+def get_device_display_name(device: DeviceConfig, default: str = "ComfoClime") -> str:
+    """Get device display name from Pydantic DeviceConfig model.
 
     Args:
-        device: Either a dict or DeviceConfig instance
+        device: DeviceConfig instance
         default: Default name if not found
 
     Returns:
         Device display name string
     """
-    if hasattr(device, "display_name"):
-        return device.display_name or default
-    if isinstance(device, dict):
-        return device.get("displayName", default)
-    return default
+    return device.display_name or default
 
 
-def get_device_version(device: dict | object) -> str | None:
-    """Get device version from either dict or Pydantic model.
-
-    Supports both legacy dict format with 'version' key and
-    Pydantic DeviceConfig models with 'version' attribute.
+def get_device_version(device: DeviceConfig) -> str | None:
+    """Get device version from Pydantic DeviceConfig model.
 
     Args:
-        device: Either a dict or DeviceConfig instance
+        device: DeviceConfig instance
 
     Returns:
         Device version string or None if not found
     """
-    if hasattr(device, "version"):
-        return device.version
-    if isinstance(device, dict):
-        return device.get("version")
-    return None
+    return device.version
 
 
-def get_device_model_type(device: dict | object) -> str | None:
-    """Get device model type string from either dict or Pydantic model.
+def get_device_model_type(device: DeviceConfig) -> str | None:
+    """Get device model type string from Pydantic DeviceConfig model.
 
-    Supports legacy dict format with '@modelType' key.
-    For Pydantic models, returns a friendly name based on model_type_id.
+    Returns a friendly name based on model_type_id.
 
     Args:
-        device: Either a dict or DeviceConfig instance
+        device: DeviceConfig instance
 
     Returns:
         Device model type string or None if not found
     """
-    if isinstance(device, dict):
-        return device.get("@modelType")
-    if hasattr(device, "model_type_id"):
-        return _friendly_model_name(device.model_type_id)
-    return None
+    return _friendly_model_name(device.model_type_id)
 
 
 def _friendly_model_name(model_id) -> str:
@@ -204,57 +156,38 @@ def get_all_entity_categories() -> dict[str, dict[str, list]]:
     }
 
 
-def _make_sensor_id(category: str, subcategory: str, sensor_def: dict | object) -> str:
+def _make_sensor_id(category: str, subcategory: str, sensor_def: object) -> str:
     """Create a unique ID for a sensor.
 
     Args:
         category: Main category (sensors, switches, numbers, selects)
         subcategory: Subcategory (dashboard, thermalprofile, etc.)
-        sensor_def: Sensor definition dict or dataclass
+        sensor_def: Sensor definition model instance
 
     Returns:
         Unique sensor ID string
     """
-    # Get identifier from sensor definition
-    # Different sensor types use different keys for identification
-    # Check for dict first, then for dataclass attributes
-    if isinstance(sensor_def, dict):
-        if "key" in sensor_def:
-            identifier = sensor_def["key"].replace(".", "_")
-        elif "telemetry_id" in sensor_def:
-            identifier = f"telem_{sensor_def['telemetry_id']}"
-        elif "path" in sensor_def:
-            identifier = f"prop_{sensor_def['path'].replace('/', '_')}"
-        elif "property" in sensor_def:
-            identifier = f"prop_{sensor_def['property'].replace('/', '_')}"
-        elif "metric" in sensor_def:
-            coord = (sensor_def.get("coordinator") or "total").lower()
-            identifier = f"{coord}_{sensor_def['metric']}"
-        else:
-            # Fallback to name-based ID
-            identifier = sensor_def.get("name", "unknown").lower().replace(" ", "_")
+    # Get identifier from sensor definition based on available attributes
+    if hasattr(sensor_def, "key") and sensor_def.key:
+        identifier = sensor_def.key.replace(".", "_")
+    elif hasattr(sensor_def, "telemetry_id") and sensor_def.telemetry_id:
+        identifier = f"telem_{sensor_def.telemetry_id}"
+    elif hasattr(sensor_def, "path") and sensor_def.path:
+        identifier = f"prop_{sensor_def.path.replace('/', '_')}"
+    elif hasattr(sensor_def, "property") and sensor_def.property:
+        identifier = f"prop_{sensor_def.property.replace('/', '_')}"
+    elif hasattr(sensor_def, "metric") and sensor_def.metric:
+        coord = (getattr(sensor_def, "coordinator", None) or "total").lower()
+        identifier = f"{coord}_{sensor_def.metric}"
     else:
-        # Dataclass instance
-        if hasattr(sensor_def, "key"):
-            identifier = _get_attr(sensor_def, "key", "").replace(".", "_")
-        elif hasattr(sensor_def, "telemetry_id"):
-            identifier = f"telem_{_get_attr(sensor_def, 'telemetry_id', '')}"
-        elif hasattr(sensor_def, "path"):
-            identifier = f"prop_{_get_attr(sensor_def, 'path', '').replace('/', '_')}"
-        elif hasattr(sensor_def, "property"):
-            identifier = f"prop_{_get_attr(sensor_def, 'property', '').replace('/', '_')}"
-        elif hasattr(sensor_def, "metric"):
-            coord = (_get_attr(sensor_def, "coordinator") or "total").lower()
-            identifier = f"{coord}_{_get_attr(sensor_def, 'metric', '')}"
-        else:
-            # Fallback to name-based ID
-            identifier = _get_attr(sensor_def, "name", "unknown").lower().replace(" ", "_")
+        # Fallback to name-based ID
+        identifier = (getattr(sensor_def, "name", "unknown") or "unknown").lower().replace(" ", "_")
 
     return f"{category}_{subcategory}_{identifier}"
 
 
 def _format_simple_entities(
-    entity_list: list[dict | object],
+    entity_list: list[object],
     category: str,
     subcategory: str,
     emoji: str,
@@ -263,7 +196,7 @@ def _format_simple_entities(
     """Format simple entities (without per-model grouping) to option dicts.
 
     Args:
-        entity_list: List of entity definitions (dicts or dataclass instances)
+        entity_list: List of entity definition model instances
         category: Entity category (sensors, switches, etc.)
         subcategory: Entity subcategory (dashboard, thermal_profile, etc.)
         emoji: Emoji to prefix the label with
@@ -276,7 +209,7 @@ def _format_simple_entities(
     for entity_def in entity_list:
         try:
             entity_id = _make_sensor_id(category, subcategory, entity_def)
-            label = _get_attr(entity_def, "name", "unknown")
+            label = getattr(entity_def, "name", "unknown")
             full_label = f"{emoji} {prefix}{label}" if prefix else f"{emoji} {label}"
             options.append({"value": entity_id, "label": full_label})
         except (KeyError, AttributeError):
@@ -294,11 +227,11 @@ def _format_per_model_entities(
     """Format entities grouped per connected device model to option dicts.
 
     Args:
-        entity_dict: Dictionary mapping model_id to list of entity definitions
+        entity_dict: Dictionary mapping model_id to list of entity definition model instances
         category: Entity category (sensors, numbers, selects, etc.)
         subcategory: Entity subcategory
         emoji: Emoji to prefix the label with
-        fallback_name: Fallback name pattern if 'name' key is missing
+        fallback_name: Fallback name pattern if 'name' attribute is missing
 
     Returns:
         List of {value, label} dicts
@@ -309,12 +242,11 @@ def _format_per_model_entities(
         for entity_def in entity_list:
             try:
                 entity_id = _make_sensor_id(category, subcategory, entity_def)
-                if fallback_name:
-                    label = _get_attr(entity_def, "name") or fallback_name.format(
-                        **entity_def if isinstance(entity_def, dict) else {}
-                    )
-                else:
-                    label = _get_attr(entity_def, "name", "unknown")
+                label = getattr(entity_def, "name", None)
+                if not label and fallback_name:
+                    label = fallback_name
+                if not label:
+                    label = "unknown"
                 options.append({"value": entity_id, "label": f"{emoji} {model_name} • {label}"})
             except (KeyError, AttributeError):
                 _LOGGER.exception(
@@ -601,7 +533,7 @@ def get_default_enabled_individual_entities() -> set[str]:
     # Connected device telemetry - all non-diagnostic by default
     for _model_id, sensor_list in CONNECTED_DEVICE_SENSORS.items():
         for sensor_def in sensor_list:
-            if not _get_attr(sensor_def, "diagnose", False):
+            if not getattr(sensor_def, "diagnose", False):
                 enabled.add(_make_sensor_id("sensors", "connected_telemetry", sensor_def))
 
     # Connected device properties - all by default
@@ -640,14 +572,14 @@ def get_default_enabled_individual_entities() -> set[str]:
     return enabled
 
 
-def is_entity_enabled(options: dict, category: str, subcategory: str, entity_def: dict | object) -> bool:
+def is_entity_enabled(options: dict, category: str, subcategory: str, entity_def: object) -> bool:
     """Check if an individual entity is enabled in options.
 
     Args:
         options: Config entry options dict
         category: Main category (sensors, switches, numbers, selects)
         subcategory: Subcategory (dashboard, thermalprofile, etc.)
-        entity_def: Entity definition dict or dataclass
+        entity_def: Entity definition model instance
 
     Returns:
         True if enabled, False otherwise

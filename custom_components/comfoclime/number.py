@@ -37,7 +37,7 @@ from .entity_helper import (
     is_entity_category_enabled,
     is_entity_enabled,
 )
-from .models import PropertyWriteRequest
+from .models import PropertyWriteRequest, DeviceConfig
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -118,7 +118,7 @@ class ComfoClimeTemperatureNumber(CoordinatorEntity, NumberEntity):
         coordinator: ComfoClimeThermalprofileCoordinator,
         api: ComfoClimeAPI,
         conf: NumberDefinition,
-        device: dict[str, Any] | None = None,
+        device: DeviceConfig | None = None,
         entry: ConfigEntry | None = None,
     ) -> None:
         super().__init__(coordinator)
@@ -283,7 +283,7 @@ class ComfoClimePropertyNumber(CoordinatorEntity, NumberEntity):
         coordinator: ComfoClimePropertyCoordinator,
         api: ComfoClimeAPI,
         config: PropertyNumberDefinition,
-        device: dict[str, Any],
+        device: DeviceConfig,
         entry: ConfigEntry,
     ) -> None:
         super().__init__(coordinator)

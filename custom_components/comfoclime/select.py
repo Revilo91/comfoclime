@@ -37,7 +37,7 @@ from .entity_helper import (
     is_entity_category_enabled,
     is_entity_enabled,
 )
-from .models import PropertyWriteRequest
+from .models import PropertyWriteRequest, DeviceConfig
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -116,7 +116,7 @@ class ComfoClimeSelect(CoordinatorEntity, SelectEntity):
         coordinator: ComfoClimeThermalprofileCoordinator,
         api: ComfoClimeAPI,
         conf: SelectDefinition,
-        device: dict[str, Any] | None = None,
+        device: DeviceConfig | None = None,
         entry: ConfigEntry | None = None,
     ) -> None:
         super().__init__(coordinator)
@@ -228,7 +228,7 @@ class ComfoClimePropertySelect(CoordinatorEntity, SelectEntity):
         coordinator: ComfoClimePropertyCoordinator,
         api: ComfoClimeAPI,
         conf: PropertySelectDefinition,
-        device: dict[str, Any] | None = None,
+        device: DeviceConfig | None = None,
         entry: ConfigEntry | None = None,
     ) -> None:
         super().__init__(coordinator)

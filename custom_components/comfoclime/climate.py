@@ -72,7 +72,7 @@ from .entity_helper import (
     get_device_uuid,
     get_device_version,
 )
-from .models import DashboardUpdate
+from .models import DashboardUpdate, DeviceConfig
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -157,7 +157,7 @@ async def async_setup_entry(
     api: ComfoClimeAPI = data["api"]
     dashboard_coordinator: ComfoClimeDashboardCoordinator = data["coordinator"]
     thermalprofile_coordinator: ComfoClimeThermalprofileCoordinator = data["tpcoordinator"]
-    main_device: dict[str, Any] | None = data.get("main_device")
+    main_device: DeviceConfig | None = data.get("main_device")
 
     if not main_device:
         _LOGGER.warning("No main device found - cannot create climate entity")
@@ -206,7 +206,7 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
         dashboard_coordinator: ComfoClimeDashboardCoordinator,
         thermalprofile_coordinator: ComfoClimeThermalprofileCoordinator,
         api: ComfoClimeAPI,
-        device: dict[str, Any],
+        device: DeviceConfig,
         entry: ConfigEntry,
     ) -> None:
         """Initialize the ComfoClime climate entity.

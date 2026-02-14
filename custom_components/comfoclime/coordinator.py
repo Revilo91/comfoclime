@@ -45,6 +45,7 @@ if TYPE_CHECKING:
     from .models import DashboardData, DeviceDefinitionData, MonitoringPing, ThermalProfileData
 
 from .constants import API_DEFAULTS
+from .models import PropertyRegistryEntry, TelemetryRegistryEntry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -316,8 +317,8 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
         self.api = api
         self.devices = devices or []
         self._access_tracker = access_tracker
-        # Registry of telemetry requests: {device_uuid: {telemetry_id: {faktor, signed, byte_count}}}
-        self._telemetry_registry: dict[str, dict[str, dict]] = {}
+        # Registry of telemetry requests: {device_uuid: {telemetry_id: TelemetryRegistryEntry}}
+        self._telemetry_registry: dict[str, dict[str, TelemetryRegistryEntry]] = {}
         # Lock to prevent concurrent modifications during iteration
         self._registry_lock = asyncio.Lock()
 
@@ -355,11 +356,11 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
             if device_uuid not in self._telemetry_registry:
                 self._telemetry_registry[device_uuid] = {}
 
-            self._telemetry_registry[device_uuid][str(telemetry_id)] = {
-                "faktor": faktor,
-                "signed": signed,
-                "byte_count": byte_count,
-            }
+            self._telemetry_registry[device_uuid][str(telemetry_id)] = TelemetryRegistryEntry(
+                faktor=faktor,
+                signed=signed,
+                byte_count=byte_count,
+            )
             _LOGGER.debug("Registered telemetry %s for device %s", telemetry_id, device_uuid)
 
     async def _async_update_data(self) -> dict[str, DeviceDefinitionData]:
@@ -390,9 +391,9 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
                     reading = await self.api.async_read_telemetry_for_device(
                         device_uuid=device_uuid,
                         telemetry_id=telemetry_id,
-                        faktor=params["faktor"],
-                        signed=params["signed"],
-                        byte_count=params["byte_count"],
+                        faktor=params.faktor,
+                        signed=params.signed,
+                        byte_count=params.byte_count,
                     )
                     # Store the scaled value for backward compatibility with sensors
                     result[device_uuid][telemetry_id] = reading.scaled_value if reading else None
@@ -494,8 +495,8 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
         self.api = api
         self.devices = devices or []
         self._access_tracker = access_tracker
-        # Registry of property requests: {device_uuid: {path: {faktor, signed, byte_count}}}
-        self._property_registry: dict[str, dict[str, dict]] = {}
+        # Registry of property requests: {device_uuid: {path: PropertyRegistryEntry}}
+        self._property_registry: dict[str, dict[str, PropertyRegistryEntry]] = {}
         # Lock to prevent concurrent modifications during iteration
         self._registry_lock = asyncio.Lock()
 
@@ -533,11 +534,11 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
             if device_uuid not in self._property_registry:
                 self._property_registry[device_uuid] = {}
 
-            self._property_registry[device_uuid][property_path] = {
-                "faktor": faktor,
-                "signed": signed,
-                "byte_count": byte_count,
-            }
+            self._property_registry[device_uuid][property_path] = PropertyRegistryEntry(
+                faktor=faktor,
+                signed=signed,
+                byte_count=byte_count,
+            )
             _LOGGER.debug("Registered property %s for device %s", property_path, device_uuid)
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
@@ -568,9 +569,9 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
                     reading = await self.api.async_read_property_for_device(
                         device_uuid=device_uuid,
                         property_path=property_path,
-                        faktor=params["faktor"],
-                        signed=params["signed"],
-                        byte_count=params["byte_count"],
+                        faktor=params.faktor,
+                        signed=params.signed,
+                        byte_count=params.byte_count,
                     )
                     # Store the scaled value for backward compatibility with sensors
                     result[device_uuid][property_path] = reading.scaled_value if reading else None

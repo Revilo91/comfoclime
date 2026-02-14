@@ -741,3 +741,190 @@ class DashboardUpdate(BaseModel):
             if field != "timestamp" or include_timestamp
         }
         return payload
+
+
+# API Response Models
+class DashboardUpdateResponse(BaseModel):
+    """Response model from dashboard update endpoint.
+    
+    Represents the server's acknowledgment of a dashboard update request.
+    Contains the status code and any returned fields.
+    """
+    
+    model_config = {"extra": "allow"}
+    
+    status: int | str | None = Field(default=200, description="HTTP status code from API")
+
+
+class ThermalProfileUpdateResponse(BaseModel):
+    """Response model from thermal profile update endpoint.
+    
+    Represents the server's acknowledgment of a thermal profile update.
+    Contains status and any returned fields.
+    """
+    
+    model_config = {"extra": "allow"}
+    
+    status: int | str | None = Field(default=200, description="HTTP status code from API")
+
+
+class PropertyWriteResponse(BaseModel):
+    """Response model from property write endpoint.
+    
+    Represents the server's acknowledgment of a property write request.
+    May contain the written value or status information.
+    """
+    
+    model_config = {"extra": "allow"}
+    
+    status: int | str | None = Field(default=200, description="HTTP status code from API")
+    data: list[int] | None = Field(default=None, description="Response data bytes if any")
+
+
+class TelemetryDataResponse(BaseModel):
+    """Structured response model for batch telemetry readings.
+    
+    Maps device UUIDs to their telemetry readings.
+    """
+    
+    model_config = {"extra": "allow"}
+    
+    readings: dict[str, dict[str, TelemetryReading]] = Field(
+        default_factory=dict,
+        description="Device UUID -> Telemetry readings"
+    )
+
+
+class PropertyDataResponse(BaseModel):
+    """Structured response model for batch property readings.
+    
+    Maps device UUIDs to their property readings.
+    """
+    
+    model_config = {"extra": "allow"}
+    
+    readings: dict[str, dict[str, PropertyReading]] = Field(
+        default_factory=dict,
+        description="Device UUID -> Property readings"
+    )
+
+
+class EntityCategoriesResponse(BaseModel):
+    """Response model for entity category organization.
+    
+    Maps entity types to categories to entity definitions.
+    """
+    
+    model_config = {"extra": "allow"}
+    
+    categories: dict[str, dict[str, list[str]]] = Field(
+        default_factory=dict,
+        description="Category structure for entities"
+    )
+
+
+class SelectionOption(BaseModel):
+    """A single option in a selection dropdown.
+    
+    Represents one choice in a select entity.
+    """
+    
+    label: str = Field(description="Human-readable label for the option")
+    value: str = Field(description="Internal value associated with the option")
+
+
+# Registry Models for Coordinator Data Structures
+class TelemetryRegistryEntry(BaseModel):
+    """Single telemetry metadata entry in the telemetry registry.
+    
+    Stores configuration for a single telemetry sensor that the coordinator
+    will fetch during updates. Contains scaling and interpretation parameters.
+    
+    Attributes:
+        faktor: Multiplicative scaling factor for raw values (must be > 0)
+        signed: Whether to interpret raw values as signed integers
+        byte_count: Number of bytes to read (1 or 2, or None for auto-detection)
+    
+    Example:
+        >>> entry = TelemetryRegistryEntry(
+        ...     faktor=0.1,
+        ...     signed=True,
+        ...     byte_count=2
+        ... )
+    """
+    model_config = {"frozen": True}
+    
+    faktor: float = Field(default=1.0, gt=0, description="Multiplicative scaling factor (must be > 0)")
+    signed: bool = Field(default=True, description="Whether to interpret raw values as signed")
+    byte_count: int | None = Field(default=None, description="Number of bytes to read (1, 2, or None)")
+
+
+class PropertyRegistryEntry(BaseModel):
+    """Single property metadata entry in the property registry.
+    
+    Stores configuration for a single property that the coordinator
+    will fetch during updates. Contains scaling and interpretation parameters.
+    
+    Attributes:
+        faktor: Multiplicative scaling factor for numeric values (must be > 0)
+        signed: Whether to interpret numeric values as signed integers
+        byte_count: Number of bytes to read (varies by property type)
+    
+    Example:
+        >>> entry = PropertyRegistryEntry(
+        ...     faktor=0.1,
+        ...     signed=True,
+        ...     byte_count=2
+        ... )
+    """
+    model_config = {"frozen": True}
+    
+    faktor: float = Field(default=1.0, gt=0, description="Multiplicative scaling factor (must be > 0)")
+    signed: bool = Field(default=True, description="Whether to interpret numeric values as signed")
+    byte_count: int | None = Field(default=None, description="Number of bytes (1-2 for numeric, 3+ for string)")
+
+
+class TelemetryRegistry(BaseModel):
+    """Full telemetry registry for the coordinator.
+    
+    Maps device UUIDs to their registered telemetry sensors.
+    Inner dict maps telemetry IDs (as strings) to their configuration entries.
+    
+    Attributes:
+        entries: Nested dict structure mapping device_uuid -> telemetry_id -> entry
+    
+    Example:
+        >>> registry = TelemetryRegistry()
+        >>> registry.entries["device123"] = {
+        ...     "4145": TelemetryRegistryEntry(faktor=0.1, signed=True)
+        ... }
+    """
+    model_config = {"frozen": True}
+    
+    entries: dict[str, dict[str, TelemetryRegistryEntry]] = Field(
+        default_factory=dict,
+        description="device_uuid -> telemetry_id -> entry"
+    )
+
+
+class PropertyRegistry(BaseModel):
+    """Full property registry for the coordinator.
+    
+    Maps device UUIDs to their registered properties.
+    Inner dict maps property paths (e.g., "29/1/10") to their configuration entries.
+    
+    Attributes:
+        entries: Nested dict structure mapping device_uuid -> path -> entry
+    
+    Example:
+        >>> registry = PropertyRegistry()
+        >>> registry.entries["device123"] = {
+        ...     "29/1/10": PropertyRegistryEntry(faktor=0.1, signed=True, byte_count=2)
+        ... }
+    """
+    model_config = {"frozen": True}
+    
+    entries: dict[str, dict[str, PropertyRegistryEntry]] = Field(
+        default_factory=dict,
+        description="device_uuid -> path -> entry"
+    )
