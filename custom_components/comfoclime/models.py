@@ -12,6 +12,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from .infrastructure.validation import validate_byte_value, validate_property_path
+
 
 # Utility functions for byte and temperature value processing
 def bytes_to_signed_int(data: list, byte_count: int | None = None, signed: bool = True) -> int:
@@ -161,6 +163,19 @@ class DeviceConfig(BaseModel):
     display_name: str = Field(default="Unknown Device", description="Human-readable device name")
     version: str | None = Field(default=None, description="Optional firmware version")
 
+    @classmethod
+    def from_api_dict(cls, device_dict: dict) -> DeviceConfig | None:
+        """Parse a device entry from the API into a DeviceConfig."""
+        try:
+            return cls(
+                uuid=device_dict.get("uuid", ""),
+                model_type_id=int(device_dict.get("modelTypeId", 0)),
+                display_name=device_dict.get("displayName", "Unknown Device"),
+                version=device_dict.get("version"),
+            )
+        except (KeyError, ValueError, TypeError):
+            return None
+
 
 class ConnectedDevicesResponse(BaseModel):
     """Response model for /system/{uuid}/devices."""
@@ -168,6 +183,17 @@ class ConnectedDevicesResponse(BaseModel):
     model_config = {"frozen": True}
 
     devices: list[DeviceConfig] = Field(default_factory=list, description="Connected devices")
+
+    @classmethod
+    def from_api(cls, response_data: dict | None) -> ConnectedDevicesResponse:
+        """Build a devices response from the raw API payload."""
+        raw_devices = response_data.get("devices", []) if isinstance(response_data, dict) else []
+        device_configs = []
+        for device_dict in raw_devices:
+            device_config = DeviceConfig.from_api_dict(device_dict)
+            if device_config is not None:
+                device_configs.append(device_config)
+        return cls(devices=device_configs)
 
 
 class DeviceDefinitionData(BaseModel):
@@ -235,6 +261,68 @@ class TelemetryReading(BaseModel):
 
         return value * self.faktor
 
+    @classmethod
+    def from_cached_value(
+        cls,
+        *,
+        device_uuid: str,
+        telemetry_id: str,
+        cached_value: int | float | None,
+        faktor: float = 1.0,
+        signed: bool = True,
+        byte_count: int | None = None,
+    ) -> TelemetryReading | None:
+        """Create a telemetry reading from a cached scaled value.
+
+        Returns None when the cached value is missing or non-numeric.
+        """
+        if cached_value is None or not isinstance(cached_value, (int, float)):
+            return None
+
+        if faktor == 0:
+            return None
+
+        if byte_count is None:
+            byte_count = 2
+
+        estimated_raw = int(round(cached_value / faktor))
+        return cls(
+            device_uuid=device_uuid,
+            telemetry_id=str(telemetry_id),
+            raw_value=estimated_raw,
+            faktor=faktor,
+            signed=signed,
+            byte_count=byte_count,
+        )
+
+    @classmethod
+    def from_raw_bytes(
+        cls,
+        *,
+        device_uuid: str,
+        telemetry_id: str,
+        data: list,
+        faktor: float = 1.0,
+        signed: bool = True,
+        byte_count: int | None = None,
+    ) -> TelemetryReading | None:
+        """Create a telemetry reading from raw API bytes."""
+        if not data:
+            return None
+
+        if byte_count is None:
+            byte_count = len(data)
+
+        raw_value = bytes_to_signed_int(data, byte_count, signed)
+        return cls(
+            device_uuid=device_uuid,
+            telemetry_id=str(telemetry_id),
+            raw_value=raw_value,
+            faktor=faktor,
+            signed=signed,
+            byte_count=byte_count,
+        )
+
 
 class PropertyReading(BaseModel):
     """A property reading from a device.
@@ -284,6 +372,86 @@ class PropertyReading(BaseModel):
         value = bytes_to_signed_int(bytes_data, self.byte_count, signed=self.signed)
 
         return value * self.faktor
+
+    @classmethod
+    def from_cached_value(
+        cls,
+        *,
+        device_uuid: str,
+        path: str,
+        cached_value: int | float | None,
+        faktor: float = 1.0,
+        signed: bool = True,
+        byte_count: int | None = None,
+    ) -> PropertyReading | None:
+        """Create a property reading from a cached value.
+
+        Returns None when the cached value is missing or non-numeric.
+        """
+        if cached_value is None or not isinstance(cached_value, (int, float)):
+            return None
+
+        if faktor == 0:
+            return None
+
+        if byte_count is None:
+            byte_count = 2
+
+        estimated_raw = int(round(cached_value / faktor))
+        return cls(
+            device_uuid=device_uuid,
+            path=path,
+            raw_value=estimated_raw,
+            faktor=faktor,
+            signed=signed,
+            byte_count=byte_count,
+        )
+
+
+class PropertyReadResult(BaseModel):
+    """Parsed result for a property read operation."""
+
+    model_config = {"frozen": True}
+
+    reading: PropertyReading | None = Field(default=None)
+    cache_value: int | float | str | None = Field(default=None)
+
+    @classmethod
+    def from_raw_bytes(
+        cls,
+        *,
+        device_uuid: str,
+        path: str,
+        data: list,
+        faktor: float = 1.0,
+        signed: bool = True,
+        byte_count: int | None = None,
+    ) -> PropertyReadResult:
+        """Parse raw property bytes into a result suitable for caching."""
+        if not data:
+            return cls(reading=None, cache_value=None)
+
+        if byte_count is None:
+            byte_count = len(data)
+
+        if byte_count in (1, 2):
+            reading = PropertyReading(
+                device_uuid=device_uuid,
+                path=path,
+                raw_value=bytes_to_signed_int(data, byte_count, signed),
+                faktor=faktor,
+                signed=signed,
+                byte_count=byte_count,
+            )
+            return cls(reading=reading, cache_value=reading.scaled_value)
+
+        if byte_count > 2:
+            if len(data) != byte_count:
+                raise ValueError(f"Unerwartete Byte-Anzahl: erwartet {byte_count}, erhalten {len(data)}")
+            result = "".join(chr(byte) for byte in data if byte != 0)
+            return cls(reading=None, cache_value=result)
+
+        raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
 
 
 class DashboardData(BaseModel):
@@ -486,6 +654,26 @@ class PropertyWriteRequest(BaseModel):
     byte_count: Literal[1, 2, 4] = Field(default=2)
     signed: bool = Field(default=True)
     faktor: float = Field(default=1.0, gt=0)
+
+    def to_wire_data(self) -> tuple[int, int, int, list[int]]:
+        """Validate and convert this request to wire format components."""
+        is_valid, error_message = validate_property_path(self.path)
+        if not is_valid:
+            raise ValueError(f"Invalid property path: {error_message}")
+
+        if self.byte_count not in (1, 2):
+            raise ValueError("Nur 1 oder 2 Byte unterstützt")
+
+        raw_value = round(self.value / self.faktor)
+        is_valid, error_message = validate_byte_value(raw_value, self.byte_count, self.signed)
+        if not is_valid:
+            raise ValueError(
+                f"Invalid value for byte_count={self.byte_count}, signed={self.signed}: {error_message}"
+            )
+
+        data = signed_int_to_bytes(raw_value, self.byte_count, self.signed)
+        x, y, z = map(int, self.path.split("/"))
+        return x, y, z, data
 
 
 class SeasonData(BaseModel):

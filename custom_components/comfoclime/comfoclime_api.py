@@ -38,15 +38,15 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
 from .constants import API_DEFAULTS
-from .infrastructure import RateLimiterCache, api_get, api_put, validate_byte_value, validate_property_path
+from .infrastructure import RateLimiterCache, api_get, api_put
 from .models import (
     ConnectedDevicesResponse,
     DashboardData,
     DashboardUpdate,
     DashboardUpdateResponse,
-    DeviceConfig,
     DeviceDefinitionData,
     MonitoringPing,
+    PropertyReadResult,
     PropertyReading,
     PropertyWriteRequest,
     PropertyWriteResponse,
@@ -54,8 +54,6 @@ from .models import (
     ThermalProfileData,
     ThermalProfileUpdate,
     ThermalProfileUpdateResponse,
-    bytes_to_signed_int,
-    signed_int_to_bytes,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -317,25 +315,7 @@ class ComfoClimeAPI:
         Note:
             Invalid device entries are skipped.
         """
-        # Parse each device dict into DeviceConfig model
-        raw_devices = response_data.get("devices", []) if isinstance(response_data, dict) else []
-        device_configs = []
-        for device_dict in raw_devices:
-            try:
-                # Map API field names to model field names
-                # API uses modelTypeId for the numeric ID, @modelType for the name
-                device_config = DeviceConfig(
-                    uuid=device_dict.get("uuid", ""),
-                    model_type_id=int(device_dict.get("modelTypeId", 0)),
-                    display_name=device_dict.get("displayName", "Unknown Device"),
-                    version=device_dict.get("version"),
-                )
-                device_configs.append(device_config)
-            except (KeyError, ValueError, TypeError) as e:
-                _LOGGER.warning("Skipping invalid device entry: %s - Error: %s", device_dict, e)
-                continue
-
-        return ConnectedDevicesResponse(devices=device_configs)
+        return ConnectedDevicesResponse.from_api(response_data)
 
     @api_get(
         "/device/{device_uuid}/definition",
@@ -424,38 +404,31 @@ class ComfoClimeAPI:
         # Try to get from cache first
         cache_key = RateLimiterCache.get_cache_key(device_uuid, telemetry_id)
         cached_value = self._rate_limiter.get_telemetry_from_cache(cache_key)
-        if cached_value is not None:
-            # Cache stores the raw value, reconstruct the model
-            # We need to reverse-engineer raw_value from cached scaled value
-            # For now, return a model with the cached result as raw (approximation)
-            # This is a simplification - ideally we'd cache the full model
-            estimated_raw = int(cached_value / faktor) if faktor != 0 else 0
-            return TelemetryReading(
-                device_uuid=device_uuid,
-                telemetry_id=str(telemetry_id),
-                raw_value=estimated_raw,
-                faktor=faktor,
-                signed=signed,
-                byte_count=byte_count or 2,
-            )
+        cached_reading = TelemetryReading.from_cached_value(
+            device_uuid=device_uuid,
+            telemetry_id=str(telemetry_id),
+            cached_value=cached_value,
+            faktor=faktor,
+            signed=signed,
+            byte_count=byte_count,
+        )
+        if cached_reading is not None:
+            return cached_reading
 
         # Not in cache, fetch from API using decorator
         data = await self._read_telemetry_raw(device_uuid, telemetry_id)
 
-        if data is None:
-            return None
-
-        raw_value = bytes_to_signed_int(data, byte_count, signed)
-
-        # Create validated Pydantic model
-        reading = TelemetryReading(
+        reading = TelemetryReading.from_raw_bytes(
             device_uuid=device_uuid,
             telemetry_id=str(telemetry_id),
-            raw_value=raw_value,
+            data=data or [],
             faktor=faktor,
             signed=signed,
-            byte_count=byte_count or len(data),
+            byte_count=byte_count,
         )
+
+        if reading is None:
+            return None
 
         # Store scaled value in cache
         self._rate_limiter.set_telemetry_cache(cache_key, reading.scaled_value)
@@ -506,60 +479,33 @@ class ComfoClimeAPI:
         # Try to get from cache first
         cache_key = RateLimiterCache.get_cache_key(device_uuid, property_path)
         cached_value = self._rate_limiter.get_property_from_cache(cache_key)
-        if cached_value is not None:
-            # Cache stores the final value, reconstruct approximation
-            estimated_raw = int(cached_value / faktor) if faktor != 0 and isinstance(cached_value, (int, float)) else 0
-            return PropertyReading(
-                device_uuid=device_uuid,
-                path=property_path,
-                raw_value=estimated_raw,
-                faktor=faktor,
-                signed=signed,
-                byte_count=byte_count or 2,
-            )
+        cached_reading = PropertyReading.from_cached_value(
+            device_uuid=device_uuid,
+            path=property_path,
+            cached_value=cached_value,
+            faktor=faktor,
+            signed=signed,
+            byte_count=byte_count,
+        )
+        if cached_reading is not None:
+            return cached_reading
 
         # Not in cache, fetch from API using decorator
         data = await self._read_property_for_device_raw(device_uuid, property_path)
 
-        # Wenn data leer/None ist, können wir nicht fortfahren
-        if not data:
-            return None
+        parsed = PropertyReadResult.from_raw_bytes(
+            device_uuid=device_uuid,
+            path=property_path,
+            data=data or [],
+            faktor=faktor,
+            signed=signed,
+            byte_count=byte_count,
+        )
 
-        # Determine actual byte count if not provided
-        if byte_count is None:
-            byte_count = len(data)
+        if parsed.cache_value is not None:
+            self._rate_limiter.set_property_cache(cache_key, parsed.cache_value)
 
-        # Parse numeric values (1-2 bytes)
-        if byte_count in (1, 2):
-            raw_value = bytes_to_signed_int(data, byte_count, signed)
-
-            # Create validated Pydantic model
-            reading = PropertyReading(
-                device_uuid=device_uuid,
-                path=property_path,
-                raw_value=raw_value,
-                faktor=faktor,
-                signed=signed,
-                byte_count=byte_count,
-            )
-
-            # Store scaled value in cache
-            self._rate_limiter.set_property_cache(cache_key, reading.scaled_value)
-
-            return reading
-
-        # String properties (3+ bytes) - not supported by PropertyReading model yet
-        # Return None for string properties for now
-        if byte_count and byte_count > 2:
-            if len(data) != byte_count:
-                raise ValueError(f"Unerwartete Byte-Anzahl: erwartet {byte_count}, erhalten {len(data)}")
-            # String values don't fit PropertyReading model - return None
-            # TODO: Consider adding StringPropertyReading model
-            result = "".join(chr(byte) for byte in data if byte != 0)
-            self._rate_limiter.set_property_cache(cache_key, result)
-            _LOGGER.debug("String property read (not returned as model): %s", result)
-            return None
-        raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
+        return parsed.reading
 
     @api_get("/device/{device_uuid}/property/{property_path}")
     async def _read_property_for_device_raw(self, response_data, device_uuid: str, property_path: str) -> None | list:
@@ -923,26 +869,7 @@ class ComfoClimeAPI:
                 faktor=faktor,
             )
 
-        # Validate property path format
-        is_valid, error_message = validate_property_path(request.path)
-        if not is_valid:
-            raise ValueError(f"Invalid property path: {error_message}")
-
-        # Validate byte count
-        if request.byte_count not in (1, 2):
-            raise ValueError("Nur 1 oder 2 Byte unterstützt")
-
-        # Calculate raw value and validate it fits in byte count
-        raw_value = round(request.value / request.faktor)
-        is_valid, error_message = validate_byte_value(raw_value, request.byte_count, request.signed)
-        if not is_valid:
-            raise ValueError(
-                f"Invalid value for byte_count={request.byte_count}, signed={request.signed}: {error_message}"
-            )
-
-        data = signed_int_to_bytes(raw_value, request.byte_count, request.signed)
-
-        x, y, z = map(int, request.path.split("/"))
+        x, y, z, data = request.to_wire_data()
 
         response_dict = await self._set_property_internal(request.device_uuid, x, y, z, data)
         # Invalidate cache for this device after successful write

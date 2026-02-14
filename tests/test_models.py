@@ -7,10 +7,13 @@ from custom_components.comfoclime.models import (
     DashboardData,
     DashboardUpdateResponse,
     DeviceConfig,
+    ConnectedDevicesResponse,
     MonitoringPing,
+    PropertyReadResult,
     PropertyReading,
     PropertyRegistry,
     PropertyRegistryEntry,
+    PropertyWriteRequest,
     PropertyWriteResponse,
     SeasonData,
     TelemetryReading,
@@ -67,6 +70,26 @@ class TestDeviceConfig:
 
         with pytest.raises(ValidationError):
             config.uuid = "new_uuid"
+
+
+class TestConnectedDevicesResponse:
+    """Tests for ConnectedDevicesResponse parsing helpers."""
+
+    def test_from_api_parses_devices(self):
+        """Test parsing devices from API payload."""
+        payload = {
+            "devices": [
+                {"uuid": "device-1", "modelTypeId": 1, "displayName": "Device 1"},
+                {"uuid": "device-2", "modelTypeId": 20, "displayName": "Device 2", "version": "1.0"},
+                {"uuid": "", "modelTypeId": "invalid"},
+            ]
+        }
+
+        response = ConnectedDevicesResponse.from_api(payload)
+
+        assert len(response.devices) == 2
+        assert response.devices[0].uuid == "device-1"
+        assert response.devices[1].version == "1.0"
 
 
 class TestTelemetryReading:
@@ -179,6 +202,36 @@ class TestTelemetryReading:
         with pytest.raises(ValidationError):
             TelemetryReading(device_uuid="abc123", telemetry_id="10", raw_value=100, byte_count=3)
 
+    def test_telemetry_from_cached_value(self):
+        """Test telemetry reconstruction from cached scaled value."""
+        reading = TelemetryReading.from_cached_value(
+            device_uuid="abc123",
+            telemetry_id="10",
+            cached_value=25.0,
+            faktor=0.1,
+            signed=True,
+            byte_count=2,
+        )
+
+        assert reading is not None
+        assert reading.raw_value == 250
+        assert reading.scaled_value == 25.0
+
+    def test_telemetry_from_raw_bytes(self):
+        """Test telemetry parsing from raw bytes."""
+        reading = TelemetryReading.from_raw_bytes(
+            device_uuid="abc123",
+            telemetry_id="10",
+            data=[250, 0],
+            faktor=0.1,
+            signed=False,
+            byte_count=2,
+        )
+
+        assert reading is not None
+        assert reading.raw_value == 250
+        assert reading.scaled_value == 25.0
+
 
 class TestPropertyReading:
     """Tests for PropertyReading dataclass."""
@@ -216,6 +269,73 @@ class TestPropertyReading:
         """Test that empty path raises ValidationError."""
         with pytest.raises(ValidationError):
             PropertyReading(device_uuid="abc123", path="", raw_value=100)
+
+    def test_property_from_cached_value(self):
+        """Test property reconstruction from cached value."""
+        reading = PropertyReading.from_cached_value(
+            device_uuid="abc123",
+            path="29/1/10",
+            cached_value=50.0,
+            faktor=0.5,
+            signed=True,
+            byte_count=2,
+        )
+
+        assert reading is not None
+        assert reading.raw_value == 100
+        assert reading.scaled_value == 50.0
+
+
+class TestPropertyReadResult:
+    """Tests for PropertyReadResult parsing."""
+
+    def test_property_read_result_numeric(self):
+        """Test numeric property parsing from raw bytes."""
+        result = PropertyReadResult.from_raw_bytes(
+            device_uuid="abc123",
+            path="29/1/10",
+            data=[100],
+            faktor=1.0,
+            signed=False,
+            byte_count=1,
+        )
+
+        assert result.reading is not None
+        assert result.cache_value == 100.0
+
+    def test_property_read_result_string(self):
+        """Test string property parsing from raw bytes."""
+        result = PropertyReadResult.from_raw_bytes(
+            device_uuid="abc123",
+            path="29/1/10",
+            data=[65, 0, 66],
+            faktor=1.0,
+            signed=False,
+            byte_count=3,
+        )
+
+        assert result.reading is None
+        assert result.cache_value == "AB"
+
+
+class TestPropertyWriteRequest:
+    """Tests for PropertyWriteRequest conversion helpers."""
+
+    def test_property_write_request_to_wire_data(self):
+        """Test conversion to wire data."""
+        request = PropertyWriteRequest(
+            device_uuid="abc123",
+            path="29/1/10",
+            value=22.5,
+            byte_count=2,
+            signed=True,
+            faktor=0.1,
+        )
+
+        x, y, z, data = request.to_wire_data()
+
+        assert (x, y, z) == (29, 1, 10)
+        assert data == [225, 0]
 
 
 class TestDashboardData:
