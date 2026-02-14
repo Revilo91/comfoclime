@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from custom_components.comfoclime.comfoclime_api import ComfoClimeAPI
-from custom_components.comfoclime.models import DashboardData, DeviceDefinitionData
+from custom_components.comfoclime.models import DashboardData, DashboardUpdate, DeviceDefinitionData
 
 
 class TestComfoClimeAPI:
@@ -360,7 +360,6 @@ class TestComfoClimeAPIWriteOperations:
     @pytest.mark.asyncio
     async def test_async_update_dashboard(self):
         """Test async updating dashboard."""
-        from custom_components.comfoclime.models import DashboardUpdate
 
         api = ComfoClimeAPI("http://192.168.1.100")
         api.uuid = "test-uuid"
@@ -437,8 +436,6 @@ class TestComfoClimeAPIRateLimiting:
         mock_session.put = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
 
         with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
-            from custom_components.comfoclime.models import DashboardUpdate
-
             update = DashboardUpdate(fan_speed=2)
             await api.async_update_dashboard(update)
 
