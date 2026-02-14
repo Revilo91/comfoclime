@@ -531,18 +531,18 @@ def get_default_enabled_individual_entities() -> set[str]:
         enabled.add(_make_sensor_id("sensors", "monitoring", sensor_def))
 
     # Connected device telemetry - all non-diagnostic by default
-    for _model_id, sensor_list in CONNECTED_DEVICE_SENSORS.items():
+    for sensor_list in CONNECTED_DEVICE_SENSORS.values():
         for sensor_def in sensor_list:
             if not getattr(sensor_def, "diagnose", False):
                 enabled.add(_make_sensor_id("sensors", "connected_telemetry", sensor_def))
 
     # Connected device properties - all by default
-    for _model_id, prop_list in CONNECTED_DEVICE_PROPERTIES.items():
+    for prop_list in CONNECTED_DEVICE_PROPERTIES.values():
         for prop_def in prop_list:
             enabled.add(_make_sensor_id("sensors", "connected_properties", prop_def))
 
     # Connected device definition sensors - all by default
-    for _model_id, def_list in CONNECTED_DEVICE_DEFINITION_SENSORS.items():
+    for def_list in CONNECTED_DEVICE_DEFINITION_SENSORS.values():
         for def_sensor in def_list:
             enabled.add(_make_sensor_id("sensors", "connected_definition", def_sensor))
 
@@ -557,7 +557,7 @@ def get_default_enabled_individual_entities() -> set[str]:
     for number_def in NUMBER_ENTITIES:
         enabled.add(_make_sensor_id("numbers", "thermal_profile", number_def))
 
-    for _model_id, number_list in CONNECTED_DEVICE_NUMBER_PROPERTIES.items():
+    for number_list in CONNECTED_DEVICE_NUMBER_PROPERTIES.values():
         for number_def in number_list:
             enabled.add(_make_sensor_id("numbers", "connected_properties", number_def))
 
@@ -565,7 +565,7 @@ def get_default_enabled_individual_entities() -> set[str]:
     for select_def in SELECT_ENTITIES:
         enabled.add(_make_sensor_id("selects", "thermal_profile", select_def))
 
-    for _model_id, select_list in PROPERTY_SELECT_ENTITIES.items():
+    for select_list in PROPERTY_SELECT_ENTITIES.values():
         for select_def in select_list:
             enabled.add(_make_sensor_id("selects", "connected_properties", select_def))
 
