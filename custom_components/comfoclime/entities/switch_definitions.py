@@ -5,22 +5,32 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 
-class SwitchDefinition(BaseModel):
-    """Definition of a switch entity.
+class EntityDefinitionBase(BaseModel):
+    """Base class for all entity definitions.
+
+    Contains common fields shared by all entity types.
 
     Attributes:
-        key: Unique identifier for the switch in API responses or dict key.
-        name: Display name for the switch (fallback if translation missing).
+        name: Display name for the entity (fallback if translation missing).
         translation_key: Key for i18n translations.
-        endpoint: Either "thermal_profile" or "dashboard".
-        invert: If True, invert the state logic (e.g., for hpstandby).
     """
 
     model_config = {"frozen": True}
 
-    key: str = Field(..., description="Unique identifier for the switch in API responses or dict key")
-    name: str = Field(..., description="Display name for the switch (fallback if translation missing)")
+    name: str = Field(..., description="Display name for the entity (fallback if translation missing)")
     translation_key: str = Field(..., description="Key for i18n translations")
+
+
+class SwitchDefinition(EntityDefinitionBase):
+    """Definition of a switch entity.
+
+    Attributes:
+        key: Unique identifier for the switch in API responses or dict key.
+        endpoint: Either "thermal_profile" or "dashboard".
+        invert: If True, invert the state logic (e.g., for hpstandby).
+    """
+
+    key: str = Field(..., description="Unique identifier for the switch in API responses or dict key")
     endpoint: str = Field(..., description="Either 'thermal_profile' or 'dashboard'")
     invert: bool = Field(
         default=False,

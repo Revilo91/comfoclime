@@ -5,39 +5,43 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 
-class SelectDefinition(BaseModel):
+class EntityDefinitionBase(BaseModel):
+    """Base class for all entity definitions.
+
+    Contains common fields shared by all entity types.
+
+    Attributes:
+        name: Display name for the entity (fallback if translation missing).
+        translation_key: Key for i18n translations.
+    """
+
+    model_config = {"frozen": True}
+
+    name: str = Field(..., description="Display name for the entity (fallback if translation missing)")
+    translation_key: str = Field(..., description="Key for i18n translations")
+
+
+class SelectDefinition(EntityDefinitionBase):
     """Definition of a select entity.
 
     Attributes:
         key: Unique identifier for the select in API responses.
-        name: Display name for the select control.
-        translation_key: Key for i18n translations.
         options: Dictionary mapping numeric values to string options.
     """
 
-    model_config = {"frozen": True}
-
     key: str = Field(..., description="Unique identifier for the select in API responses")
-    name: str = Field(..., description="Display name for the select control")
-    translation_key: str = Field(..., description="Key for i18n translations")
     options: dict[int, str] = Field(..., description="Dictionary mapping numeric values to string options")
 
 
-class PropertySelectDefinition(BaseModel):
+class PropertySelectDefinition(EntityDefinitionBase):
     """Definition of a property-based select entity.
 
     Attributes:
         path: Property path in format "X/Y/Z".
-        name: Display name for the select control.
-        translation_key: Key for i18n translations.
         options: Dictionary mapping numeric values to string options.
     """
 
-    model_config = {"frozen": True}
-
     path: str = Field(..., description="Property path in format 'X/Y/Z'")
-    name: str = Field(..., description="Display name for the select control")
-    translation_key: str = Field(..., description="Key for i18n translations")
     options: dict[int, str] = Field(..., description="Dictionary mapping numeric values to string options")
 
 
