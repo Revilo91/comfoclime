@@ -139,6 +139,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     if is_entity_category_enabled(entry.options, "sensors", "dashboard"):
         for sensor_def in DASHBOARD_SENSORS:
             if is_entity_enabled(entry.options, "sensors", "dashboard", sensor_def):
+                # Diagnostic entities are enabled by default but disabled in HA UI by default
+                is_diagnose = sensor_def.entity_category == "diagnostic"
+                enabled_default = not is_diagnose or entry.options.get("enable_diagnostics", True)
+
                 sensors.append(
                     ComfoClimeSensor(
                         hass=hass,
@@ -153,6 +157,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                         entity_category=sensor_def.entity_category,
                         device=main_device,
                         entry=entry,
+                        entity_registry_enabled_default=enabled_default,
                     )
                 )
 
@@ -161,6 +166,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     if is_entity_category_enabled(entry.options, "sensors", "thermalprofile"):
         for sensor_def in THERMALPROFILE_SENSORS:
             if is_entity_enabled(entry.options, "sensors", "thermalprofile", sensor_def):
+                # Diagnostic entities are enabled by default but disabled in HA UI by default
+                is_diagnose = sensor_def.entity_category == "diagnostic"
+                enabled_default = not is_diagnose or entry.options.get("enable_diagnostics", True)
+
                 sensors.append(
                     ComfoClimeSensor(
                         hass=hass,
@@ -175,6 +184,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                         entity_category=sensor_def.entity_category,
                         device=main_device,
                         entry=entry,
+                        entity_registry_enabled_default=enabled_default,
                     )
                 )
 
@@ -196,6 +206,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                 entity_enabled,
             )
             if entity_enabled:
+                # Diagnostic entities are enabled by default but disabled in HA UI by default
+                # We want them enabled by default so users can see them
+                is_diagnose = sensor_def.entity_category == "diagnostic"
+                enabled_default = not is_diagnose or entry.options.get("enable_diagnostics", True)
+
                 sensors.append(
                     ComfoClimeSensor(
                         hass=hass,
@@ -210,6 +225,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                         entity_category=sensor_def.entity_category,
                         device=main_device,
                         entry=entry,
+                        entity_registry_enabled_default=enabled_default,
                     )
                 )
                 _LOGGER.debug("Created monitoring sensor: %s", sensor_def.name)
@@ -427,6 +443,7 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
         entity_category: str | None = None,
         device: DeviceConfig | None = None,
         entry: ConfigEntry | None = None,
+        entity_registry_enabled_default: bool = True,
     ) -> None:
         super().__init__(coordinator)
         self._hass = hass
@@ -440,6 +457,7 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
         self._attr_device_class = SensorDeviceClass(device_class) if device_class else None
         self._attr_state_class = SensorStateClass(state_class) if state_class else None
         self._attr_entity_category = EntityCategory(entity_category) if entity_category else None
+        self._attr_entity_registry_enabled_default = entity_registry_enabled_default
         self._device = device
         self._entry = entry
         self._attr_config_entry_id = entry.entry_id

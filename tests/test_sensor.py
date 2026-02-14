@@ -108,6 +108,45 @@ class TestComfoClimeSensor:
         assert device_info["name"] == "ComfoClime Test"
         assert device_info["manufacturer"] == "Zehnder"
 
+    def test_monitoring_sensor_update(
+        self, mock_hass, mock_config_entry
+    ):
+        """Test monitoring sensor state update from MonitoringPing coordinator."""
+        # Create a mock monitoring coordinator with MonitoringPing data
+        mock_monitoring_coordinator = MagicMock()
+        mock_monitoring_coordinator.data = MonitoringPing(
+            uuid="test-uuid",
+            up_time_seconds=123456,
+            timestamp=1705314600,
+        )
+
+        sensor = ComfoClimeSensor(
+            hass=mock_hass,
+            coordinator=mock_monitoring_coordinator,
+            api=MagicMock(),
+            sensor_type="up_time_seconds",
+            name="Uptime",
+            translation_key="uptime",
+            unit="s",
+            device_class="duration",
+            state_class="measurement",
+            entity_category="diagnostic",
+            device=None,
+            entry=mock_config_entry,
+        )
+
+        # Set hass attribute and patch async_write_ha_state
+        sensor.hass = mock_hass
+        sensor.async_write_ha_state = MagicMock()
+
+        # Trigger coordinator update
+        sensor._handle_coordinator_update()
+
+        # Verify the sensor correctly retrieved the uptime value
+        assert sensor._state == 123456
+        assert sensor._raw_value == 123456
+        assert sensor.native_value == 123456
+
 
 class TestComfoClimeTelemetrySensor:
     """Test ComfoClimeTelemetrySensor class."""
