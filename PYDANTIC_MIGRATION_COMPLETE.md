@@ -68,7 +68,7 @@ def get_device_uuid(device: dict | object) -> str | None:
 **Dateien geändert** (6 Dateien):
 - `sensor.py`: 5 Änderungen (DeviceConfig Import + 5 Type-Hints)
 - `climate.py`: 2 Änderungen
-- `fan.py`: 1 Änderung  
+- `fan.py`: 1 Änderung
 - `select.py`: 2 Änderungen
 - `switch.py`: 1 Änderung
 - `number.py`: 2 Änderungen
@@ -242,7 +242,7 @@ Erfolgsquote: 93.3%
 
 Zu reparieren:
 - Entity-Setup Tests (14)
-- Coordinator Registry Tests (5)  
+- Coordinator Registry Tests (5)
 - Response-Mock Tests (8)
 ```
 
@@ -283,6 +283,6 @@ Für Fragen zu dieser Migration:
 
 ---
 
-**Erstellt**: 14. Februar 2026  
-**Status**: 🟨 96% Abgeschlossen  
+**Erstellt**: 14. Februar 2026
+**Status**: 🟨 96% Abgeschlossen
 **Nächster Schritt**: Verbleibende 27 Tests reparieren (~1-2 Stunden)

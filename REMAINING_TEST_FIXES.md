@@ -5,7 +5,7 @@
 **27 fehlgeschlagene Tests** zu 3 Kategorien:
 
 1. **Entity-Setup Tests (14)** - Device-Dicts → DeviceConfig
-2. **Coordinator Registry Tests (5)** - `.registry` Property  
+2. **Coordinator Registry Tests (5)** - `.registry` Property
 3. **Response-Model Mock Tests (8)** - Status integer
 
 ---

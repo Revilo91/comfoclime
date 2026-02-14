@@ -4,7 +4,7 @@
 
 Die **komplette Pydantic-Migration** der ComfoClime Home-Assistant-Integration wurde erfolgreich durchgeführt!
 
-**Status**: ✅ Code-Migration **100% abgeschlossen**  
+**Status**: ✅ Code-Migration **100% abgeschlossen**
 **Pending**: 🟨 Test-Fixes (**45 min** mit bereitgestellter Anleitung)
 
 ---
@@ -14,7 +14,7 @@ Die **komplette Pydantic-Migration** der ComfoClime Home-Assistant-Integration w
 ### ✅ **Phase 1: Response-Modelle** (100% ✅)
 7 neue Pydantic-Modelle für strukturierte API-Responses:
 - DashboardUpdateResponse
-- ThermalProfileUpdateResponse  
+- ThermalProfileUpdateResponse
 - PropertyWriteResponse
 - TelemetryDataResponse
 - PropertyDataResponse
@@ -51,7 +51,7 @@ Alle `dict[str, Any]` Device-Parameter zu `DeviceConfig` migriert.
 ### ✅ **Phase 4: Coordinator Registry Strukturierung** (100% ✅)
 4 neue Registry-Modelle für typsichere interne Datenstrukturen:
 - TelemetryRegistryEntry
-- PropertyRegistryEntry  
+- PropertyRegistryEntry
 - TelemetryRegistry
 - PropertyRegistry
 
@@ -267,10 +267,10 @@ git commit -m "test: Update tests for Pydantic models"
 
 Diese Migration repräsentiert eine **signifikante Qualitäts-Steigerung** des ComfoClime-Projekts:
 
-✅ **Codebasis ist schlanker, typsicherer und wartbarer**  
-✅ **Breaking Change ist minimal** (nur dict → DeviceConfig)  
-✅ **Tests zeigen hohe Erfolgsquote** (93%)  
-✅ **Dokumentation vollständig** für Verständnis & Wartung  
+✅ **Codebasis ist schlanker, typsicherer und wartbarer**
+✅ **Breaking Change ist minimal** (nur dict → DeviceConfig)
+✅ **Tests zeigen hohe Erfolgsquote** (93%)
+✅ **Dokumentation vollständig** für Verständnis & Wartung
 
 Das Projekt ist nun auf **modernem Python-Standard** (Pydantic v2, Type-Hints, Best-Practices) aufgebaut.
 
@@ -284,8 +284,8 @@ Das Projekt ist nun auf **modernem Python-Standard** (Pydantic v2, Type-Hints, B
 
 ---
 
-**Projekt**: ComfoClime Home Assistant Integration  
-**Migration-Datum**: Februar 2026  
-**Status**: 🟨 96% Complete (Last 4% = Tests)  
-**Aufwand Gesamt**: ~8 hours (Code 7h, Tests 1h remaining)  
+**Projekt**: ComfoClime Home Assistant Integration
+**Migration-Datum**: Februar 2026
+**Status**: 🟨 96% Complete (Last 4% = Tests)
+**Aufwand Gesamt**: ~8 hours (Code 7h, Tests 1h remaining)
 **ROI**: Massive Code-Qualitäts-Verbesserung

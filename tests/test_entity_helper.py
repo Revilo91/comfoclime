@@ -200,7 +200,7 @@ def test_make_sensor_id_with_property():
         def __init__(self):
             self.property = "29/1/2"
             self.name = "RMOT Heating Threshold"
-    
+
     sensor_def = PropertyDef()
     result = _make_sensor_id("numbers", "connected_properties", sensor_def)
     assert result == "numbers_connected_properties_prop_29_1_2"

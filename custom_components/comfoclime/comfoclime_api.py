@@ -786,7 +786,7 @@ class ComfoClimeAPI:
             response_dict = await self._async_update_thermal_profile(update=update)
         else:
             response_dict = await self._async_update_thermal_profile(**kwargs)
-        
+
         # Wrap the decorator's dict response to ThermalProfileUpdateResponse
         if isinstance(response_dict, dict):
             response_dict.setdefault("status", 200)
@@ -951,7 +951,7 @@ class ComfoClimeAPI:
         response_dict = await self._set_property_internal(request.device_uuid, x, y, z, data)
         # Invalidate cache for this device after successful write
         self._rate_limiter.invalidate_cache_for_device(request.device_uuid)
-        
+
         # Wrap the decorator's dict response to PropertyWriteResponse
         if isinstance(response_dict, dict):
             response_dict.setdefault("status", 200)
