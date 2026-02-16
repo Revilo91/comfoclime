@@ -32,7 +32,6 @@ from typing import TYPE_CHECKING
 import aiohttp
 from homeassistant.components.fan import FanEntity, FanEntityFeature
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from pydantic import BaseModel
 
@@ -46,35 +45,14 @@ if TYPE_CHECKING:
 
 from . import DOMAIN
 from .constants import FanSpeed
-from .entity_helper import (
-    get_device_display_name,
-    get_device_model_type,
-    get_device_uuid,
-    get_device_version,
-)
+from .entity_base import ComfoClimeBaseEntity
 from .models import DashboardUpdate, DeviceConfig
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class ComfoClimeFan(CoordinatorEntity, FanEntity):
-    """ComfoClime Fan entity for ventilation fan speed control.
-
-    Provides control over the ComfoClime ventilation fan speed with
-    3 discrete speed levels (low/medium/high) plus off. The fan speed
-    is also controlled by the climate entity's fan_mode attribute.
-
-    Attributes:
-        is_on: Whether the fan is on (speed > 0)
-        percentage: Current fan speed as percentage (0%, 33%, 66%, 100%)
-        speed_count: Number of discrete speed levels (3)
-
-    Example:
-        >>> # Set fan to medium speed (66%)
-        >>> await fan.async_set_percentage(66)
-        >>> # Turn off fan
-        >>> await fan.async_set_percentage(0)
-    """
+class ComfoClimeFan(ComfoClimeBaseEntity, CoordinatorEntity, FanEntity):
+    """ComfoClime Fan entity for ventilation fan speed control."""
 
     def __init__(
         self,
@@ -84,15 +62,6 @@ class ComfoClimeFan(CoordinatorEntity, FanEntity):
         device: DeviceConfig,
         entry: ConfigEntry,
     ) -> None:
-        """Initialize the ComfoClime fan entity.
-
-        Args:
-            hass: Home Assistant instance
-            coordinator: Dashboard data coordinator
-            api: ComfoClime API instance
-            device: Device info dictionary
-            entry: Config entry for this integration
-        """
         super().__init__(coordinator)
         self._hass = hass
         self._api = api
@@ -105,20 +74,9 @@ class ComfoClimeFan(CoordinatorEntity, FanEntity):
         self._attr_unique_id = f"{entry.entry_id}_fan_speed"
         self._attr_config_entry_id = entry.entry_id
 
-        # Setze percentage-Modus mit diskreten Stufen
         self._attr_supported_features = FanEntityFeature.SET_SPEED
         self._attr_speed_count = 3
         self._attr_percentage_step = 100 // (self._attr_speed_count)
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        return DeviceInfo(
-            identifiers={(DOMAIN, get_device_uuid(self._device))},
-            name=get_device_display_name(self._device),
-            manufacturer="Zehnder",
-            model=get_device_model_type(self._device),
-            sw_version=get_device_version(self._device),
-        )
 
     @property
     def is_on(self) -> bool:
@@ -129,22 +87,7 @@ class ComfoClimeFan(CoordinatorEntity, FanEntity):
         return self._current_speed.to_percentage()
 
     async def async_set_percentage(self, percentage: int) -> None:
-        """Set the fan speed by percentage.
-
-        Converts percentage to discrete speed level (0-3) and updates
-        the device. The speed levels are:
-            - 0%: Off (speed 0)
-            - 33%: Low (speed 1)
-            - 66%: Medium (speed 2)
-            - 100%: High (speed 3)
-
-        Args:
-            percentage: Fan speed percentage (0-100)
-
-        Raises:
-            aiohttp.ClientError: If API call fails
-            asyncio.TimeoutError: If API call times out
-        """
+        """Set the fan speed by percentage."""
         fan_speed = FanSpeed.from_percentage(percentage)
         try:
             update = DashboardUpdate(fan_speed=fan_speed)
@@ -152,15 +95,7 @@ class ComfoClimeFan(CoordinatorEntity, FanEntity):
             self._current_speed = fan_speed
             self.async_write_ha_state()
 
-            # Schedule background refresh without blocking
-            async def safe_refresh() -> None:
-                """Safely refresh coordinator with error handling."""
-                try:
-                    await self.coordinator.async_request_refresh()
-                except Exception:
-                    _LOGGER.exception("Background refresh failed after fan speed update")
-
-            self._hass.async_create_task(safe_refresh())
+            self._hass.async_create_task(self._safe_refresh(self.coordinator, "fan"))
         except (TimeoutError, aiohttp.ClientError) as err:
             _LOGGER.exception("Error setting fan speed")
             raise HomeAssistantError(f"Failed to set fan speed: {err}") from err
