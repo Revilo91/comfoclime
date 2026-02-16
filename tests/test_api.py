@@ -733,8 +733,9 @@ class TestComfoClimeAPIResponseModels:
         api.hass = MagicMock()
         api.hass.config.time_zone = "Europe/Berlin"
 
+        # Return empty dict so default status=200 is applied
         mock_response = AsyncMock()
-        mock_response.json = AsyncMock(return_value={"status": "ok"})
+        mock_response.json = AsyncMock(return_value={})
         mock_response.raise_for_status = MagicMock()
 
         mock_session = AsyncMock()

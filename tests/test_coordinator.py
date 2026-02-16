@@ -563,11 +563,11 @@ class TestTelemetryCoordinatorRegistry:
         )
 
         # Registry should contain Pydantic model entries
-        assert isinstance(coordinator.registry, TelemetryRegistry)
-        assert "device1" in coordinator.registry.entries
-        assert "4145" in coordinator.registry.entries["device1"]
+        assert isinstance(coordinator._telemetry_registry, dict)
+        assert "device1" in coordinator._telemetry_registry
+        assert "4145" in coordinator._telemetry_registry["device1"]
 
-        entry = coordinator.registry.entries["device1"]["4145"]
+        entry = coordinator._telemetry_registry["device1"]["4145"]
         assert isinstance(entry, TelemetryRegistryEntry)
         assert entry.faktor == 0.1
         assert entry.signed is True
@@ -595,9 +595,9 @@ class TestTelemetryCoordinatorRegistry:
         )
 
         # Both entries should be in registry
-        assert len(coordinator.registry.entries["device1"]) == 2
-        assert "4145" in coordinator.registry.entries["device1"]
-        assert "4154" in coordinator.registry.entries["device1"]
+        assert len(coordinator._telemetry_registry["device1"]) == 2
+        assert "4145" in coordinator._telemetry_registry["device1"]
+        assert "4154" in coordinator._telemetry_registry["device1"]
 
 
 class TestPropertyCoordinatorRegistry:
@@ -618,11 +618,11 @@ class TestPropertyCoordinatorRegistry:
         )
 
         # Registry should contain Pydantic model entries
-        assert isinstance(coordinator.registry, PropertyRegistry)
-        assert "device1" in coordinator.registry.entries
-        assert "29/1/10" in coordinator.registry.entries["device1"]
+        assert isinstance(coordinator._property_registry, dict)
+        assert "device1" in coordinator._property_registry
+        assert "29/1/10" in coordinator._property_registry["device1"]
 
-        entry = coordinator.registry.entries["device1"]["29/1/10"]
+        entry = coordinator._property_registry["device1"]["29/1/10"]
         assert isinstance(entry, PropertyRegistryEntry)
         assert entry.faktor == 1.0
         assert entry.signed is True
@@ -650,6 +650,6 @@ class TestPropertyCoordinatorRegistry:
         )
 
         # Both entries should be in registry
-        assert len(coordinator.registry.entries["device1"]) == 2
-        assert "29/1/10" in coordinator.registry.entries["device1"]
-        assert "29/1/6" in coordinator.registry.entries["device1"]
+        assert len(coordinator._property_registry["device1"]) == 2
+        assert "29/1/10" in coordinator._property_registry["device1"]
+        assert "29/1/6" in coordinator._property_registry["device1"]
