@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import logging
-import re
 from typing import TYPE_CHECKING
 
 import aiohttp
 from homeassistant.components.select import SelectEntity
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 if TYPE_CHECKING:
@@ -22,6 +20,7 @@ if TYPE_CHECKING:
     )
 
 from . import DOMAIN
+from .entity_base import ComfoClimeBaseEntity
 from .entities.select_definitions import (
     PROPERTY_SELECT_ENTITIES,
     SELECT_ENTITIES,
@@ -29,23 +28,14 @@ from .entities.select_definitions import (
     SelectDefinition,
 )
 from .entity_helper import (
-    get_device_display_name,
-    get_device_model_type,
     get_device_model_type_id,
     get_device_uuid,
-    get_device_version,
     is_entity_category_enabled,
     is_entity_enabled,
 )
 from .models import DeviceConfig, PropertyWriteRequest
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def _camel_to_snake(name: str) -> str:
-    """Convert camelCase to snake_case."""
-    # Insert underscore before uppercase letters and convert to lowercase
-    return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
@@ -109,7 +99,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     async_add_entities(entities, True)
 
 
-class ComfoClimeSelect(CoordinatorEntity, SelectEntity):
+class ComfoClimeSelect(ComfoClimeBaseEntity, CoordinatorEntity, SelectEntity):
     def __init__(
         self,
         hass: HomeAssistant,
@@ -143,31 +133,10 @@ class ComfoClimeSelect(CoordinatorEntity, SelectEntity):
     def current_option(self):
         return self._current
 
-    @property
-    def device_info(self) -> DeviceInfo:
-        if not self._device:
-            return None
-
-        return DeviceInfo(
-            identifiers={(DOMAIN, get_device_uuid(self._device))},
-            name=get_device_display_name(self._device),
-            manufacturer="Zehnder",
-            model=get_device_model_type(self._device),
-            sw_version=get_device_version(self._device),
-        )
-
     def _handle_coordinator_update(self) -> None:
         try:
             data = self.coordinator.data
-            val = data
-            for k in self._key_path:
-                # Try to get attribute with original key name first
-                try:
-                    val = getattr(val, k)
-                except AttributeError:
-                    # If that fails, try snake_case version
-                    snake_key = _camel_to_snake(k)
-                    val = getattr(val, snake_key)
+            val = self._extract_nested_value(data, self._key_path)
             self._current = self._options_map.get(val)
         except (AttributeError, TypeError, ValueError):
             _LOGGER.debug("Error loading select %s", self._name, exc_info=True)
@@ -181,17 +150,12 @@ class ComfoClimeSelect(CoordinatorEntity, SelectEntity):
         try:
             _LOGGER.debug("Setting %s: %s (value=%s)", self._name, option, value)
 
-            # Mapping aller SELECT_ENTITIES Keys zu thermal_profile Parametern
-            # Basierend auf dem thermalprofile JSON Schema
             param_mapping = {
-                # Top-level fields
                 "temperatureProfile": "temperature_profile",
-                # season nested fields
                 "season.season": "season_value",
                 "season.status": "season_status",
                 "season.heatingThresholdTemperature": "heating_threshold_temperature",
                 "season.coolingThresholdTemperature": "cooling_threshold_temperature",
-                # temperature nested fields
                 "temperature.status": "temperature_status",
                 "temperature.manualTemperature": "manual_temperature",
             }
@@ -204,22 +168,13 @@ class ComfoClimeSelect(CoordinatorEntity, SelectEntity):
             await self._api.async_update_thermal_profile(**{param_name: value})
 
             self._current = option
-
-            # Schedule background refresh without blocking
-            async def safe_refresh() -> None:
-                """Safely refresh coordinator with error handling."""
-                try:
-                    await self.coordinator.async_request_refresh()
-                except Exception:
-                    _LOGGER.exception("Background refresh failed after select update")
-
-            self._hass.async_create_task(safe_refresh())
+            self._hass.async_create_task(self._safe_refresh(self.coordinator, "select"))
         except (TimeoutError, aiohttp.ClientError):
             _LOGGER.exception("Error setting select %s", self._name)
             raise HomeAssistantError(f"Error setting {self._name}") from None
 
 
-class ComfoClimePropertySelect(CoordinatorEntity, SelectEntity):
+class ComfoClimePropertySelect(ComfoClimeBaseEntity, CoordinatorEntity, SelectEntity):
     """Select entity for property values using coordinator for batched fetching."""
 
     def __init__(
@@ -253,19 +208,6 @@ class ComfoClimePropertySelect(CoordinatorEntity, SelectEntity):
     @property
     def current_option(self):
         return self._current
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        if not self._device:
-            return None
-
-        return DeviceInfo(
-            identifiers={(DOMAIN, get_device_uuid(self._device))},
-            name=get_device_display_name(self._device),
-            manufacturer="Zehnder",
-            model=get_device_model_type(self._device),
-            sw_version=get_device_version(self._device),
-        )
 
     @callback
     def _handle_coordinator_update(self) -> None:
