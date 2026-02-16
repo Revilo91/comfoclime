@@ -294,7 +294,7 @@ class TelemetryReading(ComfoClimeModel):
         if byte_count is None:
             byte_count = 2
 
-        estimated_raw = int(round(cached_value / faktor))
+        estimated_raw = round(cached_value / faktor)
         return cls(
             device_uuid=device_uuid,
             telemetry_id=str(telemetry_id),
@@ -404,7 +404,7 @@ class PropertyReading(ComfoClimeModel):
         if byte_count is None:
             byte_count = 2
 
-        estimated_raw = int(round(cached_value / faktor))
+        estimated_raw = round(cached_value / faktor)
         return cls(
             device_uuid=device_uuid,
             path=path,
@@ -672,9 +672,7 @@ class PropertyWriteRequest(ComfoClimeModel):
         raw_value = round(self.value / self.faktor)
         is_valid, error_message = validate_byte_value(raw_value, self.byte_count, self.signed)
         if not is_valid:
-            raise ValueError(
-                f"Invalid value for byte_count={self.byte_count}, signed={self.signed}: {error_message}"
-            )
+            raise ValueError(f"Invalid value for byte_count={self.byte_count}, signed={self.signed}: {error_message}")
 
         data = signed_int_to_bytes(raw_value, self.byte_count, self.signed)
         x, y, z = map(int, self.path.split("/"))

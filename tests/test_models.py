@@ -4,13 +4,13 @@ import pytest
 from pydantic import ValidationError
 
 from custom_components.comfoclime.models import (
+    ConnectedDevicesResponse,
     DashboardData,
     DashboardUpdateResponse,
     DeviceConfig,
-    ConnectedDevicesResponse,
     MonitoringPing,
-    PropertyReadResult,
     PropertyReading,
+    PropertyReadResult,
     PropertyRegistry,
     PropertyRegistryEntry,
     PropertyWriteRequest,

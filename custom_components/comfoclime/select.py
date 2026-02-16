@@ -20,13 +20,13 @@ if TYPE_CHECKING:
     )
 
 from . import DOMAIN
-from .entity_base import ComfoClimeBaseEntity
 from .entities.select_definitions import (
     PROPERTY_SELECT_ENTITIES,
     SELECT_ENTITIES,
     PropertySelectDefinition,
     SelectDefinition,
 )
+from .entity_base import ComfoClimeBaseEntity
 from .entity_helper import (
     get_device_model_type_id,
     get_device_uuid,

@@ -11,8 +11,8 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
-from .entity_base import ComfoClimeBaseEntity
 from .entities.switch_definitions import SWITCHES
+from .entity_base import ComfoClimeBaseEntity
 from .entity_helper import (
     is_entity_category_enabled,
     is_entity_enabled,

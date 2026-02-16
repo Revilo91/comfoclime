@@ -110,7 +110,9 @@ class ComfoClimeDashboardCoordinator(ComfoClimeBaseCoordinator):
         config_entry=None,
     ):
         super().__init__(
-            hass, api, "ComfoClime Dashboard",
+            hass,
+            api,
+            "ComfoClime Dashboard",
             polling_interval=polling_interval,
             access_tracker=access_tracker,
             config_entry=config_entry,
@@ -134,7 +136,9 @@ class ComfoClimeMonitoringCoordinator(ComfoClimeBaseCoordinator):
         config_entry=None,
     ) -> None:
         super().__init__(
-            hass, api, "ComfoClime Monitoring",
+            hass,
+            api,
+            "ComfoClime Monitoring",
             polling_interval=polling_interval,
             access_tracker=access_tracker,
             config_entry=config_entry,
@@ -161,7 +165,9 @@ class ComfoClimeThermalprofileCoordinator(ComfoClimeBaseCoordinator):
         config_entry=None,
     ) -> None:
         super().__init__(
-            hass, api, "ComfoClime Thermalprofile",
+            hass,
+            api,
+            "ComfoClime Thermalprofile",
             polling_interval=polling_interval,
             access_tracker=access_tracker,
             config_entry=config_entry,

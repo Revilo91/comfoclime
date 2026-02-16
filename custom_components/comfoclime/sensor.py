@@ -49,7 +49,6 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from pydantic import BaseModel
 
 from . import DOMAIN
-from .entity_base import ComfoClimeBaseEntity
 from .coordinator import (
     ComfoClimeDashboardCoordinator,
     ComfoClimeDefinitionCoordinator,
@@ -68,6 +67,7 @@ from .entities.sensor_definitions import (
     TELEMETRY_SENSORS,
     THERMALPROFILE_SENSORS,
 )
+from .entity_base import ComfoClimeBaseEntity
 from .entity_helper import (
     get_device_model_type_id,
     get_device_uuid,

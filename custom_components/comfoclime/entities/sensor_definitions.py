@@ -6,7 +6,7 @@ from enum import Enum, auto
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.const import EntityCategory
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from .base import EntityDefinitionBase
 
