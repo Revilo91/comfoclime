@@ -259,12 +259,13 @@ class TelemetryReading(ComfoClimeModel):
         """Calculate the scaled value.
 
         Applies signed interpretation (if needed) and scaling factor.
-        Uses the bytes_to_signed_int utility function for proper conversion.
+        The raw_value is stored as unsigned (the raw byte representation),
+        and we interpret it using the signed flag.
 
         Returns:
             The scaled telemetry value.
         """
-        # Convert raw_value to bytes and back using utility function for proper signed handling
+        # raw_value is stored as unsigned; convert to bytes and interpret as signed/unsigned
         bytes_data = signed_int_to_bytes(self.raw_value, self.byte_count, signed=False)
         value = bytes_to_signed_int(bytes_data, self.byte_count, signed=self.signed)
 
@@ -294,11 +295,22 @@ class TelemetryReading(ComfoClimeModel):
         if byte_count is None:
             byte_count = 2
 
-        estimated_raw = round(cached_value / faktor)
+        # Calculate estimated raw value (as signed interpretation)
+        estimated_raw_signed = round(cached_value / faktor)
+
+        # Convert to unsigned representation (raw bytes)
+        # If signed, convert the signed value to its unsigned byte representation
+        if signed and estimated_raw_signed < 0:
+            # Convert to bytes and back as unsigned to get the raw byte representation
+            bytes_data = estimated_raw_signed.to_bytes(byte_count, byteorder="little", signed=True)
+            raw_value = int.from_bytes(bytes_data, byteorder="little", signed=False)
+        else:
+            raw_value = estimated_raw_signed
+
         return cls(
             device_uuid=device_uuid,
             telemetry_id=str(telemetry_id),
-            raw_value=estimated_raw,
+            raw_value=raw_value,
             faktor=faktor,
             signed=signed,
             byte_count=byte_count,
@@ -322,7 +334,8 @@ class TelemetryReading(ComfoClimeModel):
         if byte_count is None:
             byte_count = len(data)
 
-        raw_value = bytes_to_signed_int(data, byte_count, signed)
+        # Always store raw_value as unsigned (the raw byte representation)
+        raw_value = bytes_to_signed_int(data, byte_count, signed=False)
         return cls(
             device_uuid=device_uuid,
             telemetry_id=str(telemetry_id),
@@ -369,12 +382,13 @@ class PropertyReading(ComfoClimeModel):
         """Calculate the scaled value.
 
         Applies signed interpretation and scaling factor.
-        Uses the bytes_to_signed_int utility function for proper conversion.
+        The raw_value is stored as unsigned (the raw byte representation),
+        and we interpret it using the signed flag.
 
         Returns:
             The scaled property value.
         """
-        # Convert raw_value to bytes and back using utility function for proper signed handling
+        # raw_value is stored as unsigned; convert to bytes and interpret as signed/unsigned
         bytes_data = signed_int_to_bytes(self.raw_value, self.byte_count, signed=False)
         value = bytes_to_signed_int(bytes_data, self.byte_count, signed=self.signed)
 
@@ -404,11 +418,22 @@ class PropertyReading(ComfoClimeModel):
         if byte_count is None:
             byte_count = 2
 
-        estimated_raw = round(cached_value / faktor)
+        # Calculate estimated raw value (as signed interpretation)
+        estimated_raw_signed = round(cached_value / faktor)
+
+        # Convert to unsigned representation (raw bytes)
+        # If signed, convert the signed value to its unsigned byte representation
+        if signed and estimated_raw_signed < 0:
+            # Convert to bytes and back as unsigned to get the raw byte representation
+            bytes_data = estimated_raw_signed.to_bytes(byte_count, byteorder="little", signed=True)
+            raw_value = int.from_bytes(bytes_data, byteorder="little", signed=False)
+        else:
+            raw_value = estimated_raw_signed
+
         return cls(
             device_uuid=device_uuid,
             path=path,
-            raw_value=estimated_raw,
+            raw_value=raw_value,
             faktor=faktor,
             signed=signed,
             byte_count=byte_count,

@@ -273,13 +273,6 @@ class TestComfoClimeAPI:
         assert reading.scaled_value == 50.0
 
     @pytest.mark.asyncio
-    @pytest.mark.xfail(
-        reason="Bug: TelemetryReading.scaled_value cannot handle negative raw_value "
-        "because raw_value is already signed but scaled_value tries unsigned conversion. "
-        "Fix required in models.py TelemetryReading.scaled_value property.",
-        strict=True,
-        raises=OverflowError,
-    )
     async def test_async_read_telemetry_1_byte_signed_negative(self):
         """Test reading 1-byte signed telemetry (negative)."""
         api = ComfoClimeAPI("http://192.168.1.100")
