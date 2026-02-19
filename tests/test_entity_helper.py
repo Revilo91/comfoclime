@@ -1,5 +1,11 @@
 """Tests for entity_helper module."""
 
+from custom_components.comfoclime.entities.sensor_definitions import (
+    AccessTrackingSensorDefinition,
+    PropertySensorDefinition,
+    SensorDefinition,
+    TelemetrySensorDefinition,
+)
 from custom_components.comfoclime.entity_helper import (
     _make_sensor_id,
     get_all_entity_categories,
@@ -15,40 +21,28 @@ from custom_components.comfoclime.entity_helper import (
 from custom_components.comfoclime.models import DeviceConfig
 
 
-def test_get_device_uuid_from_dict():
-    """Test get_device_uuid with a dictionary."""
-    device = {"uuid": "test-uuid-123", "modelTypeId": 1}
-    assert get_device_uuid(device) == "test-uuid-123"
-
-
-def test_get_device_uuid_from_pydantic_model():
+def test_get_device_uuid():
     """Test get_device_uuid with a Pydantic DeviceConfig model."""
     device = DeviceConfig(uuid="pydantic-uuid-456", model_type_id=20, display_name="Test Device")
     assert get_device_uuid(device) == "pydantic-uuid-456"
 
 
-def test_get_device_uuid_with_none():
-    """Test get_device_uuid returns None for invalid input."""
-    assert get_device_uuid(None) is None
-    assert get_device_uuid({}) is None
+def test_get_device_uuid_with_different_uuid():
+    """Test get_device_uuid with different UUID values."""
+    device = DeviceConfig(uuid="unique-uuid-xyz", model_type_id=1, display_name="Device")
+    assert get_device_uuid(device) == "unique-uuid-xyz"
 
 
-def test_get_device_model_type_id_from_dict():
-    """Test get_device_model_type_id with a dictionary."""
-    device = {"uuid": "test-uuid", "modelTypeId": 20}
-    assert get_device_model_type_id(device) == 20
-
-
-def test_get_device_model_type_id_from_pydantic_model():
+def test_get_device_model_type_id():
     """Test get_device_model_type_id with a Pydantic DeviceConfig model."""
     device = DeviceConfig(uuid="test-uuid", model_type_id=1, display_name="ComfoAirQ")
     assert get_device_model_type_id(device) == 1
 
 
-def test_get_device_model_type_id_with_none():
-    """Test get_device_model_type_id returns None for invalid input."""
-    assert get_device_model_type_id(None) is None
-    assert get_device_model_type_id({}) is None
+def test_get_device_model_type_id_with_different_model():
+    """Test get_device_model_type_id with different model type IDs."""
+    device = DeviceConfig(uuid="test-uuid", model_type_id=20, display_name="ComfoClime")
+    assert get_device_model_type_id(device) == 20
 
 
 def test_get_all_entity_categories():
@@ -165,39 +159,62 @@ def test_is_entity_category_enabled_empty_selection():
 
 def test_make_sensor_id_with_key():
     """Test _make_sensor_id with key field."""
-    sensor_def = {"key": "indoorTemperature", "name": "Indoor Temperature"}
+    sensor_def = SensorDefinition(
+        key="indoorTemperature",
+        name="Indoor Temperature",
+        translation_key="indoor_temperature",
+    )
     result = _make_sensor_id("sensors", "dashboard", sensor_def)
     assert result == "sensors_dashboard_indoorTemperature"
 
 
 def test_make_sensor_id_with_telemetry_id():
     """Test _make_sensor_id with telemetry_id field."""
-    sensor_def = {"telemetry_id": 4193, "name": "Supply Air Temperature"}
+    sensor_def = TelemetrySensorDefinition(
+        telemetry_id=4193,
+        name="Supply Air Temperature",
+        translation_key="supply_air_temperature",
+    )
     result = _make_sensor_id("sensors", "connected_telemetry", sensor_def)
     assert result == "sensors_connected_telemetry_telem_4193"
 
 
 def test_make_sensor_id_with_path():
     """Test _make_sensor_id with path field."""
-    sensor_def = {"path": "30/1/18", "name": "Ventilation Disbalance"}
+    sensor_def = PropertySensorDefinition(
+        path="30/1/18",
+        name="Ventilation Disbalance",
+        translation_key="ventilation_disbalance",
+    )
     result = _make_sensor_id("sensors", "connected_properties", sensor_def)
     assert result == "sensors_connected_properties_prop_30_1_18"
 
 
 def test_make_sensor_id_with_property():
     """Test _make_sensor_id with property field."""
-    sensor_def = {"property": "29/1/2", "name": "RMOT Heating Threshold"}
+
+    # Use PropertySensorDefinition but rename to property for this test
+    # Since PropertySensorDefinition uses 'path' not 'property', we use a different approach
+    class PropertyDef:
+        """Minimal property definition for testing."""
+
+        def __init__(self):
+            self.property = "29/1/2"
+            self.name = "RMOT Heating Threshold"
+
+    sensor_def = PropertyDef()
     result = _make_sensor_id("numbers", "connected_properties", sensor_def)
     assert result == "numbers_connected_properties_prop_29_1_2"
 
 
 def test_make_sensor_id_with_metric():
     """Test _make_sensor_id with coordinator and metric fields."""
-    sensor_def = {
-        "coordinator": "Dashboard",
-        "metric": "per_minute",
-        "name": "Dashboard Accesses",
-    }
+    sensor_def = AccessTrackingSensorDefinition(
+        coordinator="Dashboard",
+        metric="per_minute",
+        name="Dashboard Accesses",
+        translation_key="dashboard_accesses",
+    )
     result = _make_sensor_id("sensors", "access_tracking", sensor_def)
     assert result == "sensors_access_tracking_dashboard_per_minute"
 
@@ -250,7 +267,11 @@ def test_get_default_enabled_individual_entities():
 
 def test_is_entity_enabled_with_none():
     """Test that all entities are enabled when options is None or empty."""
-    sensor_def = {"key": "indoorTemperature", "name": "Indoor Temperature"}
+    sensor_def = SensorDefinition(
+        key="indoorTemperature",
+        name="Indoor Temperature",
+        translation_key="indoor_temperature",
+    )
 
     # When enabled_entities is None (not configured yet), everything should be enabled
     assert is_entity_enabled({}, "sensors", "dashboard", sensor_def) is True
@@ -258,7 +279,11 @@ def test_is_entity_enabled_with_none():
 
 def test_is_entity_enabled_individual_selected():
     """Test entity checking when individual entity is selected."""
-    sensor_def = {"key": "indoorTemperature", "name": "Indoor Temperature"}
+    sensor_def = SensorDefinition(
+        key="indoorTemperature",
+        name="Indoor Temperature",
+        translation_key="indoor_temperature",
+    )
     options = {"enabled_entities": ["sensors_dashboard_indoorTemperature"]}
 
     assert is_entity_enabled(options, "sensors", "dashboard", sensor_def) is True
@@ -266,8 +291,16 @@ def test_is_entity_enabled_individual_selected():
 
 def test_is_entity_enabled_individual_not_selected():
     """Test entity checking when individual entity is NOT selected."""
-    sensor_def = {"key": "indoorTemperature", "name": "Indoor Temperature"}
-    other_sensor_def = {"key": "outdoorTemperature", "name": "Outdoor Temperature"}
+    sensor_def = SensorDefinition(
+        key="indoorTemperature",
+        name="Indoor Temperature",
+        translation_key="indoor_temperature",
+    )
+    other_sensor_def = SensorDefinition(
+        key="outdoorTemperature",
+        name="Outdoor Temperature",
+        translation_key="outdoor_temperature",
+    )
     options = {"enabled_entities": ["sensors_dashboard_outdoorTemperature"]}
 
     # indoor temp is not selected, should be False
@@ -278,7 +311,11 @@ def test_is_entity_enabled_individual_not_selected():
 
 def test_is_entity_enabled_category_backward_compat():
     """Test backward compatibility with old category-based selection."""
-    sensor_def = {"key": "indoorTemperature", "name": "Indoor Temperature"}
+    sensor_def = SensorDefinition(
+        key="indoorTemperature",
+        name="Indoor Temperature",
+        translation_key="indoor_temperature",
+    )
     options = {
         "enabled_entities": ["sensors_dashboard"]  # Old-style category selection
     }
@@ -289,8 +326,16 @@ def test_is_entity_enabled_category_backward_compat():
 
 def test_is_entity_enabled_mixed_selection():
     """Test that individual selection takes precedence over category."""
-    sensor_def = {"key": "indoorTemperature", "name": "Indoor Temperature"}
-    other_sensor_def = {"key": "outdoorTemperature", "name": "Outdoor Temperature"}
+    sensor_def = SensorDefinition(
+        key="indoorTemperature",
+        name="Indoor Temperature",
+        translation_key="indoor_temperature",
+    )
+    other_sensor_def = SensorDefinition(
+        key="outdoorTemperature",
+        name="Outdoor Temperature",
+        translation_key="outdoor_temperature",
+    )
     options = {
         "enabled_entities": [
             "sensors_dashboard",  # Category

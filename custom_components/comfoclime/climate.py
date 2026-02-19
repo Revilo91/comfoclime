@@ -55,7 +55,6 @@ from pydantic import BaseModel
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
-    from homeassistant.helpers.entity import DeviceInfo
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
     from .comfoclime_api import ComfoClimeAPI
@@ -66,13 +65,8 @@ if TYPE_CHECKING:
 
 from . import DOMAIN
 from .constants import FanSpeed, ScenarioMode, Season, TemperatureProfile
-from .entity_helper import (
-    get_device_display_name,
-    get_device_model_type,
-    get_device_uuid,
-    get_device_version,
-)
-from .models import DashboardUpdate
+from .entity_base import ComfoClimeBaseEntity
+from .models import DashboardUpdate, DeviceConfig
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -157,7 +151,7 @@ async def async_setup_entry(
     api: ComfoClimeAPI = data["api"]
     dashboard_coordinator: ComfoClimeDashboardCoordinator = data["coordinator"]
     thermalprofile_coordinator: ComfoClimeThermalprofileCoordinator = data["tpcoordinator"]
-    main_device: dict[str, Any] | None = data.get("main_device")
+    main_device: DeviceConfig | None = data.get("main_device")
 
     if not main_device:
         _LOGGER.warning("No main device found - cannot create climate entity")
@@ -174,7 +168,7 @@ async def async_setup_entry(
     async_add_entities([climate_entity])
 
 
-class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
+class ComfoClimeClimate(ComfoClimeBaseEntity, CoordinatorEntity, ClimateEntity):
     """ComfoClime Climate entity for HVAC control.
 
     Provides climate control for the ComfoClime ventilation and heat pump
@@ -206,7 +200,7 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
         dashboard_coordinator: ComfoClimeDashboardCoordinator,
         thermalprofile_coordinator: ComfoClimeThermalprofileCoordinator,
         api: ComfoClimeAPI,
-        device: dict[str, Any],
+        device: DeviceConfig,
         entry: ConfigEntry,
     ) -> None:
         """Initialize the ComfoClime climate entity.
@@ -282,17 +276,6 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
         so we check both for successful updates.
         """
         return self.coordinator.last_update_success or self._thermalprofile_coordinator.last_update_success
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device information."""
-        return {
-            "identifiers": {(DOMAIN, get_device_uuid(self._device))},
-            "name": get_device_display_name(self._device),
-            "manufacturer": "Zehnder",
-            "model": get_device_model_type(self._device) or "ComfoClime",
-            "sw_version": get_device_version(self._device),
-        }
 
     @property
     def current_temperature(self) -> float | None:
@@ -464,23 +447,15 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
         - Prevents UI from becoming unresponsive
         - Updates happen in background
         """
-
-        async def safe_refresh(coordinator, name: str) -> None:
-            """Safely refresh coordinator with error handling."""
-            try:
-                await coordinator.async_request_refresh()
-            except Exception:
-                _LOGGER.exception("Refresh failed for %s", name)
-
         if blocking:
             # Blocking mode: Wait for both coordinators to complete
             # This ensures "set then fetch" behavior - UI reflects actual device state
-            await safe_refresh(self.coordinator, "dashboard")
-            await safe_refresh(self._thermalprofile_coordinator, "thermal_profile")
+            await self._safe_refresh(self.coordinator, "dashboard")
+            await self._safe_refresh(self._thermalprofile_coordinator, "thermal_profile")
         else:
             # Non-blocking mode: Schedule refresh as background tasks
-            self.hass.async_create_task(safe_refresh(self.coordinator, "dashboard"))
-            self.hass.async_create_task(safe_refresh(self._thermalprofile_coordinator, "thermal_profile"))
+            self.hass.async_create_task(self._safe_refresh(self.coordinator, "dashboard"))
+            self.hass.async_create_task(self._safe_refresh(self._thermalprofile_coordinator, "thermal_profile"))
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature via dashboard API in manual mode.

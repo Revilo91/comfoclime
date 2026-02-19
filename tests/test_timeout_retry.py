@@ -8,7 +8,7 @@ import pytest
 
 from custom_components.comfoclime.comfoclime_api import ComfoClimeAPI
 from custom_components.comfoclime.constants import API_DEFAULTS
-from custom_components.comfoclime.models import DashboardUpdate
+from custom_components.comfoclime.models import DashboardUpdate, DashboardUpdateResponse, ThermalProfileUpdateResponse
 
 
 class TestTimeoutConfiguration:
@@ -43,7 +43,8 @@ class TestDashboardUpdateRetry:
             update = DashboardUpdate(set_point_temperature=22.0)
             result = await api.async_update_dashboard(update)
 
-        assert result == {"status": "ok"}
+        assert isinstance(result, DashboardUpdateResponse)
+        assert result.status == "ok"
         # Should only be called once (no retries needed)
         assert mock_session.put.call_count == 1
 
@@ -75,7 +76,8 @@ class TestDashboardUpdateRetry:
             update = DashboardUpdate(set_point_temperature=22.0)
             result = await api.async_update_dashboard(update)
 
-        assert result == {"status": "ok"}
+        assert isinstance(result, DashboardUpdateResponse)
+        assert result.status == "ok"
         # Should be called twice (1 failure + 1 success)
         assert mock_session.put.call_count == 2
 
@@ -130,7 +132,8 @@ class TestDashboardUpdateRetry:
             update = DashboardUpdate(set_point_temperature=22.0)
             result = await api.async_update_dashboard(update)
 
-        assert result == {"status": "ok"}
+        assert isinstance(result, DashboardUpdateResponse)
+        assert result.status == "ok"
         # Should be called twice (1 failure + 1 success)
         assert mock_session.put.call_count == 2
 
@@ -190,7 +193,8 @@ class TestThermalProfileUpdateRetry:
         with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
             result = await api.async_update_thermal_profile(season_value=1)
 
-        assert result is True
+        assert isinstance(result, ThermalProfileUpdateResponse)
+        assert result.status in (200, "ok")
         # Should be called twice (1 failure + 1 success)
         assert mock_session.put.call_count == 2
 

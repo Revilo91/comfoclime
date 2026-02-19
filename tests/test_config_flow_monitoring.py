@@ -8,7 +8,7 @@ monitoring sensor is back.
 
 from custom_components.comfoclime.entities.sensor_definitions import MONITORING_SENSORS
 from custom_components.comfoclime.entity_helper import (
-    get_monitoring_sensors,
+    _make_sensor_id,
     is_entity_category_enabled,
     is_entity_enabled,
 )
@@ -25,7 +25,7 @@ def test_monitoring_enable_disable_via_options(mock_config_entry):
     entry = mock_config_entry
 
     # Start with monitoring enabled (default behaviour)
-    monitoring_options = [opt["value"] for opt in get_monitoring_sensors()]
+    monitoring_options = [_make_sensor_id("sensors", "monitoring", s) for s in MONITORING_SENSORS]
     entry.options = {"enabled_monitoring": monitoring_options}
 
     # Category should be enabled

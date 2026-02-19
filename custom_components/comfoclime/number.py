@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import logging
-import re
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import aiohttp
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 if TYPE_CHECKING:
@@ -28,24 +26,16 @@ from .entities.number_definitions import (
     NumberDefinition,
     PropertyNumberDefinition,
 )
+from .entity_base import ComfoClimeBaseEntity
 from .entity_helper import (
-    get_device_display_name,
-    get_device_model_type,
     get_device_model_type_id,
     get_device_uuid,
-    get_device_version,
     is_entity_category_enabled,
     is_entity_enabled,
 )
-from .models import PropertyWriteRequest
+from .models import DeviceConfig, PropertyWriteRequest
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def _camel_to_snake(name: str) -> str:
-    """Convert camelCase to snake_case."""
-    # Insert underscore before uppercase letters and convert to lowercase
-    return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
@@ -61,11 +51,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     entities = []
 
     if is_entity_category_enabled(entry.options, "numbers", "thermal_profile"):
-        for conf in NUMBER_ENTITIES:
-            if is_entity_enabled(entry.options, "numbers", "thermal_profile", conf):
-                entities.append(
-                    ComfoClimeTemperatureNumber(hass, tpcoordinator, api, conf, device=main_device, entry=entry)
-                )
+        entities.extend(
+            ComfoClimeTemperatureNumber(hass, tpcoordinator, api, conf, device=main_device, entry=entry)
+            for conf in NUMBER_ENTITIES
+            if is_entity_enabled(entry.options, "numbers", "thermal_profile", conf)
+        )
 
     if is_entity_category_enabled(entry.options, "numbers", "connected_properties"):
         for device in devices:
@@ -111,14 +101,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     async_add_entities(entities, True)
 
 
-class ComfoClimeTemperatureNumber(CoordinatorEntity, NumberEntity):
+class ComfoClimeTemperatureNumber(ComfoClimeBaseEntity, CoordinatorEntity, NumberEntity):
     def __init__(
         self,
         hass: HomeAssistant,
         coordinator: ComfoClimeThermalprofileCoordinator,
         api: ComfoClimeAPI,
         conf: NumberDefinition,
-        device: dict[str, Any] | None = None,
+        device: DeviceConfig | None = None,
         entry: ConfigEntry | None = None,
     ) -> None:
         super().__init__(coordinator)
@@ -133,7 +123,6 @@ class ComfoClimeTemperatureNumber(CoordinatorEntity, NumberEntity):
         self._attr_mode = NumberMode.BOX
         self._attr_config_entry_id = entry.entry_id
         self._attr_unique_id = f"{entry.entry_id}_{conf.key}"
-        # self._attr_name = conf.name
         self._attr_translation_key = conf.translation_key
         self._attr_has_entity_name = True
 
@@ -153,9 +142,6 @@ class ComfoClimeTemperatureNumber(CoordinatorEntity, NumberEntity):
             try:
                 coordinator_data = self.coordinator.data
                 automatic_temperature_status = coordinator_data.temperature.status
-
-                # Only available if automatic mode is disabled (status = 0)
-                return automatic_temperature_status == 0
             except (KeyError, TypeError, ValueError) as e:
                 _LOGGER.debug(
                     "Could not check automatic temperature status for availability: %s",
@@ -163,6 +149,9 @@ class ComfoClimeTemperatureNumber(CoordinatorEntity, NumberEntity):
                 )
                 # Return True if we can't determine the status to avoid breaking functionality
                 return True
+            else:
+                # Only available if automatic mode is disabled (status = 0)
+                return automatic_temperature_status == 0
 
         # For all other temperature entities, use default availability
         return True
@@ -187,39 +176,13 @@ class ComfoClimeTemperatureNumber(CoordinatorEntity, NumberEntity):
     def native_step(self):
         return self._conf.step
 
-    @property
-    def device_info(self) -> DeviceInfo:
-        if not self._device:
-            return None
-
-        dev_id = get_device_uuid(self._device)
-        if not dev_id or dev_id == "NULL":
-            return None  # <-- Verhindert fehlerhafte Registrierung
-
-        return DeviceInfo(
-            identifiers={(DOMAIN, dev_id)},
-            name=get_device_display_name(self._device),
-            manufacturer="Zehnder",
-            model=get_device_model_type(self._device),
-            sw_version=get_device_version(self._device),
-        )
-
     def _handle_coordinator_update(self) -> None:
         try:
             data = self.coordinator.data
-            val = data
-            for k in self._key_path:
-                # Try to get attribute with original key name first
-                try:
-                    val = getattr(val, k)
-                except AttributeError:
-                    # If that fails, try snake_case version
-                    snake_key = _camel_to_snake(k)
-                    val = getattr(val, snake_key)
-            self._value = val
+            self._value = self._extract_nested_value(data, self._key_path)
         except (AttributeError, TypeError, ValueError):
             _LOGGER.debug("Error updating number entity %s", self._name, exc_info=True)
-            self._value = None  # besser als Absturz
+            self._value = None
         self.async_write_ha_state()
 
     async def async_set_native_value(self, value: float) -> None:
@@ -274,7 +237,7 @@ class ComfoClimeTemperatureNumber(CoordinatorEntity, NumberEntity):
             raise HomeAssistantError(f"Error setting {self._name}") from None
 
 
-class ComfoClimePropertyNumber(CoordinatorEntity, NumberEntity):
+class ComfoClimePropertyNumber(ComfoClimeBaseEntity, CoordinatorEntity, NumberEntity):
     """Number entity for property values using coordinator for batched fetching."""
 
     def __init__(
@@ -283,7 +246,7 @@ class ComfoClimePropertyNumber(CoordinatorEntity, NumberEntity):
         coordinator: ComfoClimePropertyCoordinator,
         api: ComfoClimeAPI,
         config: PropertyNumberDefinition,
-        device: dict[str, Any],
+        device: DeviceConfig,
         entry: ConfigEntry,
     ) -> None:
         super().__init__(coordinator)
@@ -306,7 +269,7 @@ class ComfoClimePropertyNumber(CoordinatorEntity, NumberEntity):
         self._attr_native_unit_of_measurement = config.unit
         self._faktor = config.faktor
         self._byte_count = config.byte_count
-        self._signed = False  # PropertyNumberDefinition always uses unsigned
+        self._signed = False
 
         _LOGGER.debug(
             "ComfoClimePropertyNumber initialized: path=%s, device=%s, unique_id=%s",
@@ -322,18 +285,6 @@ class ComfoClimePropertyNumber(CoordinatorEntity, NumberEntity):
     @property
     def native_value(self):
         return self._value
-
-    @property
-    def device_info(self):
-        if not self._device:
-            return None
-        return DeviceInfo(
-            identifiers={(DOMAIN, get_device_uuid(self._device))},
-            name=get_device_display_name(self._device),
-            manufacturer="Zehnder",
-            model=get_device_model_type(self._device),
-            sw_version=get_device_version(self._device),
-        )
 
     @callback
     def _handle_coordinator_update(self) -> None:

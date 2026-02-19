@@ -3,23 +3,17 @@
 from __future__ import annotations
 
 import logging
-import re
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from pydantic import BaseModel
 
 from . import DOMAIN
 from .entities.switch_definitions import SWITCHES
+from .entity_base import ComfoClimeBaseEntity
 from .entity_helper import (
-    get_device_display_name,
-    get_device_model_type,
-    get_device_uuid,
-    get_device_version,
     is_entity_category_enabled,
     is_entity_enabled,
 )
@@ -34,6 +28,7 @@ if TYPE_CHECKING:
         ComfoClimeDashboardCoordinator,
         ComfoClimeThermalprofileCoordinator,
     )
+    from .models import DeviceConfig
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -77,12 +72,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     async_add_entities(switches, True)
 
 
-class ComfoClimeSwitch(CoordinatorEntity, SwitchEntity):
-    """Unified switch entity for ComfoClime integration.
-
-    Supports switches from both thermal profile and dashboard endpoints.
-    Can optionally invert the state logic.
-    """
+class ComfoClimeSwitch(ComfoClimeBaseEntity, CoordinatorEntity, SwitchEntity):
+    """Unified switch entity for ComfoClime integration."""
 
     def __init__(
         self,
@@ -94,23 +85,9 @@ class ComfoClimeSwitch(CoordinatorEntity, SwitchEntity):
         name: str,
         invert: bool = False,
         endpoint: str = "thermal_profile",
-        device: dict[str, Any] | None = None,
+        device: DeviceConfig | None = None,
         entry: ConfigEntry | None = None,
     ) -> None:
-        """Initialize the switch entity.
-
-        Args:
-            hass: Home Assistant instance
-            coordinator: Data coordinator (ThermalProfile or Dashboard)
-            api: ComfoClime API instance
-            key: Switch configuration key
-            translation_key: i18n translation key
-            name: Display name
-            invert: If True, invert the state logic (e.g., for hpstandby)
-            endpoint: Either 'thermal_profile' or 'dashboard'
-            device: Device information
-            entry: Config entry
-        """
         super().__init__(coordinator)
         self._hass = hass
         self._api = api
@@ -130,50 +107,20 @@ class ComfoClimeSwitch(CoordinatorEntity, SwitchEntity):
         # Parse key path for nested access
         self._key_path = key.split(".")
 
-    @staticmethod
-    def _camel_to_snake(name: str) -> str:
-        """Convert camelCase to snake_case for Pydantic attribute access."""
-        return re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", name).lower()
-
     @property
     def is_on(self):
         return self._state
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        if not self._device:
-            return None
-
-        return DeviceInfo(
-            identifiers={(DOMAIN, get_device_uuid(self._device))},
-            name=get_device_display_name(self._device),
-            manufacturer="Zehnder",
-            model=get_device_model_type(self._device),
-            sw_version=get_device_version(self._device),
-        )
 
     def _handle_coordinator_update(self) -> None:
         """Update the state from coordinator data."""
         data = self.coordinator.data
         try:
-            # Navigate through nested keys
-            val = data
-            for key in self._key_path:
-                if isinstance(val, BaseModel):
-                    # Pydantic model - use getattr with snake_case field name
-                    snake_case_key = self._camel_to_snake(key)
-                    val = getattr(val, snake_case_key, None)
-                elif isinstance(val, dict) and key in val:
-                    val = val[key]
-                else:
-                    val = None
-                    break
+            val = self._extract_nested_value(data, self._key_path)
 
             # Apply logic based on endpoint
             if self._endpoint == "thermal_profile":
                 self._state = val == 1
             else:  # dashboard
-                # For dashboard, apply invert logic if needed
                 if isinstance(val, bool):
                     self._state = not val if self._invert else val
                 else:

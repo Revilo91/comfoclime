@@ -20,13 +20,29 @@ ComfoClime is a HVAC solution as additional device for the ComfoAir Q series. It
 - configuration via config flow by host/ip
 - locales in english and german
 
+## Requirements
+
+### System Requirements
+- **Home Assistant**: ≥ 2025.6.0
+- **Python**: ≥ 3.13.2
+- **aiohttp**: ≥ 3.8.0, < 4.0
+- **pydantic**: ≥ 2.0.0
+
+### Supported Devices
+- Zehnder ComfoClime
+- Zehnder ComfoAir Q (ComfoNet Bus)
+- Other compatible ComfoNet devices
+
 ## Developer Setup
 
 - Clone this repository or open it in a Codespace/Dev Container as described below
 - Install dependencies and set up the development environment
-- Home Assistant and the integration will be available for local development and testing
+- Home Assistant (2025.6.0+) and the integration will be available for local development and testing
 - Home Assistant runs automatically on port 8123.
 - See [.devcontainer/README.md](.devcontainer/README.md) for detailed instructions.
+
+### Python Version Requirements
+This integration requires **Python 3.13.2 or newer** due to Home Assistant 2025+ dependencies. The Dev Container automatically provides a compatible environment.
 
 ## 📚 Documentation
 

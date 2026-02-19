@@ -37,39 +37,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     host = entry.data["host"]
     _LOGGER.debug("Setting up ComfoClime integration for host: %s", host)
 
-    # Migration: Add missing default entity options for existing setups
-    # This ensures that existing configurations have all entity options
-    needs_update = False
-    new_options = dict(entry.options)
-
-    if "enabled_dashboard" not in entry.options:
-        from .config_flow import _get_default_entity_options
-
-        default_options = _get_default_entity_options()
-        new_options = {**entry.options, **default_options}
-        needs_update = True
-
-    # Also migrate if enabled_monitoring is missing (older configs may have other keys but not this one)
-    if "enabled_monitoring" not in new_options:
-        from .config_flow import _get_default_entity_options
-        from .entity_helper import get_monitoring_sensors
-
-        new_options["enabled_monitoring"] = [opt["value"] for opt in get_monitoring_sensors()]
-        needs_update = True
-
-    if needs_update:
-        hass.config_entries.async_update_entry(entry, options=new_options)
-        entry.options = new_options
-
-    # Get configuration options with defaults
-    read_timeout = int(entry.options.get("read_timeout", 10))
-    write_timeout = int(entry.options.get("write_timeout", 30))
-    polling_interval = int(entry.options.get("polling_interval", 60))
-    cache_ttl = int(entry.options.get("cache_ttl", 30))
-    max_retries = int(entry.options.get("max_retries", 3))
-    min_request_interval = entry.options.get("min_request_interval", 0.1)
-    write_cooldown = entry.options.get("write_cooldown", 2.0)
-    request_debounce = entry.options.get("request_debounce", 0.3)
+    # Get configuration options with defaults (no longer stored in config entry)
+    read_timeout = 10
+    write_timeout = 30
+    polling_interval = 60
+    cache_ttl = 30
+    max_retries = 3
+    min_request_interval = 0.1
+    write_cooldown = 2.0
+    request_debounce = 0.3
 
     _LOGGER.debug(
         "Configuration loaded: read_timeout=%s, write_timeout=%s, polling_interval=%s, "

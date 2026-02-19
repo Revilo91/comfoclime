@@ -38,21 +38,22 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
 from .constants import API_DEFAULTS
-from .infrastructure import RateLimiterCache, api_get, api_put, validate_byte_value, validate_property_path
+from .infrastructure import RateLimiterCache, api_get, api_put
 from .models import (
     ConnectedDevicesResponse,
     DashboardData,
     DashboardUpdate,
-    DeviceConfig,
+    DashboardUpdateResponse,
     DeviceDefinitionData,
     MonitoringPing,
     PropertyReading,
+    PropertyReadResult,
     PropertyWriteRequest,
+    PropertyWriteResponse,
     TelemetryReading,
     ThermalProfileData,
     ThermalProfileUpdate,
-    bytes_to_signed_int,
-    signed_int_to_bytes,
+    ThermalProfileUpdateResponse,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -314,25 +315,7 @@ class ComfoClimeAPI:
         Note:
             Invalid device entries are skipped.
         """
-        # Parse each device dict into DeviceConfig model
-        raw_devices = response_data.get("devices", []) if isinstance(response_data, dict) else []
-        device_configs = []
-        for device_dict in raw_devices:
-            try:
-                # Map API field names to model field names
-                # API uses modelTypeId for the numeric ID, @modelType for the name
-                device_config = DeviceConfig(
-                    uuid=device_dict.get("uuid", ""),
-                    model_type_id=int(device_dict.get("modelTypeId", 0)),
-                    display_name=device_dict.get("displayName", "Unknown Device"),
-                    version=device_dict.get("version"),
-                )
-                device_configs.append(device_config)
-            except (KeyError, ValueError, TypeError) as e:
-                _LOGGER.warning("Skipping invalid device entry: %s - Error: %s", device_dict, e)
-                continue
-
-        return ConnectedDevicesResponse(devices=device_configs)
+        return ConnectedDevicesResponse.from_api(response_data)
 
     @api_get(
         "/device/{device_uuid}/definition",
@@ -421,38 +404,31 @@ class ComfoClimeAPI:
         # Try to get from cache first
         cache_key = RateLimiterCache.get_cache_key(device_uuid, telemetry_id)
         cached_value = self._rate_limiter.get_telemetry_from_cache(cache_key)
-        if cached_value is not None:
-            # Cache stores the raw value, reconstruct the model
-            # We need to reverse-engineer raw_value from cached scaled value
-            # For now, return a model with the cached result as raw (approximation)
-            # This is a simplification - ideally we'd cache the full model
-            estimated_raw = int(cached_value / faktor) if faktor != 0 else 0
-            return TelemetryReading(
-                device_uuid=device_uuid,
-                telemetry_id=str(telemetry_id),
-                raw_value=estimated_raw,
-                faktor=faktor,
-                signed=signed,
-                byte_count=byte_count or 2,
-            )
+        cached_reading = TelemetryReading.from_cached_value(
+            device_uuid=device_uuid,
+            telemetry_id=str(telemetry_id),
+            cached_value=cached_value,
+            faktor=faktor,
+            signed=signed,
+            byte_count=byte_count,
+        )
+        if cached_reading is not None:
+            return cached_reading
 
         # Not in cache, fetch from API using decorator
         data = await self._read_telemetry_raw(device_uuid, telemetry_id)
 
-        if data is None:
-            return None
-
-        raw_value = bytes_to_signed_int(data, byte_count, signed)
-
-        # Create validated Pydantic model
-        reading = TelemetryReading(
+        reading = TelemetryReading.from_raw_bytes(
             device_uuid=device_uuid,
             telemetry_id=str(telemetry_id),
-            raw_value=raw_value,
+            data=data or [],
             faktor=faktor,
             signed=signed,
-            byte_count=byte_count or len(data),
+            byte_count=byte_count,
         )
+
+        if reading is None:
+            return None
 
         # Store scaled value in cache
         self._rate_limiter.set_telemetry_cache(cache_key, reading.scaled_value)
@@ -503,60 +479,33 @@ class ComfoClimeAPI:
         # Try to get from cache first
         cache_key = RateLimiterCache.get_cache_key(device_uuid, property_path)
         cached_value = self._rate_limiter.get_property_from_cache(cache_key)
-        if cached_value is not None:
-            # Cache stores the final value, reconstruct approximation
-            estimated_raw = int(cached_value / faktor) if faktor != 0 and isinstance(cached_value, (int, float)) else 0
-            return PropertyReading(
-                device_uuid=device_uuid,
-                path=property_path,
-                raw_value=estimated_raw,
-                faktor=faktor,
-                signed=signed,
-                byte_count=byte_count or 2,
-            )
+        cached_reading = PropertyReading.from_cached_value(
+            device_uuid=device_uuid,
+            path=property_path,
+            cached_value=cached_value,
+            faktor=faktor,
+            signed=signed,
+            byte_count=byte_count,
+        )
+        if cached_reading is not None:
+            return cached_reading
 
         # Not in cache, fetch from API using decorator
         data = await self._read_property_for_device_raw(device_uuid, property_path)
 
-        # Wenn data leer/None ist, können wir nicht fortfahren
-        if not data:
-            return None
+        parsed = PropertyReadResult.from_raw_bytes(
+            device_uuid=device_uuid,
+            path=property_path,
+            data=data or [],
+            faktor=faktor,
+            signed=signed,
+            byte_count=byte_count,
+        )
 
-        # Determine actual byte count if not provided
-        if byte_count is None:
-            byte_count = len(data)
+        if parsed.cache_value is not None:
+            self._rate_limiter.set_property_cache(cache_key, parsed.cache_value)
 
-        # Parse numeric values (1-2 bytes)
-        if byte_count in (1, 2):
-            raw_value = bytes_to_signed_int(data, byte_count, signed)
-
-            # Create validated Pydantic model
-            reading = PropertyReading(
-                device_uuid=device_uuid,
-                path=property_path,
-                raw_value=raw_value,
-                faktor=faktor,
-                signed=signed,
-                byte_count=byte_count,
-            )
-
-            # Store scaled value in cache
-            self._rate_limiter.set_property_cache(cache_key, reading.scaled_value)
-
-            return reading
-
-        # String properties (3+ bytes) - not supported by PropertyReading model yet
-        # Return None for string properties for now
-        if byte_count and byte_count > 2:
-            if len(data) != byte_count:
-                raise ValueError(f"Unerwartete Byte-Anzahl: erwartet {byte_count}, erhalten {len(data)}")
-            # String values don't fit PropertyReading model - return None
-            # TODO: Consider adding StringPropertyReading model
-            result = "".join(chr(byte) for byte in data if byte != 0)
-            self._rate_limiter.set_property_cache(cache_key, result)
-            _LOGGER.debug("String property read (not returned as model): %s", result)
-            return None
-        raise ValueError(f"Nicht unterstützte Byte-Anzahl: {byte_count}")
+        return parsed.reading
 
     @api_get("/device/{device_uuid}/property/{property_path}")
     async def _read_property_for_device_raw(self, response_data, device_uuid: str, property_path: str) -> None | list:
@@ -645,14 +594,10 @@ class ComfoClimeAPI:
         return update.to_api_payload()
 
     @api_put("/system/{uuid}/dashboard", requires_uuid=True, is_dashboard=True)
-    async def async_update_dashboard(self, update: DashboardUpdate) -> dict:
-        """Update dashboard settings via API.
+    async def _async_update_dashboard_internal(self, update: DashboardUpdate) -> dict:
+        """Internal decorated method for dashboard updates.
 
-        Modern method for dashboard updates. Only fields that are provided
-        (not None) will be included in the update payload. Uses DashboardUpdate
-        model for payload generation.
-
-        The @api_put decorator handles:
+        This method is decorated with @api_put which handles:
         - UUID retrieval
         - Rate limiting
         - Timestamp addition (is_dashboard=True)
@@ -661,16 +606,44 @@ class ComfoClimeAPI:
 
         Args:
             update: DashboardUpdate model containing the fields to update.
+
+        Returns:
+            Payload dict for the decorator to process
+        """
+        return update.to_api_payload(include_timestamp=False)
+
+    async def async_update_dashboard(self, update: DashboardUpdate) -> DashboardUpdateResponse:
+        """Update dashboard settings via API.
+
+        Modern method for dashboard updates. Only fields that are provided
+        (not None) will be included in the update payload. Uses DashboardUpdate
+        model for payload generation.
+
+        The internal decorator handles:
+        - UUID retrieval
+        - Rate limiting
+        - Timestamp addition
+        - Retry with exponential backoff
+        - Error handling
+
+        Args:
+            update: DashboardUpdate model containing the fields to update.
                    Only non-None fields will be included in the payload.
 
         Returns:
-            Payload dict for the decorator to process.
+            DashboardUpdateResponse model with status and response data.
 
         Example:
             update = DashboardUpdate(set_point_temperature=22.0, status=0)
-            await api.async_update_dashboard(update)
+            response = await api.async_update_dashboard(update)
+            print(response.status)
         """
-        return update.to_api_payload(include_timestamp=False)
+        response_dict = await self._async_update_dashboard_internal(update)
+        # Wrap decorator's dict response to DashboardUpdateResponse
+        if isinstance(response_dict, dict):
+            response_dict.setdefault("status", 200)
+            return DashboardUpdateResponse(**response_dict)
+        return DashboardUpdateResponse(status=200)
 
     @api_put("/system/{uuid}/thermalprofile", requires_uuid=True)
     async def _async_update_thermal_profile(self, update: ThermalProfileUpdate | None = None, **kwargs) -> dict:
@@ -705,7 +678,7 @@ class ComfoClimeAPI:
         updates: dict[str, Any] | None = None,
         update: ThermalProfileUpdate | None = None,
         **kwargs,
-    ) -> dict[str, Any]:
+    ) -> ThermalProfileUpdateResponse:
         """Update thermal profile settings on the device.
 
         Provides backward compatibility with legacy dict-based calls while
@@ -734,7 +707,7 @@ class ComfoClimeAPI:
                 - cooling_temperature_limit (float): Cooling temperature limit
 
         Returns:
-            Response from device API.
+            ThermalProfileUpdateResponse model with status and response data.
 
         Raises:
             aiohttp.ClientError: If connection to device fails.
@@ -742,20 +715,27 @@ class ComfoClimeAPI:
 
         Example:
             >>> # Modern style - set season to heating
-            >>> await api.async_update_thermal_profile(season_value=1)
+            >>> response = await api.async_update_thermal_profile(season_value=1)
             >>> # Modern style - set heating comfort temperature
-            >>> await api.async_update_thermal_profile(heating_comfort_temperature=22.0)
+            >>> response = await api.async_update_thermal_profile(heating_comfort_temperature=22.0)
             >>> # Legacy style
-            >>> await api.async_update_thermal_profile({"season": {"season": 1}})
+            >>> response = await api.async_update_thermal_profile({"season": {"season": 1}})
         """
         # If updates dict is provided, convert it to kwargs
         if updates is not None:
-            return await self._convert_dict_to_kwargs_and_update(updates)
-        if update is not None:
-            return await self._async_update_thermal_profile(update=update)
-        return await self._async_update_thermal_profile(**kwargs)
+            response_dict = await self._convert_dict_to_kwargs_and_update(updates)
+        elif update is not None:
+            response_dict = await self._async_update_thermal_profile(update=update)
+        else:
+            response_dict = await self._async_update_thermal_profile(**kwargs)
 
-    async def _convert_dict_to_kwargs_and_update(self, updates: dict[str, Any]) -> dict[str, Any]:
+        # Wrap the decorator's dict response to ThermalProfileUpdateResponse
+        if isinstance(response_dict, dict):
+            response_dict.setdefault("status", 200)
+            return ThermalProfileUpdateResponse(**response_dict)
+        return ThermalProfileUpdateResponse(status=200)
+
+    async def _convert_dict_to_kwargs_and_update(self, updates: dict[str, Any]) -> dict:
         """Convert legacy dict-based thermal profile updates to kwargs format.
 
         Internal method that translates nested dict structure to modern
@@ -766,7 +746,7 @@ class ComfoClimeAPI:
             updates: Nested dict structure with thermal profile updates
 
         Returns:
-            Response from _async_update_thermal_profile.
+            Response dict from _async_update_thermal_profile.
         """
         # Use ThermalProfileUpdate model to convert dict to kwargs
         update = ThermalProfileUpdate.from_dict(updates)
@@ -841,7 +821,7 @@ class ComfoClimeAPI:
         signed: bool = True,
         faktor: float = 1.0,
         request: PropertyWriteRequest | None = None,
-    ) -> dict[str, Any]:
+    ) -> PropertyWriteResponse:
         """Set property value for a device.
 
         Writes a property value to a device. The decorator handles all
@@ -858,7 +838,7 @@ class ComfoClimeAPI:
             request: Optional PropertyWriteRequest model (preferred)
 
         Returns:
-            Response from device API.
+            PropertyWriteResponse model with status and response data.
 
         Raises:
             ValueError: If byte_count is not 1 or 2.
@@ -867,7 +847,7 @@ class ComfoClimeAPI:
 
         Example:
             >>> # Set property to 22.5°C (factor 0.1, so raw value = 225)
-            >>> await api.async_set_property_for_device(
+            >>> response = await api.async_set_property_for_device(
             ...     device_uuid="abc123",
             ...     property_path="29/1/10",
             ...     value=22.5,
@@ -875,6 +855,7 @@ class ComfoClimeAPI:
             ...     signed=True,
             ...     faktor=0.1
             ... )
+            >>> print(response.status)
         """
         if request is None:
             if device_uuid is None or property_path is None or value is None or byte_count is None:
@@ -888,31 +869,17 @@ class ComfoClimeAPI:
                 faktor=faktor,
             )
 
-        # Validate property path format
-        is_valid, error_message = validate_property_path(request.path)
-        if not is_valid:
-            raise ValueError(f"Invalid property path: {error_message}")
+        x, y, z, data = request.to_wire_data()
 
-        # Validate byte count
-        if request.byte_count not in (1, 2):
-            raise ValueError("Nur 1 oder 2 Byte unterstützt")
-
-        # Calculate raw value and validate it fits in byte count
-        raw_value = round(request.value / request.faktor)
-        is_valid, error_message = validate_byte_value(raw_value, request.byte_count, request.signed)
-        if not is_valid:
-            raise ValueError(
-                f"Invalid value for byte_count={request.byte_count}, signed={request.signed}: {error_message}"
-            )
-
-        data = signed_int_to_bytes(raw_value, request.byte_count, request.signed)
-
-        x, y, z = map(int, request.path.split("/"))
-
-        result = await self._set_property_internal(request.device_uuid, x, y, z, data)
+        response_dict = await self._set_property_internal(request.device_uuid, x, y, z, data)
         # Invalidate cache for this device after successful write
         self._rate_limiter.invalidate_cache_for_device(request.device_uuid)
-        return result
+
+        # Wrap the decorator's dict response to PropertyWriteResponse
+        if isinstance(response_dict, dict):
+            response_dict.setdefault("status", 200)
+            return PropertyWriteResponse(**response_dict)
+        return PropertyWriteResponse(status=200)
 
     @api_put("/system/reset")
     async def async_reset_system(self):
