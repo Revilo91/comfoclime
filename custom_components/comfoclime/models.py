@@ -947,12 +947,11 @@ class DashboardUpdate(ComfoClimeModel):
 
         Timestamp is usually added by the @api_put decorator.
         """
-        payload = {
+        return {
             self.model_fields[field].alias or field: value
             for field, value in self.model_dump(exclude_none=True).items()
             if field != "timestamp" or include_timestamp
         }
-        return payload
 
 
 # API Response Models

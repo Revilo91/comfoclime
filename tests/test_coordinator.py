@@ -19,10 +19,8 @@ from custom_components.comfoclime.models import (
     DeviceDefinitionData,
     MonitoringPing,
     PropertyReading,
-    PropertyRegistry,
     PropertyRegistryEntry,
     TelemetryReading,
-    TelemetryRegistry,
     TelemetryRegistryEntry,
     ThermalProfileData,
 )

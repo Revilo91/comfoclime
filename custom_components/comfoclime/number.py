@@ -51,11 +51,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     entities = []
 
     if is_entity_category_enabled(entry.options, "numbers", "thermal_profile"):
-        for conf in NUMBER_ENTITIES:
-            if is_entity_enabled(entry.options, "numbers", "thermal_profile", conf):
-                entities.append(
-                    ComfoClimeTemperatureNumber(hass, tpcoordinator, api, conf, device=main_device, entry=entry)
-                )
+        entities.extend(
+            ComfoClimeTemperatureNumber(hass, tpcoordinator, api, conf, device=main_device, entry=entry)
+            for conf in NUMBER_ENTITIES
+            if is_entity_enabled(entry.options, "numbers", "thermal_profile", conf)
+        )
 
     if is_entity_category_enabled(entry.options, "numbers", "connected_properties"):
         for device in devices:
@@ -142,9 +142,6 @@ class ComfoClimeTemperatureNumber(ComfoClimeBaseEntity, CoordinatorEntity, Numbe
             try:
                 coordinator_data = self.coordinator.data
                 automatic_temperature_status = coordinator_data.temperature.status
-
-                # Only available if automatic mode is disabled (status = 0)
-                return automatic_temperature_status == 0
             except (KeyError, TypeError, ValueError) as e:
                 _LOGGER.debug(
                     "Could not check automatic temperature status for availability: %s",
@@ -152,6 +149,9 @@ class ComfoClimeTemperatureNumber(ComfoClimeBaseEntity, CoordinatorEntity, Numbe
                 )
                 # Return True if we can't determine the status to avoid breaking functionality
                 return True
+            else:
+                # Only available if automatic mode is disabled (status = 0)
+                return automatic_temperature_status == 0
 
         # For all other temperature entities, use default availability
         return True

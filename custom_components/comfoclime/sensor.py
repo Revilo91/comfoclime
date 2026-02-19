@@ -401,7 +401,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     # This prevents timeout issues during setup with many devices
     _LOGGER.debug("Adding %s sensor entities to Home Assistant", len(sensors))
     if _LOGGER.isEnabledFor(logging.DEBUG):
-        _LOGGER.debug("Sensor entities: %s", [sensor._name for sensor in sensors])
+        _LOGGER.debug(
+            "Sensor entities: %s",
+            [
+                getattr(sensor, "_attr_name", None)
+                or getattr(getattr(sensor, "entity_description", None), "name", None)
+                or type(sensor).__name__
+                for sensor in sensors
+            ],
+        )
     async_add_entities(sensors, True)
 
     # Schedule background refresh of coordinators after entities are added
