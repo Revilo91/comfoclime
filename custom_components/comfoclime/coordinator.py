@@ -45,6 +45,7 @@ if TYPE_CHECKING:
     from .models import DashboardData, DeviceDefinitionData, MonitoringPing, ThermalProfileData
 
 from .constants import API_DEFAULTS
+from .models import PropertyRegistryEntry, TelemetryRegistryEntry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -52,25 +53,53 @@ _LOGGER = logging.getLogger(__name__)
 DEFAULT_POLLING_INTERVAL_SECONDS = API_DEFAULTS.POLLING_INTERVAL
 
 
-class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
-    """Coordinator for fetching real-time dashboard data from ComfoClime device.
+class ComfoClimeBaseCoordinator(DataUpdateCoordinator):
+    """Base coordinator with shared init and update pattern.
 
-    Polls the device at regular intervals to fetch current operating status
-    including temperatures, fan speed, season mode, and system state.
-    This data is used by climate, fan, and sensor entities.
-
-    Attributes:
-        api: ComfoClimeAPI instance for device communication
-
-    Example:
-        >>> coordinator = ComfoClimeDashboardCoordinator(
-        ...     hass=hass,
-        ...     api=api,
-        ...     polling_interval=60
-        ... )
-        >>> await coordinator.async_config_entry_first_refresh()
-        >>> temp = coordinator.data['indoorTemperature']
+    Subclasses only need to set ``_coordinator_name`` and implement
+    ``_fetch_data()`` to return the result of the appropriate API call.
     """
+
+    _coordinator_name: str = "Base"
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        api: ComfoClimeAPI,
+        name: str,
+        polling_interval: int = DEFAULT_POLLING_INTERVAL_SECONDS,
+        access_tracker: AccessTracker | None = None,
+        config_entry=None,
+    ) -> None:
+        super().__init__(
+            hass,
+            _LOGGER,
+            name=name,
+            update_interval=timedelta(seconds=polling_interval),
+            config_entry=config_entry,
+        )
+        self.api = api
+        self._access_tracker = access_tracker
+
+    async def _fetch_data(self):
+        """Fetch data from the API. Override in subclasses."""
+        raise NotImplementedError
+
+    async def _async_update_data(self):
+        try:
+            result = await self._fetch_data()
+            if self._access_tracker:
+                self._access_tracker.record_access(self._coordinator_name)
+            return result
+        except (TimeoutError, aiohttp.ClientError) as e:
+            _LOGGER.warning("Error fetching %s data: %s", self._coordinator_name, e)
+            raise UpdateFailed(f"Error fetching {self._coordinator_name} data: {e}") from e
+
+
+class ComfoClimeDashboardCoordinator(ComfoClimeBaseCoordinator):
+    """Coordinator for fetching real-time dashboard data from ComfoClime device."""
+
+    _coordinator_name = "Dashboard"
 
     def __init__(
         self,
@@ -80,67 +109,23 @@ class ComfoClimeDashboardCoordinator(DataUpdateCoordinator):
         access_tracker: AccessTracker | None = None,
         config_entry=None,
     ):
-        """Initialize the dashboard data coordinator.
-
-        Args:
-            hass: Home Assistant instance
-            api: ComfoClimeAPI instance for device communication
-            polling_interval: Update interval in seconds (default: 60)
-            access_tracker: Optional access tracker for monitoring API calls
-        """
         super().__init__(
             hass,
-            _LOGGER,
-            name="ComfoClime Dashboard",
-            update_interval=timedelta(seconds=polling_interval),
+            api,
+            "ComfoClime Dashboard",
+            polling_interval=polling_interval,
+            access_tracker=access_tracker,
             config_entry=config_entry,
         )
-        self.api = api
-        self._access_tracker = access_tracker
 
-    async def _async_update_data(self) -> DashboardData:
-        """Fetch dashboard data from the API.
-
-        Returns:
-            DashboardData model containing validated dashboard data with fields:
-                - indoor_temperature: Indoor temperature in °C
-                - outdoor_temperature: Outdoor temperature in °C
-                - set_point_temperature: Target temperature in °C (manual mode)
-                - exhaust_air_flow: Exhaust air flow in m³/h
-                - supply_air_flow: Supply air flow in m³/h
-                - fan_speed: Fan speed level (0-3)
-                - season: Season mode (0=transition, 1=heating, 2=cooling)
-                - status: Control mode (0=manual, 1=automatic)
-                - and more (see DashboardData model)
-
-        Raises:
-            UpdateFailed: If API call fails or times out.
-        """
-        try:
-            result = await self.api.async_get_dashboard_data()
-            if self._access_tracker:
-                self._access_tracker.record_access("Dashboard")
-            return result
-        except (TimeoutError, aiohttp.ClientError) as e:
-            _LOGGER.warning("Error fetching dashboard data: %s", e)
-            raise UpdateFailed(f"Error fetching dashboard data: {e}") from e
+    async def _fetch_data(self) -> DashboardData:
+        return await self.api.async_get_dashboard_data()
 
 
-class ComfoClimeMonitoringCoordinator(DataUpdateCoordinator):
-    """Coordinator for fetching device monitoring and health data.
+class ComfoClimeMonitoringCoordinator(ComfoClimeBaseCoordinator):
+    """Coordinator for fetching device monitoring and health data."""
 
-    Polls the monitoring endpoint to fetch device uptime, UUID, and
-    health status. This data is used by sensor entities to track
-    device availability and performance.
-
-    Attributes:
-        api: ComfoClimeAPI instance for device communication
-
-    Example:
-        >>> coordinator = ComfoClimeMonitoringCoordinator(hass, api)
-        >>> await coordinator.async_config_entry_first_refresh()
-        >>> uptime = coordinator.data['up_time_seconds']
-    """
+    _coordinator_name = "Monitoring"
 
     def __init__(
         self,
@@ -150,63 +135,26 @@ class ComfoClimeMonitoringCoordinator(DataUpdateCoordinator):
         access_tracker: AccessTracker | None = None,
         config_entry=None,
     ) -> None:
-        """Initialize the monitoring data coordinator.
-
-        Args:
-            hass: Home Assistant instance
-            api: ComfoClimeAPI instance for device communication
-            polling_interval: Update interval in seconds (default: 60)
-            access_tracker: Optional access tracker for monitoring API calls
-        """
         super().__init__(
             hass,
-            _LOGGER,
-            name="ComfoClime Monitoring",
-            update_interval=timedelta(seconds=polling_interval),
+            api,
+            "ComfoClime Monitoring",
+            polling_interval=polling_interval,
+            access_tracker=access_tracker,
             config_entry=config_entry,
         )
-        self.api = api
-        self._access_tracker = access_tracker
 
-    async def _async_update_data(self) -> MonitoringPing:
-        """Fetch monitoring data from the API.
-
-        Returns:
-            Dictionary containing monitoring data with keys:
-                - uuid: Device UUID string
-                - up_time_seconds: Device uptime in seconds
-                - timestamp: Current timestamp
-
-        Raises:
-            UpdateFailed: If API call fails or times out.
-        """
-        try:
-            _LOGGER.debug("MonitoringCoordinator: Fetching monitoring data from API")
-            result = await self.api.async_get_monitoring_ping()
-            _LOGGER.debug("MonitoringCoordinator: Received data: %s", result)
-            if self._access_tracker:
-                self._access_tracker.record_access("Monitoring")
-            return result
-        except (TimeoutError, aiohttp.ClientError) as e:
-            _LOGGER.warning("Error fetching monitoring data: %s", e)
-            raise UpdateFailed(f"Error fetching monitoring data: {e}") from e
+    async def _fetch_data(self) -> MonitoringPing:
+        _LOGGER.debug("MonitoringCoordinator: Fetching monitoring data from API")
+        result = await self.api.async_get_monitoring_ping()
+        _LOGGER.debug("MonitoringCoordinator: Received data: %s", result)
+        return result
 
 
-class ComfoClimeThermalprofileCoordinator(DataUpdateCoordinator):
-    """Coordinator for fetching thermal profile configuration data.
+class ComfoClimeThermalprofileCoordinator(ComfoClimeBaseCoordinator):
+    """Coordinator for fetching thermal profile configuration data."""
 
-    Polls the device to fetch heating and cooling parameters, season settings,
-    temperature profiles, and control modes. This data is used by climate
-    entities and sensor entities for temperature control.
-
-    Attributes:
-        api: ComfoClimeAPI instance for device communication
-
-    Example:
-        >>> coordinator = ComfoClimeThermalprofileCoordinator(hass, api)
-        >>> await coordinator.async_config_entry_first_refresh()
-        >>> season = coordinator.data['season']['season']
-    """
+    _coordinator_name = "Thermalprofile"
 
     def __init__(
         self,
@@ -216,46 +164,17 @@ class ComfoClimeThermalprofileCoordinator(DataUpdateCoordinator):
         access_tracker: AccessTracker | None = None,
         config_entry=None,
     ) -> None:
-        """Initialize the thermal profile data coordinator.
-
-        Args:
-            hass: Home Assistant instance
-            api: ComfoClimeAPI instance for device communication
-            polling_interval: Update interval in seconds (default: 60)
-            access_tracker: Optional access tracker for monitoring API calls
-        """
         super().__init__(
             hass,
-            _LOGGER,
-            name="ComfoClime Thermalprofile",
-            update_interval=timedelta(seconds=polling_interval),
+            api,
+            "ComfoClime Thermalprofile",
+            polling_interval=polling_interval,
+            access_tracker=access_tracker,
             config_entry=config_entry,
         )
-        self.api = api
-        self._access_tracker = access_tracker
 
-    async def _async_update_data(self) -> ThermalProfileData:
-        """Fetch thermal profile data from the API.
-
-        Returns:
-            Dictionary containing thermal profile data with keys:
-                - season: Season configuration
-                - temperature: Temperature control settings
-                - temperatureProfile: Active profile
-                - heatingThermalProfileSeasonData: Heating parameters
-                - coolingThermalProfileSeasonData: Cooling parameters
-
-        Raises:
-            UpdateFailed: If API call fails or times out.
-        """
-        try:
-            result = await self.api.async_get_thermal_profile()
-            if self._access_tracker:
-                self._access_tracker.record_access("Thermalprofile")
-            return result
-        except (TimeoutError, aiohttp.ClientError) as e:
-            _LOGGER.warning("Error fetching thermal profile data: %s", e)
-            raise UpdateFailed(f"Error fetching thermal profile data: {e}") from e
+    async def _fetch_data(self) -> ThermalProfileData:
+        return await self.api.async_get_thermal_profile()
 
 
 class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
@@ -316,8 +235,8 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
         self.api = api
         self.devices = devices or []
         self._access_tracker = access_tracker
-        # Registry of telemetry requests: {device_uuid: {telemetry_id: {faktor, signed, byte_count}}}
-        self._telemetry_registry: dict[str, dict[str, dict]] = {}
+        # Registry of telemetry requests: {device_uuid: {telemetry_id: TelemetryRegistryEntry}}
+        self._telemetry_registry: dict[str, dict[str, TelemetryRegistryEntry]] = {}
         # Lock to prevent concurrent modifications during iteration
         self._registry_lock = asyncio.Lock()
 
@@ -355,11 +274,11 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
             if device_uuid not in self._telemetry_registry:
                 self._telemetry_registry[device_uuid] = {}
 
-            self._telemetry_registry[device_uuid][str(telemetry_id)] = {
-                "faktor": faktor,
-                "signed": signed,
-                "byte_count": byte_count,
-            }
+            self._telemetry_registry[device_uuid][str(telemetry_id)] = TelemetryRegistryEntry(
+                faktor=faktor,
+                signed=signed,
+                byte_count=byte_count,
+            )
             _LOGGER.debug("Registered telemetry %s for device %s", telemetry_id, device_uuid)
 
     async def _async_update_data(self) -> dict[str, DeviceDefinitionData]:
@@ -390,9 +309,9 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
                     reading = await self.api.async_read_telemetry_for_device(
                         device_uuid=device_uuid,
                         telemetry_id=telemetry_id,
-                        faktor=params["faktor"],
-                        signed=params["signed"],
-                        byte_count=params["byte_count"],
+                        faktor=params.faktor,
+                        signed=params.signed,
+                        byte_count=params.byte_count,
                     )
                     # Store the scaled value for backward compatibility with sensors
                     result[device_uuid][telemetry_id] = reading.scaled_value if reading else None
@@ -494,8 +413,8 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
         self.api = api
         self.devices = devices or []
         self._access_tracker = access_tracker
-        # Registry of property requests: {device_uuid: {path: {faktor, signed, byte_count}}}
-        self._property_registry: dict[str, dict[str, dict]] = {}
+        # Registry of property requests: {device_uuid: {path: PropertyRegistryEntry}}
+        self._property_registry: dict[str, dict[str, PropertyRegistryEntry]] = {}
         # Lock to prevent concurrent modifications during iteration
         self._registry_lock = asyncio.Lock()
 
@@ -533,11 +452,11 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
             if device_uuid not in self._property_registry:
                 self._property_registry[device_uuid] = {}
 
-            self._property_registry[device_uuid][property_path] = {
-                "faktor": faktor,
-                "signed": signed,
-                "byte_count": byte_count,
-            }
+            self._property_registry[device_uuid][property_path] = PropertyRegistryEntry(
+                faktor=faktor,
+                signed=signed,
+                byte_count=byte_count,
+            )
             _LOGGER.debug("Registered property %s for device %s", property_path, device_uuid)
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
@@ -568,9 +487,9 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
                     reading = await self.api.async_read_property_for_device(
                         device_uuid=device_uuid,
                         property_path=property_path,
-                        faktor=params["faktor"],
-                        signed=params["signed"],
-                        byte_count=params["byte_count"],
+                        faktor=params.faktor,
+                        signed=params.signed,
+                        byte_count=params.byte_count,
                     )
                     # Store the scaled value for backward compatibility with sensors
                     result[device_uuid][property_path] = reading.scaled_value if reading else None

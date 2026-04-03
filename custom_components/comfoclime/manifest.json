@@ -8,10 +8,11 @@
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/revilo91/comfoclime",
+  "homeassistant": "2025.6.0",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/revilo91/comfoclime/issues",
   "requirements": [
-    "aiohttp",
+    "aiohttp>=3.8.0,<4.0",
     "pydantic>=2.0.0"
   ],
   "version": "2.0.2b16"

@@ -2,40 +2,34 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from .base import EntityDefinitionBase
 
 
-class NumberDefinition(BaseModel):
+class NumberDefinition(EntityDefinitionBase):
     """Definition of a number entity.
 
     Attributes:
         key: Unique identifier for the number in API responses.
-        name: Display name for the number control.
-        translation_key: Key for i18n translations.
         min: Minimum value.
         max: Maximum value.
         step: Step increment.
         unit: Optional unit of measurement.
     """
 
-    model_config = {"frozen": True}
-
     key: str = Field(..., description="Unique identifier for the number in API responses")
-    name: str = Field(..., description="Display name for the number control")
-    translation_key: str = Field(..., description="Key for i18n translations")
     min: float = Field(..., description="Minimum value")
     max: float = Field(..., description="Maximum value")
     step: float = Field(..., description="Step increment")
     unit: str | None = Field(default=None, description="Optional unit of measurement")
 
 
-class PropertyNumberDefinition(BaseModel):
+class PropertyNumberDefinition(EntityDefinitionBase):
     """Definition of a property-based number entity.
 
     Attributes:
         property: Property path in format "X/Y/Z".
-        name: Display name for the number control.
-        translation_key: Key for i18n translations.
         min: Minimum value.
         max: Maximum value.
         step: Step increment.
@@ -44,11 +38,7 @@ class PropertyNumberDefinition(BaseModel):
         byte_count: Number of bytes to read/write.
     """
 
-    model_config = {"frozen": True}
-
     property: str = Field(..., description="Property path in format 'X/Y/Z'")
-    name: str = Field(..., description="Display name for the number control")
-    translation_key: str = Field(..., description="Key for i18n translations")
     min: float = Field(..., description="Minimum value")
     max: float = Field(..., description="Maximum value")
     step: float = Field(..., description="Step increment")

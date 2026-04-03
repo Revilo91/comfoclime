@@ -9,7 +9,7 @@ from custom_components.comfoclime import (
     async_setup_entry,
     async_unload_entry,
 )
-from custom_components.comfoclime.models import ConnectedDevicesResponse, DeviceConfig
+from custom_components.comfoclime.models import ConnectedDevicesResponse
 
 
 @pytest.mark.asyncio
@@ -50,16 +50,7 @@ async def test_async_setup_entry(
                                 # Setup mocks
                                 mock_api_instance = MagicMock()
                                 mock_api_instance.async_get_connected_devices = AsyncMock(
-                                    return_value=ConnectedDevicesResponse(
-                                        devices=[
-                                            DeviceConfig(
-                                                uuid=mock_device["uuid"],
-                                                model_type_id=mock_device["modelTypeId"],
-                                                display_name=mock_device["displayName"],
-                                                version=mock_device["version"],
-                                            )
-                                        ]
-                                    )
+                                    return_value=ConnectedDevicesResponse(devices=[mock_device])
                                 )
                                 mock_api_class.return_value = mock_api_instance
 
@@ -148,16 +139,7 @@ async def test_async_setup_entry_with_float_max_retries(
                                 # Setup mocks
                                 mock_api_instance = MagicMock()
                                 mock_api_instance.async_get_connected_devices = AsyncMock(
-                                    return_value=ConnectedDevicesResponse(
-                                        devices=[
-                                            DeviceConfig(
-                                                uuid=mock_device["uuid"],
-                                                model_type_id=mock_device["modelTypeId"],
-                                                display_name=mock_device["displayName"],
-                                                version=mock_device["version"],
-                                            )
-                                        ]
-                                    )
+                                    return_value=ConnectedDevicesResponse(devices=[mock_device])
                                 )
                                 mock_api_class.return_value = mock_api_instance
 

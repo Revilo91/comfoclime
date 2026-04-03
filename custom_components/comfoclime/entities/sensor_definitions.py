@@ -6,7 +6,9 @@ from enum import Enum, auto
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.const import EntityCategory
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from .base import EntityDefinitionBase
 
 
 class SensorCategory(Enum):
@@ -21,13 +23,11 @@ class SensorCategory(Enum):
     ACCESS_TRACKING = auto()
 
 
-class SensorDefinition(BaseModel):
+class SensorDefinition(EntityDefinitionBase):
     """Definition of a sensor entity.
 
     Attributes:
         key: Unique identifier for the sensor in API responses or dict key.
-        translation_key: Key for i18n translations.
-        name: Display name for the sensor (fallback if translation missing).
         unit: Unit of measurement (e.g., "°C", "m³/h").
         device_class: Home Assistant device class.
         state_class: Home Assistant state class.
@@ -36,11 +36,7 @@ class SensorDefinition(BaseModel):
         suggested_display_precision: Decimal places for display.
     """
 
-    model_config = {"frozen": True, "arbitrary_types_allowed": True}
-
     key: str = Field(..., description="Unique identifier for the sensor in API responses or dict key")
-    translation_key: str = Field(..., description="Key for i18n translations")
-    name: str = Field(..., description="Display name for the sensor (fallback if translation missing)")
     unit: str | None = Field(default=None, description="Unit of measurement (e.g., '°C', 'm³/h')")
     device_class: SensorDeviceClass | str | None = Field(default=None, description="Home Assistant device class")
     state_class: SensorStateClass | str | None = Field(default=None, description="Home Assistant state class")
@@ -51,13 +47,11 @@ class SensorDefinition(BaseModel):
     suggested_display_precision: int | None = Field(default=None, description="Decimal places for display")
 
 
-class TelemetrySensorDefinition(BaseModel):
+class TelemetrySensorDefinition(EntityDefinitionBase):
     """Definition for telemetry-based sensors.
 
     Attributes:
         telemetry_id: ID for telemetry endpoint.
-        name: Display name for the sensor (fallback if translation missing).
-        translation_key: Key for i18n translations.
         faktor: Multiplication factor for the raw value.
         signed: Whether the value is signed.
         byte_count: Number of bytes to read from telemetry.
@@ -70,11 +64,7 @@ class TelemetrySensorDefinition(BaseModel):
         diagnose: Whether this is a diagnostic sensor (experimental/unknown).
     """
 
-    model_config = {"frozen": True, "arbitrary_types_allowed": True}
-
     telemetry_id: int = Field(..., description="ID for telemetry endpoint")
-    name: str = Field(..., description="Display name for the sensor (fallback if translation missing)")
-    translation_key: str = Field(..., description="Key for i18n translations")
     faktor: float = Field(default=1.0, description="Multiplication factor for the raw value")
     signed: bool = Field(default=False, description="Whether the value is signed")
     byte_count: int = Field(default=1, description="Number of bytes to read from telemetry")
@@ -92,13 +82,11 @@ class TelemetrySensorDefinition(BaseModel):
     )
 
 
-class PropertySensorDefinition(BaseModel):
+class PropertySensorDefinition(EntityDefinitionBase):
     """Definition for property-based sensors.
 
     Attributes:
         path: Property path in format "X/Y/Z".
-        name: Display name for the sensor (fallback if translation missing).
-        translation_key: Key for i18n translations.
         faktor: Multiplication factor for the raw value.
         signed: Whether the value is signed.
         byte_count: Number of bytes to read from property.
@@ -110,11 +98,7 @@ class PropertySensorDefinition(BaseModel):
         suggested_display_precision: Decimal places for display.
     """
 
-    model_config = {"frozen": True, "arbitrary_types_allowed": True}
-
     path: str = Field(..., description="Property path in format 'X/Y/Z'")
-    name: str = Field(..., description="Display name for the sensor (fallback if translation missing)")
-    translation_key: str = Field(..., description="Key for i18n translations")
     faktor: float = Field(default=1.0, description="Multiplication factor for the raw value")
     signed: bool = Field(default=False, description="Whether the value is signed")
     byte_count: int = Field(default=1, description="Number of bytes to read from property")
@@ -128,14 +112,12 @@ class PropertySensorDefinition(BaseModel):
     suggested_display_precision: int | None = Field(default=None, description="Decimal places for display")
 
 
-class AccessTrackingSensorDefinition(BaseModel):
+class AccessTrackingSensorDefinition(EntityDefinitionBase):
     """Definition for access tracking sensors.
 
     Attributes:
         coordinator: Name of the coordinator to track (None for total).
         metric: Metric type (per_minute, per_hour, total_per_minute, total_per_hour).
-        name: Display name for the sensor (fallback if translation missing).
-        translation_key: Key for i18n translations.
         state_class: Home Assistant state class.
         entity_category: Entity category (None, diagnostic, config).
         unit: Unit of measurement (e.g., "°C", "m³/h").
@@ -144,15 +126,11 @@ class AccessTrackingSensorDefinition(BaseModel):
         suggested_display_precision: Decimal places for display.
     """
 
-    model_config = {"frozen": True, "arbitrary_types_allowed": True}
-
     coordinator: str | None = Field(..., description="Name of the coordinator to track (None for total)")
     metric: str = Field(
         ...,
         description="Metric type (per_minute, per_hour, total_per_minute, total_per_hour)",
     )
-    name: str = Field(..., description="Display name for the sensor (fallback if translation missing)")
-    translation_key: str = Field(..., description="Key for i18n translations")
     state_class: SensorStateClass | str | None = Field(default=None, description="Home Assistant state class")
     entity_category: EntityCategory | str | None = Field(
         default=None, description="Entity category (None, diagnostic, config)"

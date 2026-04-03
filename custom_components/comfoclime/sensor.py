@@ -33,8 +33,7 @@ Note:
 from __future__ import annotations
 
 import logging
-import re
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import aiohttp
 from homeassistant.components.sensor import (
@@ -46,7 +45,6 @@ from homeassistant.const import (
     EntityCategory,
 )
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from pydantic import BaseModel
 
@@ -69,12 +67,10 @@ from .entities.sensor_definitions import (
     TELEMETRY_SENSORS,
     THERMALPROFILE_SENSORS,
 )
+from .entity_base import ComfoClimeBaseEntity
 from .entity_helper import (
-    get_device_display_name,
-    get_device_model_type,
     get_device_model_type_id,
     get_device_uuid,
-    get_device_version,
     is_entity_category_enabled,
     is_entity_enabled,
 )
@@ -85,6 +81,7 @@ if TYPE_CHECKING:
 
     from .comfoclime_api import ComfoClimeAPI
     from .infrastructure import AccessTracker
+    from .models import DeviceConfig
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -138,6 +135,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     if is_entity_category_enabled(entry.options, "sensors", "dashboard"):
         for sensor_def in DASHBOARD_SENSORS:
             if is_entity_enabled(entry.options, "sensors", "dashboard", sensor_def):
+                # Diagnostic entities are enabled by default but disabled in HA UI by default
+                is_diagnose = sensor_def.entity_category == "diagnostic"
+                enabled_default = not is_diagnose or entry.options.get("enable_diagnostics", True)
+
                 sensors.append(
                     ComfoClimeSensor(
                         hass=hass,
@@ -152,6 +153,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                         entity_category=sensor_def.entity_category,
                         device=main_device,
                         entry=entry,
+                        entity_registry_enabled_default=enabled_default,
                     )
                 )
 
@@ -160,6 +162,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     if is_entity_category_enabled(entry.options, "sensors", "thermalprofile"):
         for sensor_def in THERMALPROFILE_SENSORS:
             if is_entity_enabled(entry.options, "sensors", "thermalprofile", sensor_def):
+                # Diagnostic entities are enabled by default but disabled in HA UI by default
+                is_diagnose = sensor_def.entity_category == "diagnostic"
+                enabled_default = not is_diagnose or entry.options.get("enable_diagnostics", True)
+
                 sensors.append(
                     ComfoClimeSensor(
                         hass=hass,
@@ -174,6 +180,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                         entity_category=sensor_def.entity_category,
                         device=main_device,
                         entry=entry,
+                        entity_registry_enabled_default=enabled_default,
                     )
                 )
 
@@ -195,6 +202,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                 entity_enabled,
             )
             if entity_enabled:
+                # Diagnostic entities are enabled by default but disabled in HA UI by default
+                # We want them enabled by default so users can see them
+                is_diagnose = sensor_def.entity_category == "diagnostic"
+                enabled_default = not is_diagnose or entry.options.get("enable_diagnostics", True)
+
                 sensors.append(
                     ComfoClimeSensor(
                         hass=hass,
@@ -209,6 +221,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                         entity_category=sensor_def.entity_category,
                         device=main_device,
                         entry=entry,
+                        entity_registry_enabled_default=enabled_default,
                     )
                 )
                 _LOGGER.debug("Created monitoring sensor: %s", sensor_def.name)
@@ -388,7 +401,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     # This prevents timeout issues during setup with many devices
     _LOGGER.debug("Adding %s sensor entities to Home Assistant", len(sensors))
     if _LOGGER.isEnabledFor(logging.DEBUG):
-        _LOGGER.debug("Sensor entities: %s", [sensor._name for sensor in sensors])
+        _LOGGER.debug(
+            "Sensor entities: %s",
+            [
+                getattr(sensor, "_attr_name", None)
+                or getattr(getattr(sensor, "entity_description", None), "name", None)
+                or type(sensor).__name__
+                for sensor in sensors
+            ],
+        )
     async_add_entities(sensors, True)
 
     # Schedule background refresh of coordinators after entities are added
@@ -409,7 +430,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     hass.async_create_task(_refresh_coordinators())
 
 
-class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
+class ComfoClimeSensor(ComfoClimeBaseEntity, CoordinatorEntity, SensorEntity):
     def __init__(
         self,
         hass: HomeAssistant,
@@ -424,8 +445,9 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
         device_class: str | None = None,
         state_class: str | None = None,
         entity_category: str | None = None,
-        device: dict[str, Any] | None = None,
+        device: DeviceConfig | None = None,
         entry: ConfigEntry | None = None,
+        entity_registry_enabled_default: bool = True,
     ) -> None:
         super().__init__(coordinator)
         self._hass = hass
@@ -439,6 +461,7 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
         self._attr_device_class = SensorDeviceClass(device_class) if device_class else None
         self._attr_state_class = SensorStateClass(state_class) if state_class else None
         self._attr_entity_category = EntityCategory(entity_category) if entity_category else None
+        self._attr_entity_registry_enabled_default = entity_registry_enabled_default
         self._device = device
         self._entry = entry
         self._attr_config_entry_id = entry.entry_id
@@ -456,11 +479,6 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
             self._attr_translation_key = translation_key
         self._attr_has_entity_name = True
 
-    @staticmethod
-    def _camel_to_snake(name: str) -> str:
-        """Convert camelCase to snake_case for Pydantic attribute access."""
-        return re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", name).lower()
-
     @property
     def native_value(self):
         return self._state
@@ -470,59 +488,17 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
         """Gibt zusätzliche Attribute zurück."""
         return {"raw_value": self._raw_value}
 
-    @property
-    def device_info(self) -> DeviceInfo:
-        if not self._device:
-            return None
-
-        return DeviceInfo(
-            identifiers={(DOMAIN, get_device_uuid(self._device))},
-            name=get_device_display_name(self._device),
-            manufacturer="Zehnder",
-            model=get_device_model_type(self._device),
-            sw_version=get_device_version(self._device),
-        )
-
     def _handle_coordinator_update(self) -> None:
         try:
             data = self.coordinator.data
 
-            # Log data type for debugging
-            if isinstance(data, BaseModel):
-                # Pydantic v2 model - access model_fields from the class, not instance
-                data_keys = list(type(data).model_fields.keys())
-            elif isinstance(data, dict):
-                data_keys = list(data.keys()) if data else "None"
-            else:
-                data_keys = "None"
-
-            _LOGGER.debug(
-                "Sensor '%s' (type=%s) handling coordinator update. Data keys: %s",
-                self._name,
-                self._type,
-                data_keys,
-            )
-
-            # Handle nested keys (e.g., "season.status" or "heatingThermalProfileSeasonData.comfortTemperature")
+            # Handle nested keys (e.g., "season.status")
             if "." in self._type:
                 keys = self._type.split(".")
-                raw_value = data
-                for key in keys:
-                    if isinstance(raw_value, BaseModel):
-                        # Pydantic model - use getattr with snake_case field name
-                        # Convert camelCase key to snake_case for Pydantic attribute access
-                        snake_case_key = self._camel_to_snake(key)
-                        raw_value = getattr(raw_value, snake_case_key, None)
-                    elif isinstance(raw_value, dict) and key in raw_value:
-                        raw_value = raw_value[key]
-                    else:
-                        raw_value = None
-                        break
+                raw_value = self._extract_nested_value(data, keys)
             else:
                 # Direct attribute access
                 if isinstance(data, BaseModel):
-                    # Pydantic model - use getattr with snake_case field name
-                    # Convert camelCase key to snake_case for Pydantic attribute access
                     snake_case_key = self._camel_to_snake(self._type)
                     raw_value = getattr(data, snake_case_key, None)
                 elif isinstance(data, dict):
@@ -530,9 +506,6 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
                 else:
                     raw_value = None
 
-            _LOGGER.debug("Sensor '%s' (type=%s): raw_value=%s", self._name, self._type, raw_value)
-
-            # raw_value wurde ermittelt
             self._raw_value = raw_value
 
             # Wenn es eine definierte Übersetzung gibt, wende sie an
@@ -541,13 +514,6 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
             else:
                 self._state = raw_value
 
-            _LOGGER.debug(
-                "Sensor '%s' (type=%s): state set to %s",
-                self._name,
-                self._type,
-                self._state,
-            )
-
         except (KeyError, TypeError, ValueError) as e:
             _LOGGER.warning("Error updating sensor '%s' values: %s", self._name, e)
             self._state = None
@@ -555,7 +521,7 @@ class ComfoClimeSensor(CoordinatorEntity, SensorEntity):
         self.async_write_ha_state()
 
 
-class ComfoClimeTelemetrySensor(CoordinatorEntity, SensorEntity):
+class ComfoClimeTelemetrySensor(ComfoClimeBaseEntity, CoordinatorEntity, SensorEntity):
     """Sensor for telemetry data using coordinator for batched fetching."""
 
     def __init__(
@@ -572,7 +538,7 @@ class ComfoClimeTelemetrySensor(CoordinatorEntity, SensorEntity):
         device_class: str | None = None,
         state_class: str | None = None,
         entity_category: str | None = None,
-        device: dict[str, Any] | None = None,
+        device: DeviceConfig | None = None,
         override_device_uuid: str | None = None,
         entry: ConfigEntry | None = None,
         entity_registry_enabled_default: bool = True,
@@ -605,19 +571,6 @@ class ComfoClimeTelemetrySensor(CoordinatorEntity, SensorEntity):
     def native_value(self):
         return self._state
 
-    @property
-    def device_info(self) -> DeviceInfo:
-        if not self._device:
-            return None
-
-        return DeviceInfo(
-            identifiers={(DOMAIN, get_device_uuid(self._device))},
-            name=get_device_display_name(self._device, "ComfoClime Device"),
-            manufacturer="Zehnder",
-            model=get_device_model_type(self._device),
-            sw_version=get_device_version(self._device),
-        )
-
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
@@ -630,7 +583,7 @@ class ComfoClimeTelemetrySensor(CoordinatorEntity, SensorEntity):
         self.async_write_ha_state()
 
 
-class ComfoClimePropertySensor(CoordinatorEntity, SensorEntity):
+class ComfoClimePropertySensor(ComfoClimeBaseEntity, CoordinatorEntity, SensorEntity):
     """Sensor for property data using coordinator for batched fetching."""
 
     def __init__(
@@ -649,7 +602,7 @@ class ComfoClimePropertySensor(CoordinatorEntity, SensorEntity):
         state_class: str | None = None,
         entity_category: str | None = None,
         mapping_key: str | None = None,
-        device: dict[str, Any] | None = None,
+        device: DeviceConfig | None = None,
         override_device_uuid: str | None = None,
         entry: ConfigEntry,
     ) -> None:
@@ -680,18 +633,6 @@ class ComfoClimePropertySensor(CoordinatorEntity, SensorEntity):
     def native_value(self):
         return self._state
 
-    @property
-    def device_info(self) -> DeviceInfo:
-        if not self._device:
-            return None
-        return DeviceInfo(
-            identifiers={(DOMAIN, get_device_uuid(self._device))},
-            name=get_device_display_name(self._device),
-            manufacturer="Zehnder",
-            model=get_device_model_type(self._device),
-            sw_version=get_device_version(self._device),
-        )
-
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
@@ -707,7 +648,7 @@ class ComfoClimePropertySensor(CoordinatorEntity, SensorEntity):
         self.async_write_ha_state()
 
 
-class ComfoClimeDefinitionSensor(CoordinatorEntity, SensorEntity):
+class ComfoClimeDefinitionSensor(ComfoClimeBaseEntity, CoordinatorEntity, SensorEntity):
     """Sensor for definition data using coordinator for batched fetching."""
 
     def __init__(
@@ -722,7 +663,7 @@ class ComfoClimeDefinitionSensor(CoordinatorEntity, SensorEntity):
         device_class: str | None = None,
         state_class: str | None = None,
         entity_category: str | None = None,
-        device: dict[str, Any] | None = None,
+        device: DeviceConfig | None = None,
         override_device_uuid: str | None = None,
         entry: ConfigEntry,
     ) -> None:
@@ -749,23 +690,6 @@ class ComfoClimeDefinitionSensor(CoordinatorEntity, SensorEntity):
     def native_value(self):
         return self._state
 
-    @staticmethod
-    def _camel_to_snake(name: str) -> str:
-        """Convert camelCase to snake_case for Pydantic attribute access."""
-        return re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", name).lower()
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        if not self._device:
-            return None
-        return DeviceInfo(
-            identifiers={(DOMAIN, get_device_uuid(self._device))},
-            name=get_device_display_name(self._device),
-            manufacturer="Zehnder",
-            model=get_device_model_type(self._device),
-            sw_version=get_device_version(self._device),
-        )
-
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
@@ -785,12 +709,8 @@ class ComfoClimeDefinitionSensor(CoordinatorEntity, SensorEntity):
         self.async_write_ha_state()
 
 
-class ComfoClimeAccessTrackingSensor(SensorEntity):
-    """Sensor for tracking API access patterns per coordinator.
-
-    These sensors expose the number of API accesses per minute and per hour
-    for each coordinator, helping users monitor and optimize API access patterns.
-    """
+class ComfoClimeAccessTrackingSensor(ComfoClimeBaseEntity, SensorEntity):
+    """Sensor for tracking API access patterns per coordinator."""
 
     def __init__(
         self,
@@ -803,23 +723,9 @@ class ComfoClimeAccessTrackingSensor(SensorEntity):
         *,
         state_class: str | None = None,
         entity_category: str | None = None,
-        device: dict[str, Any] | None = None,
+        device: DeviceConfig | None = None,
         entry: ConfigEntry,
     ) -> None:
-        """Initialize the access tracking sensor.
-
-        Args:
-            hass: Home Assistant instance.
-            access_tracker: The AccessTracker instance to get data from.
-            coordinator_name: Name of the coordinator to track, or None for totals.
-            metric: The metric type (per_minute, per_hour, total_per_minute, total_per_hour).
-            name: Human-readable name for the sensor.
-            translation_key: Translation key for localization.
-            state_class: Sensor state class.
-            entity_category: Entity category (e.g., diagnostic).
-            device: Device information dict.
-            entry: Config entry.
-        """
         self._hass = hass
         self._access_tracker = access_tracker
         self._coordinator_name = coordinator_name
@@ -843,28 +749,12 @@ class ComfoClimeAccessTrackingSensor(SensorEntity):
         else:
             self._attr_translation_key = translation_key
         self._attr_has_entity_name = True
-
-        # These sensors don't have a native unit (they count accesses)
         self._attr_native_unit_of_measurement = None
 
     @property
     def native_value(self):
         """Return the current value of the sensor."""
         return self._state
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device info for this sensor."""
-        if not self._device:
-            return None
-
-        return DeviceInfo(
-            identifiers={(DOMAIN, get_device_uuid(self._device))},
-            name=get_device_display_name(self._device),
-            manufacturer="Zehnder",
-            model=get_device_model_type(self._device),
-            sw_version=get_device_version(self._device),
-        )
 
     @property
     def should_poll(self) -> bool:
