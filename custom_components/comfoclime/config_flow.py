@@ -52,7 +52,12 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
                 url = f"http://{host}/monitoring/ping"
 
                 try:
-                    async with aiohttp.ClientSession() as session, session.get(
+                    # Configure connector for plain HTTP communication
+                    connector = aiohttp.TCPConnector(
+                        ssl=False,  # Disable SSL for plain HTTP
+                        force_close=False,  # Keep connection alive
+                    )
+                    async with aiohttp.ClientSession(connector=connector) as session, session.get(
                         url, timeout=aiohttp.ClientTimeout(total=10)
                     ) as resp:
                         if resp.status == 200:

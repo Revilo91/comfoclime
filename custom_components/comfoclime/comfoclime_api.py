@@ -156,8 +156,15 @@ class ComfoClimeAPI:
             to allow different timeouts for read vs write operations.
         """
         if self._session is None or self._session.closed:
+            # Configure connector for HTTP-only communication
+            # ComfoClime devices use plain HTTP on port 80, no SSL/TLS
+            connector = aiohttp.TCPConnector(
+                ssl=False,  # Disable SSL verification for plain HTTP
+                force_close=False,  # Keep connections alive for reuse
+                limit=10,  # Limit concurrent connections
+            )
             # No timeout on session - timeouts set per-request
-            self._session = aiohttp.ClientSession()
+            self._session = aiohttp.ClientSession(connector=connector)
         return self._session
 
     async def close(self) -> None:
