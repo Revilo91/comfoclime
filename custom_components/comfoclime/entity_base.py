@@ -28,6 +28,9 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
+# Sentinel used to detect that a subclass does not expose a raw_value
+_RAW_VALUE_UNSET = object()
+
 
 class ComfoClimeBaseEntity:
     """Mixin providing common functionality for all ComfoClime entities.
@@ -40,6 +43,8 @@ class ComfoClimeBaseEntity:
     """
 
     _device: DeviceConfig | None
+    _data_source: str = ""
+    _raw_value: Any = _RAW_VALUE_UNSET
 
     # ------------------------------------------------------------------
     # Utility helpers
@@ -71,6 +76,23 @@ class ComfoClimeBaseEntity:
             model=get_device_model_type(self._device),
             sw_version=get_device_version(self._device),
         )
+
+    # ------------------------------------------------------------------
+    # Extra state attributes (shared for coordinator-backed entities)
+    # ------------------------------------------------------------------
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return data source and last update time as extra state attributes."""
+        coordinator = getattr(self, "coordinator", None)
+        last_update = coordinator.last_update_success_time if coordinator else None
+        attrs: dict[str, Any] = {
+            "data_source": self._data_source,
+            "last_update": last_update.isoformat() if last_update else None,
+        }
+        if self._raw_value is not _RAW_VALUE_UNSET:
+            attrs["raw_value"] = self._raw_value
+        return attrs
 
     # ------------------------------------------------------------------
     # Nested value extraction from Pydantic / dict data
