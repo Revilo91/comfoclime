@@ -465,14 +465,15 @@ class ComfoClimeSensor(ComfoClimeBaseEntity, CoordinatorEntity, SensorEntity):
         self._device = device
         self._entry = entry
         self._attr_config_entry_id = entry.entry_id
-        # Determine prefix based on coordinator type
+        # Determine data source based on coordinator type
         if isinstance(coordinator, ComfoClimeThermalprofileCoordinator):
-            prefix = "thermalprofile"
+            data_source = "thermalprofile"
         elif isinstance(coordinator, ComfoClimeMonitoringCoordinator):
-            prefix = "monitoring"
+            data_source = "monitoring"
         else:
-            prefix = "dashboard"
-        self._attr_unique_id = f"{entry.entry_id}_{prefix}_{sensor_type.replace('.', '_')}"
+            data_source = "dashboard"
+        self._data_source = data_source
+        self._attr_unique_id = f"{entry.entry_id}_{data_source}_{sensor_type.replace('.', '_')}"
         if not translation_key:
             self._attr_name = name
         else:
@@ -486,7 +487,12 @@ class ComfoClimeSensor(ComfoClimeBaseEntity, CoordinatorEntity, SensorEntity):
     @property
     def extra_state_attributes(self):
         """Gibt zusätzliche Attribute zurück."""
-        return {"raw_value": self._raw_value}
+        last_update = self.coordinator.last_update_success_time
+        return {
+            "raw_value": self._raw_value,
+            "data_source": self._data_source,
+            "last_update": last_update.isoformat() if last_update else None,
+        }
 
     def _handle_coordinator_update(self) -> None:
         try:
@@ -571,6 +577,15 @@ class ComfoClimeTelemetrySensor(ComfoClimeBaseEntity, CoordinatorEntity, SensorE
     def native_value(self):
         return self._state
 
+    @property
+    def extra_state_attributes(self):
+        """Gibt zusätzliche Attribute zurück."""
+        last_update = self.coordinator.last_update_success_time
+        return {
+            "data_source": "telemetry",
+            "last_update": last_update.isoformat() if last_update else None,
+        }
+
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
@@ -633,6 +648,15 @@ class ComfoClimePropertySensor(ComfoClimeBaseEntity, CoordinatorEntity, SensorEn
     def native_value(self):
         return self._state
 
+    @property
+    def extra_state_attributes(self):
+        """Gibt zusätzliche Attribute zurück."""
+        last_update = self.coordinator.last_update_success_time
+        return {
+            "data_source": "property",
+            "last_update": last_update.isoformat() if last_update else None,
+        }
+
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
@@ -689,6 +713,15 @@ class ComfoClimeDefinitionSensor(ComfoClimeBaseEntity, CoordinatorEntity, Sensor
     @property
     def native_value(self):
         return self._state
+
+    @property
+    def extra_state_attributes(self):
+        """Gibt zusätzliche Attribute zurück."""
+        last_update = self.coordinator.last_update_success_time
+        return {
+            "data_source": "definition",
+            "last_update": last_update.isoformat() if last_update else None,
+        }
 
     @callback
     def _handle_coordinator_update(self) -> None:
