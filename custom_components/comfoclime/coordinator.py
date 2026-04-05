@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
@@ -80,6 +80,7 @@ class ComfoClimeBaseCoordinator(DataUpdateCoordinator):
         )
         self.api = api
         self._access_tracker = access_tracker
+        self.last_update_success_time: datetime | None = None
 
     async def _fetch_data(self):
         """Fetch data from the API. Override in subclasses."""
@@ -88,6 +89,7 @@ class ComfoClimeBaseCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self):
         try:
             result = await self._fetch_data()
+            self.last_update_success_time = datetime.now(timezone.utc)
             if self._access_tracker:
                 self._access_tracker.record_access(self._coordinator_name)
             return result
