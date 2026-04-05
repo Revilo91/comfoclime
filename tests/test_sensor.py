@@ -1,6 +1,6 @@
 """Tests for ComfoClime sensor entities."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -118,7 +118,7 @@ class TestComfoClimeSensor:
             up_time_seconds=123456,
             timestamp=1705314600,
         )
-        mock_monitoring_coordinator.last_update_success_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
+        mock_monitoring_coordinator.last_update_success_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
 
         sensor = ComfoClimeSensor(
             hass=mock_hass,
@@ -151,7 +151,7 @@ class TestComfoClimeSensor:
         self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry
     ):
         """Test extra_state_attributes contains data_source and last_update for dashboard sensor."""
-        mock_coordinator.last_update_success_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
+        mock_coordinator.last_update_success_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
 
         sensor = ComfoClimeSensor(
             hass=mock_hass,
@@ -322,7 +322,7 @@ class TestComfoClimeTelemetrySensor:
         self, mock_hass, mock_telemetry_coordinator, mock_device, mock_config_entry
     ):
         """Test extra_state_attributes contains data_source and last_update for telemetry sensor."""
-        mock_telemetry_coordinator.last_update_success_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
+        mock_telemetry_coordinator.last_update_success_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
 
         sensor = ComfoClimeTelemetrySensor(
             hass=mock_hass,
@@ -427,7 +427,7 @@ class TestComfoClimePropertySensor:
         self, mock_hass, mock_property_coordinator, mock_device, mock_config_entry
     ):
         """Test extra_state_attributes contains data_source and last_update for property sensor."""
-        mock_property_coordinator.last_update_success_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
+        mock_property_coordinator.last_update_success_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
 
         sensor = ComfoClimePropertySensor(
             hass=mock_hass,
@@ -614,7 +614,7 @@ class TestComfoClimeDefinitionSensor:
         self, mock_hass, mock_definition_coordinator, mock_device, mock_config_entry
     ):
         """Test extra_state_attributes contains data_source and last_update for definition sensor."""
-        mock_definition_coordinator.last_update_success_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
+        mock_definition_coordinator.last_update_success_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
 
         sensor = ComfoClimeDefinitionSensor(
             hass=mock_hass,
