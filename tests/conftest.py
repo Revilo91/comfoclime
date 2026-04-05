@@ -1,6 +1,7 @@
 """Common fixtures for ComfoClime tests."""
 
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -324,6 +325,7 @@ def mock_coordinator():
     coordinator.async_config_entry_first_refresh = AsyncMock()
     coordinator.async_add_listener = MagicMock(return_value=lambda: None)
     coordinator.last_update_success = True
+    coordinator.last_update_success_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
     return coordinator
 
 
@@ -346,6 +348,7 @@ def mock_thermalprofile_coordinator():
     coordinator.async_config_entry_first_refresh = AsyncMock()
     coordinator.async_add_listener = MagicMock(return_value=lambda: None)
     coordinator.last_update_success = True
+    coordinator.last_update_success_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
     return coordinator
 
 
@@ -363,6 +366,7 @@ def mock_telemetry_coordinator():
     coordinator.async_config_entry_first_refresh = AsyncMock()
     coordinator.async_add_listener = MagicMock(return_value=lambda: None)
     coordinator.last_update_success = True
+    coordinator.last_update_success_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
     coordinator.register_telemetry = AsyncMock()
     coordinator.get_telemetry_value = MagicMock(return_value=25.5)
     return coordinator
@@ -382,6 +386,7 @@ def mock_property_coordinator():
     coordinator.async_config_entry_first_refresh = AsyncMock()
     coordinator.async_add_listener = MagicMock(return_value=lambda: None)
     coordinator.last_update_success = True
+    coordinator.last_update_success_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
     coordinator.register_property = AsyncMock()
     coordinator.get_property_value = MagicMock(return_value=100)
     return coordinator
@@ -404,6 +409,7 @@ def mock_definition_coordinator():
     coordinator.async_config_entry_first_refresh = AsyncMock()
     coordinator.async_add_listener = MagicMock(return_value=lambda: None)
     coordinator.last_update_success = True
+    coordinator.last_update_success_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
     coordinator.get_definition_data = MagicMock(
         return_value=DeviceDefinitionData(
             indoorTemperature=21.4,

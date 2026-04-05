@@ -203,13 +203,19 @@ def get_individual_entity_options() -> list[dict]:
     options.extend(_format_simple_entities(MONITORING_SENSORS, "sensors", "monitoring", "⏱️"))
     options.extend(
         _format_per_model_entities(
-            CONNECTED_DEVICE_SENSORS, "sensors", "connected_telemetry", "📡",
+            CONNECTED_DEVICE_SENSORS,
+            "sensors",
+            "connected_telemetry",
+            "📡",
             fallback_name="telemetry_{telemetry_id}",
         )
     )
     options.extend(
         _format_per_model_entities(
-            CONNECTED_DEVICE_PROPERTIES, "sensors", "connected_properties", "🔧",
+            CONNECTED_DEVICE_PROPERTIES,
+            "sensors",
+            "connected_properties",
+            "🔧",
             fallback_name="prop_{path}",
         )
     )
@@ -225,7 +231,10 @@ def get_individual_entity_options() -> list[dict]:
     options.extend(_format_simple_entities(NUMBER_ENTITIES, "numbers", "thermal_profile", "🔢", prefix="Thermal • "))
     options.extend(
         _format_per_model_entities(
-            CONNECTED_DEVICE_NUMBER_PROPERTIES, "numbers", "connected_properties", "🔢",
+            CONNECTED_DEVICE_NUMBER_PROPERTIES,
+            "numbers",
+            "connected_properties",
+            "🔢",
             fallback_name="number_{property}",
         )
     )
@@ -234,7 +243,10 @@ def get_individual_entity_options() -> list[dict]:
     options.extend(_format_simple_entities(SELECT_ENTITIES, "selects", "thermal_profile", "📝", prefix="Thermal • "))
     options.extend(
         _format_per_model_entities(
-            PROPERTY_SELECT_ENTITIES, "selects", "connected_properties", "📝",
+            PROPERTY_SELECT_ENTITIES,
+            "selects",
+            "connected_properties",
+            "📝",
             fallback_name="select_{property}",
         )
     )

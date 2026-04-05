@@ -57,9 +57,10 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
                         ssl=False,  # Disable SSL for plain HTTP
                         force_close=False,  # Keep connection alive
                     )
-                    async with aiohttp.ClientSession(connector=connector) as session, session.get(
-                        url, timeout=aiohttp.ClientTimeout(total=10)
-                    ) as resp:
+                    async with (
+                        aiohttp.ClientSession(connector=connector) as session,
+                        session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp,
+                    ):
                         if resp.status == 200:
                             data = await resp.json()
                             if "uuid" in data:

@@ -465,14 +465,15 @@ class ComfoClimeSensor(ComfoClimeBaseEntity, CoordinatorEntity, SensorEntity):
         self._device = device
         self._entry = entry
         self._attr_config_entry_id = entry.entry_id
-        # Determine prefix based on coordinator type
+        # Determine data source based on coordinator type
         if isinstance(coordinator, ComfoClimeThermalprofileCoordinator):
-            prefix = "thermalprofile"
+            data_source = "thermalprofile"
         elif isinstance(coordinator, ComfoClimeMonitoringCoordinator):
-            prefix = "monitoring"
+            data_source = "monitoring"
         else:
-            prefix = "dashboard"
-        self._attr_unique_id = f"{entry.entry_id}_{prefix}_{sensor_type.replace('.', '_')}"
+            data_source = "dashboard"
+        self._data_source = data_source
+        self._attr_unique_id = f"{entry.entry_id}_{data_source}_{sensor_type.replace('.', '_')}"
         if not translation_key:
             self._attr_name = name
         else:
@@ -482,11 +483,6 @@ class ComfoClimeSensor(ComfoClimeBaseEntity, CoordinatorEntity, SensorEntity):
     @property
     def native_value(self):
         return self._state
-
-    @property
-    def extra_state_attributes(self):
-        """Gibt zusätzliche Attribute zurück."""
-        return {"raw_value": self._raw_value}
 
     def _handle_coordinator_update(self) -> None:
         try:
@@ -561,6 +557,7 @@ class ComfoClimeTelemetrySensor(ComfoClimeBaseEntity, CoordinatorEntity, SensorE
         self._attr_config_entry_id = entry.entry_id
         self._attr_unique_id = f"{entry.entry_id}_telemetry_{telemetry_id}"
         self._attr_entity_registry_enabled_default = entity_registry_enabled_default
+        self._data_source = "telemetry"
         if not translation_key:
             self._attr_name = name
         else:
@@ -623,6 +620,7 @@ class ComfoClimePropertySensor(ComfoClimeBaseEntity, CoordinatorEntity, SensorEn
         self._state = None
         self._attr_config_entry_id = entry.entry_id
         self._attr_unique_id = f"{entry.entry_id}_property_{path.replace('/', '_')}"
+        self._data_source = "property"
         if not translation_key:
             self._attr_name = name
         else:
@@ -680,6 +678,7 @@ class ComfoClimeDefinitionSensor(ComfoClimeBaseEntity, CoordinatorEntity, Sensor
         self._state = None
         self._attr_config_entry_id = entry.entry_id
         self._attr_unique_id = f"{entry.entry_id}_definition_{override_device_uuid}_{key}"
+        self._data_source = "definition"
         if not translation_key:
             self._attr_name = name
         else:
