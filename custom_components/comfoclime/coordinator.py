@@ -237,6 +237,7 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
         self.api = api
         self.devices = devices or []
         self._access_tracker = access_tracker
+        self.last_update_success_time: datetime | None = None
         # Registry of telemetry requests: {device_uuid: {telemetry_id: TelemetryRegistryEntry}}
         self._telemetry_registry: dict[str, dict[str, TelemetryRegistryEntry]] = {}
         # Lock to prevent concurrent modifications during iteration
@@ -329,6 +330,7 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
                     )
                     result[device_uuid][telemetry_id] = None
 
+        self.last_update_success_time = datetime.now(timezone.utc)
         return result
 
     def get_telemetry_value(self, device_uuid: str, telemetry_id: str | int) -> Any:
@@ -415,6 +417,7 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
         self.api = api
         self.devices = devices or []
         self._access_tracker = access_tracker
+        self.last_update_success_time: datetime | None = None
         # Registry of property requests: {device_uuid: {path: PropertyRegistryEntry}}
         self._property_registry: dict[str, dict[str, PropertyRegistryEntry]] = {}
         # Lock to prevent concurrent modifications during iteration
@@ -507,6 +510,7 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
                     )
                     result[device_uuid][property_path] = None
 
+        self.last_update_success_time = datetime.now(timezone.utc)
         return result
 
     def get_property_value(self, device_uuid: str, property_path: str) -> Any:
@@ -581,6 +585,7 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
         self.api = api
         self.devices = devices or []
         self._access_tracker = access_tracker
+        self.last_update_success_time: datetime | None = None
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         """Fetch definition data for ComfoAirQ devices.
@@ -625,6 +630,7 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
                 _LOGGER.debug("Error fetching definition for device %s: %s", device_uuid, e)
                 result[device_uuid] = None
 
+        self.last_update_success_time = datetime.now(timezone.utc)
         return result
 
     def get_definition_data(self, device_uuid: str) -> DeviceDefinitionData | None:
