@@ -114,7 +114,7 @@ class DeviceConfig:
 ```python
 class DeviceConfig(BaseModel):
     model_config = {"frozen": True, "validate_assignment": True}
-    
+
     uuid: str = Field(..., min_length=1, description="Device unique identifier")
     model_type_id: int = Field(..., ge=0, description="Model type identifier")
     display_name: str = Field(default="Unknown Device", description="Human-readable device name")

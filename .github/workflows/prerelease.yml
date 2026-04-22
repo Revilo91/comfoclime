@@ -65,7 +65,7 @@ jobs:
           title: "Release v${{ github.event.inputs.version }}"
           body: |
             Automated version bump to ${{ github.event.inputs.version }}.
-            
+
             Updates:
             - custom_components/comfoclime/manifest.json
             - pyproject.toml
@@ -116,7 +116,7 @@ jobs:
         id: changelog
         run: |
           PREVIOUS_TAG="${{ steps.previous_tag.outputs.previous_tag }}"
-          
+
           if [ -z "$PREVIOUS_TAG" ]; then
             echo "No previous tag found, including all commits"
             CHANGELOG=$(git log HEAD --pretty=format:"- %s (%h)" --no-merges)
@@ -124,7 +124,7 @@ jobs:
             echo "Generating changelog since $PREVIOUS_TAG"
             CHANGELOG=$(git log "${PREVIOUS_TAG}..HEAD" --pretty=format:"- %s (%h)" --no-merges)
           fi
-          
+
           # Handle multi-line output for GitHub Actions
           echo "changelog<<EOF" >> $GITHUB_OUTPUT
           echo "$CHANGELOG" >> $GITHUB_OUTPUT
@@ -137,12 +137,12 @@ jobs:
           name: "v${{ github.event.inputs.version }}"
           body: |
             ## ⚠️ Pre-Release
-            
+
             This is a pre-release version and may contain bugs or incomplete features.
             Use at your own risk and please report any issues you encounter.
-            
+
             ## Changes
-            
+
             ${{ steps.changelog.outputs.changelog }}
           draft: false
           prerelease: true
