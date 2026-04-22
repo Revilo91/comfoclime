@@ -21,8 +21,11 @@ jobs:
       - name: Set up Python
         run: uv python install 3.14
 
+      - name: Install dependencies
+        run: uv sync --group dev
+
       - name: Ruff Format Check
-        run: uvx ruff format --check .
+        run: uv run ruff format --check .
 
       - name: Ruff Lint Check
-        run: uvx ruff check .
+        run: uv run ruff check .

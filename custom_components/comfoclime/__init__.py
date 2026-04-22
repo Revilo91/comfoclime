@@ -1,9 +1,10 @@
+from __future__ import annotations
+
 import asyncio
 import logging
+from typing import TYPE_CHECKING
 
 import aiohttp
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
 
@@ -19,6 +20,10 @@ from .coordinator import (
 from .entity_helper import get_device_model_type_id
 from .infrastructure import AccessTracker
 from .services import async_register_services
+
+if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.core import HomeAssistant
 
 DOMAIN = "comfoclime"
 

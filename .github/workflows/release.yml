@@ -50,6 +50,7 @@ jobs:
           jq --arg version "${{ github.event.inputs.version }}" '.version = $version' \
             custom_components/comfoclime/manifest.json > manifest.tmp
           mv manifest.tmp custom_components/comfoclime/manifest.json
+          sed -i -E 's/^version = ".*"$/version = "${{ github.event.inputs.version }}"/' pyproject.toml
           echo "Updated manifest.json to version ${{ github.event.inputs.version }}"
 
       - name: Create Pull Request
@@ -62,8 +63,12 @@ jobs:
           delete-branch: true
           title: "Release v${{ github.event.inputs.version }}"
           body: |
-            Automated version bump to ${{ github.event.inputs.version }}
+            Automated version bump to ${{ github.event.inputs.version }}.
             
+            Updates:
+            - custom_components/comfoclime/manifest.json
+            - pyproject.toml
+
             This PR was created automatically by the release workflow.
           labels: release
 

@@ -7,18 +7,22 @@ This module consolidates API-related functionality:
 - Request debouncing and cooldown periods
 """
 
+from __future__ import annotations
+
 import asyncio
 import contextlib
 import functools
 import inspect
 import logging
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 
 from ..constants import API_DEFAULTS
 from ..models import fix_signed_temperatures_in_dict
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -2,7 +2,7 @@
 
 Dieses Dokument enthält Empfehlungen für die Wartung, Verbesserung und Bereinigung der Codebase.
 
-**Generiert:** 2026-02-05  
+**Generiert:** 2026-02-05
 **Basierend auf:** Vulture-Analyse, manuelle Code-Review, AST-Analyse
 
 ---
@@ -53,8 +53,8 @@ def some_function(value: float) -> float:
 - Einige Methoden in `coordinator.py`
 - Service-Handler in `__init__.py`
 
-**Aufwand:** ~4-6 Stunden  
-**Nutzen:** 
+**Aufwand:** ~4-6 Stunden
+**Nutzen:**
 - Bessere IDE-Unterstützung
 - Frühere Fehlerkennung
 - Klarere API-Dokumentation
@@ -75,14 +75,14 @@ def some_function(value: float) -> float:
 ```python
 def example_method(self, param1: str, param2: int) -> bool:
     """Short description of what the method does.
-    
+
     Args:
         param1: Description of param1
         param2: Description of param2
-    
+
     Returns:
         Description of return value
-    
+
     Raises:
         ValueError: When param2 is negative
     """
@@ -94,7 +94,7 @@ def example_method(self, param1: str, param2: int) -> bool:
 - Einige Methoden in Entity-Klassen
 - Helper-Funktionen in `api_decorators.py`
 
-**Aufwand:** ~6-8 Stunden  
+**Aufwand:** ~6-8 Stunden
 **Nutzen:**
 - Bessere Code-Verständlichkeit
 - Auto-generierte API-Dokumentation (Sphinx)
@@ -126,7 +126,7 @@ _LOGGER.error("Failed to connect to ComfoClime device")
 
 **Empfehlung:** Vereinheitlichen auf Englisch (Standard in Open-Source-Projekten)
 
-**Aufwand:** ~2-3 Stunden  
+**Aufwand:** ~2-3 Stunden
 **Nutzen:**
 - Konsistente Codebase
 - Internationale Community kann besser unterstützen
@@ -168,7 +168,7 @@ data = get_comfoclime_data(hass, entry.entry_id)
 api = data["api"]  # Now with type hints!
 ```
 
-**Aufwand:** ~2-3 Stunden  
+**Aufwand:** ~2-3 Stunden
 **Nutzen:**
 - Type-Safety
 - Bessere IDE-Completion
@@ -190,7 +190,7 @@ api = data["api"]  # Now with type hints!
 - Oder in `tests/` Verzeichnis verschieben
 - Oder umbenennen zu `debug_tools.py` mit klarem Hinweis
 
-**Aufwand:** 5 Minuten  
+**Aufwand:** 5 Minuten
 **Nutzen:** Klarere Trennung zwischen Produktions- und Debug-Code
 
 **Action Items:**
@@ -255,7 +255,7 @@ pre-commit install
 
 **Aktuell:** 30s TTL für Telemetrie/Property-Cache
 
-**Überlegung:** 
+**Überlegung:**
 - Ist 30s optimal für alle Use-Cases?
 - Könnte man unterschiedliche TTLs für verschiedene Datentypen haben?
 
@@ -275,7 +275,7 @@ pre-commit install
 - Adaptive Update-Intervalle basierend auf Wert-Änderungen
 - Delta-Updates (nur geänderte Werte)
 
-**Aufwand:** Hoch (Major Feature)  
+**Aufwand:** Hoch (Major Feature)
 **Nutzen:** Reduzierte API-Last, schnellere Updates
 
 ---
@@ -305,7 +305,7 @@ pre-commit install
 - Duration-Validierung
 - Pydantic-Modelle für Daten-Validierung
 
-**Empfehlung:** 
+**Empfehlung:**
 - Security-Audit bei größeren Änderungen
 - Bandit-Scan in CI/CD integrieren
 
@@ -426,7 +426,7 @@ from .models import DashboardData
 - Behalten bis Version 2.0
 - Dann entfernen mit Breaking-Change-Notice
 
-**Timeline:** 
+**Timeline:**
 - Version 1.x: Behalten
 - Version 2.0: Entfernen
 
@@ -466,6 +466,6 @@ Fragen oder Anmerkungen zu diesen Empfehlungen?
 
 ---
 
-**Erstellt:** 2026-02-05  
-**Version:** 1.0  
+**Erstellt:** 2026-02-05
+**Version:** 1.0
 **Nächste Review:** Bei Major-Release oder in 6 Monaten

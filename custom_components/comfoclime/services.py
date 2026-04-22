@@ -6,16 +6,22 @@ This module contains all service call handlers:
 - set_scenario_mode: Activate scenario modes (cooking, party, away, boost)
 """
 
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING
 
 import aiohttp
 import homeassistant.helpers.device_registry as dr
-from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
 
-from .comfoclime_api import ComfoClimeAPI
 from .infrastructure import validate_byte_value, validate_duration, validate_property_path
 from .models import PropertyWriteRequest
+
+if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant, ServiceCall
+
+    from .comfoclime_api import ComfoClimeAPI
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -47,9 +47,9 @@ Kurze, präzise Hinweise für KI-Coding-Agenten, damit sie sofort produktiv an d
 
 Die `byte_count`-Werte in Entity-Definitionen **müssen** exakt mit der API-Dokumentation übereinstimmen. Falsche `byte_count`-Werte führen zu fehlerhaften Sensorwerten!
 
-- **Upstream-Referenz für ComfoClime (modelTypeId=20) Telemetrie**: [ComfoClimeAPI.md](https://github.com/msfuture/comfoclime_api/blob/main/ComfoClimeAPI.md) → Abschnitt „ComfoClime Sensors"
+- **Upstream-Referenz für ComfoClime (modelTypeId=20) Telemetrie**: [ComfoClimeAPI.md](https://github.com/Revilo91/comfoclime_api/blob/main/ComfoClimeAPI.md) → Abschnitt „ComfoClime Sensors"
 - **Upstream-Referenz für ComfoAir (modelTypeId=1) Telemetrie**: [PROTOCOL-PDO.md](https://github.com/michaelarnauts/aiocomfoconnect/blob/master/docs/PROTOCOL-PDO.md)
-- **Upstream-Referenz für Properties**: [ComfoClimeAPI.md](https://github.com/msfuture/comfoclime_api/blob/main/ComfoClimeAPI.md) → Abschnitt „Properties of subunits"
+- **Upstream-Referenz für Properties**: [ComfoClimeAPI.md](https://github.com/Revilo91/comfoclime_api/blob/main/ComfoClimeAPI.md) → Abschnitt „Properties of subunits"
 
 ### Regeln für byte_count:
 - `UINT8` / `CN_UINT8` / `CN_INT8` / `CN_BOOL` → `byte_count=1`
@@ -113,7 +113,7 @@ Die `byte_count`-Werte in Entity-Definitionen **müssen** exakt mit der API-Doku
 - Verwenden Sie den bereitgestellten Codespace/Dev-Container – Home Assistant startet automatisch auf Port 8123 (siehe `.devcontainer/README.md`).
 - Debug-Logging: `.devcontainer/configuration.yaml` aktiviert das Debugging für `custom_components.comfoclime`.
 - Schnelle Iteration: `container restart` nach Codeänderungen (kein vollständiger Neuaufbau des Dev-Containers).
-- Tests: Ausführen mit `pytest tests/ -v` (Anforderungen in `requirements_test.txt`). Die umfassende Testsuite deckt alle Entitätstypen, die API, Caching sowie Timeout/Retry ab.
+- Tests: Abhängigkeiten mit `uv sync --group dev` installieren und dann `uv run pytest tests/ -v` ausführen. Die umfassende Testsuite deckt alle Entitätstypen, die API, Caching sowie Timeout/Retry ab.
 - **WICHTIG: Testaktualisierung**: Bei JEDER Codeänderung MÜSSEN die entsprechenden Tests aktualisiert oder neue Tests hinzugefügt werden. Keine Code-Änderung ohne Test-Update!
   - Modell-Änderungen → `tests/test_models.py` aktualisieren
   - API-Änderungen → `tests/test_api.py` aktualisieren

@@ -195,9 +195,8 @@ All converted models have been tested to ensure:
 
 ## Dependencies
 
-Added to requirements:
-- `manifest.json`: `"pydantic>=2.0.0"`
-- `requirements_test.txt`: `pydantic>=2.0.0`
+Added to project tooling:
+- `pyproject.toml`: `pydantic>=2.0.0` in the dev dependency group
 
 Pydantic V2 is used for best performance and features.
 

@@ -362,7 +362,7 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
         Value (hex) | 0x80 | 0x40       | 0x20 | 0x10       | 0x08           | 0x04    | 0x02    | 0x01
         Meaning     | IDLE | DEFROSTING | IDLE | DRYING (?) | PREHEATING (?) | COOLING | HEATING | IDLE
 
-        Reference: https://github.com/msfuture/comfoclime_api/blob/main/ComfoClimeAPI.md#heat-pump-status-codes
+        Reference: https://github.com/Revilo91/comfoclime_api/blob/main/ComfoClimeAPI.md#heat-pump-status-codes
         """
         if not self.coordinator.data:
             return [HVACAction.OFF]
