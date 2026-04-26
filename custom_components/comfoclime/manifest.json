@@ -2,7 +2,6 @@
   "domain": "comfoclime",
   "name": "Zehnder ComfoClime",
   "codeowners": [
-    "@Revilo91",
     "@Revilo91"
   ],
   "config_flow": true,
