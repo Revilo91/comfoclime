@@ -38,13 +38,13 @@ from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.helpers import selector
 
 from .entity_helper import (
-    get_default_enabled_individual_entities,
     # get_individual_entity_options,
     get_access_tracking_sensors,
     get_connected_device_definition_sensors,
     get_connected_device_properties_sensors,
     get_connected_device_telemetry_sensors,
     get_dashboard_sensors,
+    get_default_enabled_individual_entities,
     get_monitoring_sensors,
     get_numbers,
     get_selects,
@@ -76,9 +76,7 @@ def _get_default_entity_options() -> dict[str, Any]:
     default_enabled = get_default_enabled_individual_entities()
 
     enabled_connected_telemetry = [
-        opt["value"]
-        for opt in get_connected_device_telemetry_sensors()
-        if opt["value"] in default_enabled
+        opt["value"] for opt in get_connected_device_telemetry_sensors() if opt["value"] in default_enabled
     ]
 
     return {
@@ -161,7 +159,7 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
                             errors["host"] = "no_uuid"
                         else:
                             errors["host"] = "no_response"
-                except (TimeoutError, aiohttp.ClientError):
+                except TimeoutError, aiohttp.ClientError:
                     errors["host"] = "cannot_connect"
 
         return self.async_show_form(
@@ -694,7 +692,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 description_placeholders={"info": "Select dashboard sensors to enable."},
                 errors=errors,
             )
-        except (KeyError, TypeError, ValueError):
+        except KeyError, TypeError, ValueError:
             _LOGGER.exception("✗ ERROR in async_step_entities_sensors_dashboard")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -744,7 +742,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 description_placeholders={"info": "Select thermal profile sensors to enable."},
                 errors=errors,
             )
-        except (KeyError, TypeError, ValueError):
+        except KeyError, TypeError, ValueError:
             _LOGGER.exception("✗ ERROR in async_step_entities_sensors_thermalprofile")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -793,7 +791,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 description_placeholders={"info": "Select monitoring sensors to enable."},
                 errors=errors,
             )
-        except (KeyError, TypeError, ValueError):
+        except KeyError, TypeError, ValueError:
             _LOGGER.exception("✗ ERROR in async_step_entities_sensors_monitoring")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -847,7 +845,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 description_placeholders={"info": "Select connected device telemetry sensors to enable."},
                 errors=errors,
             )
-        except (KeyError, TypeError, ValueError):
+        except KeyError, TypeError, ValueError:
             _LOGGER.exception("✗ ERROR in async_step_entities_sensors_connected_telemetry")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -901,7 +899,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 description_placeholders={"info": "Select connected device properties sensors to enable."},
                 errors=errors,
             )
-        except (KeyError, TypeError, ValueError):
+        except KeyError, TypeError, ValueError:
             _LOGGER.exception("✗ ERROR in async_step_entities_sensors_connected_properties")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -955,7 +953,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 description_placeholders={"info": "Select connected device definition sensors to enable."},
                 errors=errors,
             )
-        except (KeyError, TypeError, ValueError):
+        except KeyError, TypeError, ValueError:
             _LOGGER.exception("✗ ERROR in async_step_entities_sensors_connected_definition")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -1005,7 +1003,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 description_placeholders={"info": "Select access tracking sensors to enable (diagnostic only)."},
                 errors=errors,
             )
-        except (KeyError, TypeError, ValueError):
+        except KeyError, TypeError, ValueError:
             _LOGGER.exception("✗ ERROR in async_step_entities_sensors_access_tracking")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -1055,7 +1053,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 description_placeholders={"info": "Select switches to enable."},
                 errors=errors,
             )
-        except (KeyError, TypeError, ValueError):
+        except KeyError, TypeError, ValueError:
             _LOGGER.exception("✗ ERROR in async_step_entities_switches")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -1105,7 +1103,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 description_placeholders={"info": "Select number controls to enable."},
                 errors=errors,
             )
-        except (KeyError, TypeError, ValueError):
+        except KeyError, TypeError, ValueError:
             _LOGGER.exception("✗ ERROR in async_step_entities_numbers")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -1155,7 +1153,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 description_placeholders={"info": "Select list controls to enable."},
                 errors=errors,
             )
-        except (KeyError, TypeError, ValueError):
+        except KeyError, TypeError, ValueError:
             _LOGGER.exception("✗ ERROR in async_step_entities_selects")
             errors["base"] = "entity_options_error"
             return self.async_show_form(

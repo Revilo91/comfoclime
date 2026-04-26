@@ -1,5 +1,6 @@
 """Tests for ComfoClime sensor entities."""
 
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -107,6 +108,89 @@ class TestComfoClimeSensor:
         assert ("comfoclime", "test-device-uuid") in device_info["identifiers"]
         assert device_info["name"] == "ComfoClime Test"
         assert device_info["manufacturer"] == "Zehnder"
+
+    def test_monitoring_sensor_update(self, mock_hass, mock_config_entry):
+        """Test monitoring sensor state update from MonitoringPing coordinator."""
+        # Create a mock monitoring coordinator with MonitoringPing data
+        mock_monitoring_coordinator = MagicMock()
+        mock_monitoring_coordinator.data = MonitoringPing(
+            uuid="test-uuid",
+            up_time_seconds=123456,
+            timestamp=1705314600,
+        )
+        mock_monitoring_coordinator.last_update_success_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
+
+        sensor = ComfoClimeSensor(
+            hass=mock_hass,
+            coordinator=mock_monitoring_coordinator,
+            api=MagicMock(),
+            sensor_type="up_time_seconds",
+            name="Uptime",
+            translation_key="uptime",
+            unit="s",
+            device_class="duration",
+            state_class="measurement",
+            entity_category="diagnostic",
+            device=None,
+            entry=mock_config_entry,
+        )
+
+        # Set hass attribute and patch async_write_ha_state
+        sensor.hass = mock_hass
+        sensor.async_write_ha_state = MagicMock()
+
+        # Trigger coordinator update
+        sensor._handle_coordinator_update()
+
+        # Verify the sensor correctly retrieved the uptime value
+        assert sensor._state == 123456
+        assert sensor._raw_value == 123456
+        assert sensor.native_value == 123456
+
+    def test_sensor_extra_state_attributes_dashboard(
+        self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry
+    ):
+        """Test extra_state_attributes contains data_source and last_update for dashboard sensor."""
+        mock_coordinator.last_update_success_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
+
+        sensor = ComfoClimeSensor(
+            hass=mock_hass,
+            coordinator=mock_coordinator,
+            api=mock_api,
+            sensor_type="indoorTemperature",
+            name="Indoor Temperature",
+            translation_key="indoor_temperature",
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+        sensor.hass = mock_hass
+        sensor.async_write_ha_state = MagicMock()
+        sensor._handle_coordinator_update()
+
+        attrs = sensor.extra_state_attributes
+        assert attrs["data_source"] == "dashboard"
+        assert attrs["last_update"] == "2024-01-15T10:30:00+00:00"
+        assert "raw_value" in attrs
+
+    def test_sensor_extra_state_attributes_last_update_none(
+        self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry
+    ):
+        """Test extra_state_attributes last_update is None when coordinator has no timestamp."""
+        mock_coordinator.last_update_success_time = None
+
+        sensor = ComfoClimeSensor(
+            hass=mock_hass,
+            coordinator=mock_coordinator,
+            api=mock_api,
+            sensor_type="indoorTemperature",
+            name="Indoor Temperature",
+            translation_key="indoor_temperature",
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+
+        attrs = sensor.extra_state_attributes
+        assert attrs["last_update"] is None
 
 
 class TestComfoClimeTelemetrySensor:
@@ -234,6 +318,28 @@ class TestComfoClimeTelemetrySensor:
         assert sensor._state == -5.5
         mock_telemetry_coordinator.get_telemetry_value.assert_called_once_with("test-device-uuid", "4145")
 
+    def test_telemetry_sensor_extra_state_attributes(
+        self, mock_hass, mock_telemetry_coordinator, mock_device, mock_config_entry
+    ):
+        """Test extra_state_attributes contains data_source and last_update for telemetry sensor."""
+        mock_telemetry_coordinator.last_update_success_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
+
+        sensor = ComfoClimeTelemetrySensor(
+            hass=mock_hass,
+            coordinator=mock_telemetry_coordinator,
+            telemetry_id=123,
+            name="Test Telemetry",
+            translation_key="test_telemetry",
+            unit="°C",
+            device=mock_device,
+            override_device_uuid="test-device-uuid",
+            entry=mock_config_entry,
+        )
+
+        attrs = sensor.extra_state_attributes
+        assert attrs["data_source"] == "telemetry"
+        assert attrs["last_update"] == "2024-01-15T10:30:00+00:00"
+
 
 class TestComfoClimePropertySensor:
     """Test ComfoClimePropertySensor class."""
@@ -316,6 +422,27 @@ class TestComfoClimePropertySensor:
 
         # Should map 0 to "comfort"
         assert sensor._state == "comfort"
+
+    def test_property_sensor_extra_state_attributes(
+        self, mock_hass, mock_property_coordinator, mock_device, mock_config_entry
+    ):
+        """Test extra_state_attributes contains data_source and last_update for property sensor."""
+        mock_property_coordinator.last_update_success_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
+
+        sensor = ComfoClimePropertySensor(
+            hass=mock_hass,
+            coordinator=mock_property_coordinator,
+            path="29/1/10",
+            name="Test Property",
+            translation_key="test_property",
+            device=mock_device,
+            override_device_uuid="test-device-uuid",
+            entry=mock_config_entry,
+        )
+
+        attrs = sensor.extra_state_attributes
+        assert attrs["data_source"] == "property"
+        assert attrs["last_update"] == "2024-01-15T10:30:00+00:00"
 
 
 @pytest.mark.asyncio
@@ -537,3 +664,24 @@ class TestComfoClimeDefinitionSensor:
 
         # Should be None when coordinator has no definition data
         assert sensor._state is None
+
+    def test_definition_sensor_extra_state_attributes(
+        self, mock_hass, mock_definition_coordinator, mock_device, mock_config_entry
+    ):
+        """Test extra_state_attributes contains data_source and last_update for definition sensor."""
+        mock_definition_coordinator.last_update_success_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
+
+        sensor = ComfoClimeDefinitionSensor(
+            hass=mock_hass,
+            coordinator=mock_definition_coordinator,
+            key="indoorTemperature",
+            name="Indoor Temperature",
+            translation_key="indoor_temperature",
+            device=mock_device,
+            override_device_uuid="test-device-uuid",
+            entry=mock_config_entry,
+        )
+
+        attrs = sensor.extra_state_attributes
+        assert attrs["data_source"] == "definition"
+        assert attrs["last_update"] == "2024-01-15T10:30:00+00:00"

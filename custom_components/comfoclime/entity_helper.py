@@ -168,7 +168,7 @@ def _friendly_model_name(model_id) -> str:
         return "Unknown Model"
     try:
         mid = int(model_id)
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         return f"Model {model_id}"
     return MODEL_TYPE_NAMES.get(mid, f"Model {mid}")
 
@@ -308,7 +308,7 @@ def _format_simple_entities(
             label = _get_attr(entity_def, "name", "unknown")
             full_label = f"{emoji} {prefix}{label}" if prefix else f"{emoji} {label}"
             options.append({"value": entity_id, "label": full_label})
-        except (KeyError, AttributeError):
+        except KeyError, AttributeError:
             _LOGGER.exception("❌ Error processing %s_%s entity %s", category, subcategory, entity_def)
     return options
 
@@ -345,7 +345,7 @@ def _format_per_model_entities(
                 else:
                     label = _get_attr(entity_def, "name", "unknown")
                 options.append({"value": entity_id, "label": f"{emoji} {model_name} • {label}"})
-            except (KeyError, AttributeError):
+            except KeyError, AttributeError:
                 _LOGGER.exception(
                     "❌ Error processing %s_%s for model %s",
                     category,

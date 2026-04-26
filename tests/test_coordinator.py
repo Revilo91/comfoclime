@@ -19,7 +19,9 @@ from custom_components.comfoclime.models import (
     DeviceDefinitionData,
     MonitoringPing,
     PropertyReading,
+    PropertyRegistryEntry,
     TelemetryReading,
+    TelemetryRegistryEntry,
     ThermalProfileData,
 )
 
@@ -539,3 +541,113 @@ async def test_monitoring_coordinator_custom_interval(hass_with_frame_helper, mo
 
     assert coordinator.update_interval.total_seconds() == custom_interval
     assert coordinator.api == mock_api
+
+
+class TestTelemetryCoordinatorRegistry:
+    """Tests for TelemetryCoordinator registry functionality."""
+
+    @pytest.mark.asyncio
+    async def test_telemetry_coordinator_registry_entries_are_pydantic_models(self, hass_with_frame_helper, mock_api):
+        """Test that TelemetryRegistry entries are TelemetryRegistryEntry Pydantic models."""
+        coordinator = ComfoClimeTelemetryCoordinator(hass_with_frame_helper, mock_api, devices=[])
+
+        # Register telemetry
+        await coordinator.register_telemetry(
+            device_uuid="device1",
+            telemetry_id="4145",
+            faktor=0.1,
+            signed=True,
+            byte_count=2,
+        )
+
+        # Registry should contain Pydantic model entries
+        assert isinstance(coordinator._telemetry_registry, dict)
+        assert "device1" in coordinator._telemetry_registry
+        assert "4145" in coordinator._telemetry_registry["device1"]
+
+        entry = coordinator._telemetry_registry["device1"]["4145"]
+        assert isinstance(entry, TelemetryRegistryEntry)
+        assert entry.faktor == 0.1
+        assert entry.signed is True
+        assert entry.byte_count == 2
+
+    @pytest.mark.asyncio
+    async def test_telemetry_coordinator_multiple_entries_in_registry(self, hass_with_frame_helper, mock_api):
+        """Test TelemetryRegistry with multiple entries per device."""
+        coordinator = ComfoClimeTelemetryCoordinator(hass_with_frame_helper, mock_api, devices=[])
+
+        # Register multiple telemetries for same device
+        await coordinator.register_telemetry(
+            device_uuid="device1",
+            telemetry_id="4145",
+            faktor=0.1,
+            signed=True,
+            byte_count=2,
+        )
+        await coordinator.register_telemetry(
+            device_uuid="device1",
+            telemetry_id="4154",
+            faktor=0.1,
+            signed=True,
+            byte_count=2,
+        )
+
+        # Both entries should be in registry
+        assert len(coordinator._telemetry_registry["device1"]) == 2
+        assert "4145" in coordinator._telemetry_registry["device1"]
+        assert "4154" in coordinator._telemetry_registry["device1"]
+
+
+class TestPropertyCoordinatorRegistry:
+    """Tests for PropertyCoordinator registry functionality."""
+
+    @pytest.mark.asyncio
+    async def test_property_coordinator_registry_entries_are_pydantic_models(self, hass_with_frame_helper, mock_api):
+        """Test that PropertyRegistry entries are PropertyRegistryEntry Pydantic models."""
+        coordinator = ComfoClimePropertyCoordinator(hass_with_frame_helper, mock_api, devices=[])
+
+        # Register property
+        await coordinator.register_property(
+            device_uuid="device1",
+            property_path="29/1/10",
+            faktor=1.0,
+            signed=True,
+            byte_count=2,
+        )
+
+        # Registry should contain Pydantic model entries
+        assert isinstance(coordinator._property_registry, dict)
+        assert "device1" in coordinator._property_registry
+        assert "29/1/10" in coordinator._property_registry["device1"]
+
+        entry = coordinator._property_registry["device1"]["29/1/10"]
+        assert isinstance(entry, PropertyRegistryEntry)
+        assert entry.faktor == 1.0
+        assert entry.signed is True
+        assert entry.byte_count == 2
+
+    @pytest.mark.asyncio
+    async def test_property_coordinator_multiple_entries_in_registry(self, hass_with_frame_helper, mock_api):
+        """Test PropertyRegistry with multiple entries per device."""
+        coordinator = ComfoClimePropertyCoordinator(hass_with_frame_helper, mock_api, devices=[])
+
+        # Register multiple properties for same device
+        await coordinator.register_property(
+            device_uuid="device1",
+            property_path="29/1/10",
+            faktor=1.0,
+            signed=True,
+            byte_count=2,
+        )
+        await coordinator.register_property(
+            device_uuid="device1",
+            property_path="29/1/6",
+            faktor=0.5,
+            signed=False,
+            byte_count=1,
+        )
+
+        # Both entries should be in registry
+        assert len(coordinator._property_registry["device1"]) == 2
+        assert "29/1/10" in coordinator._property_registry["device1"]
+        assert "29/1/6" in coordinator._property_registry["device1"]

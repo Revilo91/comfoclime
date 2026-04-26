@@ -577,7 +577,7 @@ def api_put(
                             if is_dashboard:
                                 try:
                                     resp_json = await response.json()
-                                except (aiohttp.ContentTypeError, ValueError):
+                                except aiohttp.ContentTypeError, ValueError:
                                     resp_json = {"text": await response.text()}
                                 _LOGGER.debug("Update OK response=%s", resp_json)
                                 return resp_json

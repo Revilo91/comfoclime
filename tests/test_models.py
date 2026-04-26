@@ -4,15 +4,25 @@ import pytest
 from pydantic import ValidationError
 
 from custom_components.comfoclime.models import (
+    ConnectedDevicesResponse,
     DashboardData,
+    DashboardUpdateResponse,
     DeviceConfig,
     MonitoringPing,
     PropertyReading,
+    PropertyReadResult,
+    PropertyRegistry,
+    PropertyRegistryEntry,
+    PropertyWriteRequest,
+    PropertyWriteResponse,
     SeasonData,
     TelemetryReading,
+    TelemetryRegistry,
+    TelemetryRegistryEntry,
     TemperatureControlData,
     ThermalProfileData,
     ThermalProfileSeasonData,
+    ThermalProfileUpdateResponse,
     bytes_to_signed_int,
     fix_signed_temperature,
     fix_signed_temperatures_in_dict,
@@ -60,6 +70,26 @@ class TestDeviceConfig:
 
         with pytest.raises(ValidationError):
             config.uuid = "new_uuid"
+
+
+class TestConnectedDevicesResponse:
+    """Tests for ConnectedDevicesResponse parsing helpers."""
+
+    def test_from_api_parses_devices(self):
+        """Test parsing devices from API payload."""
+        payload = {
+            "devices": [
+                {"uuid": "device-1", "modelTypeId": 1, "displayName": "Device 1"},
+                {"uuid": "device-2", "modelTypeId": 20, "displayName": "Device 2", "version": "1.0"},
+                {"uuid": "", "modelTypeId": "invalid"},
+            ]
+        }
+
+        response = ConnectedDevicesResponse.from_api(payload)
+
+        assert len(response.devices) == 2
+        assert response.devices[0].uuid == "device-1"
+        assert response.devices[1].version == "1.0"
 
 
 class TestTelemetryReading:
@@ -172,6 +202,36 @@ class TestTelemetryReading:
         with pytest.raises(ValidationError):
             TelemetryReading(device_uuid="abc123", telemetry_id="10", raw_value=100, byte_count=3)
 
+    def test_telemetry_from_cached_value(self):
+        """Test telemetry reconstruction from cached scaled value."""
+        reading = TelemetryReading.from_cached_value(
+            device_uuid="abc123",
+            telemetry_id="10",
+            cached_value=25.0,
+            faktor=0.1,
+            signed=True,
+            byte_count=2,
+        )
+
+        assert reading is not None
+        assert reading.raw_value == 250
+        assert reading.scaled_value == 25.0
+
+    def test_telemetry_from_raw_bytes(self):
+        """Test telemetry parsing from raw bytes."""
+        reading = TelemetryReading.from_raw_bytes(
+            device_uuid="abc123",
+            telemetry_id="10",
+            data=[250, 0],
+            faktor=0.1,
+            signed=False,
+            byte_count=2,
+        )
+
+        assert reading is not None
+        assert reading.raw_value == 250
+        assert reading.scaled_value == 25.0
+
 
 class TestPropertyReading:
     """Tests for PropertyReading dataclass."""
@@ -209,6 +269,73 @@ class TestPropertyReading:
         """Test that empty path raises ValidationError."""
         with pytest.raises(ValidationError):
             PropertyReading(device_uuid="abc123", path="", raw_value=100)
+
+    def test_property_from_cached_value(self):
+        """Test property reconstruction from cached value."""
+        reading = PropertyReading.from_cached_value(
+            device_uuid="abc123",
+            path="29/1/10",
+            cached_value=50.0,
+            faktor=0.5,
+            signed=True,
+            byte_count=2,
+        )
+
+        assert reading is not None
+        assert reading.raw_value == 100
+        assert reading.scaled_value == 50.0
+
+
+class TestPropertyReadResult:
+    """Tests for PropertyReadResult parsing."""
+
+    def test_property_read_result_numeric(self):
+        """Test numeric property parsing from raw bytes."""
+        result = PropertyReadResult.from_raw_bytes(
+            device_uuid="abc123",
+            path="29/1/10",
+            data=[100],
+            faktor=1.0,
+            signed=False,
+            byte_count=1,
+        )
+
+        assert result.reading is not None
+        assert result.cache_value == 100.0
+
+    def test_property_read_result_string(self):
+        """Test string property parsing from raw bytes."""
+        result = PropertyReadResult.from_raw_bytes(
+            device_uuid="abc123",
+            path="29/1/10",
+            data=[65, 0, 66],
+            faktor=1.0,
+            signed=False,
+            byte_count=3,
+        )
+
+        assert result.reading is None
+        assert result.cache_value == "AB"
+
+
+class TestPropertyWriteRequest:
+    """Tests for PropertyWriteRequest conversion helpers."""
+
+    def test_property_write_request_to_wire_data(self):
+        """Test conversion to wire data."""
+        request = PropertyWriteRequest(
+            device_uuid="abc123",
+            path="29/1/10",
+            value=22.5,
+            byte_count=2,
+            signed=True,
+            faktor=0.1,
+        )
+
+        x, y, z, data = request.to_wire_data()
+
+        assert (x, y, z) == (29, 1, 10)
+        assert data == [225, 0]
 
 
 class TestDashboardData:
@@ -663,3 +790,223 @@ class TestMonitoringPing:
         assert ping.up_time_seconds == 123456
         # Invalid timestamp should be removed
         assert ping.timestamp is None
+
+
+class TestTelemetryRegistryEntry:
+    """Tests for TelemetryRegistryEntry Pydantic model."""
+
+    def test_create_telemetry_registry_entry(self):
+        """Test creating a valid TelemetryRegistryEntry."""
+        entry = TelemetryRegistryEntry(
+            faktor=0.1,
+            signed=True,
+            byte_count=2,
+        )
+
+        assert entry.faktor == 0.1
+        assert entry.signed is True
+        assert entry.byte_count == 2
+
+    def test_telemetry_registry_entry_defaults(self):
+        """Test TelemetryRegistryEntry with default values."""
+        entry = TelemetryRegistryEntry()
+
+        assert entry.faktor == 1.0
+        assert entry.signed is True
+        assert entry.byte_count is None
+
+    def test_telemetry_registry_entry_invalid_faktor(self):
+        """Test that invalid faktor (zero or negative) raises ValidationError."""
+        with pytest.raises(ValidationError):
+            TelemetryRegistryEntry(faktor=0)
+
+        with pytest.raises(ValidationError):
+            TelemetryRegistryEntry(faktor=-0.5)
+
+    def test_telemetry_registry_entry_immutable(self):
+        """Test that TelemetryRegistryEntry is frozen (immutable)."""
+        entry = TelemetryRegistryEntry(faktor=0.1)
+
+        with pytest.raises(ValidationError):
+            entry.faktor = 0.2
+
+
+class TestPropertyRegistryEntry:
+    """Tests for PropertyRegistryEntry Pydantic model."""
+
+    def test_create_property_registry_entry(self):
+        """Test creating a valid PropertyRegistryEntry."""
+        entry = PropertyRegistryEntry(
+            faktor=0.5,
+            signed=False,
+            byte_count=2,
+        )
+
+        assert entry.faktor == 0.5
+        assert entry.signed is False
+        assert entry.byte_count == 2
+
+    def test_property_registry_entry_defaults(self):
+        """Test PropertyRegistryEntry with default values."""
+        entry = PropertyRegistryEntry()
+
+        assert entry.faktor == 1.0
+        assert entry.signed is True
+        assert entry.byte_count is None
+
+    def test_property_registry_entry_invalid_faktor(self):
+        """Test that invalid faktor raises ValidationError."""
+        with pytest.raises(ValidationError):
+            PropertyRegistryEntry(faktor=0)
+
+        with pytest.raises(ValidationError):
+            PropertyRegistryEntry(faktor=-1.5)
+
+    def test_property_registry_entry_immutable(self):
+        """Test that PropertyRegistryEntry is frozen (immutable)."""
+        entry = PropertyRegistryEntry(faktor=2.0)
+
+        with pytest.raises(ValidationError):
+            entry.faktor = 1.5
+
+
+class TestTelemetryRegistry:
+    """Tests for TelemetryRegistry Pydantic model."""
+
+    def test_create_empty_telemetry_registry(self):
+        """Test creating an empty TelemetryRegistry."""
+        registry = TelemetryRegistry()
+
+        assert registry.entries == {}
+
+    def test_telemetry_registry_with_entries(self):
+        """Test TelemetryRegistry with populated entries."""
+        entries = {
+            "device1": {
+                "4145": TelemetryRegistryEntry(faktor=0.1, signed=True),
+                "4154": TelemetryRegistryEntry(faktor=0.1, signed=True),
+            },
+            "device2": {
+                "121": TelemetryRegistryEntry(faktor=1.0, signed=False),
+            },
+        }
+        registry = TelemetryRegistry(entries=entries)
+
+        assert "device1" in registry.entries
+        assert "device2" in registry.entries
+        assert "4145" in registry.entries["device1"]
+        assert registry.entries["device1"]["4145"].faktor == 0.1
+
+    def test_telemetry_registry_entry_access(self):
+        """Test accessing TelemetryRegistry entries."""
+        registry = TelemetryRegistry()
+        entry = TelemetryRegistryEntry(faktor=0.1, signed=True, byte_count=2)
+
+        # Add entries programmatically
+        registry.entries["device1"] = {"4145": entry}
+
+        assert registry.entries["device1"]["4145"].faktor == 0.1
+        assert registry.entries["device1"]["4145"].signed is True
+        assert registry.entries["device1"]["4145"].byte_count == 2
+
+    def test_telemetry_registry_immutable(self):
+        """Test that TelemetryRegistry is frozen (immutable)."""
+        registry = TelemetryRegistry()
+
+        with pytest.raises(ValidationError):
+            registry.entries = {"new": {}}
+
+
+class TestPropertyRegistry:
+    """Tests for PropertyRegistry Pydantic model."""
+
+    def test_create_empty_property_registry(self):
+        """Test creating an empty PropertyRegistry."""
+        registry = PropertyRegistry()
+
+        assert registry.entries == {}
+
+    def test_property_registry_with_entries(self):
+        """Test PropertyRegistry with populated entries."""
+        entries = {
+            "device1": {
+                "29/1/10": PropertyRegistryEntry(faktor=1.0, signed=True, byte_count=2),
+                "29/1/6": PropertyRegistryEntry(faktor=0.5, signed=False, byte_count=1),
+            },
+            "device2": {
+                "30/2/5": PropertyRegistryEntry(faktor=0.1, signed=False, byte_count=2),
+            },
+        }
+        registry = PropertyRegistry(entries=entries)
+
+        assert "device1" in registry.entries
+        assert "device2" in registry.entries
+        assert "29/1/10" in registry.entries["device1"]
+        assert registry.entries["device1"]["29/1/10"].faktor == 1.0
+
+    def test_property_registry_entry_access(self):
+        """Test accessing PropertyRegistry entries."""
+        registry = PropertyRegistry()
+        entry = PropertyRegistryEntry(faktor=0.1, signed=True, byte_count=2)
+
+        # Add entries programmatically
+        registry.entries["device1"] = {"29/1/10": entry}
+
+        assert registry.entries["device1"]["29/1/10"].faktor == 0.1
+        assert registry.entries["device1"]["29/1/10"].signed is True
+        assert registry.entries["device1"]["29/1/10"].byte_count == 2
+
+    def test_property_registry_immutable(self):
+        """Test that PropertyRegistry is frozen (immutable)."""
+        registry = PropertyRegistry()
+
+        with pytest.raises(ValidationError):
+            registry.entries = {"new": {}}
+
+
+class TestDashboardUpdateResponse:
+    """Tests for DashboardUpdateResponse model."""
+
+    def test_create_dashboard_update_response(self):
+        """Test creating a valid DashboardUpdateResponse."""
+        response = DashboardUpdateResponse(status=200)
+
+        assert response.status == 200
+
+    def test_dashboard_update_response_default(self):
+        """Test DashboardUpdateResponse with default status."""
+        response = DashboardUpdateResponse()
+
+        assert response.status == 200
+
+
+class TestThermalProfileUpdateResponse:
+    """Tests for ThermalProfileUpdateResponse model."""
+
+    def test_create_thermal_profile_update_response(self):
+        """Test creating a valid ThermalProfileUpdateResponse."""
+        response = ThermalProfileUpdateResponse(status=200)
+
+        assert response.status == 200
+
+    def test_thermal_profile_update_response_default(self):
+        """Test ThermalProfileUpdateResponse with default status."""
+        response = ThermalProfileUpdateResponse()
+
+        assert response.status == 200
+
+
+class TestPropertyWriteResponse:
+    """Tests for PropertyWriteResponse model."""
+
+    def test_create_property_write_response(self):
+        """Test creating a valid PropertyWriteResponse."""
+        response = PropertyWriteResponse(status=200)
+
+        assert response.status == 200
+
+    def test_property_write_response_default(self):
+        """Test PropertyWriteResponse with default status."""
+        response = PropertyWriteResponse()
+
+        assert response.status == 200

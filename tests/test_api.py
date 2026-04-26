@@ -5,7 +5,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from custom_components.comfoclime.comfoclime_api import ComfoClimeAPI
-from custom_components.comfoclime.models import DashboardData, DeviceDefinitionData
+from custom_components.comfoclime.models import (
+    DashboardData,
+    DashboardUpdate,
+    DashboardUpdateResponse,
+    DeviceDefinitionData,
+    PropertyWriteResponse,
+)
 
 
 class TestComfoClimeAPI:
@@ -267,13 +273,6 @@ class TestComfoClimeAPI:
         assert reading.scaled_value == 50.0
 
     @pytest.mark.asyncio
-    @pytest.mark.xfail(
-        reason="Bug: TelemetryReading.scaled_value cannot handle negative raw_value "
-        "because raw_value is already signed but scaled_value tries unsigned conversion. "
-        "Fix required in models.py TelemetryReading.scaled_value property.",
-        strict=True,
-        raises=OverflowError,
-    )
     async def test_async_read_telemetry_1_byte_signed_negative(self):
         """Test reading 1-byte signed telemetry (negative)."""
         api = ComfoClimeAPI("http://192.168.1.100")
@@ -359,8 +358,7 @@ class TestComfoClimeAPIWriteOperations:
 
     @pytest.mark.asyncio
     async def test_async_update_dashboard(self):
-        """Test async updating dashboard."""
-        from custom_components.comfoclime.models import DashboardUpdate
+        """Test async updating dashboard returns DashboardUpdateResponse."""
 
         api = ComfoClimeAPI("http://192.168.1.100")
         api.uuid = "test-uuid"
@@ -378,7 +376,7 @@ class TestComfoClimeAPIWriteOperations:
             update = DashboardUpdate(fan_speed=3)
             result = await api.async_update_dashboard(update)
 
-        assert result == {"status": "ok"}
+        assert isinstance(result, DashboardUpdateResponse)
 
 
 class TestComfoClimeAPIRateLimiting:
@@ -437,8 +435,6 @@ class TestComfoClimeAPIRateLimiting:
         mock_session.put = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
 
         with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
-            from custom_components.comfoclime.models import DashboardUpdate
-
             update = DashboardUpdate(fan_speed=2)
             await api.async_update_dashboard(update)
 
@@ -717,3 +713,51 @@ class TestComfoClimeAPIThermalProfileSignedTemperatures:
         # Non-temperature values should be unchanged
         assert data.season.status == 1
         assert data.temperature_profile == 0
+
+
+class TestComfoClimeAPIResponseModels:
+    """Test ComfoClimeAPI response model generation."""
+
+    @pytest.mark.asyncio
+    async def test_async_update_dashboard_returns_DashboardUpdateResponse(self):
+        """Test that async_update_dashboard returns DashboardUpdateResponse model."""
+        api = ComfoClimeAPI("http://192.168.1.100")
+        api.uuid = "test-uuid"
+        api.hass = MagicMock()
+        api.hass.config.time_zone = "Europe/Berlin"
+
+        # Return empty dict so default status=200 is applied
+        mock_response = AsyncMock()
+        mock_response.json = AsyncMock(return_value={})
+        mock_response.raise_for_status = MagicMock()
+
+        mock_session = AsyncMock()
+        mock_session.put = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
+
+        with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
+            update = DashboardUpdate(fan_speed=2)
+            response = await api.async_update_dashboard(update)
+
+        assert isinstance(response, DashboardUpdateResponse)
+        assert response.status == 200
+
+    @pytest.mark.asyncio
+    async def test_async_set_property_returns_PropertyWriteResponse(self):
+        """Test that async_set_property_for_device returns PropertyWriteResponse model."""
+        api = ComfoClimeAPI("http://192.168.1.100")
+        api.uuid = "test-uuid"
+        api.hass = MagicMock()
+        api.hass.config.time_zone = "Europe/Berlin"
+
+        mock_response = AsyncMock()
+        mock_response.json = AsyncMock(return_value={"status": "ok"})
+        mock_response.raise_for_status = MagicMock()
+
+        mock_session = AsyncMock()
+        mock_session.put = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
+
+        with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
+            response = await api.async_set_property_for_device("device-uuid", "29/1/10", value=100, byte_count=2)
+
+        assert isinstance(response, PropertyWriteResponse)
+        assert response.status == 200
