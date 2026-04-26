@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from .base_definitions import KeyEntityDefinitionBase
 
 
-class SwitchDefinition(BaseModel):
+class SwitchDefinition(KeyEntityDefinitionBase):
     """Definition of a switch entity.
 
     Attributes:
@@ -16,11 +18,6 @@ class SwitchDefinition(BaseModel):
         invert: If True, invert the state logic (e.g., for hpstandby).
     """
 
-    model_config = {"frozen": True}
-
-    key: str = Field(..., description="Unique identifier for the switch in API responses or dict key")
-    name: str = Field(..., description="Display name for the switch (fallback if translation missing)")
-    translation_key: str = Field(..., description="Key for i18n translations")
     endpoint: str = Field(..., description="Either 'thermal_profile' or 'dashboard'")
     invert: bool = Field(
         default=False,
