@@ -8,7 +8,7 @@ from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.const import EntityCategory
 from pydantic import Field
 
-from .base import EntityDefinitionBase
+from .base_definitions import EntityDefinitionBase, KeyEntityDefinitionBase
 
 
 class SensorCategory(Enum):
@@ -23,11 +23,13 @@ class SensorCategory(Enum):
     ACCESS_TRACKING = auto()
 
 
-class SensorDefinition(EntityDefinitionBase):
+class SensorDefinition(KeyEntityDefinitionBase):
     """Definition of a sensor entity.
 
     Attributes:
         key: Unique identifier for the sensor in API responses or dict key.
+        translation_key: Key for i18n translations.
+        name: Display name for the sensor (fallback if translation missing).
         unit: Unit of measurement (e.g., "°C", "m³/h").
         device_class: Home Assistant device class.
         state_class: Home Assistant state class.
@@ -36,7 +38,8 @@ class SensorDefinition(EntityDefinitionBase):
         suggested_display_precision: Decimal places for display.
     """
 
-    key: str = Field(..., description="Unique identifier for the sensor in API responses or dict key")
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}
+
     unit: str | None = Field(default=None, description="Unit of measurement (e.g., '°C', 'm³/h')")
     device_class: SensorDeviceClass | str | None = Field(default=None, description="Home Assistant device class")
     state_class: SensorStateClass | str | None = Field(default=None, description="Home Assistant state class")
@@ -52,6 +55,8 @@ class TelemetrySensorDefinition(EntityDefinitionBase):
 
     Attributes:
         telemetry_id: ID for telemetry endpoint.
+        name: Display name for the sensor (fallback if translation missing).
+        translation_key: Key for i18n translations.
         faktor: Multiplication factor for the raw value.
         signed: Whether the value is signed.
         byte_count: Number of bytes to read from telemetry.
@@ -63,6 +68,8 @@ class TelemetrySensorDefinition(EntityDefinitionBase):
         suggested_display_precision: Decimal places for display.
         diagnose: Whether this is a diagnostic sensor (experimental/unknown).
     """
+
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}
 
     telemetry_id: int = Field(..., description="ID for telemetry endpoint")
     faktor: float = Field(default=1.0, description="Multiplication factor for the raw value")
@@ -87,6 +94,8 @@ class PropertySensorDefinition(EntityDefinitionBase):
 
     Attributes:
         path: Property path in format "X/Y/Z".
+        name: Display name for the sensor (fallback if translation missing).
+        translation_key: Key for i18n translations.
         faktor: Multiplication factor for the raw value.
         signed: Whether the value is signed.
         byte_count: Number of bytes to read from property.
@@ -97,6 +106,8 @@ class PropertySensorDefinition(EntityDefinitionBase):
         icon: MDI icon name.
         suggested_display_precision: Decimal places for display.
     """
+
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}
 
     path: str = Field(..., description="Property path in format 'X/Y/Z'")
     faktor: float = Field(default=1.0, description="Multiplication factor for the raw value")
@@ -118,6 +129,8 @@ class AccessTrackingSensorDefinition(EntityDefinitionBase):
     Attributes:
         coordinator: Name of the coordinator to track (None for total).
         metric: Metric type (per_minute, per_hour, total_per_minute, total_per_hour).
+        name: Display name for the sensor (fallback if translation missing).
+        translation_key: Key for i18n translations.
         state_class: Home Assistant state class.
         entity_category: Entity category (None, diagnostic, config).
         unit: Unit of measurement (e.g., "°C", "m³/h").
@@ -125,6 +138,8 @@ class AccessTrackingSensorDefinition(EntityDefinitionBase):
         icon: MDI icon name.
         suggested_display_precision: Decimal places for display.
     """
+
+    model_config = {"frozen": True, "arbitrary_types_allowed": True}
 
     coordinator: str | None = Field(..., description="Name of the coordinator to track (None for total)")
     metric: str = Field(

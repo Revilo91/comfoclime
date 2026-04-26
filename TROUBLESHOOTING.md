@@ -40,7 +40,7 @@ You have configured the GitHub integration in Home Assistant to monitor reposito
    - Consider using a GitHub Personal Access Token if you're hitting rate limits
 
 3. **Suppress log warnings**:
-   
+
    **For production Home Assistant**:
    - Edit your main `configuration.yaml` and add:
    ```yaml
@@ -48,7 +48,7 @@ You have configured the GitHub integration in Home Assistant to monitor reposito
      logs:
        homeassistant.components.github: error
    ```
-   
+
    **For development environments** (`.devcontainer/configuration.yaml`):
    - The same configuration applies in the devcontainer setup
 
@@ -146,14 +146,14 @@ The integration failed to load or initialize.
    - Verify required dependencies (aiohttp) are available
 
 4. **Clear cache and restart**:
-   
+
    ⚠️ **WARNING**: This will clear entity state history. Back up first if you want to preserve state:
    ```bash
    # From Home Assistant container/terminal:
    # Back up the restore state file first
    cp /config/.storage/core.restore_state /config/.storage/core.restore_state.backup
    ```
-   
+
    Then clear cache and restart:
    ```bash
    rm -rf /config/.storage/core.restore_state
@@ -192,7 +192,7 @@ If you've tried the solutions above and still experience issues:
 
 ### Dev Container: Port 8123 Not Reachable
 
-**Solution**: 
+**Solution**:
 - Check the PORTS tab in VS Code
 - Verify port forwarding is active
 - Try `http://localhost:8123` directly

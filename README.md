@@ -67,7 +67,7 @@ Comprehensive architecture documentation for developers and maintainers:
 API documentation with practical Python examples:
 
 - **[ComfoClimeAPI.md](ComfoClimeAPI.md)** - Concise API reference with Python code examples
-- **[Original documentation](https://github.com/msfuture/comfoclime_api/blob/main/ComfoClimeAPI.md)** - Detailed reverse engineered API knowledge
+- **[Original documentation](https://github.com/Revilo91/comfoclime_api/blob/main/ComfoClimeAPI.md)** - Detailed reverse engineered API knowledge
 - **[PDO Protocol](https://github.com/michaelarnauts/aiocomfoconnect/blob/master/docs/PROTOCOL-PDO.md)** - Telemetry sensor protocol
 - **[RMI Protocol](https://github.com/michaelarnauts/aiocomfoconnect/blob/master/docs/PROTOCOL-RMI.md)** - Property access protocol
 
@@ -94,7 +94,7 @@ This provides a complete Home Assistant development environment with debugging s
 
 ## Installation
 
-- add this repository via HACS (user defined repositories, URL: `https://github.com/msfuture/comfoclime`)
+- add this repository via HACS (user defined repositories, URL: `https://github.com/Revilo91/comfoclime`)
 - install the "Zehnder ComfoClime" integration in HACS
 - restart Home Assistant
 - add the ComfoClime device (connected devices like the ComfoAir Q are detected and added automatically)
@@ -187,7 +187,8 @@ This project uses automated release workflows that handle everything for you:
    - Click "Run workflow"
    - Enter the version number (e.g., `2.1.0`)
    - The workflow will automatically:
-     - Update the version in manifest.json
+  - Update the version in `custom_components/comfoclime/manifest.json`
+  - Update the version in `pyproject.toml`
      - Create a pull request with the version change
      - Auto-merge the PR (if branch protection allows)
      - Create and push a git tag
@@ -201,10 +202,11 @@ Pre-releases are useful for beta testing new features before a stable release:
 1. **Trigger the pre-release workflow**:
    - Go to Actions → Pre-Release workflow
    - Click "Run workflow"
-   - Enter the pre-release version number (e.g., `2.1.0-beta.1`, `2.1.0-rc.1`, `2.1.0-alpha.1`)
-   - Supported formats: `X.Y.Z-alpha.N`, `X.Y.Z-beta.N`, `X.Y.Z-rc.N`
+   - Enter the pre-release version number (e.g., `2.1.0b1`)
+   - Supported format: `X.Y.ZbN`
    - The workflow will automatically:
-     - Update the version in manifest.json
+     - Update the version in `custom_components/comfoclime/manifest.json`
+     - Update the version in `pyproject.toml`
      - Create a pull request with the version change
      - Auto-merge the PR (if branch protection allows)
      - Create and push a git tag
@@ -218,17 +220,17 @@ Pre-releases are useful for beta testing new features before a stable release:
 The integration includes a comprehensive test suite covering all entity types. To run the tests:
 
 ```bash
-# Install test dependencies
-pip install -r requirements_test.txt
+# Install developer dependencies
+uv sync --group dev
 
 # Run all tests
-pytest tests/
+uv run pytest tests/
 
 # Run tests with coverage
-pytest tests/ --cov=custom_components/comfoclime --cov-report=html
+uv run pytest tests/ --cov=custom_components/comfoclime --cov-report=html
 
 # Run specific test file
-pytest tests/test_sensor.py -v
+uv run pytest tests/test_sensor.py -v
 ```
 
 The test suite includes:

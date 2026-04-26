@@ -138,7 +138,7 @@ class ComfoClimeSelect(ComfoClimeBaseEntity, CoordinatorEntity, SelectEntity):
             data = self.coordinator.data
             val = self._extract_nested_value(data, self._key_path)
             self._current = self._options_map.get(val)
-        except (AttributeError, TypeError, ValueError):
+        except AttributeError, TypeError, ValueError:
             _LOGGER.debug("Error loading select %s", self._name, exc_info=True)
         self.async_write_ha_state()
 
@@ -169,7 +169,7 @@ class ComfoClimeSelect(ComfoClimeBaseEntity, CoordinatorEntity, SelectEntity):
 
             self._current = option
             self._hass.async_create_task(self._safe_refresh(self.coordinator, "select"))
-        except (TimeoutError, aiohttp.ClientError):
+        except TimeoutError, aiohttp.ClientError:
             _LOGGER.exception("Error setting select %s", self._name)
             raise HomeAssistantError(f"Error setting {self._name}") from None
 
@@ -237,6 +237,6 @@ class ComfoClimePropertySelect(ComfoClimeBaseEntity, CoordinatorEntity, SelectEn
             self._current = option
             # Trigger coordinator refresh to update all entities
             await self.coordinator.async_request_refresh()
-        except (TimeoutError, aiohttp.ClientError):
+        except TimeoutError, aiohttp.ClientError:
             _LOGGER.exception("Error setting select %s", self._name)
             raise HomeAssistantError(f"Error setting {self._name}") from None

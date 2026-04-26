@@ -4,19 +4,20 @@ from __future__ import annotations
 
 from pydantic import Field
 
-from .base import EntityDefinitionBase
+from .base_definitions import KeyEntityDefinitionBase
 
 
-class SwitchDefinition(EntityDefinitionBase):
+class SwitchDefinition(KeyEntityDefinitionBase):
     """Definition of a switch entity.
 
     Attributes:
         key: Unique identifier for the switch in API responses or dict key.
+        name: Display name for the switch (fallback if translation missing).
+        translation_key: Key for i18n translations.
         endpoint: Either "thermal_profile" or "dashboard".
         invert: If True, invert the state logic (e.g., for hpstandby).
     """
 
-    key: str = Field(..., description="Unique identifier for the switch in API responses or dict key")
     endpoint: str = Field(..., description="Either 'thermal_profile' or 'dashboard'")
     invert: bool = Field(
         default=False,

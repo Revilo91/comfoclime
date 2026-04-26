@@ -299,12 +299,12 @@ class ComfoClimeClimate(ComfoClimeBaseEntity, CoordinatorEntity, ClimateEntity):
     @property
     def min_temp(self) -> float:
         """Return minimum temperature as per system requirements."""
-        return 10.0
+        return 18.0
 
     @property
     def max_temp(self) -> float:
         """Return maximum temperature as per system requirements."""
-        return 30.0
+        return 28.0
 
     @property
     def hvac_mode(self) -> HVACMode:
@@ -345,7 +345,7 @@ class ComfoClimeClimate(ComfoClimeBaseEntity, CoordinatorEntity, ClimateEntity):
         Value (hex) | 0x80 | 0x40       | 0x20 | 0x10       | 0x08           | 0x04    | 0x02    | 0x01
         Meaning     | IDLE | DEFROSTING | IDLE | DRYING (?) | PREHEATING (?) | COOLING | HEATING | IDLE
 
-        Reference: https://github.com/msfuture/comfoclime_api/blob/main/ComfoClimeAPI.md#heat-pump-status-codes
+        Reference: https://github.com/Revilo91/comfoclime_api/blob/main/ComfoClimeAPI.md#heat-pump-status-codes
         """
         if not self.coordinator.data:
             return [HVACAction.OFF]
@@ -482,7 +482,7 @@ class ComfoClimeClimate(ComfoClimeBaseEntity, CoordinatorEntity, ClimateEntity):
             # Wait for coordinators to refresh (blocking) to ensure UI shows actual device state
             await self._async_refresh_coordinators(blocking=True)
 
-        except (TimeoutError, asyncio.CancelledError):
+        except TimeoutError, asyncio.CancelledError:
             _LOGGER.exception(
                 "Timeout setting temperature to %s°C. "
                 "This may indicate network connectivity issues with the device. "
@@ -491,7 +491,7 @@ class ComfoClimeClimate(ComfoClimeBaseEntity, CoordinatorEntity, ClimateEntity):
             )
         except aiohttp.ClientError:
             _LOGGER.exception("Network error setting temperature to %s°C", temperature)
-        except (ValueError, KeyError, TypeError):
+        except ValueError, KeyError, TypeError:
             _LOGGER.exception("Invalid data while setting temperature to %s°C", temperature)
 
     async def async_update_dashboard(self, **kwargs: Any) -> None:
@@ -557,14 +557,14 @@ class ComfoClimeClimate(ComfoClimeBaseEntity, CoordinatorEntity, ClimateEntity):
             # Wait for coordinators to refresh (blocking) to ensure UI shows actual device state
             await self._async_refresh_coordinators(blocking=True)
 
-        except (TimeoutError, asyncio.CancelledError):
+        except TimeoutError, asyncio.CancelledError:
             _LOGGER.exception(
                 "Timeout setting HVAC mode to %s. This may indicate network connectivity issues with the device.",
                 hvac_mode,
             )
         except aiohttp.ClientError:
             _LOGGER.exception("Network error setting HVAC mode to %s", hvac_mode)
-        except (ValueError, KeyError, TypeError):
+        except ValueError, KeyError, TypeError:
             _LOGGER.exception("Invalid data while setting HVAC mode to %s", hvac_mode)
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
@@ -620,14 +620,14 @@ class ComfoClimeClimate(ComfoClimeBaseEntity, CoordinatorEntity, ClimateEntity):
             # Wait for coordinators to refresh (blocking) to ensure UI shows actual device state
             await self._async_refresh_coordinators(blocking=True)
 
-        except (TimeoutError, asyncio.CancelledError):
+        except TimeoutError, asyncio.CancelledError:
             _LOGGER.exception(
                 "Timeout setting preset mode to %s. This may indicate network connectivity issues with the device.",
                 preset_mode,
             )
         except aiohttp.ClientError:
             _LOGGER.exception("Network error setting preset mode to %s", preset_mode)
-        except (ValueError, KeyError, TypeError):
+        except ValueError, KeyError, TypeError:
             _LOGGER.exception("Invalid data while setting preset mode to %s", preset_mode)
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
@@ -653,14 +653,14 @@ class ComfoClimeClimate(ComfoClimeBaseEntity, CoordinatorEntity, ClimateEntity):
             # Wait for coordinators to refresh (blocking) to ensure UI shows actual device state
             await self._async_refresh_coordinators(blocking=True)
 
-        except (TimeoutError, asyncio.CancelledError):
+        except TimeoutError, asyncio.CancelledError:
             _LOGGER.exception(
                 "Timeout setting fan mode to %s. This may indicate network connectivity issues with the device.",
                 fan_mode,
             )
         except aiohttp.ClientError:
             _LOGGER.exception("Network error setting fan mode to %s", fan_mode)
-        except (ValueError, KeyError, TypeError):
+        except ValueError, KeyError, TypeError:
             _LOGGER.exception("Invalid data while setting fan mode to %s", fan_mode)
 
     async def async_set_scenario_mode(
@@ -745,7 +745,7 @@ class ComfoClimeClimate(ComfoClimeBaseEntity, CoordinatorEntity, ClimateEntity):
             # Wait for coordinators to refresh (blocking) to ensure UI shows actual device state
             await self._async_refresh_coordinators(blocking=True)
 
-        except (TimeoutError, aiohttp.ClientError, ValueError, KeyError, TypeError):
+        except TimeoutError, aiohttp.ClientError, ValueError, KeyError, TypeError:
             _LOGGER.exception("Failed to set scenario mode %s", scenario_mode)
             raise
 
@@ -805,13 +805,13 @@ class ComfoClimeClimate(ComfoClimeBaseEntity, CoordinatorEntity, ClimateEntity):
             # Wait for coordinators to refresh (blocking) to ensure UI shows actual device state
             await self._async_refresh_coordinators(blocking=True)
 
-        except (TimeoutError, asyncio.CancelledError):
+        except TimeoutError, asyncio.CancelledError:
             _LOGGER.exception(
                 "Timeout turning off climate device. This may indicate network connectivity issues with the device."
             )
         except aiohttp.ClientError:
             _LOGGER.exception("Network error turning off climate device")
-        except (ValueError, KeyError, TypeError):
+        except ValueError, KeyError, TypeError:
             _LOGGER.exception("Invalid data while turning off climate device")
 
     async def async_turn_on(self) -> None:
@@ -827,11 +827,11 @@ class ComfoClimeClimate(ComfoClimeBaseEntity, CoordinatorEntity, ClimateEntity):
             # Wait for coordinators to refresh (blocking) to ensure UI shows actual device state
             await self._async_refresh_coordinators(blocking=True)
 
-        except (TimeoutError, asyncio.CancelledError):
+        except TimeoutError, asyncio.CancelledError:
             _LOGGER.exception(
                 "Timeout turning on climate device. This may indicate network connectivity issues with the device."
             )
         except aiohttp.ClientError:
             _LOGGER.exception("Network error turning on climate device")
-        except (ValueError, KeyError, TypeError):
+        except ValueError, KeyError, TypeError:
             _LOGGER.exception("Invalid data while turning on climate device")

@@ -4,21 +4,22 @@ from __future__ import annotations
 
 from pydantic import Field
 
-from .base import EntityDefinitionBase
+from .base_definitions import EntityDefinitionBase, KeyEntityDefinitionBase
 
 
-class NumberDefinition(EntityDefinitionBase):
+class NumberDefinition(KeyEntityDefinitionBase):
     """Definition of a number entity.
 
     Attributes:
         key: Unique identifier for the number in API responses.
+        name: Display name for the number control.
+        translation_key: Key for i18n translations.
         min: Minimum value.
         max: Maximum value.
         step: Step increment.
         unit: Optional unit of measurement.
     """
 
-    key: str = Field(..., description="Unique identifier for the number in API responses")
     min: float = Field(..., description="Minimum value")
     max: float = Field(..., description="Maximum value")
     step: float = Field(..., description="Step increment")
@@ -30,6 +31,8 @@ class PropertyNumberDefinition(EntityDefinitionBase):
 
     Attributes:
         property: Property path in format "X/Y/Z".
+        name: Display name for the number control.
+        translation_key: Key for i18n translations.
         min: Minimum value.
         max: Maximum value.
         step: Step increment.

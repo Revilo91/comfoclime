@@ -497,6 +497,61 @@ async def test_async_setup_entry(
     assert async_add_entities.called
 
 
+@pytest.mark.asyncio
+async def test_async_setup_entry_skips_diagnostic_telemetry_when_disabled(
+    mock_hass,
+    mock_config_entry,
+    mock_coordinator,
+    mock_thermalprofile_coordinator,
+    mock_telemetry_coordinator,
+    mock_property_coordinator,
+    mock_definition_coordinator,
+    mock_device,
+    mock_api,
+):
+    """Diagnostic telemetry sensors must not be registered when diagnostics are disabled."""
+    mock_api.uuid = "test-device-uuid"
+
+    # Keep default behavior (diagnostics disabled unless explicitly enabled)
+    mock_config_entry.options = {}
+
+    mock_monitoring_coordinator = MagicMock()
+    mock_monitoring_coordinator.data = MonitoringPing(
+        uuid="test-uuid",
+        up_time_seconds=123456,
+        timestamp=1705314600,
+    )
+
+    mock_hass.data = {
+        "comfoclime": {
+            "test_entry_id": {
+                "api": mock_api,
+                "coordinator": mock_coordinator,
+                "tpcoordinator": mock_thermalprofile_coordinator,
+                "monitoringcoordinator": mock_monitoring_coordinator,
+                "tlcoordinator": mock_telemetry_coordinator,
+                "propcoordinator": mock_property_coordinator,
+                "definitioncoordinator": mock_definition_coordinator,
+                "access_tracker": MagicMock(),
+                "devices": [mock_device],
+                "main_device": mock_device,
+            }
+        }
+    }
+
+    async_add_entities = MagicMock()
+    await async_setup_entry(mock_hass, mock_config_entry, async_add_entities)
+
+    registered_ids = {
+        call.kwargs["telemetry_id"]
+        for call in mock_telemetry_coordinator.register_telemetry.await_args_list
+        if "telemetry_id" in call.kwargs
+    }
+    diagnostic_ids = {"4195", "4196", "4197", "4202", "4203", "4204", "4205", "4206", "4207", "4208"}
+
+    assert registered_ids.isdisjoint(diagnostic_ids)
+
+
 class TestComfoClimeDefinitionSensor:
     """Test ComfoClimeDefinitionSensor class."""
 

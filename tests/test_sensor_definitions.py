@@ -157,7 +157,7 @@ class TestComfoClimeTelemetryByteCount:
     """Test that ComfoClime (modelTypeId=20) telemetry sensors have correct byte_count.
 
     Verified against upstream API documentation:
-    https://github.com/msfuture/comfoclime_api/blob/main/ComfoClimeAPI.md
+    https://github.com/Revilo91/comfoclime_api/blob/main/ComfoClimeAPI.md
     """
 
     def _get_sensor_by_id(self, telemetry_id: int):

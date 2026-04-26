@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
@@ -89,7 +89,7 @@ class ComfoClimeBaseCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self):
         try:
             result = await self._fetch_data()
-            self.last_update_success_time = datetime.now(timezone.utc)
+            self.last_update_success_time = datetime.now(UTC)
             if self._access_tracker:
                 self._access_tracker.record_access(self._coordinator_name)
             return result
@@ -330,7 +330,7 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
                     )
                     result[device_uuid][telemetry_id] = None
 
-        self.last_update_success_time = datetime.now(timezone.utc)
+        self.last_update_success_time = datetime.now(UTC)
         return result
 
     def get_telemetry_value(self, device_uuid: str, telemetry_id: str | int) -> Any:
@@ -510,7 +510,7 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
                     )
                     result[device_uuid][property_path] = None
 
-        self.last_update_success_time = datetime.now(timezone.utc)
+        self.last_update_success_time = datetime.now(UTC)
         return result
 
     def get_property_value(self, device_uuid: str, property_path: str) -> Any:
@@ -630,7 +630,7 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
                 _LOGGER.debug("Error fetching definition for device %s: %s", device_uuid, e)
                 result[device_uuid] = None
 
-        self.last_update_success_time = datetime.now(timezone.utc)
+        self.last_update_success_time = datetime.now(UTC)
         return result
 
     def get_definition_data(self, device_uuid: str) -> DeviceDefinitionData | None:

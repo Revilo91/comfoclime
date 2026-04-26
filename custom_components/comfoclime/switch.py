@@ -125,7 +125,7 @@ class ComfoClimeSwitch(ComfoClimeBaseEntity, CoordinatorEntity, SwitchEntity):
                     self._state = not val if self._invert else val
                 else:
                     self._state = (val != 1) if self._invert else (val == 1)
-        except (KeyError, TypeError, ValueError):
+        except KeyError, TypeError, ValueError:
             _LOGGER.debug("Error updating switch %s", self._name, exc_info=True)
             self._state = None
         self.async_write_ha_state()
@@ -155,7 +155,7 @@ class ComfoClimeSwitch(ComfoClimeBaseEntity, CoordinatorEntity, SwitchEntity):
                 await self._set_thermal_profile_status(value)
             else:  # dashboard
                 await self._set_dashboard_status(value)
-        except (TimeoutError, aiohttp.ClientError):
+        except TimeoutError, aiohttp.ClientError:
             _LOGGER.exception("Error setting switch %s", self._name)
             raise HomeAssistantError(f"Error setting {self._name}") from None
 

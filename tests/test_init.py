@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from custom_components.comfoclime import (
+    async_reload_entry,
     async_setup,
     async_setup_entry,
     async_unload_entry,
@@ -191,17 +192,41 @@ async def test_async_setup_entry_with_float_max_retries(
                                 assert api_kwargs["request_debounce"] == 0.3
 
                                 # Verify polling_interval was passed as int to coordinators
-                                # polling_interval is passed as positional argument (args[2])
+                                # Dashboard/Thermal/Monitoring keep base polling interval.
+                                # Telemetry/Property/Definition use staggered intervals to reduce API load.
+                                # polling interval is passed as positional argument:
+                                # - index 2 for dashboard/thermal/monitoring
+                                # - index 3 for telemetry/property/definition (devices arg at index 2)
                                 db_coord_args = mock_db_coord.call_args[0]
                                 assert isinstance(db_coord_args[2], int)
                                 assert db_coord_args[2] == 60
+
+                                tp_coord_args = mock_tp_coord.call_args[0]
+                                assert isinstance(tp_coord_args[2], int)
+                                assert tp_coord_args[2] == 60
+
+                                mon_coord_args = mock_mon_coord.call_args[0]
+                                assert isinstance(mon_coord_args[2], int)
+                                assert mon_coord_args[2] == 60
+
+                                tl_coord_args = mock_tl_coord.call_args[0]
+                                assert isinstance(tl_coord_args[3], int)
+                                assert tl_coord_args[3] == 120
+
+                                prop_coord_args = mock_prop_coord.call_args[0]
+                                assert isinstance(prop_coord_args[3], int)
+                                assert prop_coord_args[3] == 180
+
+                                def_coord_args = mock_def_coord.call_args[0]
+                                assert isinstance(def_coord_args[3], int)
+                                assert def_coord_args[3] == 240
 
 
 @pytest.mark.asyncio
 async def test_async_unload_entry(mock_hass, mock_config_entry):
     """Test async_unload_entry."""
     mock_hass.config_entries = MagicMock()
-    mock_hass.config_entries.async_forward_entry_unload = AsyncMock(return_value=True)
+    mock_hass.config_entries.async_unload_platforms = AsyncMock(return_value=True)
     mock_hass.data = {"comfoclime": {"test_entry_id": {}}}
 
     result = await async_unload_entry(mock_hass, mock_config_entry)
@@ -209,8 +234,19 @@ async def test_async_unload_entry(mock_hass, mock_config_entry):
     assert result is True
     assert "test_entry_id" not in mock_hass.data["comfoclime"]
 
-    # Verify all platforms were unloaded
-    assert mock_hass.config_entries.async_forward_entry_unload.call_count == 6
+    # Verify platforms were unloaded via the HA helper
+    mock_hass.config_entries.async_unload_platforms.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_async_reload_entry(mock_hass, mock_config_entry):
+    """Test async_reload_entry delegates to Home Assistant reload."""
+    mock_hass.config_entries = MagicMock()
+    mock_hass.config_entries.async_reload = AsyncMock(return_value=True)
+
+    await async_reload_entry(mock_hass, mock_config_entry)
+
+    mock_hass.config_entries.async_reload.assert_called_once_with(mock_config_entry.entry_id)
 
 
 @pytest.mark.asyncio

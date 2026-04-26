@@ -180,7 +180,7 @@ class ComfoClimeTemperatureNumber(ComfoClimeBaseEntity, CoordinatorEntity, Numbe
         try:
             data = self.coordinator.data
             self._value = self._extract_nested_value(data, self._key_path)
-        except (AttributeError, TypeError, ValueError):
+        except AttributeError, TypeError, ValueError:
             _LOGGER.debug("Error updating number entity %s", self._name, exc_info=True)
             self._value = None
         self.async_write_ha_state()
@@ -232,7 +232,7 @@ class ComfoClimeTemperatureNumber(ComfoClimeBaseEntity, CoordinatorEntity, Numbe
             await self._api.async_update_thermal_profile(**{param_name: value})
             self._value = value
             await self.coordinator.async_request_refresh()
-        except (TimeoutError, aiohttp.ClientError):
+        except TimeoutError, aiohttp.ClientError:
             _LOGGER.exception("Error setting number entity %s", self._name)
             raise HomeAssistantError(f"Error setting {self._name}") from None
 
@@ -311,6 +311,6 @@ class ComfoClimePropertyNumber(ComfoClimeBaseEntity, CoordinatorEntity, NumberEn
             self._value = value
             # Trigger coordinator refresh to update all entities
             await self.coordinator.async_request_refresh()
-        except (TimeoutError, aiohttp.ClientError):
+        except TimeoutError, aiohttp.ClientError:
             _LOGGER.exception("Error writing property %s", self._property_path)
             raise HomeAssistantError(f"Error writing property {self._property_path}") from None

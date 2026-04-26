@@ -4,30 +4,32 @@ from __future__ import annotations
 
 from pydantic import Field
 
-from .base import EntityDefinitionBase
+from .base_definitions import KeyEntityDefinitionBase, PathEntityDefinitionBase
 
 
-class SelectDefinition(EntityDefinitionBase):
+class SelectDefinition(KeyEntityDefinitionBase):
     """Definition of a select entity.
 
     Attributes:
         key: Unique identifier for the select in API responses.
+        name: Display name for the select control.
+        translation_key: Key for i18n translations.
         options: Dictionary mapping numeric values to string options.
     """
 
-    key: str = Field(..., description="Unique identifier for the select in API responses")
     options: dict[int, str] = Field(..., description="Dictionary mapping numeric values to string options")
 
 
-class PropertySelectDefinition(EntityDefinitionBase):
+class PropertySelectDefinition(PathEntityDefinitionBase):
     """Definition of a property-based select entity.
 
     Attributes:
         path: Property path in format "X/Y/Z".
+        name: Display name for the select control.
+        translation_key: Key for i18n translations.
         options: Dictionary mapping numeric values to string options.
     """
 
-    path: str = Field(..., description="Property path in format 'X/Y/Z'")
     options: dict[int, str] = Field(..., description="Dictionary mapping numeric values to string options")
 
 

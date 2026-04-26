@@ -184,7 +184,7 @@ class DeviceConfig(ComfoClimeModel):
                 display_name=device_dict.get("displayName", "Unknown Device"),
                 version=device_dict.get("version"),
             )
-        except (KeyError, ValueError, TypeError):
+        except KeyError, ValueError, TypeError:
             return None
 
 
@@ -667,7 +667,7 @@ class MonitoringPing(ComfoClimeModel):
                     timestamp_str = v["timestamp"].replace(".0Z", "Z").replace("Z", "+00:00")
                     dt = datetime.fromisoformat(timestamp_str)
                     v["timestamp"] = int(dt.timestamp())
-                except (ValueError, AttributeError):
+                except ValueError, AttributeError:
                     # Remove invalid timestamp to avoid validation error
                     v.pop("timestamp", None)
         return v

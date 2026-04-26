@@ -1334,7 +1334,7 @@ All devices are automatically discovered when the integration connects to the Co
 ## Additional Resources
 
 - **Home Assistant Integration**: [comfoclime](https://github.com/Revilo91/comfoclime)
-- **Original API Documentation**: [ComfoClimeAPI.md](https://github.com/msfuture/comfoclime_api/blob/main/ComfoClimeAPI.md)
+- **Original API Documentation**: [ComfoClimeAPI.md](https://github.com/Revilo91/comfoclime_api/blob/main/ComfoClimeAPI.md)
 - **PDO Protocol**: [PROTOCOL-PDO.md](https://github.com/michaelarnauts/aiocomfoconnect/blob/master/docs/PROTOCOL-PDO.md)
 - **RMI Protocol**: [PROTOCOL-RMI.md](https://github.com/michaelarnauts/aiocomfoconnect/blob/master/docs/PROTOCOL-RMI.md)
 

@@ -114,7 +114,7 @@ class DeviceConfig:
 ```python
 class DeviceConfig(BaseModel):
     model_config = {"frozen": True, "validate_assignment": True}
-    
+
     uuid: str = Field(..., min_length=1, description="Device unique identifier")
     model_type_id: int = Field(..., ge=0, description="Model type identifier")
     display_name: str = Field(default="Unknown Device", description="Human-readable device name")
@@ -195,9 +195,8 @@ All converted models have been tested to ensure:
 
 ## Dependencies
 
-Added to requirements:
-- `manifest.json`: `"pydantic>=2.0.0"`
-- `requirements_test.txt`: `pydantic>=2.0.0`
+Added to project tooling:
+- `pyproject.toml`: `pydantic>=2.0.0` in the dev dependency group
 
 Pydantic V2 is used for best performance and features.
 
