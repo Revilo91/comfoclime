@@ -281,8 +281,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                 if not is_entity_enabled(entry.options, "sensors", "connected_telemetry", sensor_def):
                     continue
 
-                # Always create entities, but diagnostic ones are disabled by default
-                # unless enable_diagnostics is True
+                # Skip diagnostic sensors entirely when diagnostics are disabled to avoid
+                # unnecessary API load. Only register and create the entity if enabled.
                 is_diagnose = sensor_def.diagnose
                 enabled_default = not is_diagnose or entry.options.get("enable_diagnostics", False)
 

@@ -205,7 +205,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     )
     _LOGGER.debug(
         "Created ComfoClimeDefinitionCoordinator with polling_interval=%s",
-        polling_interval,
+        definition_interval,
     )
 
     # Parallel initialization of all coordinators for faster startup
@@ -243,7 +243,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     )
     _LOGGER.debug(
         "Created ComfoClimeTelemetryCoordinator with polling_interval=%s",
-        polling_interval,
+        telemetry_interval,
     )
 
     propcoordinator = ComfoClimePropertyCoordinator(
@@ -256,7 +256,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     )
     _LOGGER.debug(
         "Created ComfoClimePropertyCoordinator with polling_interval=%s",
-        polling_interval,
+        property_interval,
     )
 
     hass.data[DOMAIN][entry.entry_id] = {
