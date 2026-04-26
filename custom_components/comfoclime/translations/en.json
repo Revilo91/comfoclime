@@ -31,6 +31,12 @@
             "fan_speed": {
                 "name": "Fan Speed Level"
             },
+            "set_point_temperature": {
+                "name": "Set Point Temperature"
+            },
+            "season_profile": {
+                "name": "Season Profile"
+            },
             "supply_air_temperature": {
                 "name": "Supply Air Temperature"
             },
@@ -137,6 +143,9 @@
                     "false": "Off",
                     "true": "On"
                 }
+            },
+            "caq_free_cooling_available": {
+                "name": "ComfoAirQ Free Cooling Available"
             },
             "scenario_time_left": {
                 "name": "Scenario Time Left"

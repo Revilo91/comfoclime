@@ -31,6 +31,12 @@
             "fan_speed": {
                 "name": "Lüfterstufe"
             },
+            "set_point_temperature": {
+                "name": "Solltemperatur"
+            },
+            "season_profile": {
+                "name": "Jahreszeitprofil"
+            },
             "supply_air_temperature": {
                 "name": "Zulufttemperatur"
             },
@@ -137,6 +143,9 @@
                     "false": "Aus",
                     "true": "An"
                 }
+            },
+            "caq_free_cooling_available": {
+                "name": "ComfoAirQ Free Cooling Verfügbarkeit"
             },
             "scenario_time_left": {
                 "name": "Szenario Restzeit"
