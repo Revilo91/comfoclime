@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
 DOMAIN = "comfoclime"
+PLATFORMS = ["sensor", "switch", "number", "select", "fan", "climate"]
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -274,9 +275,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     # Register update listener to reload integration when options change
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
 
-    await hass.config_entries.async_forward_entry_setups(
-        entry, ["sensor", "switch", "number", "select", "fan", "climate"]
-    )
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     # Register services
     await async_register_services(hass, api, DOMAIN)
@@ -285,23 +284,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
-    await hass.config_entries.async_forward_entry_unload(entry, "sensor")
-    await hass.config_entries.async_forward_entry_unload(entry, "switch")
-    await hass.config_entries.async_forward_entry_unload(entry, "number")
-    await hass.config_entries.async_forward_entry_unload(entry, "select")
-    await hass.config_entries.async_forward_entry_unload(entry, "fan")
-    await hass.config_entries.async_forward_entry_unload(entry, "climate")
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
     # Close the API session
-    if DOMAIN in hass.data and entry.entry_id in hass.data[DOMAIN]:
+    if unload_ok and DOMAIN in hass.data and entry.entry_id in hass.data[DOMAIN]:
         api = hass.data[DOMAIN][entry.entry_id].get("api")
         if api:
             await api.close()
 
-    hass.data[DOMAIN].pop(entry.entry_id)
-    return True
+        hass.data[DOMAIN].pop(entry.entry_id, None)
+    return unload_ok
 
 
-async def async_reload_entry(hass, entry):
-    await async_unload_entry(hass, entry)
-    await async_setup_entry(hass, entry)
+async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    await hass.config_entries.async_reload(entry.entry_id)

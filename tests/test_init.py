@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from custom_components.comfoclime import (
+    async_reload_entry,
     async_setup,
     async_setup_entry,
     async_unload_entry,
@@ -243,7 +244,7 @@ async def test_async_setup_entry_with_float_max_retries(
 async def test_async_unload_entry(mock_hass, mock_config_entry):
     """Test async_unload_entry."""
     mock_hass.config_entries = MagicMock()
-    mock_hass.config_entries.async_forward_entry_unload = AsyncMock(return_value=True)
+    mock_hass.config_entries.async_unload_platforms = AsyncMock(return_value=True)
     mock_hass.data = {"comfoclime": {"test_entry_id": {}}}
 
     result = await async_unload_entry(mock_hass, mock_config_entry)
@@ -251,8 +252,19 @@ async def test_async_unload_entry(mock_hass, mock_config_entry):
     assert result is True
     assert "test_entry_id" not in mock_hass.data["comfoclime"]
 
-    # Verify all platforms were unloaded
-    assert mock_hass.config_entries.async_forward_entry_unload.call_count == 6
+    # Verify platforms were unloaded via the HA helper
+    mock_hass.config_entries.async_unload_platforms.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_async_reload_entry(mock_hass, mock_config_entry):
+    """Test async_reload_entry delegates to Home Assistant reload."""
+    mock_hass.config_entries = MagicMock()
+    mock_hass.config_entries.async_reload = AsyncMock(return_value=True)
+
+    await async_reload_entry(mock_hass, mock_config_entry)
+
+    mock_hass.config_entries.async_reload.assert_called_once_with(mock_config_entry.entry_id)
 
 
 @pytest.mark.asyncio
