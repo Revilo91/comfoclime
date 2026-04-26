@@ -316,12 +316,12 @@ class ComfoClimeClimate(CoordinatorEntity, ClimateEntity):
     @property
     def min_temp(self) -> float:
         """Return minimum temperature as per system requirements."""
-        return 10.0
+        return 18.0
 
     @property
     def max_temp(self) -> float:
         """Return maximum temperature as per system requirements."""
-        return 30.0
+        return 28.0
 
     @property
     def hvac_mode(self) -> HVACMode:
