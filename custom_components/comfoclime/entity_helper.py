@@ -23,6 +23,22 @@ from .entities.switch_definitions import SWITCHES
 
 _LOGGER = logging.getLogger(__name__)
 
+# New option keys must take precedence over legacy keys when both exist.
+SUBCATEGORY_OPTION_KEY_ALIASES = {
+    "connected_telemetry": [
+        "enabled_connected_device_telemetry",
+        "enabled_connected_telemetry",
+    ],
+    "connected_properties": [
+        "enabled_connected_device_properties",
+        "enabled_connected_properties",
+    ],
+    "connected_definition": [
+        "enabled_connected_device_definition",
+        "enabled_connected_definition",
+    ],
+}
+
 # Map known modelTypeId values to friendly names for UI grouping
 MODEL_TYPE_NAMES = {
     20: "ComfoClime",
@@ -155,6 +171,19 @@ def _friendly_model_name(model_id) -> str:
     except (ValueError, TypeError):
         return f"Model {model_id}"
     return MODEL_TYPE_NAMES.get(mid, f"Model {mid}")
+
+
+def _get_subcategory_option_key_and_value(options: dict, subcategory: str) -> tuple[str | None, list | None]:
+    """Get the active option key and value list for a subcategory.
+
+    New option keys are preferred over legacy aliases.
+    """
+    keys = SUBCATEGORY_OPTION_KEY_ALIASES.get(subcategory, [f"enabled_{subcategory}"])
+    for key in keys:
+        if key in options:
+            value = options.get(key, [])
+            return key, value if isinstance(value, list) else []
+    return None, None
 
 
 def get_all_entity_categories() -> dict[str, dict[str, list]]:
@@ -664,9 +693,8 @@ def is_entity_enabled(options: dict, category: str, subcategory: str, entity_def
 
     # Check new config flow format first (enabled_dashboard, enabled_thermalprofile, etc.)
     if subcategory:
-        specific_key = f"enabled_{subcategory}"
-        if specific_key in options:
-            enabled_list = options.get(specific_key, [])
+        specific_key, enabled_list = _get_subcategory_option_key_and_value(options, subcategory)
+        if specific_key is not None and enabled_list is not None:
             # If list is empty, nothing is enabled
             if not enabled_list:
                 _LOGGER.debug(
@@ -763,10 +791,9 @@ def is_entity_category_enabled(options: dict, category: str, subcategory: str | 
 
     # Check new config flow format first (enabled_dashboard, enabled_thermalprofile, etc.)
     if subcategory:
-        specific_key = f"enabled_{subcategory}"
-        if specific_key in options:
+        specific_key, enabled_list = _get_subcategory_option_key_and_value(options, subcategory)
+        if specific_key is not None and enabled_list is not None:
             # If the key exists, check if it has any values
-            enabled_list = options.get(specific_key, [])
             result = len(enabled_list) > 0
             _LOGGER.debug(
                 "Category check: %s has %d enabled entities, returning %s",

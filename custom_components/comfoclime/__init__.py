@@ -17,7 +17,7 @@ from .coordinator import (
     ComfoClimeTelemetryCoordinator,
     ComfoClimeThermalprofileCoordinator,
 )
-from .entity_helper import get_device_model_type_id
+from .entity_helper import get_access_tracking_sensors, get_device_model_type_id
 from .infrastructure import AccessTracker
 from .services import async_register_services
 
@@ -62,6 +62,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         new_options["enabled_monitoring"] = [opt["value"] for opt in get_monitoring_sensors()]
         needs_update = True
 
+    # Migrate legacy option keys to the current options-flow keys.
+    legacy_to_current_keys = {
+        "enabled_connected_telemetry": "enabled_connected_device_telemetry",
+        "enabled_connected_properties": "enabled_connected_device_properties",
+        "enabled_connected_definition": "enabled_connected_device_definition",
+    }
+    for legacy_key, current_key in legacy_to_current_keys.items():
+        if current_key not in new_options and legacy_key in new_options:
+            new_options[current_key] = new_options.get(legacy_key, [])
+            needs_update = True
+
+    # Legacy versions enabled all access-tracking sensors by default.
+    # If we detect that exact legacy default, disable them to avoid noisy helper entities.
+    legacy_access_tracking_default = {opt["value"] for opt in get_access_tracking_sensors()}
+    current_access_tracking = set(new_options.get("enabled_access_tracking", []))
+    if current_access_tracking == legacy_access_tracking_default:
+        new_options["enabled_access_tracking"] = []
+        needs_update = True
+
     if needs_update:
         hass.config_entries.async_update_entry(entry, options=new_options)
         entry.options = new_options
@@ -87,6 +106,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         min_request_interval,
         write_cooldown,
         request_debounce,
+    )
+
+    # Stagger coordinator intervals to reduce sustained API pressure on devices.
+    dashboard_interval = polling_interval
+    thermalprofile_interval = polling_interval
+    monitoring_interval = polling_interval
+    telemetry_interval = polling_interval * 2
+    property_interval = polling_interval * 3
+    definition_interval = polling_interval * 4
+
+    _LOGGER.debug(
+        "Coordinator polling intervals: dashboard=%s, thermalprofile=%s, monitoring=%s, "
+        "telemetry=%s, property=%s, definition=%s",
+        dashboard_interval,
+        thermalprofile_interval,
+        monitoring_interval,
+        telemetry_interval,
+        property_interval,
+        definition_interval,
     )
 
     # Create access tracker for monitoring API access patterns
@@ -122,7 +160,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     # Create Dashboard-Coordinator
     dashboard_coordinator = ComfoClimeDashboardCoordinator(
-        hass, api, polling_interval, access_tracker=access_tracker, config_entry=entry
+        hass, api, dashboard_interval, access_tracker=access_tracker, config_entry=entry
     )
     _LOGGER.debug(
         "Created ComfoClimeDashboardCoordinator with polling_interval=%s",
@@ -131,7 +169,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     # Create Thermalprofile-Coordinator
     thermalprofile_coordinator = ComfoClimeThermalprofileCoordinator(
-        hass, api, polling_interval, access_tracker=access_tracker, config_entry=entry
+        hass,
+        api,
+        thermalprofile_interval,
+        access_tracker=access_tracker,
+        config_entry=entry,
     )
     _LOGGER.debug(
         "Created ComfoClimeThermalprofileCoordinator with polling_interval=%s",
@@ -140,7 +182,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     # Create Monitoring-Coordinator
     monitoring_coordinator = ComfoClimeMonitoringCoordinator(
-        hass, api, polling_interval, access_tracker=access_tracker, config_entry=entry
+        hass,
+        api,
+        monitoring_interval,
+        access_tracker=access_tracker,
+        config_entry=entry,
     )
     _LOGGER.debug(
         "Created ComfoClimeMonitoringCoordinator with polling_interval=%s",
@@ -152,7 +198,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         hass,
         api,
         devices,
-        polling_interval,
+        definition_interval,
         access_tracker=access_tracker,
         config_entry=entry,
     )
@@ -190,7 +236,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         hass,
         api,
         devices,
-        polling_interval,
+        telemetry_interval,
         access_tracker=access_tracker,
         config_entry=entry,
     )
@@ -203,7 +249,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         hass,
         api,
         devices,
-        polling_interval,
+        property_interval,
         access_tracker=access_tracker,
         config_entry=entry,
     )

@@ -317,3 +317,25 @@ def test_is_entity_category_enabled_with_individual_entities():
     assert is_entity_category_enabled(options, "sensors", "dashboard") is True
     # Other categories should be disabled
     assert is_entity_category_enabled(options, "sensors", "thermalprofile") is False
+
+
+def test_is_entity_enabled_prefers_new_connected_device_key_over_legacy():
+    """New connected_device option keys must take precedence over legacy keys."""
+    telemetry_def = {"telemetry_id": 4193, "name": "Supply Air Temperature"}
+    entity_id = "sensors_connected_telemetry_telem_4193"
+    options = {
+        "enabled_connected_device_telemetry": [],
+        "enabled_connected_telemetry": [entity_id],
+    }
+
+    assert is_entity_enabled(options, "sensors", "connected_telemetry", telemetry_def) is False
+
+
+def test_is_entity_category_enabled_prefers_new_connected_device_key_over_legacy():
+    """Category checks must honor new keys first so UI changes apply immediately."""
+    options = {
+        "enabled_connected_device_telemetry": [],
+        "enabled_connected_telemetry": ["sensors_connected_telemetry_telem_4193"],
+    }
+
+    assert is_entity_category_enabled(options, "sensors", "connected_telemetry") is False

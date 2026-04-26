@@ -273,6 +273,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                 is_diagnose = sensor_def.diagnose
                 enabled_default = not is_diagnose or entry.options.get("enable_diagnostics", False)
 
+                # Avoid API load from diagnostic telemetry when diagnostics are disabled.
+                if is_diagnose and not entry.options.get("enable_diagnostics", False):
+                    continue
+
                 # Register telemetry with coordinator for batched fetching
                 await tlcoordinator.register_telemetry(
                     device_uuid=dev_uuid,

@@ -38,7 +38,7 @@ from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.helpers import selector
 
 from .entity_helper import (
-    # get_default_enabled_individual_entities,
+    get_default_enabled_individual_entities,
     # get_individual_entity_options,
     get_access_tracking_sensors,
     get_connected_device_definition_sensors,
@@ -73,14 +73,23 @@ DEFAULT_REQUEST_DEBOUNCE = 0.3
 
 def _get_default_entity_options() -> dict[str, Any]:
     """Get default entity options for initial setup."""
+    default_enabled = get_default_enabled_individual_entities()
+
+    enabled_connected_telemetry = [
+        opt["value"]
+        for opt in get_connected_device_telemetry_sensors()
+        if opt["value"] in default_enabled
+    ]
+
     return {
         "enabled_dashboard": [opt["value"] for opt in get_dashboard_sensors()],
         "enabled_thermalprofile": [opt["value"] for opt in get_thermalprofile_sensors()],
         "enabled_monitoring": [opt["value"] for opt in get_monitoring_sensors()],
-        "enabled_connected_telemetry": [opt["value"] for opt in get_connected_device_telemetry_sensors()],
-        "enabled_connected_properties": [opt["value"] for opt in get_connected_device_properties_sensors()],
+        "enabled_connected_device_telemetry": enabled_connected_telemetry,
+        "enabled_connected_device_properties": [opt["value"] for opt in get_connected_device_properties_sensors()],
         "enabled_connected_device_definition": [opt["value"] for opt in get_connected_device_definition_sensors()],
-        "enabled_access_tracking": [opt["value"] for opt in get_access_tracking_sensors()],
+        # Access tracking sensors are diagnostic and disabled by default.
+        "enabled_access_tracking": [],
         "enabled_switches": [opt["value"] for opt in get_switches()],
         "enabled_numbers": [opt["value"] for opt in get_numbers()],
         "enabled_selects": [opt["value"] for opt in get_selects()],

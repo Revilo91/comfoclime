@@ -47,6 +47,9 @@ async def test_user_flow_success():
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert result["title"] == "ComfoClime @ 192.168.1.100"
     assert result["data"] == {"host": "192.168.1.100"}
+    assert "enabled_connected_device_telemetry" in result["options"]
+    assert "enabled_connected_telemetry" not in result["options"]
+    assert result["options"]["enabled_access_tracking"] == []
 
 
 @pytest.mark.asyncio
