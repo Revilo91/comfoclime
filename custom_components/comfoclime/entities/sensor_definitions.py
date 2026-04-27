@@ -6,7 +6,7 @@ from enum import Enum, auto
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.const import EntityCategory
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 from .base_definitions import EntityDefinitionBase, KeyEntityDefinitionBase
 
@@ -38,7 +38,7 @@ class SensorDefinition(KeyEntityDefinitionBase):
         suggested_display_precision: Decimal places for display.
     """
 
-    model_config = {"frozen": True, "arbitrary_types_allowed": True}
+    model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
 
     unit: str | None = Field(default=None, description="Unit of measurement (e.g., '°C', 'm³/h')")
     device_class: SensorDeviceClass | str | None = Field(default=None, description="Home Assistant device class")
@@ -69,7 +69,7 @@ class TelemetrySensorDefinition(EntityDefinitionBase):
         diagnose: Whether this is a diagnostic sensor (experimental/unknown).
     """
 
-    model_config = {"frozen": True, "arbitrary_types_allowed": True}
+    model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
 
     telemetry_id: int = Field(..., description="ID for telemetry endpoint")
     faktor: float = Field(default=1.0, description="Multiplication factor for the raw value")
@@ -107,7 +107,7 @@ class PropertySensorDefinition(EntityDefinitionBase):
         suggested_display_precision: Decimal places for display.
     """
 
-    model_config = {"frozen": True, "arbitrary_types_allowed": True}
+    model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
 
     path: str = Field(..., description="Property path in format 'X/Y/Z'")
     faktor: float = Field(default=1.0, description="Multiplication factor for the raw value")
@@ -139,7 +139,7 @@ class AccessTrackingSensorDefinition(EntityDefinitionBase):
         suggested_display_precision: Decimal places for display.
     """
 
-    model_config = {"frozen": True, "arbitrary_types_allowed": True}
+    model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
 
     coordinator: str | None = Field(..., description="Name of the coordinator to track (None for total)")
     metric: str = Field(
