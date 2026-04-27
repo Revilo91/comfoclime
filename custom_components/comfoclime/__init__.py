@@ -33,11 +33,32 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup(hass: HomeAssistant, config: dict):
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+    """Set up the ComfoClime component.
+
+    Args:
+        hass: Home Assistant instance
+        config: Configuration dictionary (not used, config entry only)
+
+    Returns:
+        True if setup successful
+    """
     return True  # wir nutzen keine YAML-Konfiguration mehr
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Set up ComfoClime from a config entry.
+
+    Args:
+        hass: Home Assistant instance
+        entry: Config entry with host configuration
+
+    Returns:
+        True if setup successful
+
+    Raises:
+        ConfigEntryNotReady: If device cannot be reached or initialized
+    """
     hass.data.setdefault(DOMAIN, {})
 
     host = entry.data["host"]
@@ -283,7 +304,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Unload a config entry.
+
+    Args:
+        hass: Home Assistant instance
+        entry: Config entry to unload
+
+    Returns:
+        True if unload successful
+    """
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
     # Close the API session

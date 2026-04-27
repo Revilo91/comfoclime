@@ -1,5 +1,7 @@
 {
-  "name": "ComfoClime",
+  "name": "Zehnder ComfoClime",
   "render_readme": true,
-  "homeassistant": "2026.2.0"
+  "homeassistant": "2026.2.0",
+  "filename": "comfoclime.zip",
+  "zip_release": true
 }
