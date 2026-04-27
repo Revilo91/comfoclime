@@ -392,6 +392,13 @@
                 "data": {
                     "host": "Host or IP-Address"
                 }
+            },
+            "reconfigure": {
+                "title": "Reconfigure ComfoClime Host",
+                "description": "Update the hostname or IP address of your ComfoClime device. Current host: {current_host}",
+                "data": {
+                    "host": "New Host or IP-Address"
+                }
             }
         },
         "error": {
@@ -403,7 +410,8 @@
             "no_entities_available": "No entities available. This may indicate a configuration error."
         },
         "abort": {
-            "already_configured": "This device is already configured."
+            "already_configured": "This device is already configured.",
+            "reconfigure_successful": "Host successfully updated. The integration will now reload."
         }
     },
     "options": {

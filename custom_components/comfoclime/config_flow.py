@@ -103,6 +103,67 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
+    async def async_step_reconfigure(self, user_input=None):
+        """Handle reconfiguration of the integration (e.g., IP address change).
+
+        This allows users to update the host/IP address if the device has
+        moved to a different network location without removing and re-adding
+        the integration.
+
+        Args:
+            user_input: Dictionary with 'host' key containing new hostname or IP
+
+        Returns:
+            FlowResult: Either shows form or updates entry
+        """
+        errors = {}
+        entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
+
+        if user_input is not None:
+            host = user_input["host"]
+
+            # Validate host first for security
+            is_valid, error_message = validate_host(host)
+            if not is_valid:
+                errors["host"] = "invalid_host"
+                _LOGGER.warning("Invalid host provided during reconfigure: %s - %s", host, error_message)
+            else:
+                url = f"http://{host}/monitoring/ping"
+
+                try:
+                    connector = aiohttp.TCPConnector(ssl=False)
+                    async with (
+                        aiohttp.ClientSession(connector=connector) as session,
+                        session.get(url, timeout=5) as resp,
+                    ):
+                        if resp.status == 200:
+                            data = await resp.json()
+                            if "uuid" in data:
+                                # Update the entry with new host
+                                self.hass.config_entries.async_update_entry(
+                                    entry,
+                                    data={"host": host},
+                                )
+                                # Reload the entry to apply changes
+                                await self.hass.config_entries.async_reload(entry.entry_id)
+                                return self.async_abort(reason="reconfigure_successful")
+                            errors["host"] = "no_uuid"
+                        else:
+                            errors["host"] = "no_response"
+                except (TimeoutError, aiohttp.ClientError) as err:
+                    _LOGGER.error("Connection error during reconfigure: %s", err)
+                    errors["host"] = "cannot_connect"
+
+        # Show form with current host as default
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=vol.Schema({vol.Required("host", default=entry.data.get("host", "")): str}),
+            errors=errors,
+            description_placeholders={
+                "current_host": entry.data.get("host", "unknown"),
+            },
+        )
+
     async def async_step_user(self, user_input=None):
         """Handle the initial step where user provides device hostname.
 
@@ -129,8 +190,9 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
                 url = f"http://{host}/monitoring/ping"
 
                 try:
+                    connector = aiohttp.TCPConnector(ssl=False)
                     async with (
-                        aiohttp.ClientSession() as session,
+                        aiohttp.ClientSession(connector=connector) as session,
                         session.get(url, timeout=5) as resp,
                     ):
                         if resp.status == 200:

@@ -393,6 +393,13 @@
                 "data": {
                     "host": "Host oder IP-Adresse"
                 }
+            },
+            "reconfigure": {
+                "title": "ComfoClime Host neu konfigurieren",
+                "description": "Aktualisiere den Hostnamen oder die IP-Adresse deines ComfoClime Geräts. Aktueller Host: {current_host}",
+                "data": {
+                    "host": "Neuer Host oder IP-Adresse"
+                }
             }
         },
         "error": {
@@ -404,7 +411,8 @@
             "no_entities_available": "Keine Entities verfügbar. Dies kann auf einen Konfigurationsfehler hindeuten."
         },
         "abort": {
-            "already_configured": "Dieses Gerät ist bereits konfiguriert."
+            "already_configured": "Dieses Gerät ist bereits konfiguriert.",
+            "reconfigure_successful": "Host erfolgreich aktualisiert. Die Integration wird neu geladen."
         }
     },
     "options": {
