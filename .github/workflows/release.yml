@@ -129,6 +129,11 @@ jobs:
           echo "$CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
+      - name: Create release zip
+        run: |
+          cd custom_components
+          zip -r ../comfoclime.zip comfoclime/
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -140,3 +145,4 @@ jobs:
             ${{ steps.changelog.outputs.changelog }}
           draft: false
           prerelease: false
+          files: comfoclime.zip
