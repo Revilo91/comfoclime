@@ -151,6 +151,25 @@ if value >= 0x8000:
 result = -196 * 0.1        # = -19.6°C
 ```
 
+### PDO Datentypen (CN_*)
+
+> Quelle: [aiocomfoconnect PROTOCOL-PDO.md](https://github.com/michaelarnauts/aiocomfoconnect/blob/master/docs/PROTOCOL-PDO.md)
+
+| Typ-ID | Name | Bytes | Beschreibung |
+|---|---|---|---|
+| 0 | CN_BOOL | 1 | Boolean: 0=false, 1=true |
+| 1 | CN_UINT8 | 1 | Vorzeichenlos, 0–255 |
+| 2 | CN_UINT16 | 2 | Vorzeichenlos, Little-Endian |
+| 3 | CN_UINT32 | 4 | Vorzeichenlos, Little-Endian |
+| 5 | CN_INT8 | 1 | Vorzeichenbehaftet, −128–127 |
+| 6 | CN_INT16 | 2 | Vorzeichenbehaftet, Little-Endian |
+| 8 | CN_INT64 | 8 | Vorzeichenbehaftet, Little-Endian |
+| 9 | CN_STRING | var | Nullterminierter String |
+| 10 | CN_TIME | var | Zeitstempel |
+| 11 | CN_VERSION | 4 | Versions-Blob (UINT32, Little-Endian) |
+
+> **Faustregel:** Temperaturen = CN_INT16 × 0.1 | Prozentwerte = CN_UINT8 | Drehzahl/Leistung = CN_UINT16
+
 ---
 
 ## 6. Telemetrie-Werte (Live-Messung)
@@ -200,6 +219,40 @@ result = -196 * 0.1        # = -19.6°C
 | **292** | Außenluft-Feuchtigkeit | `[37]` | **37%** | UINT8 |
 | **294** | Zuluft-Feuchtigkeit | `[35]` | **35%** | UINT8 |
 
+#### Weitere PDO-Sensor-IDs ComfoAirQ (aus aiocomfoconnect-Dokumentation)
+
+> Quelle: [aiocomfoconnect PROTOCOL-PDO.md](https://github.com/michaelarnauts/aiocomfoconnect/blob/master/docs/PROTOCOL-PDO.md)
+
+| ID | Typ | Beschreibung | Werte / Einheit |
+|---|---|---|---|
+| 16 | CN_UINT8 | Gerätestatus | 0=Init, 1=Normal, 2=Filterwechsel, 6=Standby, 7=Abwesend |
+| 65 | CN_UINT8 | Lüfterstufen-Einstellung | 0=Abwesend, 1=Niedrig, 2=Mittel, 3=Hoch |
+| 66 | CN_UINT8 | Bypass-Aktivierungsmodus | 0=Auto, 1=Voll offen, 2=Keine |
+| 67 | CN_UINT8 | Temperaturprofil | 0=Normal, 1=Kalt, 2=Warm |
+| 119 | CN_UINT16 | Abluft-Volumenstrom | m³/h |
+| 120 | CN_UINT16 | Zuluft-Volumenstrom | m³/h |
+| 192 | CN_UINT16 | Verbleibende Filtertage | Tage |
+| 208 | CN_UINT8 | Temperatureinheit | 0=Celsius, 1=Fahrenheit |
+| 210 | CN_BOOL | Heizperiode aktiv | 0=inaktiv, 1=aktiv |
+| 211 | CN_BOOL | Kühlperiode aktiv | 0=inaktiv, 1=aktiv |
+| 212 | CN_UINT8 | Temperaturprofil-Sollwert | °C × 0.1 |
+| 213 | CN_UINT16 | Vermiedene Heizleistung (aktuell) | W × 0.01 |
+| 214 | CN_UINT16 | Vermiedene Heizenergie (Jahr) | kWh |
+| 215 | CN_UINT16 | Vermiedene Heizenergie (gesamt) | kWh |
+| 216 | CN_UINT16 | Vermiedene Kühlleistung (aktuell) | W × 0.01 |
+| 217 | CN_UINT16 | Vermiedene Kühlenergie (Jahr) | kWh |
+| 218 | CN_UINT16 | Vermiedene Kühlenergie (gesamt) | kWh |
+| 220 | CN_INT16 | Außenluft nach Vorheizer | °C × 0.1 |
+| 221 | CN_INT16 | Zuluft nach Nachheizer | °C × 0.1 |
+| 224 | CN_UINT8 | Luftmengen-Einheit | 1=kg/h, 2=l/s, 3=m³/h |
+| 225 | CN_UINT8 | Sensorbasierter Lüftungsmodus | 0=Deaktiviert, 1=Aktiv, 2=Übersteuernd |
+| 226 | CN_UINT16 | Lüfter-Drehzahl (moduliert) | 0–300 |
+| 274 | CN_INT16 | Abluft-Temperatur (Extract) | °C × 0.1 |
+| 276 | CN_INT16 | Außenluft-Temperatur | °C × 0.1 |
+| 338 | CN_UINT32 | Bypass-Überschreibung | 0=Auto, 2=Überschrieben |
+| 784 | CN_UINT8 | ComfoCool-Status | 0=Aus, 1=Ein |
+| 802 | CN_INT16 | ComfoCool Kondensator-Temperatur | °C × 0.1 |
+
 ---
 
 ## 7. Properties (RMI-Protokoll)
@@ -224,6 +277,66 @@ Body: {"data": [PropertyID, LSB, MSB]}
 # raw = int(21.5 / 0.1) = 215 = [215, 0]
 # Payload: {"data": [9, 215, 0]}
 ```
+
+### RMI-Protokoll Hintergrund (ComfoAirQ)
+
+> Quelle: [aiocomfoconnect PROTOCOL-RMI.md](https://github.com/michaelarnauts/aiocomfoconnect/blob/master/docs/PROTOCOL-RMI.md)
+
+#### Nodes
+
+| Hex | Dezimal | Beschreibung |
+|---|---|---|
+| 0x01 | 1 | Lüftungsgerät (ComfoAirQ) |
+| 0x30 | 48 | ComfoConnect LAN C |
+
+#### Units im ComfoAirQ (Ventilation Unit)
+
+| Hex | Dez. | Name | Beschreibung |
+|---|---|---|---|
+| 0x01 | 1 | NODE | Gerätekennzeichnung (Seriennummer, Firmware, Name) |
+| 0x02 | 2 | COMFOBUS | ComfoNet-Bus-Kommunikation |
+| 0x03 | 3 | ERROR | Fehlerspeicher, Fehler zurücksetzen |
+| 0x15 | 21 | SCHEDULE | Zeitpläne, Timer, Lüfterstufe, Bypass |
+| 0x16 | 22 | VALVE | Bypass-Vorheizer-Ventile |
+| 0x17 | 23 | FAN | Zuluft- und Abluftventilatoren |
+| 0x18 | 24 | POWERSENSOR | Leistungsmessung, Energie-Zähler |
+| 0x19 | 25 | PREHEATER | Optionaler Vorheizer |
+| 0x1A | 26 | HMI | Display + Tasten |
+| 0x1B | 27 | RFCOMMUNICATION | Funk-Kommunikation |
+| 0x1C | 28 | FILTER | Filterwechsel-Zähler |
+| 0x1D | 29 | TEMPHUMCONTROL | Temperatur-/Feuchtesteuerung |
+| 0x1E | 30 | VENTILATIONCONFIG | Lüftungskonfiguration |
+| 0x20 | 32 | NODECONFIGURATION | Gerätekonfiguration, Wartungspasswort |
+| 0x21 | 33 | TEMPERATURESENSOR | 6 Temperatursensoren |
+| 0x22 | 34 | HUMIDITYSENSOR | 6 Feuchtigkeitssensoren |
+| 0x23 | 35 | PRESSURESENSOR | 2 Drucksensoren |
+| 0x24 | 36 | PERIPHERALS | Externe Geräte (ComfoCool) |
+| 0x25 | 37 | ANALOGINPUT | Analoge Eingänge (0–10 V) |
+| 0x26 | 38 | COOKERHOOD | ComfoHood |
+| 0x27 | 39 | POSTHEATER | Optionaler Nachheizer |
+| 0x28 | 40 | COMFOFOND | Erdwärmetauscher |
+
+#### RMI-Befehle
+
+| Befehl | Syntax | Beschreibung |
+|---|---|---|
+| `0x01` | `01 Unit SubUnit Type Property` | Einzelne Property lesen |
+| `0x02` | `02 Unit SubUnit 01 Type+Count Prop1 Prop2 ...` | Mehrere Properties in einem Aufruf lesen |
+| `0x03` | `03 Unit SubUnit Property Value` | Property schreiben |
+
+**Type beim Lesen:** `0x10` = Aktueller Wert · `0x20` = Wertebereich · `0x40` = Schrittweite (OR-kombinierbar)
+
+**RMI-Fehlercodes:**
+
+| Code | Bedeutung |
+|---|---|
+| 11 | Unbekannter Befehl |
+| 12 | Unbekannte Unit |
+| 13 | Unbekannte SubUnit |
+| 14 | Unbekannte Property |
+| 30 | Wert außerhalb des Bereichs |
+| 32 | Property nicht les-/schreibbar |
+| 40/41 | Interner Fehler |
 
 ### Property-Scan Ergebnis (vollständiger Brute-Force-Scan, Units 1–31, SubUnits 1–3, Props 1–35)
 
@@ -411,6 +524,78 @@ Dies ist die wichtigste konfigurierbare Unit. Alle Werte korrespondieren direkt 
 | `30/1/30` | `[234,8]` | u16=2282 | Energie oder Luftmenge (m³/h × 10?) |
 
 > **Hinweis zu P30:** 2282 als Luftmenge wäre 228.2 m³/h (Faktor 0.1) – passt gut zu Dashboard `exhaustAirFlow: 208`. Oder 2282 ist ein Energie-Zähler-Wert.
+
+---
+
+### Bekannte CAQ-Properties aus upstream Dokumentation
+
+> Quelle: [aiocomfoconnect PROTOCOL-RMI.md](https://github.com/michaelarnauts/aiocomfoconnect/blob/master/docs/PROTOCOL-RMI.md) – Direkte RMI-Property-Adressen für die ComfoAirQ-Ventilationseinheit.
+
+#### TEMPHUMCONTROL (`0x1D` / Unit 29) – Temperatur-/Feuchtesteuerung
+
+| Pfad | Typ | Zugriff | Beispielwert | Bedeutung |
+|---|---|---|---|---|
+| `29/1/1` | UINT8 | r | 1 | Aktiv-Flag |
+| `29/1/2` | INT16 | rw | 180 → 18.0°C | RMOT Heizperiode (×0.1) |
+| `29/1/3` | INT16 | rw | 200 → 20.0°C | RMOT Kühlperiode (×0.1) |
+| `29/1/4` | UINT8 | rw | 0 | Temperaturpassivregelung (0=Aus, 1=NurAuto, 2=Ein) |
+| `29/1/5` | UINT8 | rw | 0 | Unbekannt |
+| `29/1/6` | UINT8 | rw | 0 | Feuchtekomfortregelung (0=Aus, 1=NurAuto, 2=Ein) |
+| `29/1/7` | UINT8 | rw | 0 | Feuchteschutzregelung (0=Aus, 1=NurAuto, 2=Ein) |
+| `29/1/8` | UINT8 | rw | 0 | Unbekannt |
+| `29/1/10` | INT16 | rw | 230 → 23.0°C | Solltemperatur Heizprofil: Warm |
+| `29/1/11` | INT16 | rw | 210 → 21.0°C | Solltemperatur Heizprofil: Normal |
+| `29/1/12` | INT16 | rw | 190 → 19.0°C | Solltemperatur Heizprofil: Kalt |
+| `29/1/13` | UINT8 | – | 0 | Unbekannt |
+
+#### VENTILATIONCONFIG (`0x1E` / Unit 30) – Lüftungskonfiguration
+
+| Pfad | Typ | Zugriff | Beispielwert | Bedeutung |
+|---|---|---|---|---|
+| `30/1/1` | UINT8 | – | 1 | Aktiv-Flag |
+| `30/1/2` | UINT8 | – | 15 | Interne Lüfterstufe |
+| `30/1/3` | INT16 | rw | 75 | Lüftungsgeschwindigkeit Abwesend (m³/h) |
+| `30/1/4` | INT16 | rw | 110 | Lüftungsgeschwindigkeit Stufe 1/Niedrig (m³/h) |
+| `30/1/5` | INT16 | rw | 180 | Lüftungsgeschwindigkeit Stufe 2/Mittel (m³/h) |
+| `30/1/6` | INT16 | rw | 370 | Lüftungsgeschwindigkeit Stufe 3/Hoch (m³/h) |
+| `30/1/7` | UINT8 | – | 0 | Höhe ü. NN (0=0–500m, 1=500–1000m, 2=1000–1500m, 3=1500–2000m) |
+| `30/1/9` | UINT8 | – | 0 | Lüftungsregelungsart (0=Volumenstromregelung, 1=Konstantdruck) |
+| `30/1/11` | INT16 | – | – | Badezimmerschalter Einschaltverzögerung (s) |
+| `30/1/12` | UINT8 | – | – | Badezimmerschalter Ausschaltverzögerung (min) |
+| `30/1/13` | UINT8 | – | – | Badezimmerschalter Modus (0=fest, 1=gespiegelt) |
+| `30/1/18` | INT16 | – | – | Unbalance-Einstellung (×0.1) |
+
+#### NODECONFIGURATION (`0x20` / Unit 32)
+
+| Pfad | Typ | Zugriff | Bedeutung |
+|---|---|---|---|
+| `32/1/3` | STRING | – | Wartungspasswort (DE=4210, BE=2468) |
+| `32/1/4` | UINT8 | – | Einbaulage (0=Links, 1=Rechts) |
+
+#### SCHEDULE-Befehle (Unit 0x15=21, Raw-RMI)
+
+Diese Hex-Befehle werden direkt über den ComfoConnect LAN C gesendet (nicht über HTTP API).
+
+| Hex-Befehl | Beschreibung |
+|---|---|
+| `84 15 01 01 00000000 01000000 00` | Lüftungsstufe: Abwesend |
+| `84 15 01 01 00000000 01000000 01` | Lüftungsstufe: 1 (Niedrig) |
+| `84 15 01 01 00000000 01000000 02` | Lüftungsstufe: 2 (Mittel) |
+| `84 15 01 01 00000000 01000000 03` | Lüftungsstufe: 3 (Hoch) |
+| `84 15 01 06 00000000 58020000 03` | Boost: 10 Minuten (600s = 0x0258) |
+| `85 15 01 06` | Boost: Beenden |
+| `85 15 08 01` | Lüftungsmodus: Automatisch |
+| `84 15 08 01 00000000 01000000 01` | Lüftungsmodus: Manuell |
+| `84 15 02 01 00000000 100e0000 01` | Bypass: 1 Stunde öffnen |
+| `84 15 02 01 00000000 100e0000 02` | Bypass: 1 Stunde schließen |
+| `85 15 02 01` | Bypass: Automatisch |
+| `84 15 03 01 00000000 ffffffff 00` | Temperaturprofil: Normal |
+| `84 15 03 01 00000000 ffffffff 01` | Temperaturprofil: Kalt |
+| `84 15 03 01 00000000 ffffffff 02` | Temperaturprofil: Warm |
+| `84 15 06 01 00000000 100e0000 01` | Lüftungsmodus: Nur Zuluft (1h) |
+| `85 15 06 01` | Lüftungsmodus: Balanced (zurücksetzen) |
+
+> **Hinweis:** Der SCHEDULE-Unit-Befehl `0x84` aktiviert einen Eintrag mit Startzeitstempel und Dauer. `0x85` deaktiviert/beendet ihn. Die HTTP-API umhüllt diese Befehle für Lüfterstufe/Boost/Szenario-Modi.
 
 ---
 
@@ -643,3 +828,76 @@ requests.put(
 | [custom_components/comfoclime/comfoclime_api.py](custom_components/comfoclime/comfoclime_api.py) | Produktiver async API-Client (aiohttp) |
 | [custom_components/comfoclime/coordinator.py](custom_components/comfoclime/coordinator.py) | Home Assistant Koordinatoren (5 Stück, 60s Intervall) |
 | [custom_components/comfoclime/entities/sensor_definitions.py](custom_components/comfoclime/entities/sensor_definitions.py) | Alle Sensor-Definitionen mit byte_count/faktor |
+| [aiocomfoconnect PROTOCOL-RMI.md](https://github.com/michaelarnauts/aiocomfoconnect/blob/master/docs/PROTOCOL-RMI.md) | Vollständige RMI-Protokoll-Dokumentation (Nodes, Units, Befehle, Fehler) |
+| [aiocomfoconnect PROTOCOL-PDO.md](https://github.com/michaelarnauts/aiocomfoconnect/blob/master/docs/PROTOCOL-PDO.md) | Vollständige PDO-Telemetrie-ID-Liste mit Datentypen |
+
+---
+
+## 16. Gerätefehler-Codes (ComfoAirQ)
+
+> Quelle: [aiocomfoconnect PROTOCOL-RMI.md](https://github.com/michaelarnauts/aiocomfoconnect/blob/master/docs/PROTOCOL-RMI.md) – Fehler werden per `ERROR`-Unit (0x03) über `0x80 GETACTIVEERRORS` abgefragt und mit `0x82 RESETALLERRORS` zurückgesetzt.
+
+### Kritische Fehler
+
+| Code | Beschreibung |
+|---|---|
+| 21 | **ÜBERHITZUNG!** Mehrere Sensoren melden fehlerhafte Temperatur – Lüftung gestoppt |
+| 22 | Temperatur zu hoch für ComfoAir Q |
+| 33 | Gerät nicht in Betrieb genommen (INIT ERROR) |
+| 34 | Fronttür ist offen |
+
+### Sensor-Fehler
+
+| Code | Sensor | Beschreibung |
+|---|---|---|
+| 23 | ETA | Abluft-Temperatursensor – Ausfall |
+| 24 | ETA | Abluft-Temperatursensor – Falscher Wert |
+| 25 | EHA | Fortluft-Temperatursensor – Ausfall |
+| 26 | EHA | Fortluft-Temperatursensor – Falscher Wert |
+| 27 | ODA | Außenluft-Temperatursensor – Ausfall |
+| 28 | ODA | Außenluft-Temperatursensor – Falscher Wert |
+| 31 | SUP | Zuluft-Temperatursensor – Ausfall |
+| 32 | SUP | Zuluft-Temperatursensor – Falscher Wert |
+| 39 | ETA | Abluft-Feuchtigkeitssensor – Ausfall |
+| 41 | EHA | Fortluft-Feuchtigkeitssensor – Ausfall |
+| 43 | ODA | Außenluft-Feuchtigkeitssensor – Ausfall |
+| 47 | SUP | Zuluft-Feuchtigkeitssensor – Ausfall |
+
+### Lüfter & Luftstrom-Fehler
+
+| Code | Beschreibung |
+|---|---|
+| 49 | Abluftstrom-Sensor – Ausfall |
+| 50 | Zuluftstrom-Sensor – Ausfall |
+| 51 | Ablüfter – Ausfall |
+| 52 | Zulüfter – Ausfall |
+| 53 | Abluftdruck zu hoch (Filter/Kanäle prüfen) |
+| 54 | Zuluftdruck zu hoch (Filter/Kanäle prüfen) |
+| 57 | Abluftstrom erreicht Sollwert nicht |
+| 58 | Zuluftstrom erreicht Sollwert nicht |
+| 62 | Unbalance zu oft außerhalb Toleranz |
+
+### Wartungs-Meldungen
+
+| Code | Beschreibung |
+|---|---|
+| 77 | **Filter muss jetzt getauscht werden** |
+| 78 | Externen Filter reinigen/tauschen |
+| 79 | Neue Filter bestellen (Restlaufzeit begrenzt) |
+| 80 | **Service-Modus aktiv** |
+| 89 | Bypass im manuellen Modus |
+
+### Verbindungsfehler (Firmware ≥ 1.4.0)
+
+| Code | Beschreibung |
+|---|---|
+| 70 | Analogeingang 1 nicht mehr erkannt |
+| 71 | Analogeingang 2 nicht mehr erkannt |
+| 72 | Analogeingang 3 nicht mehr erkannt |
+| 73 | Analogeingang 4 nicht mehr erkannt |
+| 74 | ComfoHood nicht mehr erkannt |
+| 75 | ComfoCool nicht mehr erkannt |
+| 76 | ComfoFond nicht mehr erkannt |
+| 101 | ComfoNet-Fehler |
+| 102 | Anzahl CO₂-Sensoren verringert |
+| 103 | Mehr als 8 Sensoren in einer Zone erkannt |
