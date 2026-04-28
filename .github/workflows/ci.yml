@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install 3.14
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Ruff Format Check
+        run: uv run ruff format --check .
+
+      - name: Ruff Lint Check
+        run: uv run ruff check .
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install 3.14
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Run tests with pytest
+        run: uv run pytest tests/ -v --cov=custom_components/comfoclime --cov-report=xml --cov-report=term
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+  validate-hacs:
+    name: Validate with HACS
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: HACS validation
+        uses: hacs/action@main
+        with:
+          category: integration
+          ignore: topics
+
+  validate-hassfest:
+    name: Validate with hassfest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Hassfest validation
+        uses: home-assistant/actions/hassfest@master
