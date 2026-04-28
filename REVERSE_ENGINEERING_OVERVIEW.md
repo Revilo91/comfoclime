@@ -191,11 +191,11 @@ result = -196 * 0.1        # = -19.6°C
 | **4201** | Aktuelle elektrische Leistung | `[180, 0]` | **180 W** | UINT16 |
 | **4202** | Hochdruck (Warmseite) | `[98, 1]` | **354 kPa** | UINT16 |
 | **4203** | Expansionsventil-Öffnung | `[20, 0]` | **20%** | UINT16 |
-| **4204** | Unbekannter Wert | – | – | UINT16 |
+| **4204** | Unbekannter Wert (0 im Kühlbetrieb) | `[0, 0]` | **0** | UINT16 |
 | **4205** | Niederdruck (Kaltseite) | `[60, 0]` | **60 kPa** | UINT16 |
-| **4206** | Unbekannter Wert | – | – | UINT16 |
+| **4206** | Wärmepumpen-Status (vermutl.) | `[5, 0]` | **5** (= `heatPumpStatus` aus Dashboard) | UINT16 |
 | **4207** | 4-Wege-Ventil Position | `[1, 0]` | **1 (Kühlen)** | UINT16 |
-| **4208** | Unbekannter Wert | – | – | UINT16 |
+| **4208** | Unbekannter Wert | `[190, 0]` | **190** | UINT16 |
 
 **Betriebsmodus-Codes (ID 4149):**
 - `0` = Aus
