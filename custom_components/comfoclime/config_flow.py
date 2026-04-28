@@ -511,14 +511,18 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 )
 
             # Core entities (single bool per entity)
-            schema_dict[vol.Optional(
-                "enabled_climate",
-                default=self._get_current_value("enabled_climate", True),
-            )] = selector.BooleanSelector()
-            schema_dict[vol.Optional(
-                "enabled_fan",
-                default=self._get_current_value("enabled_fan", True),
-            )] = selector.BooleanSelector()
+            schema_dict[
+                vol.Optional(
+                    "enabled_climate",
+                    default=self._get_current_value("enabled_climate", True),
+                )
+            ] = selector.BooleanSelector()
+            schema_dict[
+                vol.Optional(
+                    "enabled_fan",
+                    default=self._get_current_value("enabled_fan", True),
+                )
+            ] = selector.BooleanSelector()
 
             return self.async_show_form(
                 step_id="entities",

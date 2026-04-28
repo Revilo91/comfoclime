@@ -493,9 +493,7 @@ class TestConnectedDeviceProperties:
     def test_model_20_properties_are_diagnostic(self):
         """Test that all ComfoClime Unit 23 properties have diagnostic category."""
         for prop in CONNECTED_DEVICE_PROPERTIES[20]:
-            assert prop.entity_category is not None, (
-                f"Property {prop.path} should have entity_category set"
-            )
+            assert prop.entity_category is not None, f"Property {prop.path} should have entity_category set"
             # EntityCategory.DIAGNOSTIC has string value "diagnostic"
             assert str(prop.entity_category) in {"diagnostic", "EntityCategory.DIAGNOSTIC"}, (
                 f"Property {prop.path} should have entity_category=DIAGNOSTIC, got {prop.entity_category}"
