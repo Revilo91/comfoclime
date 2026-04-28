@@ -111,7 +111,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     if needs_update:
         hass.config_entries.async_update_entry(entry, options=new_options)
-        entry.options = new_options
 
     # Get configuration options with defaults
     read_timeout = int(entry.options.get("read_timeout", 10))
