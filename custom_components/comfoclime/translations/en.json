@@ -461,7 +461,9 @@
                     "enabled_access_tracking": "🔍 Access Tracking (Diagnostic)",
                     "enabled_switches": "🔌 Switches",
                     "enabled_numbers": "🔢 Number Controls",
-                    "enabled_selects": "📝 Select Controls"
+                    "enabled_selects": "📝 Select Controls",
+                    "enabled_climate": "🌡 Climate Control (Climate Entity)",
+                    "enabled_fan": "💨 Fan Speed (Fan Entity)"
                 }
             }
         }

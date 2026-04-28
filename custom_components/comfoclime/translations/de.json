@@ -462,7 +462,9 @@
                     "enabled_access_tracking": "🔍 Zugriffs-Tracking (Diagnose)",
                     "enabled_switches": "🔌 Schalter",
                     "enabled_numbers": "🔢 Zahlen-Steuerungen",
-                    "enabled_selects": "📝 Auswahl-Steuerungen"
+                    "enabled_selects": "📝 Auswahl-Steuerungen",
+                    "enabled_climate": "🌡 Klimasteuerung (Climate Entity)",
+                    "enabled_fan": "💨 Lüfter (Fan Entity)"
                 }
             },
             "general": {

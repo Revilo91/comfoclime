@@ -683,3 +683,32 @@ async def test_async_setup_entry_no_main_device(
 
     # Verify entities were not added
     assert not async_add_entities.called
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_climate_disabled(
+    mock_hass,
+    mock_config_entry,
+    mock_api,
+    mock_coordinator,
+    mock_thermalprofile_coordinator,
+    mock_device,
+):
+    """Test async_setup_entry skips climate creation when enabled_climate is False."""
+    mock_config_entry.options = {"enabled_climate": False}
+    mock_hass.data = {
+        "comfoclime": {
+            "test_entry_id": {
+                "api": mock_api,
+                "coordinator": mock_coordinator,
+                "tpcoordinator": mock_thermalprofile_coordinator,
+                "main_device": mock_device,
+            }
+        }
+    }
+
+    async_add_entities = MagicMock()
+
+    await async_setup_entry(mock_hass, mock_config_entry, async_add_entities)
+
+    assert not async_add_entities.called

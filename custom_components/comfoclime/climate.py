@@ -157,6 +157,10 @@ async def async_setup_entry(
         _LOGGER.warning("No main device found - cannot create climate entity")
         return
 
+    if not config_entry.options.get("enabled_climate", True):
+        _LOGGER.debug("Climate entity disabled via options - skipping setup")
+        return
+
     climate_entity = ComfoClimeClimate(
         dashboard_coordinator,
         thermalprofile_coordinator,

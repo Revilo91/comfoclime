@@ -263,3 +263,25 @@ async def test_async_setup_entry_no_main_device(mock_hass, mock_config_entry, mo
 
     # Verify entities were not added
     assert not async_add_entities.called
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_fan_disabled(mock_hass, mock_config_entry, mock_api, mock_coordinator, mock_device):
+    """Test async_setup_entry skips fan creation when enabled_fan is False."""
+    mock_config_entry.options = {"enabled_fan": False}
+    mock_hass.data = {
+        "comfoclime": {
+            "test_entry_id": {
+                "api": mock_api,
+                "coordinator": mock_coordinator,
+                "devices": [mock_device],
+                "main_device": mock_device,
+            }
+        }
+    }
+
+    async_add_entities = MagicMock()
+
+    await async_setup_entry(mock_hass, mock_config_entry, async_add_entities)
+
+    assert not async_add_entities.called

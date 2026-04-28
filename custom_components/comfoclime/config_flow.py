@@ -91,6 +91,9 @@ def _get_default_entity_options() -> dict[str, Any]:
         "enabled_switches": [opt["value"] for opt in get_switches()],
         "enabled_numbers": [opt["value"] for opt in get_numbers()],
         "enabled_selects": [opt["value"] for opt in get_selects()],
+        # Core entities: enabled by default
+        "enabled_climate": True,
+        "enabled_fan": True,
     }
 
 
@@ -322,6 +325,9 @@ class ComfoClimeOptionsFlow(OptionsFlow):
             ]
             for key in expected_keys:
                 user_input.setdefault(key, [])
+            # Bool keys: default True when not submitted
+            for key in ("enabled_climate", "enabled_fan"):
+                user_input.setdefault(key, True)
 
             _LOGGER.info("User submitted entity selection")
             self._update_pending(user_input)
@@ -503,6 +509,16 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 )
+
+            # Core entities (single bool per entity)
+            schema_dict[vol.Optional(
+                "enabled_climate",
+                default=self._get_current_value("enabled_climate", True),
+            )] = selector.BooleanSelector()
+            schema_dict[vol.Optional(
+                "enabled_fan",
+                default=self._get_current_value("enabled_fan", True),
+            )] = selector.BooleanSelector()
 
             return self.async_show_form(
                 step_id="entities",
