@@ -4,9 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version number (e.g., 2.1.0)'
+        description: 'Version number (e.g., 2.1.0 or 2.1.0b0 for pre-release)'
         required: true
         type: string
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+b[0-9]+'
 
 jobs:
   release:
@@ -21,14 +25,33 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Validate version format
+      - name: Set version and release type
+        id: version
         run: |
-          if ! echo "${{ github.event.inputs.version }}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "Error: Version must be in format X.Y.Z (e.g., 2.1.0)"
+          if [ "${{ github.event_name }}" = "push" ]; then
+            VERSION="${{ github.ref_name }}"
+            VERSION="${VERSION#v}"
+          else
+            VERSION="${{ github.event.inputs.version }}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          if echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+b[0-9]+$'; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+          fi
+          echo "Version: $VERSION"
+
+      - name: Validate version format
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if ! echo "${{ steps.version.outputs.version }}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(b[0-9]+)?$'; then
+            echo "Error: Version must be in format X.Y.Z or X.Y.ZbN (e.g., 2.1.0 or 2.1.0b0)"
             exit 1
           fi
 
       - name: Configure Git
+        if: github.event_name == 'workflow_dispatch'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -36,8 +59,11 @@ jobs:
       - name: Get previous tag for changelog
         id: previous_tag
         run: |
-          # Get the previous tag before creating the new one
-          PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ "${{ github.event_name }}" = "push" ]; then
+            PREVIOUS_TAG=$(git describe --tags --abbrev=0 "${{ github.ref_name }}^" 2>/dev/null || echo "")
+          else
+            PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          fi
           echo "previous_tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
           if [ -z "$PREVIOUS_TAG" ]; then
             echo "No previous tag found"
@@ -46,24 +72,27 @@ jobs:
           fi
 
       - name: Update manifest.json version
+        if: github.event_name == 'workflow_dispatch'
         run: |
-          jq --arg version "${{ github.event.inputs.version }}" '.version = $version' \
+          VERSION="${{ steps.version.outputs.version }}"
+          jq --arg version "$VERSION" '.version = $version' \
             custom_components/comfoclime/manifest.json > manifest.tmp
           mv manifest.tmp custom_components/comfoclime/manifest.json
-          sed -i -E 's/^version = ".*"$/version = "${{ github.event.inputs.version }}"/' pyproject.toml
-          echo "Updated manifest.json to version ${{ github.event.inputs.version }}"
+          sed -i -E "s/^version = \".*\"$/version = \"$VERSION\"/" pyproject.toml
+          echo "Updated manifest.json to version $VERSION"
 
       - name: Create Pull Request
         id: create_pr
+        if: github.event_name == 'workflow_dispatch'
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "Bump version to ${{ github.event.inputs.version }}"
-          branch: "release/v${{ github.event.inputs.version }}"
+          commit-message: "Bump version to ${{ steps.version.outputs.version }}"
+          branch: "release/v${{ steps.version.outputs.version }}"
           delete-branch: true
-          title: "Release v${{ github.event.inputs.version }}"
+          title: "Release v${{ steps.version.outputs.version }}"
           body: |
-            Automated version bump to ${{ github.event.inputs.version }}.
+            Automated version bump to ${{ steps.version.outputs.version }}.
 
             Updates:
             - custom_components/comfoclime/manifest.json
@@ -73,14 +102,14 @@ jobs:
           labels: release
 
       - name: Enable auto-merge for PR
-        if: steps.create_pr.outputs.pull-request-number != ''
+        if: github.event_name == 'workflow_dispatch' && steps.create_pr.outputs.pull-request-number != ''
         run: |
           gh pr merge ${{ steps.create_pr.outputs.pull-request-number }} --auto --squash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Wait for PR to be merged
-        if: steps.create_pr.outputs.pull-request-number != ''
+        if: github.event_name == 'workflow_dispatch' && steps.create_pr.outputs.pull-request-number != ''
         run: |
           echo "Waiting for PR #${{ steps.create_pr.outputs.pull-request-number }} to be merged..."
           for i in {1..60}; do
@@ -100,16 +129,17 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout main branch
-        if: steps.create_pr.outputs.pull-request-number != ''
+        if: github.event_name == 'workflow_dispatch' && steps.create_pr.outputs.pull-request-number != ''
         run: |
           git fetch origin
           git checkout main
           git pull origin main
 
       - name: Create and push tag
+        if: github.event_name == 'workflow_dispatch'
         run: |
-          git tag -a "v${{ github.event.inputs.version }}" -m "v${{ github.event.inputs.version }}"
-          git push origin "v${{ github.event.inputs.version }}"
+          git tag -a "v${{ steps.version.outputs.version }}" -m "v${{ steps.version.outputs.version }}"
+          git push origin "v${{ steps.version.outputs.version }}"
 
       - name: Generate changelog
         id: changelog
@@ -129,14 +159,39 @@ jobs:
           echo "$CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
+      - name: Build release body
+        id: release_body
+        run: |
+          CHANGELOG="${{ steps.changelog.outputs.changelog }}"
+          if [ "${{ steps.version.outputs.is_prerelease }}" = "true" ]; then
+            BODY="## ⚠️ Pre-Release
+
+          This is a pre-release version and may contain bugs or incomplete features.
+          Use at your own risk and please report any issues you encounter.
+
+          ## Changes
+
+          $CHANGELOG"
+          else
+            BODY="## Changes
+
+          $CHANGELOG"
+          fi
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          echo "$BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create release zip
+        run: |
+          cd custom_components
+          zip -r ../comfoclime.zip comfoclime/
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: "v${{ github.event.inputs.version }}"
-          name: "v${{ github.event.inputs.version }}"
-          body: |
-            ## Changes
-
-            ${{ steps.changelog.outputs.changelog }}
+          tag_name: "v${{ steps.version.outputs.version }}"
+          name: "v${{ steps.version.outputs.version }}"
+          body: ${{ steps.release_body.outputs.body }}
           draft: false
-          prerelease: false
+          prerelease: ${{ steps.version.outputs.is_prerelease }}
+          files: comfoclime.zip
