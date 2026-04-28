@@ -225,26 +225,210 @@ Body: {"data": [PropertyID, LSB, MSB]}
 # Payload: {"data": [9, 215, 0]}
 ```
 
-### Bekannte Properties – ComfoClime (Unit 22 = TEMPCONFIG)
+### Property-Scan Ergebnis (vollständiger Brute-Force-Scan, Units 1–31, SubUnits 1–3, Props 1–35)
 
-| Pfad | Beschreibung | Live-Wert | Typ | Schreibbar |
-|---|---|---|---|---|
-| `22/1/1` | Heizsaison aktiv | `1` | UINT8 | ✅ |
-| `22/1/9` | Heiz-Komforttemperatur | **22.0°C** | INT16, ×0.1 | ✅ |
-| `22/1/10` | Manuelle Zieltemperatur | **20.0°C** | INT16, ×0.1 | ✅ |
-| `22/1/29` | Temperaturprofil | `2` (Eco) | UINT8 | ✅ |
-| `1/1/4` | Seriennummer | `MBE083a8d0146e1` | STRING | ❌ |
+> Alle nicht aufgeführten Unit/SubUnit/Property-Kombinationen lieferten HTTP 500 oder Timeout.
 
-**Temperaturprofil-Codes:**
+---
+
+### ComfoClime 24 (`MBE083a8d0146e1`) – Alle gefundenen Properties
+
+#### Unit 1 / SubUnit 1 – Gerätekennzeichnung (NODE)
+
+| Pfad | Rohdaten | Dekodiert | Bedeutung |
+|---|---|---|---|
+| `1/1/1` | `[1]` | u8=1 | Zonen-ID |
+| `1/1/2` | `[20]` | u8=20 | modelTypeId (20=ComfoClime) |
+| `1/1/3` | `[1]` | u8=1 | Produktvariante |
+| `1/1/4` | `[77,66,69,48,...]` | `"MBE083a8d0146e1"` | **Seriennummer** |
+| `1/1/5` | `[1]` | u8=1 | Hardware-Version |
+| `1/1/6` | `[5,20,16,192]` | u32=3223302149 | Firmware-Versions-Blob |
+| `1/1/7` | `[0,120,16,192]` | u32=3223275520 | Unbekannt (Timestamp?) |
+| `1/1/20` | `[67,111,109,...]` | `"ComfoClime"` | Gerätename |
+| `1/1/21` | `[96,150,0,0]` | u32=6000 | Unbekannt (Uptime-Counter?) |
+
+#### Unit 2 / SubUnit 1 – Zeitplan/Modus
+
+| Pfad | Rohdaten | Dekodiert | Bedeutung |
+|---|---|---|---|
+| `2/1/1` | `[1]` | u8=1 | Aktiv-Flag |
+| `2/1/2` | `[0]` | u8=0 | Zeitplan-Modus (0=aus) |
+| `2/1/3` | `[0]` | u8=0 | Unbekannt |
+| `2/1/4` | `[0]` | u8=0 | Unbekannt |
+
+#### Unit 21 / SubUnit 1 – Status/Fehler
+
+| Pfad | Rohdaten | Dekodiert | Bedeutung |
+|---|---|---|---|
+| `21/1/1` | `[1]` | u8=1 | Status OK (1=kein Fehler) |
+
+#### Unit 22 / SubUnit 1 – Temperaturkonfiguration (TEMPCONFIG) ⭐
+
+Dies ist die wichtigste konfigurierbare Unit. Alle Werte korrespondieren direkt mit dem `/thermalprofile`-Endpunkt.
+
+| Pfad | Rohdaten | Dekodiert | Bedeutung | Thermalprofile-Feld | Schreibbar |
+|---|---|---|---|---|---|
+| `22/1/4` | `[100,0]` | 10.0°C | Kniepunkt Heizen | `heatingKneePointTemperature` | ✅ |
+| `22/1/5` | `[200,0]` | 20.0°C | Kniepunkt Kühlen | `coolingKneePointTemperature` | ✅ |
+| `22/1/8` | `[0]` | u8=0 | Kühlsaison-Flag (0=inaktiv?) | – | ✅ |
+| `22/1/9` | `[220,0]` | **22.0°C** | Heiz-Komforttemperatur | `heatingComfortTemperature` | ✅ |
+| `22/1/10` | `[200,0]` | **20.0°C** | Manuelle Zieltemperatur | `temperature.manualTemperature` | ✅ |
+| `22/1/11` | `[250,0]` | **25.0°C** | Temperaturlimit Kühlen | `coolingTemperatureLimit` | ✅ |
+| `22/1/13` | `[210,0]` | 21.0°C | Manuelle Temperatur (Spiegel?) | – | ✅ |
+| `22/1/15` | `[160,0]` | 16.0°C | Kühlschwelle | `coolingThresholdTemperature` | ✅ |
+| `22/1/16` | `[120,0]` | 12.0°C | Heizschwelle | `heatingThresholdTemperature` | ✅ |
+| `22/1/17` | `[94,1]` | 35.0°C | Max. Temperaturlimit | – | ❓ |
+| `22/1/18` | `[70]` | u8=70 | Unbekannt (70%?) | – | ❓ |
+| `22/1/20` | `[50,0]` | 5.0°C | Min. Außentemperatur (HP) | – | ❓ |
+| `22/1/21` | `[0]` | u8=0 | Flag | – | ❓ |
+| `22/1/23` | `[10]` | u8=10 | Unbekannt | – | ❓ |
+| `22/1/24` | `[3,0]` | 0.3°C | Hysterese? | – | ❓ |
+| `22/1/25` | `[0]` | u8=0 | Flag | – | ❓ |
+| `22/1/28` | `[2]` | u8=**2** | **Temperaturprofil** (2=Eco) | `temperatureProfile` | ✅ |
+
+**Temperaturprofil-Codes (P28):**
 - `0` = Komfort
 - `1` = Boost
 - `2` = Eco
 
-### Bekannte Properties – ComfoAirQ (Unit 1 = NODE)
+#### Unit 23 / SubUnit 1 – Wärmepumpen-Parameter ⭐ (NEU!)
 
-| Pfad | Beschreibung | Live-Wert |
+| Pfad | Rohdaten | Dekodiert | Vermutete Bedeutung |
+|---|---|---|---|
+| `23/1/4` | `[100,0]` | 10.0°C | Minimale Außentemperatur für HP-Betrieb |
+| `23/1/6` | `[50,0]` | 5.0°C | Min. Vorlauftemperatur (Kühlen) |
+| `23/1/7` | `[88,2]` | 60.0°C | Max. Vorlauftemperatur (Heizen) |
+| `23/1/9` | `[1,0]` | u16=1 | Unbekanntes Flag |
+| `23/1/11` | `[0]` | u8=0 | Flag |
+| `23/1/12` | `[0,0]` | u16=0 | Zähler oder Offset |
+| `23/1/13` | `[1,0]` | u16=1 | Flag |
+| `23/1/14` | `[180,0]` | 18.0°C | Min. Komforttemperatur (Kühlen?) |
+| `23/1/16` | `[100]` | u8=100 | Max. HP Leistung (100%) |
+| `23/1/18` | `[45,0]` | 4.5°C | Hysterese Heizen |
+| `23/1/19` | `[2,0]` | 0.2°C | Hysterese Kühlen |
+
+#### Unit 25 / SubUnit 1 – Modus-Setting
+
+| Pfad | Rohdaten | Dekodiert | Bedeutung |
+|---|---|---|---|
+| `25/1/1` | `[2,0]` | u16=2 | Aktiver Modus (2=Kühlen?) |
+
+#### Unit 26 / SubUnit 1 – Unbekannt
+
+| Pfad | Rohdaten | Dekodiert | Bedeutung |
+|---|---|---|---|
+| `26/1/1` | `[0]` | u8=0 | Flag |
+
+---
+
+### ComfoAirQ 350 (`SIT14276877`) – Alle gefundenen Properties
+
+#### Unit 1 / SubUnit 1 – Gerätekennzeichnung (NODE)
+
+| Pfad | Rohdaten | Dekodiert | Bedeutung |
+|---|---|---|---|
+| `1/1/4` | `[83,73,84,49,...]` | `"SIT14276877"` | **Seriennummer** |
+| `1/1/6` | `[0,48,16,192]` | u32=3222286336 | Firmware-Versions-Blob |
+| `1/1/9` | `[1,0,0,0]` | u32=1 | Unbekannt |
+| `1/1/12` | `[78,85,76,76,0]` | `"NULL"` | Leerer Name-Slot |
+| `1/1/20` | `[67,111,109,...]` | `"ComfoAirQ"` | Gerätename |
+
+#### Unit 2 / SubUnit 1 – Status
+
+| Pfad | Rohdaten | Dekodiert | Bedeutung |
+|---|---|---|---|
+| `2/1/1` | `[1]` | u8=1 | Aktiv-Flag |
+| `2/1/4` | `[0]` | u8=0 | Unbekannt |
+
+#### Unit 22 / SubUnit 2 – Bypass-Konfiguration ⭐ (NEU!)
+
+| Pfad | Rohdaten | Dekodiert | Bedeutung |
+|---|---|---|---|
+| `22/2/3` | `"100.0"` | 100.0% | **Bypass-Öffnung aktuell** (=T227=100%) |
+
+> SubUnit 2 bei CAQ – ungewöhnlich! Möglicherweise Bypass-Unit.
+
+#### Unit 23 / SubUnit 1 – Lüftungsstatus
+
+| Pfad | Rohdaten | Dekodiert | Bedeutung |
+|---|---|---|---|
+| `23/1/1` | `[1]` | u8=1 | Aktiv-Flag |
+
+#### Unit 25 / SubUnit 1 – Filterwarnung / CO₂
+
+| Pfad | Rohdaten | Dekodiert | Bedeutung |
+|---|---|---|---|
+| `25/1/2` | `[0]` | u8=0 | Filteralarm (0=kein Alarm) |
+| `25/1/3` | `[0]` | u8=0 | Unbekannt |
+| `25/1/5` | `[0]` | u8=0 | Unbekannt |
+
+#### Unit 26 / SubUnit 1 – Sprach-/Ländereinstellungen ⭐ (NEU!)
+
+| Pfad | Rohdaten | Dekodiert | Bedeutung |
+|---|---|---|---|
+| `26/1/4` | `[71,69,82,77,65,78,0]` | `"GERMAN"` | **Spracheinstellung** |
+| `26/1/5` | `[0]` | u8=0 | Sommerzeitoption |
+| `26/1/6` | `[0]` | u8=0 | Unbekannt |
+
+#### Unit 27 / SubUnit 1 – Alarmeinstellungen
+
+| Pfad | Rohdaten | Dekodiert | Bedeutung |
+|---|---|---|---|
+| `27/1/4` | `[1]` | u8=1 | Alarm aktiv |
+| `27/1/5` | `[0]` | u8=0 | Alarm-Typ? |
+
+#### Unit 28 / SubUnit 1 – Komforttemperatur-Basis
+
+| Pfad | Rohdaten | Dekodiert | Bedeutung |
+|---|---|---|---|
+| `28/1/3` | `[180,0]` | 18.0°C | Min. Komfortzuluft? |
+
+#### Unit 29 / SubUnit 1 – Soll-Temperatur
+
+| Pfad | Rohdaten | Dekodiert | Bedeutung |
+|---|---|---|---|
+| `29/1/1` | `[1]` | u8=1 | Aktiv-Flag |
+| `29/1/3` | `[200,0]` | 20.0°C | Solltemperatur |
+| `29/1/13` | `[0]` | u8=0 | Flag |
+
+#### Unit 30 / SubUnit 1 – Lüftungsregelung ⭐ (NEU! Sehr interessant)
+
+| Pfad | Rohdaten | Dekodiert | Vermutete Bedeutung |
+|---|---|---|---|
+| `30/1/1` | `[1]` | u8=1 | Aktiv-Flag |
+| `30/1/2` | `[15]` | u8=15 | Lüfterstufe intern (0-15?) |
+| `30/1/4` | `[100,0]` | 10.0°C | Außentemperatur-Grenzwert |
+| `30/1/6` | `[215,0]` | 21.5°C | Raumtemperatur-Istwert |
+| `30/1/7` | `[0]` | u8=0 | Betriebsflag |
+| `30/1/8` | `[215,0]` | 21.5°C | Raumtemperatur (Spiegel/P6) |
+| `30/1/11` | `[0,0]` | u16=0 | Zähler |
+| `30/1/13` | `[0]` | u8=0 | Flag |
+| `30/1/15` | `[0]` | u8=0 | Flag |
+| `30/1/18` | `[0,0]` | u16=0 | Zähler |
+| `30/1/20` | `[0,0]` | u16=0 | Zähler |
+| `30/1/24` | `[0,0]` | u16=0 | Energie-Zähler? |
+| `30/1/26` | `[48,4]` | u16=1072 | Energie oder rpm |
+| `30/1/30` | `[234,8]` | u16=2282 | Energie oder Luftmenge (m³/h × 10?) |
+
+> **Hinweis zu P30:** 2282 als Luftmenge wäre 228.2 m³/h (Faktor 0.1) – passt gut zu Dashboard `exhaustAirFlow: 208`. Oder 2282 ist ein Energie-Zähler-Wert.
+
+---
+
+### Property-Übersicht: Unit-Bedeutungen
+
+| Unit | ComfoClime (CC) | ComfoAirQ (CAQ) |
 |---|---|---|
-| `1/1/4` | Seriennummer | `SIT14276877` |
+| 1 | NODE (Gerätekennzeichnung) | NODE (Gerätekennzeichnung) |
+| 2 | Zeitplan/Modus | Status |
+| 21 | Status/Fehler | – |
+| 22 | TEMPCONFIG (Temperaturkonfiguration) | Bypass-Konfiguration (SubUnit 2!) |
+| 23 | Wärmepumpen-Parameter | Lüftungsstatus |
+| 25 | Modus-Setting | Filterwarnung |
+| 26 | Unbekannt | Sprach-/Ländereinstellungen |
+| 27 | – | Alarmeinstellungen |
+| 28 | – | Min. Komforttemperatur |
+| 29 | – | Solltemperatur |
+| 30 | – | Lüftungsregelung (viele Werte!) |
 
 ---
 
