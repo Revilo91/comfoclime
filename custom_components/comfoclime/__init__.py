@@ -103,9 +103,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         new_options["enabled_access_tracking"] = []
         needs_update = True
 
+    # Migrate: add core entity toggles if missing (legacy installs have no such key)
+    for core_key in ("enabled_climate", "enabled_fan"):
+        if core_key not in new_options:
+            new_options[core_key] = True
+            needs_update = True
+
     if needs_update:
         hass.config_entries.async_update_entry(entry, options=new_options)
-        entry.options = new_options
 
     # Get configuration options with defaults
     read_timeout = int(entry.options.get("read_timeout", 10))

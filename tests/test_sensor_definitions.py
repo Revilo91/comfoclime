@@ -1,6 +1,7 @@
 """Tests for sensor definitions in entities/sensor_definitions.py"""
 
 from custom_components.comfoclime.entities.sensor_definitions import (
+    CONNECTED_DEVICE_PROPERTIES,
     CONNECTED_DEVICE_SENSORS,
     DASHBOARD_SENSORS,
     THERMALPROFILE_SENSORS,
@@ -231,16 +232,28 @@ class TestComfoClimeTelemetryByteCount:
         assert sensor.byte_count == 2
         assert sensor.diagnose is True
 
+    def test_4154_indoor_temperature(self):
+        """Telemetry 4154 = ComfoClime indoor temperature (INT16, 2 bytes, signed, faktor=0.1)."""
+        sensor = self._get_sensor_by_id(4154)
+        assert sensor is not None, "Sensor 4154 should exist"
+        assert sensor.translation_key == "indoor_temperature"
+        assert sensor.byte_count == 2
+        assert sensor.signed is True
+        assert sensor.faktor == 0.1
+        assert sensor.unit == "°C"
+        assert sensor.device_class == "temperature"
+
     def test_all_2byte_sensors_have_correct_byte_count(self):
         """Verify all sensors that should be 2 bytes are correctly set.
 
         Per upstream API docs, these telemetry IDs return 2-byte values:
-        4145, 4151, 4193, 4194, 4195, 4196, 4197, 4201,
+        4145, 4151, 4154, 4193, 4194, 4195, 4196, 4197, 4201,
         4202, 4203, 4204, 4205, 4206, 4207, 4208
         """
         two_byte_ids = {
             4145,
             4151,
+            4154,
             4193,
             4194,
             4195,
@@ -374,7 +387,7 @@ class TestComfoAirTelemetryByteCount:
 
     def test_all_2byte_sensors(self):
         """Verify all ComfoAir sensors that should be 2 bytes per PDO protocol."""
-        two_byte_ids = {121, 122, 128, 129, 130, 209, 275, 278}
+        two_byte_ids = {121, 122, 128, 129, 130, 192, 209, 275, 278}
         model_1_sensors = CONNECTED_DEVICE_SENSORS.get(1, [])
         for sensor in model_1_sensors:
             if sensor.telemetry_id in two_byte_ids:
@@ -382,6 +395,16 @@ class TestComfoAirTelemetryByteCount:
                     f"Sensor '{sensor.name}' (telemetry_id={sensor.telemetry_id}) "
                     f"should have byte_count=2 per PDO protocol, got {sensor.byte_count}"
                 )
+
+    def test_192_filter_days_remaining(self):
+        """PDO 192 = Filter days remaining (CN_UINT16, 2 bytes, unsigned)."""
+        sensor = self._get_sensor_by_id(192)
+        assert sensor is not None, "Sensor 192 should exist"
+        assert sensor.translation_key == "filter_days_remaining"
+        assert sensor.byte_count == 2
+        assert sensor.signed is False
+        assert sensor.unit == "d"
+        assert sensor.device_class == "duration"
 
 
 class TestMonitoringSensorDefinitions:
@@ -425,3 +448,61 @@ class TestMonitoringSensorDefinitions:
         assert uptime_sensor.device_class == "duration"
         assert uptime_sensor.state_class == "measurement"
         assert uptime_sensor.entity_category == "diagnostic"
+
+
+class TestConnectedDeviceProperties:
+    """Test CONNECTED_DEVICE_PROPERTIES definitions."""
+
+    def test_model_20_properties_exist(self):
+        """Test that modelTypeId=20 (ComfoClime) has property definitions."""
+        assert 20 in CONNECTED_DEVICE_PROPERTIES, "ComfoClime (modelTypeId=20) should have property definitions"
+        assert len(CONNECTED_DEVICE_PROPERTIES[20]) > 0, "ComfoClime should have at least one property sensor"
+
+    def test_model_20_unit23_properties(self):
+        """Test that all expected Unit 23 heat pump properties are defined."""
+        expected_paths = {
+            "23/1/4",  # HP min outdoor temp
+            "23/1/6",  # HP min supply temp cooling
+            "23/1/7",  # HP max supply temp heating
+            "23/1/14",  # HP min comfort temp cooling
+            "23/1/16",  # HP max power
+            "23/1/18",  # HP hysteresis heating
+            "23/1/19",  # HP hysteresis cooling
+        }
+        model_20_paths = {p.path for p in CONNECTED_DEVICE_PROPERTIES[20]}
+        missing = expected_paths - model_20_paths
+        assert not missing, f"Missing Unit 23 property paths for modelTypeId=20: {sorted(missing)}"
+
+    def test_model_20_temperature_properties_are_correct(self):
+        """Test that temperature properties for ComfoClime have correct byte_count and faktor."""
+        temp_paths = {"23/1/4", "23/1/6", "23/1/7", "23/1/14", "23/1/18", "23/1/19"}
+        for prop in CONNECTED_DEVICE_PROPERTIES[20]:
+            if prop.path in temp_paths:
+                assert prop.byte_count == 2, f"Property {prop.path} should have byte_count=2"
+                assert prop.faktor == 0.1, f"Property {prop.path} should have faktor=0.1"
+                assert prop.unit == "°C", f"Property {prop.path} should have unit '°C'"
+
+    def test_model_20_max_power_property_is_1byte(self):
+        """Test that HP Max Power property (23/1/16) is 1 byte unsigned."""
+        prop = next((p for p in CONNECTED_DEVICE_PROPERTIES[20] if p.path == "23/1/16"), None)
+        assert prop is not None, "Property 23/1/16 (HP Max Power) should exist"
+        assert prop.byte_count == 1, "HP Max Power should be 1 byte (UINT8)"
+        assert prop.signed is False, "HP Max Power should be unsigned"
+        assert prop.unit == "%", "HP Max Power should use '%' unit"
+
+    def test_model_20_properties_are_diagnostic(self):
+        """Test that all ComfoClime Unit 23 properties have diagnostic category."""
+        for prop in CONNECTED_DEVICE_PROPERTIES[20]:
+            assert prop.entity_category is not None, (
+                f"Property {prop.path} should have entity_category set"
+            )
+            # EntityCategory.DIAGNOSTIC has string value "diagnostic"
+            assert str(prop.entity_category) in {"diagnostic", "EntityCategory.DIAGNOSTIC"}, (
+                f"Property {prop.path} should have entity_category=DIAGNOSTIC, got {prop.entity_category}"
+            )
+
+    def test_model_1_properties_still_present(self):
+        """Test that modelTypeId=1 (ComfoAir) property definitions are unchanged."""
+        assert 1 in CONNECTED_DEVICE_PROPERTIES, "ComfoAir (modelTypeId=1) should still have property definitions"
+        paths = {p.path for p in CONNECTED_DEVICE_PROPERTIES[1]}
+        assert "30/1/18" in paths, "Ventilation disbalance property (30/1/18) should still be defined"

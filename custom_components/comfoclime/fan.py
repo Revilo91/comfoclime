@@ -139,6 +139,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
             _LOGGER.warning("No main device with modelTypeId 20 found")
             return
 
+        if not entry.options.get("enabled_fan", True):
+            _LOGGER.debug("Fan entity disabled via options - skipping setup")
+            return
+
         # Note: Coordinator first refresh is already done in __init__.py
         # We don't need to await it here to avoid blocking fan setup
         fan_entity = ComfoClimeFan(hass, coordinator, api, main_device, entry)

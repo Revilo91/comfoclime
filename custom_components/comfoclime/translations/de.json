@@ -159,29 +159,50 @@
             "compressor_temperature": {
                 "name": "Kompressor Temperatur"
             },
-            "unknown_value_4198": {
-                "name": "Unbekannter Wert 4198"
-            },
             "high_pressure": {
                 "name": "Hochdruck (Warmseite)"
             },
             "expansion_valve": {
                 "name": "Expansionsventil"
             },
-            "unknown_value_4204": {
-                "name": "Unbekannter Wert 4204"
+            "hp_diagnostic_4204": {
+                "name": "Wärmepumpe Diagnose"
             },
             "low_pressure": {
                 "name": "Niederdruck (Kaltseite)"
             },
-            "unknown_value_4206": {
-                "name": "Unbekannter Wert 4206"
+            "hp_status_telemetry": {
+                "name": "Wärmepumpen-Status (Telemetrie)"
             },
             "four_way_valve_position": {
                 "name": "4-Wege-Ventil Position"
             },
-            "unknown_value_4208": {
-                "name": "Unbekannter Wert 4208"
+            "hp_diagnostic_4208": {
+                "name": "Wärmepumpe Diagnose"
+            },
+            "filter_days_remaining": {
+                "name": "Verbleibende Filtertage"
+            },
+            "hp_min_outdoor_temp": {
+                "name": "WP Min. Außentemperatur"
+            },
+            "hp_min_supply_temp_cooling": {
+                "name": "WP Min. Vorlauftemperatur Kühlen"
+            },
+            "hp_max_supply_temp_heating": {
+                "name": "WP Max. Vorlauftemperatur Heizen"
+            },
+            "hp_min_comfort_temp_cooling": {
+                "name": "WP Min. Komforttemperatur Kühlen"
+            },
+            "hp_max_power": {
+                "name": "WP Maximale Leistung"
+            },
+            "hp_hysteresis_heating": {
+                "name": "WP Hysterese Heizen"
+            },
+            "hp_hysteresis_cooling": {
+                "name": "WP Hysterese Kühlen"
             },
             "dashboard_accesses_per_minute": {
                 "name": "Dashboard Zugriffe pro Minute"
