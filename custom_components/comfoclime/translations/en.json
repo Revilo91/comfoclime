@@ -159,29 +159,26 @@
             "compressor_temperature": {
                 "name": "Compressor Temperature"
             },
-            "unknown_value_4198": {
-                "name": "Unknown Value 4198"
-            },
             "high_pressure": {
                 "name": "High Pressure (Hot Side)"
             },
             "expansion_valve": {
                 "name": "Expansion Valve"
             },
-            "unknown_value_4204": {
-                "name": "Unknown Value 4204"
+            "hp_diagnostic_4204": {
+                "name": "Heat Pump Diagnostic"
             },
             "low_pressure": {
                 "name": "Low Pressure (Cold Side)"
             },
-            "unknown_value_4206": {
-                "name": "Unknown Value 4206"
+            "hp_status_telemetry": {
+                "name": "Heat Pump Status (Telemetry)"
             },
             "four_way_valve_position": {
                 "name": "Four Way Valve Position"
             },
-            "unknown_value_4208": {
-                "name": "Unknown Value 4208"
+            "hp_diagnostic_4208": {
+                "name": "Heat Pump Diagnostic"
             },
             "filter_days_remaining": {
                 "name": "Filter Days Remaining"

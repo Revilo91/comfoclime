@@ -523,8 +523,8 @@ CONNECTED_DEVICE_SENSORS = {
             diagnose=True,
         ),
         TelemetrySensorDefinition(
-            name="Unknown value 4204",
-            translation_key="unknown_value_4204",
+            name="Heat Pump Diagnostic",
+            translation_key="hp_diagnostic_4204",
             state_class=SensorStateClass.MEASUREMENT,
             telemetry_id=4204,
             byte_count=2,
@@ -541,8 +541,8 @@ CONNECTED_DEVICE_SENSORS = {
             diagnose=True,
         ),
         TelemetrySensorDefinition(
-            name="Unknown value 4206",
-            translation_key="unknown_value_4206",
+            name="Heat Pump Status (Telemetry)",
+            translation_key="hp_status_telemetry",
             state_class=SensorStateClass.MEASUREMENT,
             telemetry_id=4206,
             byte_count=2,
@@ -557,8 +557,8 @@ CONNECTED_DEVICE_SENSORS = {
             diagnose=True,
         ),
         TelemetrySensorDefinition(
-            name="Unknown value 4208",
-            translation_key="unknown_value_4208",
+            name="Heat Pump Diagnostic",
+            translation_key="hp_diagnostic_4208",
             state_class=SensorStateClass.MEASUREMENT,
             telemetry_id=4208,
             byte_count=2,
