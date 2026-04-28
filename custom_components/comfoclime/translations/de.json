@@ -183,6 +183,30 @@
             "unknown_value_4208": {
                 "name": "Unbekannter Wert 4208"
             },
+            "filter_days_remaining": {
+                "name": "Verbleibende Filtertage"
+            },
+            "hp_min_outdoor_temp": {
+                "name": "WP Min. Außentemperatur"
+            },
+            "hp_min_supply_temp_cooling": {
+                "name": "WP Min. Vorlauftemperatur Kühlen"
+            },
+            "hp_max_supply_temp_heating": {
+                "name": "WP Max. Vorlauftemperatur Heizen"
+            },
+            "hp_min_comfort_temp_cooling": {
+                "name": "WP Min. Komforttemperatur Kühlen"
+            },
+            "hp_max_power": {
+                "name": "WP Maximale Leistung"
+            },
+            "hp_hysteresis_heating": {
+                "name": "WP Hysterese Heizen"
+            },
+            "hp_hysteresis_cooling": {
+                "name": "WP Hysterese Kühlen"
+            },
             "dashboard_accesses_per_minute": {
                 "name": "Dashboard Zugriffe pro Minute"
             },

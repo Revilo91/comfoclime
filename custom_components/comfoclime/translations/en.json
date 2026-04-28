@@ -183,6 +183,30 @@
             "unknown_value_4208": {
                 "name": "Unknown Value 4208"
             },
+            "filter_days_remaining": {
+                "name": "Filter Days Remaining"
+            },
+            "hp_min_outdoor_temp": {
+                "name": "HP Min. Outdoor Temperature"
+            },
+            "hp_min_supply_temp_cooling": {
+                "name": "HP Min. Supply Temperature Cooling"
+            },
+            "hp_max_supply_temp_heating": {
+                "name": "HP Max. Supply Temperature Heating"
+            },
+            "hp_min_comfort_temp_cooling": {
+                "name": "HP Min. Comfort Temperature Cooling"
+            },
+            "hp_max_power": {
+                "name": "HP Maximum Power"
+            },
+            "hp_hysteresis_heating": {
+                "name": "HP Hysteresis Heating"
+            },
+            "hp_hysteresis_cooling": {
+                "name": "HP Hysteresis Cooling"
+            },
             "dashboard_accesses_per_minute": {
                 "name": "Dashboard Accesses per Minute"
             },
