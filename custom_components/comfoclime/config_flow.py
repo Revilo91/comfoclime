@@ -71,6 +71,44 @@ DEFAULT_INTER_SENSOR_DELAY = 0.3
 DEFAULT_WRITE_COOLDOWN = 2.0
 DEFAULT_REQUEST_DEBOUNCE = 0.3
 
+_BULK_ACTION_OPTIONS = [
+    selector.SelectOptionDict(value="custom", label="Benutzerdefiniert"),
+    selector.SelectOptionDict(value="all", label="Alle auswählen"),
+    selector.SelectOptionDict(value="none", label="Keine auswählen"),
+]
+
+
+def _split_options_by_model_name(options: list[dict[str, str]]) -> dict[str, list[dict[str, str]]]:
+    """Split option list by model prefix in label for visual separation."""
+    grouped: dict[str, list[dict[str, str]]] = {
+        "comfoclime": [],
+        "comfoairq": [],
+        "other": [],
+    }
+    for opt in options:
+        label = opt.get("label", "")
+        if "ComfoClime •" in label:
+            grouped["comfoclime"].append(opt)
+        elif "ComfoAirQ •" in label:
+            grouped["comfoairq"].append(opt)
+        else:
+            grouped["other"].append(opt)
+    return grouped
+
+
+def _extract_option_values(options: list[dict[str, str]]) -> list[str]:
+    """Return option values preserving list order."""
+    return [opt["value"] for opt in options]
+
+
+def _apply_bulk_action(action: str, selected_values: list[str], all_values: list[str]) -> list[str]:
+    """Apply per-section bulk action to a selection list."""
+    if action == "all":
+        return list(all_values)
+    if action == "none":
+        return []
+    return list(selected_values)
+
 
 def _get_default_entity_options() -> dict[str, Any]:
     """Get default entity options for initial setup."""
@@ -154,8 +192,8 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
                             errors["host"] = "no_uuid"
                         else:
                             errors["host"] = "no_response"
-                except (TimeoutError, aiohttp.ClientError) as err:
-                    _LOGGER.error("Connection error during reconfigure: %s", err)
+                except TimeoutError, aiohttp.ClientError:
+                    _LOGGER.exception("Connection error during reconfigure")
                     errors["host"] = "cannot_connect"
 
         # Show form with current host as default
@@ -286,6 +324,17 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         self._pending_changes.update(data)
         self._has_changes = True
 
+    @staticmethod
+    def _add_bulk_action_selector(schema_dict: dict, key: str) -> None:
+        """Add bulk action selector for a multi-select key."""
+        schema_dict[vol.Optional(f"{key}_bulk_action", default="custom")] = selector.SelectSelector(
+            selector.SelectSelectorConfig(
+                options=_BULK_ACTION_OPTIONS,
+                multiple=False,
+                mode=selector.SelectSelectorMode.DROPDOWN,
+            )
+        )
+
     async def async_step_save_and_exit(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Save all pending changes and exit."""
         new_options = {**self.entry.options, **self._pending_changes}
@@ -309,7 +358,84 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         """Handle all entity selection in one page with multiple selectors."""
         _LOGGER.debug("===== async_step_entities CALLED =====")
 
+        # Get all sensor options
+        dashboard_options = get_dashboard_sensors()
+        thermalprofile_options = get_thermalprofile_sensors()
+        monitoring_options = get_monitoring_sensors()
+        connected_telemetry_options = get_connected_device_telemetry_sensors()
+        connected_properties_options = get_connected_device_properties_sensors()
+        connected_definition_options = get_connected_device_definition_sensors()
+        access_tracking_options = get_access_tracking_sensors()
+
+        # Split connected-device options by model for visual separation
+        telemetry_by_model = _split_options_by_model_name(connected_telemetry_options)
+        properties_by_model = _split_options_by_model_name(connected_properties_options)
+        definition_by_model = _split_options_by_model_name(connected_definition_options)
+
+        # Get switch, number, select options
+        all_switch_options = get_switches()
+        switch_options = [opt for opt in all_switch_options if opt["value"].startswith("switches_")]
+
+        all_number_options = get_numbers()
+        number_options = [opt for opt in all_number_options if opt["value"].startswith("numbers_")]
+
+        all_select_options = get_selects()
+        select_options = [opt for opt in all_select_options if opt["value"].startswith("selects_")]
+
         if user_input is not None:
+            normalized_input = dict(user_input)
+
+            section_option_values = {
+                "enabled_dashboard": _extract_option_values(dashboard_options),
+                "enabled_thermalprofile": _extract_option_values(thermalprofile_options),
+                "enabled_monitoring": _extract_option_values(monitoring_options),
+                "enabled_access_tracking": _extract_option_values(access_tracking_options),
+                "enabled_switches": _extract_option_values(switch_options),
+                "enabled_numbers": _extract_option_values(number_options),
+                "enabled_selects": _extract_option_values(select_options),
+                "enabled_connected_device_telemetry_comfoclime": _extract_option_values(
+                    telemetry_by_model["comfoclime"]
+                ),
+                "enabled_connected_device_telemetry_comfoairq": _extract_option_values(
+                    telemetry_by_model["comfoairq"]
+                ),
+                "enabled_connected_device_telemetry_other": _extract_option_values(telemetry_by_model["other"]),
+                "enabled_connected_device_properties_comfoclime": _extract_option_values(
+                    properties_by_model["comfoclime"]
+                ),
+                "enabled_connected_device_properties_comfoairq": _extract_option_values(properties_by_model["comfoairq"]),
+                "enabled_connected_device_properties_other": _extract_option_values(properties_by_model["other"]),
+                "enabled_connected_device_definition_comfoclime": _extract_option_values(
+                    definition_by_model["comfoclime"]
+                ),
+                "enabled_connected_device_definition_comfoairq": _extract_option_values(definition_by_model["comfoairq"]),
+                "enabled_connected_device_definition_other": _extract_option_values(definition_by_model["other"]),
+            }
+
+            for key, all_values in section_option_values.items():
+                action = normalized_input.pop(f"{key}_bulk_action", "custom")
+                selected = normalized_input.get(key, [])
+                if not isinstance(selected, list):
+                    selected = []
+                normalized_input[key] = _apply_bulk_action(action, selected, all_values)
+
+            # Merge model-separated connected-device selections into persisted option keys
+            normalized_input["enabled_connected_device_telemetry"] = (
+                normalized_input.pop("enabled_connected_device_telemetry_comfoclime", [])
+                + normalized_input.pop("enabled_connected_device_telemetry_comfoairq", [])
+                + normalized_input.pop("enabled_connected_device_telemetry_other", [])
+            )
+            normalized_input["enabled_connected_device_properties"] = (
+                normalized_input.pop("enabled_connected_device_properties_comfoclime", [])
+                + normalized_input.pop("enabled_connected_device_properties_comfoairq", [])
+                + normalized_input.pop("enabled_connected_device_properties_other", [])
+            )
+            normalized_input["enabled_connected_device_definition"] = (
+                normalized_input.pop("enabled_connected_device_definition_comfoclime", [])
+                + normalized_input.pop("enabled_connected_device_definition_comfoairq", [])
+                + normalized_input.pop("enabled_connected_device_definition_other", [])
+            )
+
             # Multi-select fields that are completely cleared by the user may be
             # omitted from user_input by the frontend. Ensure all expected
             # multi-select keys exist so an explicit empty list is saved.
@@ -326,36 +452,17 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 "enabled_selects",
             ]
             for key in expected_keys:
-                user_input.setdefault(key, [])
+                normalized_input.setdefault(key, [])
             # Bool keys: default True when not submitted
             for key in ("enabled_climate", "enabled_fan"):
-                user_input.setdefault(key, True)
+                normalized_input.setdefault(key, True)
 
             _LOGGER.info("User submitted entity selection")
-            self._update_pending(user_input)
+            self._update_pending(normalized_input)
             return await self.async_step_init()
 
         errors: dict[str, str] = {}
         try:
-            # Get all sensor options
-            dashboard_options = get_dashboard_sensors()
-            thermalprofile_options = get_thermalprofile_sensors()
-            monitoring_options = get_monitoring_sensors()
-            connected_telemetry_options = get_connected_device_telemetry_sensors()
-            connected_properties_options = get_connected_device_properties_sensors()
-            connected_definition_options = get_connected_device_definition_sensors()
-            access_tracking_options = get_access_tracking_sensors()
-
-            # Get switch, number, select options
-            all_switch_options = get_switches()
-            switch_options = [opt for opt in all_switch_options if opt["value"].startswith("switches_")]
-
-            all_number_options = get_numbers()
-            number_options = [opt for opt in all_number_options if opt["value"].startswith("numbers_")]
-
-            all_select_options = get_selects()
-            select_options = [opt for opt in all_select_options if opt["value"].startswith("selects_")]
-
             # Get current enabled values - Sensors
             dashboard_enabled = self._get_current_value(
                 "enabled_dashboard", [opt["value"] for opt in dashboard_options]
@@ -379,6 +486,48 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 "enabled_connected_device_definition",
                 [opt["value"] for opt in connected_definition_options],
             )
+
+            telemetry_comfoclime_values = _extract_option_values(telemetry_by_model["comfoclime"])
+            telemetry_comfoairq_values = _extract_option_values(telemetry_by_model["comfoairq"])
+            telemetry_other_values = _extract_option_values(telemetry_by_model["other"])
+
+            properties_comfoclime_values = _extract_option_values(properties_by_model["comfoclime"])
+            properties_comfoairq_values = _extract_option_values(properties_by_model["comfoairq"])
+            properties_other_values = _extract_option_values(properties_by_model["other"])
+
+            definition_comfoclime_values = _extract_option_values(definition_by_model["comfoclime"])
+            definition_comfoairq_values = _extract_option_values(definition_by_model["comfoairq"])
+            definition_other_values = _extract_option_values(definition_by_model["other"])
+
+            connected_telemetry_enabled_comfoclime = [
+                value for value in connected_telemetry_enabled if value in telemetry_comfoclime_values
+            ]
+            connected_telemetry_enabled_comfoairq = [
+                value for value in connected_telemetry_enabled if value in telemetry_comfoairq_values
+            ]
+            connected_telemetry_enabled_other = [
+                value for value in connected_telemetry_enabled if value in telemetry_other_values
+            ]
+
+            connected_properties_enabled_comfoclime = [
+                value for value in connected_properties_enabled if value in properties_comfoclime_values
+            ]
+            connected_properties_enabled_comfoairq = [
+                value for value in connected_properties_enabled if value in properties_comfoairq_values
+            ]
+            connected_properties_enabled_other = [
+                value for value in connected_properties_enabled if value in properties_other_values
+            ]
+
+            connected_definition_enabled_comfoclime = [
+                value for value in connected_definition_enabled if value in definition_comfoclime_values
+            ]
+            connected_definition_enabled_comfoairq = [
+                value for value in connected_definition_enabled if value in definition_comfoairq_values
+            ]
+            connected_definition_enabled_other = [
+                value for value in connected_definition_enabled if value in definition_other_values
+            ]
             access_tracking_enabled = self._get_current_value(
                 "enabled_access_tracking", []
             )  # Diagnostic, empty by default
@@ -408,6 +557,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 )
+                self._add_bulk_action_selector(schema_dict, "enabled_dashboard")
 
             if thermalprofile_options:
                 schema_dict[vol.Optional("enabled_thermalprofile", default=thermalprofile_enabled)] = (
@@ -419,6 +569,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         )
                     )
                 )
+                self._add_bulk_action_selector(schema_dict, "enabled_thermalprofile")
 
             if monitoring_options:
                 schema_dict[vol.Optional("enabled_monitoring", default=monitoring_enabled)] = selector.SelectSelector(
@@ -428,48 +579,142 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 )
+                self._add_bulk_action_selector(schema_dict, "enabled_monitoring")
 
-            if connected_telemetry_options:
+            if telemetry_by_model["comfoclime"]:
                 schema_dict[
                     vol.Optional(
-                        "enabled_connected_device_telemetry",
-                        default=connected_telemetry_enabled,
+                        "enabled_connected_device_telemetry_comfoclime",
+                        default=connected_telemetry_enabled_comfoclime,
                     )
                 ] = selector.SelectSelector(
                     selector.SelectSelectorConfig(
-                        options=connected_telemetry_options,
+                        options=telemetry_by_model["comfoclime"],
                         multiple=True,
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 )
+                self._add_bulk_action_selector(schema_dict, "enabled_connected_device_telemetry_comfoclime")
 
-            if connected_properties_options:
+            if telemetry_by_model["comfoairq"]:
                 schema_dict[
                     vol.Optional(
-                        "enabled_connected_device_properties",
-                        default=connected_properties_enabled,
+                        "enabled_connected_device_telemetry_comfoairq",
+                        default=connected_telemetry_enabled_comfoairq,
                     )
                 ] = selector.SelectSelector(
                     selector.SelectSelectorConfig(
-                        options=connected_properties_options,
+                        options=telemetry_by_model["comfoairq"],
                         multiple=True,
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 )
+                self._add_bulk_action_selector(schema_dict, "enabled_connected_device_telemetry_comfoairq")
 
-            if connected_definition_options:
+            if telemetry_by_model["other"]:
                 schema_dict[
                     vol.Optional(
-                        "enabled_connected_device_definition",
-                        default=connected_definition_enabled,
+                        "enabled_connected_device_telemetry_other",
+                        default=connected_telemetry_enabled_other,
                     )
                 ] = selector.SelectSelector(
                     selector.SelectSelectorConfig(
-                        options=connected_definition_options,
+                        options=telemetry_by_model["other"],
                         multiple=True,
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 )
+                self._add_bulk_action_selector(schema_dict, "enabled_connected_device_telemetry_other")
+
+            if properties_by_model["comfoclime"]:
+                schema_dict[
+                    vol.Optional(
+                        "enabled_connected_device_properties_comfoclime",
+                        default=connected_properties_enabled_comfoclime,
+                    )
+                ] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=properties_by_model["comfoclime"],
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+                self._add_bulk_action_selector(schema_dict, "enabled_connected_device_properties_comfoclime")
+
+            if properties_by_model["comfoairq"]:
+                schema_dict[
+                    vol.Optional(
+                        "enabled_connected_device_properties_comfoairq",
+                        default=connected_properties_enabled_comfoairq,
+                    )
+                ] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=properties_by_model["comfoairq"],
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+                self._add_bulk_action_selector(schema_dict, "enabled_connected_device_properties_comfoairq")
+
+            if properties_by_model["other"]:
+                schema_dict[
+                    vol.Optional(
+                        "enabled_connected_device_properties_other",
+                        default=connected_properties_enabled_other,
+                    )
+                ] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=properties_by_model["other"],
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+                self._add_bulk_action_selector(schema_dict, "enabled_connected_device_properties_other")
+
+            if definition_by_model["comfoclime"]:
+                schema_dict[
+                    vol.Optional(
+                        "enabled_connected_device_definition_comfoclime",
+                        default=connected_definition_enabled_comfoclime,
+                    )
+                ] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=definition_by_model["comfoclime"],
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+                self._add_bulk_action_selector(schema_dict, "enabled_connected_device_definition_comfoclime")
+
+            if definition_by_model["comfoairq"]:
+                schema_dict[
+                    vol.Optional(
+                        "enabled_connected_device_definition_comfoairq",
+                        default=connected_definition_enabled_comfoairq,
+                    )
+                ] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=definition_by_model["comfoairq"],
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+                self._add_bulk_action_selector(schema_dict, "enabled_connected_device_definition_comfoairq")
+
+            if definition_by_model["other"]:
+                schema_dict[
+                    vol.Optional(
+                        "enabled_connected_device_definition_other",
+                        default=connected_definition_enabled_other,
+                    )
+                ] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=definition_by_model["other"],
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+                self._add_bulk_action_selector(schema_dict, "enabled_connected_device_definition_other")
 
             if access_tracking_options:
                 schema_dict[vol.Optional("enabled_access_tracking", default=access_tracking_enabled)] = (
@@ -481,6 +726,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         )
                     )
                 )
+                self._add_bulk_action_selector(schema_dict, "enabled_access_tracking")
 
             # Switches
             if switch_options:
@@ -491,6 +737,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 )
+                self._add_bulk_action_selector(schema_dict, "enabled_switches")
 
             # Numbers
             if number_options:
@@ -501,6 +748,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 )
+                self._add_bulk_action_selector(schema_dict, "enabled_numbers")
 
             # Selects
             if select_options:
@@ -511,6 +759,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 )
+                self._add_bulk_action_selector(schema_dict, "enabled_selects")
 
             # Core entities (single bool per entity)
             schema_dict[
@@ -530,7 +779,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 step_id="entities",
                 data_schema=vol.Schema(schema_dict),
                 description_placeholders={
-                    "info": "Wähle die Entities aus, die aktiviert werden sollen. Jede Kategorie kann separat konfiguriert werden."
+                    "info": "Wähle die Entities aus, die aktiviert werden sollen. Pro Bereich gibt es eine Aktion für Alle/Keine/Benutzerdefiniert. Verbundene Geräte sind nach ComfoClime und ComfoAirQ getrennt."
                 },
                 errors=errors,
             )
