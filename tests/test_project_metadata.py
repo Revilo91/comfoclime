@@ -69,6 +69,13 @@ def test_hacs_minimum_does_not_exceed_dev_home_assistant_version() -> None:
     assert minimum_version <= dev_version
 
 
+def test_hacs_does_not_force_release_zip_install() -> None:
+    hacs = _read_hacs()
+
+    assert "zip_release" not in hacs
+    assert "filename" not in hacs
+
+
 def test_python_and_ruff_targets_are_aligned() -> None:
     pyproject = _read_pyproject()
 
