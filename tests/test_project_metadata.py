@@ -13,6 +13,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = REPO_ROOT / "custom_components" / "comfoclime" / "manifest.json"
 HACS_PATH = REPO_ROOT / "hacs.json"
 PYPROJECT_PATH = REPO_ROOT / "pyproject.toml"
+RELEASE_WORKFLOW_PATH = REPO_ROOT / ".github" / "workflows" / "release.yml"
 
 
 def _read_manifest() -> dict[str, object]:
@@ -25,6 +26,10 @@ def _read_hacs() -> dict[str, object]:
 
 def _read_pyproject() -> dict[str, object]:
     return tomllib.loads(PYPROJECT_PATH.read_text(encoding="utf-8"))
+
+
+def _read_release_workflow() -> str:
+    return RELEASE_WORKFLOW_PATH.read_text(encoding="utf-8")
 
 
 def test_manifest_and_pyproject_versions_match() -> None:
@@ -72,3 +77,9 @@ def test_python_and_ruff_targets_are_aligned() -> None:
 
     assert match is not None
     assert pyproject["tool"]["ruff"]["target-version"] == f"py{match.group(1)}{match.group(2)}"
+
+
+def test_release_zip_contains_hacs_integration_path() -> None:
+    workflow = _read_release_workflow()
+
+    assert "zip -r comfoclime.zip custom_components/comfoclime/" in workflow
