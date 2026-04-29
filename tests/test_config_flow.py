@@ -167,7 +167,7 @@ def test_apply_bulk_action_all_none_custom():
 
 @pytest.mark.asyncio
 async def test_options_entities_bulk_and_model_split_normalization():
-    """Entities step stores merged connected-device options and honors bulk actions."""
+    """Bulk actions apply values and keep user on entities page for review."""
     entry = MagicMock()
     entry.options = {}
 
@@ -193,7 +193,6 @@ async def test_options_entities_bulk_and_model_split_normalization():
         patch("custom_components.comfoclime.config_flow.get_switches", return_value=[]),
         patch("custom_components.comfoclime.config_flow.get_numbers", return_value=[]),
         patch("custom_components.comfoclime.config_flow.get_selects", return_value=[]),
-        patch.object(flow, "async_step_init", new=AsyncMock(return_value={"type": FlowResultType.MENU})),
     ):
         result = await flow.async_step_entities(
             {
@@ -202,9 +201,37 @@ async def test_options_entities_bulk_and_model_split_normalization():
             }
         )
 
-    assert result["type"] == FlowResultType.MENU
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "entities"
     assert flow._pending_changes["enabled_connected_device_telemetry"] == ["sensors_connected_telemetry_t1"]
     assert flow._pending_changes["enabled_connected_device_properties"] == []
     assert flow._pending_changes["enabled_connected_device_definition"] == []
     assert flow._pending_changes["enabled_climate"] is True
     assert flow._pending_changes["enabled_fan"] is True
+
+
+@pytest.mark.asyncio
+async def test_options_entities_custom_submit_returns_menu():
+    """Custom submit without bulk action returns to options menu."""
+    entry = MagicMock()
+    entry.options = {}
+
+    flow = ComfoClimeOptionsFlow(entry)
+    flow.hass = MagicMock()
+
+    with (
+        patch("custom_components.comfoclime.config_flow.get_dashboard_sensors", return_value=[]),
+        patch("custom_components.comfoclime.config_flow.get_thermalprofile_sensors", return_value=[]),
+        patch("custom_components.comfoclime.config_flow.get_monitoring_sensors", return_value=[]),
+        patch("custom_components.comfoclime.config_flow.get_connected_device_telemetry_sensors", return_value=[]),
+        patch("custom_components.comfoclime.config_flow.get_connected_device_properties_sensors", return_value=[]),
+        patch("custom_components.comfoclime.config_flow.get_connected_device_definition_sensors", return_value=[]),
+        patch("custom_components.comfoclime.config_flow.get_access_tracking_sensors", return_value=[]),
+        patch("custom_components.comfoclime.config_flow.get_switches", return_value=[]),
+        patch("custom_components.comfoclime.config_flow.get_numbers", return_value=[]),
+        patch("custom_components.comfoclime.config_flow.get_selects", return_value=[]),
+        patch.object(flow, "async_step_init", new=AsyncMock(return_value={"type": FlowResultType.MENU})),
+    ):
+        result = await flow.async_step_entities({})
+
+    assert result["type"] == FlowResultType.MENU
