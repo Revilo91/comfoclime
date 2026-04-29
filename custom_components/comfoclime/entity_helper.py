@@ -691,7 +691,30 @@ def is_entity_enabled(options: dict, category: str, subcategory: str, entity_def
         subcategory,
     )
 
-    # Check new config flow format first (enabled_dashboard, enabled_thermalprofile, etc.)
+    # First: check category-level key (used by switches, numbers, selects).
+    # e.g. "enabled_switches", "enabled_numbers", "enabled_selects".
+    # Sensors do not have such a key (they use per-subcategory keys like
+    # "enabled_dashboard"), so this block is skipped for them.
+    category_key = f"enabled_{category}"
+    if category_key in options:
+        enabled_list = options.get(category_key, [])
+        if not enabled_list:
+            _LOGGER.debug(
+                "Entity '%s': %s list is empty, returning False",
+                entity_id,
+                category_key,
+            )
+            return False
+        result = entity_id in enabled_list
+        _LOGGER.debug(
+            "Entity '%s': checked in %s list, result=%s",
+            entity_id,
+            category_key,
+            result,
+        )
+        return result
+
+    # Check new config flow format for sensors (enabled_dashboard, enabled_thermalprofile, etc.)
     if subcategory:
         specific_key, enabled_list = _get_subcategory_option_key_and_value(options, subcategory)
         if specific_key is not None and enabled_list is not None:
@@ -704,27 +727,6 @@ def is_entity_enabled(options: dict, category: str, subcategory: str, entity_def
                 )
                 return False
             # Check if this entity is in the enabled list
-            result = entity_id in enabled_list
-            _LOGGER.debug(
-                "Entity '%s': checked in %s list, result=%s",
-                entity_id,
-                specific_key,
-                result,
-            )
-            return result
-
-    # Check for enabled_switches, enabled_numbers, enabled_selects (no subcategory)
-    if not subcategory:
-        specific_key = f"enabled_{category}"
-        if specific_key in options:
-            enabled_list = options.get(specific_key, [])
-            if not enabled_list:
-                _LOGGER.debug(
-                    "Entity '%s': %s list is empty, returning False",
-                    entity_id,
-                    specific_key,
-                )
-                return False
             result = entity_id in enabled_list
             _LOGGER.debug(
                 "Entity '%s': checked in %s list, result=%s",
@@ -789,25 +791,32 @@ def is_entity_category_enabled(options: dict, category: str, subcategory: str | 
         subcategory,
     )
 
-    # Check new config flow format first (enabled_dashboard, enabled_thermalprofile, etc.)
+    # First: check category-level key (used by switches, numbers, selects).
+    # For sensors this key does not exist, so this block is skipped.
+    category_key = f"enabled_{category}"
+    if category_key in options:
+        enabled_list = options.get(category_key, [])
+        if subcategory:
+            # For multi-subcategory categories (numbers, selects) we only count
+            # entries whose IDs belong to the requested subcategory.
+            prefix = f"{category}_{subcategory}_"
+            subcategory_entries = [x for x in enabled_list if x.startswith(prefix)]
+            result = len(subcategory_entries) > 0
+        else:
+            result = len(enabled_list) > 0
+        _LOGGER.debug(
+            "Category check: %s (subcategory=%s) has matching entries: %s",
+            category_key,
+            subcategory,
+            result,
+        )
+        return result
+
+    # Check new config flow format for sensors (enabled_dashboard, enabled_thermalprofile, etc.)
     if subcategory:
         specific_key, enabled_list = _get_subcategory_option_key_and_value(options, subcategory)
         if specific_key is not None and enabled_list is not None:
             # If the key exists, check if it has any values
-            result = len(enabled_list) > 0
-            _LOGGER.debug(
-                "Category check: %s has %d enabled entities, returning %s",
-                specific_key,
-                len(enabled_list),
-                result,
-            )
-            return result
-
-    # Check for enabled_switches, enabled_numbers, enabled_selects (no subcategory)
-    if not subcategory:
-        specific_key = f"enabled_{category}"
-        if specific_key in options:
-            enabled_list = options.get(specific_key, [])
             result = len(enabled_list) > 0
             _LOGGER.debug(
                 "Category check: %s has %d enabled entities, returning %s",

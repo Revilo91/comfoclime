@@ -384,3 +384,116 @@ def test_is_entity_category_enabled_prefers_new_connected_device_key_over_legacy
     }
 
     assert is_entity_category_enabled(options, "sensors", "connected_telemetry") is False
+
+
+# ---------------------------------------------------------------------------
+# Switch / Number / Select: category-level option keys (enabled_switches etc.)
+# ---------------------------------------------------------------------------
+
+def test_is_entity_enabled_switch_all_subcategory_disabled():
+    """Disabling a switch via enabled_switches must be respected."""
+    from custom_components.comfoclime.entities.switch_definitions import SwitchDefinition
+
+    switch_def = SwitchDefinition(
+        key="temperature.status",
+        name="Automatic Comfort Temperature",
+        translation_key="automatic_comfort_temperature",
+        endpoint="thermal_profile",
+    )
+    # Only "season.status" switch is enabled - "temperature.status" is disabled
+    season_switch_id = _make_sensor_id("switches", "all", SwitchDefinition(
+        key="season.status", name="x", translation_key="x", endpoint="thermal_profile"
+    ))
+    options = {"enabled_switches": [season_switch_id]}
+
+    assert is_entity_enabled(options, "switches", "all", switch_def) is False
+
+
+def test_is_entity_enabled_switch_all_subcategory_enabled():
+    """A switch present in enabled_switches is considered enabled."""
+    from custom_components.comfoclime.entities.switch_definitions import SwitchDefinition
+
+    switch_def = SwitchDefinition(
+        key="temperature.status",
+        name="Automatic Comfort Temperature",
+        translation_key="automatic_comfort_temperature",
+        endpoint="thermal_profile",
+    )
+    entity_id = _make_sensor_id("switches", "all", switch_def)
+    options = {"enabled_switches": [entity_id]}
+
+    assert is_entity_enabled(options, "switches", "all", switch_def) is True
+
+
+def test_is_entity_enabled_switch_all_subcategory_empty_list():
+    """Empty enabled_switches list means no switches are enabled."""
+    from custom_components.comfoclime.entities.switch_definitions import SwitchDefinition
+
+    switch_def = SwitchDefinition(
+        key="hpstandby",
+        name="Heatpump on/off",
+        translation_key="heatpump_onoff",
+        endpoint="dashboard",
+        invert=True,
+    )
+    options = {"enabled_switches": []}
+
+    assert is_entity_enabled(options, "switches", "all", switch_def) is False
+    assert is_entity_category_enabled(options, "switches", "all") is False
+
+
+def test_is_entity_category_enabled_switches_with_entries():
+    """is_entity_category_enabled returns True when enabled_switches has entries."""
+    entity_id = "switches_all_season_status"
+    options = {"enabled_switches": [entity_id]}
+
+    assert is_entity_category_enabled(options, "switches", "all") is True
+
+
+def test_is_entity_enabled_number_thermal_profile_disabled():
+    """A number not in enabled_numbers must be disabled."""
+    from custom_components.comfoclime.entities.number_definitions import NumberDefinition
+
+    number_def = NumberDefinition(
+        key="heatingThermalProfileSeasonData.comfortTemperature",
+        name="Heating Comfort Temperature",
+        translation_key="heating_comfort_temperature",
+        min=15, max=25, step=0.5,
+    )
+    options = {"enabled_numbers": []}  # nothing enabled
+
+    assert is_entity_enabled(options, "numbers", "thermal_profile", number_def) is False
+    assert is_entity_category_enabled(options, "numbers", "thermal_profile") is False
+
+
+def test_is_entity_enabled_number_thermal_profile_enabled():
+    """A number present in enabled_numbers is considered enabled."""
+    from custom_components.comfoclime.entities.number_definitions import NumberDefinition
+
+    number_def = NumberDefinition(
+        key="heatingThermalProfileSeasonData.comfortTemperature",
+        name="Heating Comfort Temperature",
+        translation_key="heating_comfort_temperature",
+        min=15, max=25, step=0.5,
+    )
+    entity_id = _make_sensor_id("numbers", "thermal_profile", number_def)
+    options = {"enabled_numbers": [entity_id]}
+
+    assert is_entity_enabled(options, "numbers", "thermal_profile", number_def) is True
+    assert is_entity_category_enabled(options, "numbers", "thermal_profile") is True
+
+
+def test_is_entity_category_enabled_numbers_subcategory_filter():
+    """Category check for a subcategory only counts matching prefix entries."""
+    from custom_components.comfoclime.entities.number_definitions import NumberDefinition
+
+    tp_def = NumberDefinition(
+        key="heatingThermalProfileSeasonData.comfortTemperature",
+        name="x", translation_key="x", min=15, max=25, step=0.5,
+    )
+    tp_id = _make_sensor_id("numbers", "thermal_profile", tp_def)
+    # Only thermal_profile numbers enabled; connected_properties subcategory should be False
+    options = {"enabled_numbers": [tp_id]}
+
+    assert is_entity_category_enabled(options, "numbers", "thermal_profile") is True
+    assert is_entity_category_enabled(options, "numbers", "connected_properties") is False

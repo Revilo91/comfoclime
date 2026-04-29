@@ -217,6 +217,9 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
         polling_interval: int = DEFAULT_POLLING_INTERVAL_SECONDS,
         access_tracker: AccessTracker | None = None,
         config_entry=None,
+        sensor_delay: float = 0.3,
+        circuit_breaker_threshold: int = 5,
+        circuit_breaker_cooldown: int = 300,
     ) -> None:
         """Initialize the telemetry data coordinator.
 
@@ -226,6 +229,9 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
             devices: List of connected devices
             polling_interval: Update interval in seconds (default: 60)
             access_tracker: Optional access tracker for monitoring API calls
+            sensor_delay: Seconds to sleep between individual sensor reads (protects Airduino)
+            circuit_breaker_threshold: Consecutive failures before circuit breaker trips
+            circuit_breaker_cooldown: Seconds to pause polling after circuit breaker trips
         """
         super().__init__(
             hass,
@@ -242,6 +248,12 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
         self._telemetry_registry: dict[str, dict[str, TelemetryRegistryEntry]] = {}
         # Lock to prevent concurrent modifications during iteration
         self._registry_lock = asyncio.Lock()
+        # Device protection: inter-sensor delay and circuit breaker
+        self._sensor_delay = sensor_delay
+        self._circuit_breaker_threshold = circuit_breaker_threshold
+        self._circuit_breaker_cooldown = circuit_breaker_cooldown
+        self._consecutive_failures: int = 0
+        self._circuit_open_until: datetime | None = None
 
     async def register_telemetry(
         self,
@@ -289,13 +301,29 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
 
         Iterates through all registered telemetry sensors and fetches
         their values from the API. Failed reads are logged but don't
-        fail the entire update.
+        fail the entire update. Includes inter-sensor delay and circuit
+        breaker to protect the Airduino from request overload.
 
         Returns:
             Nested dictionary: {device_uuid: {telemetry_id: value}}
             Values are None if read failed.
         """
+        # Circuit breaker: skip update if device is in cooldown
+        if self._circuit_open_until is not None:
+            if datetime.now(UTC) < self._circuit_open_until:
+                remaining = (self._circuit_open_until - datetime.now(UTC)).seconds
+                _LOGGER.warning(
+                    "Telemetry circuit breaker open, skipping update (cooldown: %ds remaining)",
+                    remaining,
+                )
+                return self.data or {}
+            # Cooldown expired, reset circuit breaker
+            _LOGGER.info("Telemetry circuit breaker reset, resuming polling")
+            self._circuit_open_until = None
+            self._consecutive_failures = 0
+
         result: dict[str, dict[str, Any]] = {}
+        cycle_had_any_success = False
 
         async with self._registry_lock:
             # Create a snapshot of the registry while holding the lock
@@ -318,6 +346,7 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
                     )
                     # Store the scaled value for backward compatibility with sensors
                     result[device_uuid][telemetry_id] = reading.scaled_value if reading else None
+                    cycle_had_any_success = True
                     # Track each individual API call
                     if self._access_tracker:
                         self._access_tracker.record_access("Telemetry")
@@ -329,6 +358,29 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
                         e,
                     )
                     result[device_uuid][telemetry_id] = None
+
+                # Inter-sensor delay: spread requests to protect Airduino
+                if self._sensor_delay > 0:
+                    await asyncio.sleep(self._sensor_delay)
+
+        # Circuit breaker: count consecutive complete-failure cycles
+        if not cycle_had_any_success and registry_snapshot:
+            self._consecutive_failures += 1
+            _LOGGER.warning(
+                "Telemetry update: all reads failed (consecutive failures: %d/%d)",
+                self._consecutive_failures,
+                self._circuit_breaker_threshold,
+            )
+            if self._consecutive_failures >= self._circuit_breaker_threshold:
+                self._circuit_open_until = datetime.now(UTC) + timedelta(seconds=self._circuit_breaker_cooldown)
+                _LOGGER.error(
+                    "Telemetry circuit breaker tripped after %d consecutive failures. "
+                    "Pausing telemetry polling for %d seconds to protect device.",
+                    self._consecutive_failures,
+                    self._circuit_breaker_cooldown,
+                )
+        else:
+            self._consecutive_failures = 0
 
         self.last_update_success_time = datetime.now(UTC)
         return result
@@ -397,6 +449,9 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
         polling_interval: int = DEFAULT_POLLING_INTERVAL_SECONDS,
         access_tracker: AccessTracker | None = None,
         config_entry=None,
+        sensor_delay: float = 0.3,
+        circuit_breaker_threshold: int = 5,
+        circuit_breaker_cooldown: int = 300,
     ) -> None:
         """Initialize the property data coordinator.
 
@@ -406,6 +461,9 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
             devices: List of connected devices
             polling_interval: Update interval in seconds (default: 60)
             access_tracker: Optional access tracker for monitoring API calls
+            sensor_delay: Seconds to sleep between individual property reads (protects Airduino)
+            circuit_breaker_threshold: Consecutive failures before circuit breaker trips
+            circuit_breaker_cooldown: Seconds to pause polling after circuit breaker trips
         """
         super().__init__(
             hass,
@@ -422,6 +480,12 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
         self._property_registry: dict[str, dict[str, PropertyRegistryEntry]] = {}
         # Lock to prevent concurrent modifications during iteration
         self._registry_lock = asyncio.Lock()
+        # Device protection: inter-sensor delay and circuit breaker
+        self._sensor_delay = sensor_delay
+        self._circuit_breaker_threshold = circuit_breaker_threshold
+        self._circuit_breaker_cooldown = circuit_breaker_cooldown
+        self._consecutive_failures: int = 0
+        self._circuit_open_until: datetime | None = None
 
     async def register_property(
         self,
@@ -469,13 +533,29 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
 
         Iterates through all registered properties and fetches their
         values from the API. Failed reads are logged but don't fail
-        the entire update.
+        the entire update. Includes inter-sensor delay and circuit
+        breaker to protect the Airduino from request overload.
 
         Returns:
             Nested dictionary: {device_uuid: {property_path: value}}
             Values are None if read failed.
         """
+        # Circuit breaker: skip update if device is in cooldown
+        if self._circuit_open_until is not None:
+            if datetime.now(UTC) < self._circuit_open_until:
+                remaining = (self._circuit_open_until - datetime.now(UTC)).seconds
+                _LOGGER.warning(
+                    "Property circuit breaker open, skipping update (cooldown: %ds remaining)",
+                    remaining,
+                )
+                return self.data or {}
+            # Cooldown expired, reset circuit breaker
+            _LOGGER.info("Property circuit breaker reset, resuming polling")
+            self._circuit_open_until = None
+            self._consecutive_failures = 0
+
         result: dict[str, dict[str, Any]] = {}
+        cycle_had_any_success = False
 
         async with self._registry_lock:
             # Create a snapshot of the registry while holding the lock
@@ -498,6 +578,7 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
                     )
                     # Store the scaled value for backward compatibility with sensors
                     result[device_uuid][property_path] = reading.scaled_value if reading else None
+                    cycle_had_any_success = True
                     # Track each individual API call
                     if self._access_tracker:
                         self._access_tracker.record_access("Property")
@@ -509,6 +590,29 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
                         e,
                     )
                     result[device_uuid][property_path] = None
+
+                # Inter-sensor delay: spread requests to protect Airduino
+                if self._sensor_delay > 0:
+                    await asyncio.sleep(self._sensor_delay)
+
+        # Circuit breaker: count consecutive complete-failure cycles
+        if not cycle_had_any_success and registry_snapshot:
+            self._consecutive_failures += 1
+            _LOGGER.warning(
+                "Property update: all reads failed (consecutive failures: %d/%d)",
+                self._consecutive_failures,
+                self._circuit_breaker_threshold,
+            )
+            if self._consecutive_failures >= self._circuit_breaker_threshold:
+                self._circuit_open_until = datetime.now(UTC) + timedelta(seconds=self._circuit_breaker_cooldown)
+                _LOGGER.error(
+                    "Property circuit breaker tripped after %d consecutive failures. "
+                    "Pausing property polling for %d seconds to protect device.",
+                    self._consecutive_failures,
+                    self._circuit_breaker_cooldown,
+                )
+        else:
+            self._consecutive_failures = 0
 
         self.last_update_success_time = datetime.now(UTC)
         return result

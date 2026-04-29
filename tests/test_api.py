@@ -29,7 +29,7 @@ class TestComfoClimeAPI:
         assert api.write_timeout == 30  # Default value
         assert api._rate_limiter.cache_ttl == 30.0  # Default value
         assert api.max_retries == 3  # Default value
-        assert api._rate_limiter.min_request_interval == 0.1  # Default value
+        assert api._rate_limiter.min_request_interval == 0.5  # Default value
         assert api._rate_limiter.write_cooldown == 2.0  # Default value
         assert api._rate_limiter.request_debounce == 0.3  # Default value
 
@@ -390,7 +390,7 @@ class TestComfoClimeAPIRateLimiting:
             DEFAULT_WRITE_COOLDOWN,
         )
 
-        assert DEFAULT_MIN_REQUEST_INTERVAL == 0.1
+        assert DEFAULT_MIN_REQUEST_INTERVAL == 0.5
         assert DEFAULT_WRITE_COOLDOWN == 2.0
         assert DEFAULT_REQUEST_DEBOUNCE == 0.3
 

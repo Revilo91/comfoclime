@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import aiohttp
 from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import config_validation as cv, entity_registry as er
 
 from .comfoclime_api import ComfoClimeAPI
 from .coordinator import (
@@ -17,7 +17,26 @@ from .coordinator import (
     ComfoClimeTelemetryCoordinator,
     ComfoClimeThermalprofileCoordinator,
 )
-from .entity_helper import get_access_tracking_sensors, get_device_model_type_id
+from .entities.number_definitions import CONNECTED_DEVICE_NUMBER_PROPERTIES, NUMBER_ENTITIES
+from .entities.select_definitions import PROPERTY_SELECT_ENTITIES, SELECT_ENTITIES
+from .entities.sensor_definitions import (
+    ACCESS_TRACKING_SENSORS,
+    CONNECTED_DEVICE_DEFINITION_SENSORS,
+    CONNECTED_DEVICE_PROPERTIES,
+    CONNECTED_DEVICE_SENSORS,
+    DASHBOARD_SENSORS,
+    MONITORING_SENSORS,
+    TELEMETRY_SENSORS,
+    THERMALPROFILE_SENSORS,
+)
+from .entities.switch_definitions import SWITCHES
+from .entity_helper import (
+    get_access_tracking_sensors,
+    get_device_model_type_id,
+    get_device_uuid,
+    is_entity_category_enabled,
+    is_entity_enabled,
+)
 from .infrastructure import AccessTracker
 from .services import async_register_services
 
@@ -31,6 +50,151 @@ PLATFORMS = ["sensor", "switch", "number", "select", "fan", "climate"]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _get_expected_unique_ids(entry: ConfigEntry, devices: list, main_device) -> set[str]:
+    """Return the set of unique IDs expected for the current options state."""
+    expected: set[str] = set()
+    entry_id = entry.entry_id
+
+    # Core entities
+    if entry.options.get("enabled_climate", True):
+        expected.add(f"{entry_id}_climate")
+    if entry.options.get("enabled_fan", True):
+        expected.add(f"{entry_id}_fan_speed")
+
+    # Sensor categories from dashboard/thermalprofile/monitoring
+    if is_entity_category_enabled(entry.options, "sensors", "dashboard"):
+        for sensor_def in DASHBOARD_SENSORS:
+            if is_entity_enabled(entry.options, "sensors", "dashboard", sensor_def):
+                expected.add(f"{entry_id}_dashboard_{sensor_def.key.replace('.', '_')}")
+
+    if is_entity_category_enabled(entry.options, "sensors", "thermalprofile"):
+        for sensor_def in THERMALPROFILE_SENSORS:
+            if is_entity_enabled(entry.options, "sensors", "thermalprofile", sensor_def):
+                expected.add(f"{entry_id}_thermalprofile_{sensor_def.key.replace('.', '_')}")
+
+    if is_entity_category_enabled(entry.options, "sensors", "monitoring"):
+        for sensor_def in MONITORING_SENSORS:
+            if is_entity_enabled(entry.options, "sensors", "monitoring", sensor_def):
+                expected.add(f"{entry_id}_monitoring_{sensor_def.key.replace('.', '_')}")
+
+    # Fixed telemetry sensors are always created for the main device when uuid is available.
+    main_device_uuid = get_device_uuid(main_device) if main_device else None
+    if main_device_uuid and main_device_uuid != "NULL":
+        for sensor_def in TELEMETRY_SENSORS:
+            expected.add(f"{entry_id}_telemetry_{sensor_def['id']}")
+
+    diagnostics_enabled = entry.options.get("enable_diagnostics", False)
+
+    # Connected device entities
+    for device in devices:
+        model_id = get_device_model_type_id(device)
+        device_uuid = get_device_uuid(device)
+        if not device_uuid or device_uuid == "NULL":
+            continue
+
+        telemetry_defs = CONNECTED_DEVICE_SENSORS.get(model_id, [])
+        if telemetry_defs and is_entity_category_enabled(entry.options, "sensors", "connected_telemetry"):
+            for sensor_def in telemetry_defs:
+                if not is_entity_enabled(entry.options, "sensors", "connected_telemetry", sensor_def):
+                    continue
+                if sensor_def.diagnose and not diagnostics_enabled:
+                    continue
+                expected.add(f"{entry_id}_telemetry_{sensor_def.telemetry_id}")
+
+        property_defs = CONNECTED_DEVICE_PROPERTIES.get(model_id, [])
+        if property_defs and is_entity_category_enabled(entry.options, "sensors", "connected_properties"):
+            for prop_def in property_defs:
+                if not is_entity_enabled(entry.options, "sensors", "connected_properties", prop_def):
+                    continue
+                expected.add(f"{entry_id}_property_{prop_def.path.replace('/', '_')}")
+
+        definition_defs = CONNECTED_DEVICE_DEFINITION_SENSORS.get(model_id, [])
+        if definition_defs and is_entity_category_enabled(entry.options, "sensors", "connected_definition"):
+            for def_sensor in definition_defs:
+                if not is_entity_enabled(entry.options, "sensors", "connected_definition", def_sensor):
+                    continue
+                expected.add(f"{entry_id}_definition_{device_uuid}_{def_sensor.key}")
+
+        number_defs = CONNECTED_DEVICE_NUMBER_PROPERTIES.get(model_id, [])
+        if number_defs and is_entity_category_enabled(entry.options, "numbers", "connected_properties"):
+            for number_def in number_defs:
+                if not is_entity_enabled(entry.options, "numbers", "connected_properties", number_def):
+                    continue
+                expected.add(f"{entry_id}_property_number_{number_def.property.replace('/', '_')}")
+
+        select_defs = PROPERTY_SELECT_ENTITIES.get(model_id, [])
+        if select_defs and is_entity_category_enabled(entry.options, "selects", "connected_properties"):
+            for select_def in select_defs:
+                if not is_entity_enabled(entry.options, "selects", "connected_properties", select_def):
+                    continue
+                expected.add(f"{entry_id}_select_{select_def.path.replace('/', '_')}")
+
+    # Access tracking sensors
+    if is_entity_category_enabled(entry.options, "sensors", "access_tracking"):
+        for sensor_def in ACCESS_TRACKING_SENSORS:
+            if not is_entity_enabled(entry.options, "sensors", "access_tracking", sensor_def):
+                continue
+            if sensor_def.coordinator:
+                expected.add(f"{entry_id}_access_{sensor_def.coordinator.lower()}_{sensor_def.metric}")
+            else:
+                expected.add(f"{entry_id}_access_{sensor_def.metric}")
+
+    # Switches
+    if is_entity_category_enabled(entry.options, "switches", "all"):
+        for switch_def in SWITCHES:
+            if is_entity_enabled(entry.options, "switches", "all", switch_def):
+                expected.add(f"{entry_id}_switch_{switch_def.key}")
+
+    # Numbers (thermal profile)
+    if is_entity_category_enabled(entry.options, "numbers", "thermal_profile"):
+        for number_def in NUMBER_ENTITIES:
+            if is_entity_enabled(entry.options, "numbers", "thermal_profile", number_def):
+                expected.add(f"{entry_id}_{number_def.key}")
+
+    # Selects (thermal profile)
+    if is_entity_category_enabled(entry.options, "selects", "thermal_profile"):
+        for select_def in SELECT_ENTITIES:
+            if is_entity_enabled(entry.options, "selects", "thermal_profile", select_def):
+                expected.add(f"{entry_id}_select_{select_def.key}")
+
+    return expected
+
+
+def _cleanup_disabled_entities_from_registry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Remove entities from the registry that are no longer expected by options."""
+    entry_data = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+    if not entry_data:
+        return
+
+    devices = entry_data.get("devices", [])
+    main_device = entry_data.get("main_device")
+    expected_unique_ids = _get_expected_unique_ids(entry, devices, main_device)
+
+    registry = er.async_get(hass)
+    registry_entries = er.async_entries_for_config_entry(registry, entry.entry_id)
+
+    removed_count = 0
+    for reg_entry in registry_entries:
+        unique_id = reg_entry.unique_id
+        if not unique_id:
+            continue
+        if not unique_id.startswith(f"{entry.entry_id}_"):
+            continue
+        if unique_id in expected_unique_ids:
+            continue
+
+        _LOGGER.debug(
+            "Removing stale entity from registry after options change: entity_id=%s unique_id=%s",
+            reg_entry.entity_id,
+            unique_id,
+        )
+        registry.async_remove(reg_entry.entity_id)
+        removed_count += 1
+
+    if removed_count:
+        _LOGGER.info("Removed %s stale entities after options update", removed_count)
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
@@ -118,19 +282,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     polling_interval = int(entry.options.get("polling_interval", 60))
     cache_ttl = int(entry.options.get("cache_ttl", 30))
     max_retries = int(entry.options.get("max_retries", 3))
-    min_request_interval = entry.options.get("min_request_interval", 0.1)
+    min_request_interval = entry.options.get("min_request_interval", 0.5)
+    inter_sensor_delay = entry.options.get("inter_sensor_delay", 0.3)
     write_cooldown = entry.options.get("write_cooldown", 2.0)
     request_debounce = entry.options.get("request_debounce", 0.3)
 
     _LOGGER.debug(
         "Configuration loaded: read_timeout=%s, write_timeout=%s, polling_interval=%s, "
-        "cache_ttl=%s, max_retries=%s, min_request_interval=%s, write_cooldown=%s, request_debounce=%s",
+        "cache_ttl=%s, max_retries=%s, min_request_interval=%s, inter_sensor_delay=%s, "
+        "write_cooldown=%s, request_debounce=%s",
         read_timeout,
         write_timeout,
         polling_interval,
         cache_ttl,
         max_retries,
         min_request_interval,
+        inter_sensor_delay,
         write_cooldown,
         request_debounce,
     )
@@ -235,26 +402,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
 
     # Parallel initialization of all coordinators for faster startup
-    _LOGGER.debug("Starting parallel first refresh of all coordinators")
-    results = await asyncio.gather(
-        dashboard_coordinator.async_config_entry_first_refresh(),
-        thermalprofile_coordinator.async_config_entry_first_refresh(),
-        monitoring_coordinator.async_config_entry_first_refresh(),
-        definitioncoordinator.async_config_entry_first_refresh(),
-        return_exceptions=True,
-    )
-
-    # Check for failures and raise ConfigEntryNotReady if any coordinator failed
-    for i, result in enumerate(results):
-        if isinstance(result, Exception):
-            coordinator_names = [
-                "dashboard",
-                "thermalprofile",
-                "monitoring",
-                "definition",
-            ]
-            _LOGGER.error("Coordinator %s first refresh failed: %s", coordinator_names[i], result)
-            raise ConfigEntryNotReady(f"Failed to initialize {coordinator_names[i]} coordinator: {result}") from result
+    # NOTE: We run them sequentially with a small stagger to prevent simultaneous
+    # bursts of API requests on the first poll cycle after startup.
+    _LOGGER.debug("Starting staggered first refresh of all coordinators")
+    coordinator_init_pairs = [
+        (dashboard_coordinator, "dashboard"),
+        (thermalprofile_coordinator, "thermalprofile"),
+        (monitoring_coordinator, "monitoring"),
+        (definitioncoordinator, "definition"),
+    ]
+    for coord, name in coordinator_init_pairs:
+        try:
+            await coord.async_config_entry_first_refresh()
+        except Exception as exc:
+            _LOGGER.error("Coordinator %s first refresh failed: %s", name, exc)
+            raise ConfigEntryNotReady(f"Failed to initialize {name} coordinator: {exc}") from exc
+        # Small stagger between coordinator starts to desynchronize their poll cycles
+        await asyncio.sleep(1)
 
     _LOGGER.debug("Coordinator first refresh completed successfully")
 
@@ -266,10 +430,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         telemetry_interval,
         access_tracker=access_tracker,
         config_entry=entry,
+        sensor_delay=inter_sensor_delay,
     )
     _LOGGER.debug(
-        "Created ComfoClimeTelemetryCoordinator with polling_interval=%s",
+        "Created ComfoClimeTelemetryCoordinator with polling_interval=%s, sensor_delay=%s",
         telemetry_interval,
+        inter_sensor_delay,
     )
 
     propcoordinator = ComfoClimePropertyCoordinator(
@@ -279,10 +445,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         property_interval,
         access_tracker=access_tracker,
         config_entry=entry,
+        sensor_delay=inter_sensor_delay,
     )
     _LOGGER.debug(
-        "Created ComfoClimePropertyCoordinator with polling_interval=%s",
+        "Created ComfoClimePropertyCoordinator with polling_interval=%s, sensor_delay=%s",
         property_interval,
+        inter_sensor_delay,
     )
 
     hass.data[DOMAIN][entry.entry_id] = {
@@ -332,4 +500,5 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    _cleanup_disabled_entities_from_registry(hass, entry)
     await hass.config_entries.async_reload(entry.entry_id)

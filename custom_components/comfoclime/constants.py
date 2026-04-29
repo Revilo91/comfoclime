@@ -156,10 +156,22 @@ class APIDefaults(BaseModel):
         description="Cache time-to-live in seconds for telemetry and property reads",
     )
     MAX_RETRIES: int = Field(default=3, description="Number of retries for transient failures")
-    MIN_REQUEST_INTERVAL: float = Field(default=0.1, description="Minimum interval between API requests in seconds")
+    MIN_REQUEST_INTERVAL: float = Field(default=0.5, description="Minimum interval between API requests in seconds")
     WRITE_COOLDOWN: float = Field(default=2.0, description="Cooldown period after write operations in seconds")
     REQUEST_DEBOUNCE: float = Field(default=0.3, description="Debounce interval for repeated requests in seconds")
     POLLING_INTERVAL: int = Field(default=60, description="Default polling interval for coordinators in seconds")
+    INTER_SENSOR_DELAY: float = Field(
+        default=0.3,
+        description="Delay in seconds between individual sensor reads in batch coordinator loops (protects Airduino)",
+    )
+    CIRCUIT_BREAKER_THRESHOLD: int = Field(
+        default=5,
+        description="Number of consecutive complete update failures before circuit breaker trips",
+    )
+    CIRCUIT_BREAKER_COOLDOWN: int = Field(
+        default=300,
+        description="Seconds to pause polling after circuit breaker trips",
+    )
 
 
 # Create a default instance for easy access

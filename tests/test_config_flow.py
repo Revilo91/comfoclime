@@ -5,7 +5,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from homeassistant.data_entry_flow import FlowResultType
 
-from custom_components.comfoclime.config_flow import ComfoClimeConfigFlow
+from custom_components.comfoclime.config_flow import (
+    ComfoClimeConfigFlow,
+    ComfoClimeOptionsFlow,
+    _apply_bulk_action,
+    _split_options_by_model_name,
+)
 
 
 @pytest.mark.asyncio
@@ -134,3 +139,99 @@ async def test_user_flow_invalid_host():
     assert result["type"] == FlowResultType.FORM
     assert result["step_id"] == "user"
     assert result["errors"]["host"] == "invalid_host"
+
+
+def test_split_options_by_model_name_groups_correctly():
+    """Options are grouped into ComfoClime, ComfoAirQ and fallback buckets."""
+    options = [
+        {"value": "a", "label": "📡 ComfoClime • Temp"},
+        {"value": "b", "label": "📡 ComfoAirQ • Fan"},
+        {"value": "c", "label": "📡 Other Model • Value"},
+    ]
+
+    grouped = _split_options_by_model_name(options)
+
+    assert grouped["comfoclime"] == [{"value": "a", "label": "📡 ComfoClime • Temp"}]
+    assert grouped["comfoairq"] == [{"value": "b", "label": "📡 ComfoAirQ • Fan"}]
+    assert grouped["other"] == [{"value": "c", "label": "📡 Other Model • Value"}]
+
+
+def test_apply_bulk_action_all_none_custom():
+    """Bulk action helper returns expected selection payload."""
+    all_values = ["x", "y", "z"]
+
+    assert _apply_bulk_action("all", ["x"], all_values) == ["x", "y", "z"]
+    assert _apply_bulk_action("none", ["x"], all_values) == []
+    assert _apply_bulk_action("custom", ["x"], all_values) == ["x"]
+
+
+@pytest.mark.asyncio
+async def test_options_entities_bulk_and_model_split_normalization():
+    """Bulk actions apply values and keep user on entities page for review."""
+    entry = MagicMock()
+    entry.options = {}
+
+    flow = ComfoClimeOptionsFlow(entry)
+    flow.hass = MagicMock()
+
+    telemetry_options = [
+        {"value": "sensors_connected_telemetry_t1", "label": "📡 ComfoClime • T1"},
+        {"value": "sensors_connected_telemetry_t2", "label": "📡 ComfoAirQ • T2"},
+    ]
+
+    with (
+        patch("custom_components.comfoclime.config_flow.get_dashboard_sensors", return_value=[]),
+        patch("custom_components.comfoclime.config_flow.get_thermalprofile_sensors", return_value=[]),
+        patch("custom_components.comfoclime.config_flow.get_monitoring_sensors", return_value=[]),
+        patch(
+            "custom_components.comfoclime.config_flow.get_connected_device_telemetry_sensors",
+            return_value=telemetry_options,
+        ),
+        patch("custom_components.comfoclime.config_flow.get_connected_device_properties_sensors", return_value=[]),
+        patch("custom_components.comfoclime.config_flow.get_connected_device_definition_sensors", return_value=[]),
+        patch("custom_components.comfoclime.config_flow.get_access_tracking_sensors", return_value=[]),
+        patch("custom_components.comfoclime.config_flow.get_switches", return_value=[]),
+        patch("custom_components.comfoclime.config_flow.get_numbers", return_value=[]),
+        patch("custom_components.comfoclime.config_flow.get_selects", return_value=[]),
+    ):
+        result = await flow.async_step_entities(
+            {
+                "enabled_connected_device_telemetry_comfoclime_bulk_action": "all",
+                "enabled_connected_device_telemetry_comfoairq_bulk_action": "none",
+            }
+        )
+
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "entities"
+    assert flow._pending_changes["enabled_connected_device_telemetry"] == ["sensors_connected_telemetry_t1"]
+    assert flow._pending_changes["enabled_connected_device_properties"] == []
+    assert flow._pending_changes["enabled_connected_device_definition"] == []
+    assert flow._pending_changes["enabled_climate"] is True
+    assert flow._pending_changes["enabled_fan"] is True
+
+
+@pytest.mark.asyncio
+async def test_options_entities_custom_submit_returns_menu():
+    """Custom submit without bulk action returns to options menu."""
+    entry = MagicMock()
+    entry.options = {}
+
+    flow = ComfoClimeOptionsFlow(entry)
+    flow.hass = MagicMock()
+
+    with (
+        patch("custom_components.comfoclime.config_flow.get_dashboard_sensors", return_value=[]),
+        patch("custom_components.comfoclime.config_flow.get_thermalprofile_sensors", return_value=[]),
+        patch("custom_components.comfoclime.config_flow.get_monitoring_sensors", return_value=[]),
+        patch("custom_components.comfoclime.config_flow.get_connected_device_telemetry_sensors", return_value=[]),
+        patch("custom_components.comfoclime.config_flow.get_connected_device_properties_sensors", return_value=[]),
+        patch("custom_components.comfoclime.config_flow.get_connected_device_definition_sensors", return_value=[]),
+        patch("custom_components.comfoclime.config_flow.get_access_tracking_sensors", return_value=[]),
+        patch("custom_components.comfoclime.config_flow.get_switches", return_value=[]),
+        patch("custom_components.comfoclime.config_flow.get_numbers", return_value=[]),
+        patch("custom_components.comfoclime.config_flow.get_selects", return_value=[]),
+        patch.object(flow, "async_step_init", new=AsyncMock(return_value={"type": FlowResultType.MENU})),
+    ):
+        result = await flow.async_step_entities({})
+
+    assert result["type"] == FlowResultType.MENU

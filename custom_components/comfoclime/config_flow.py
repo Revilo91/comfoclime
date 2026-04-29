@@ -66,9 +66,66 @@ DEFAULT_WRITE_TIMEOUT = 30
 DEFAULT_POLLING_INTERVAL = 60
 DEFAULT_CACHE_TTL = 30
 DEFAULT_MAX_RETRIES = 3
-DEFAULT_MIN_REQUEST_INTERVAL = 0.1
+DEFAULT_MIN_REQUEST_INTERVAL = 0.5
+DEFAULT_INTER_SENSOR_DELAY = 0.3
 DEFAULT_WRITE_COOLDOWN = 2.0
 DEFAULT_REQUEST_DEBOUNCE = 0.3
+
+_BULK_ACTION_OPTIONS = [
+    selector.SelectOptionDict(value="custom", label="Benutzerdefiniert"),
+    selector.SelectOptionDict(value="all", label="Alle auswählen"),
+    selector.SelectOptionDict(value="none", label="Keine auswählen"),
+]
+
+
+def _split_options_by_model_name(options: list[dict[str, str]]) -> dict[str, list[dict[str, str]]]:
+    """Split option list by model prefix in label for visual separation."""
+    grouped: dict[str, list[dict[str, str]]] = {
+        "comfoclime": [],
+        "comfoairq": [],
+        "other": [],
+    }
+    for opt in options:
+        label = opt.get("label", "")
+        if "ComfoClime •" in label:
+            grouped["comfoclime"].append(opt)
+        elif "ComfoAirQ •" in label:
+            grouped["comfoairq"].append(opt)
+        else:
+            grouped["other"].append(opt)
+    return grouped
+
+
+def _extract_option_values(options: list[dict[str, str]]) -> list[str]:
+    """Return option values preserving list order."""
+    return [opt["value"] for opt in options]
+
+
+def _apply_bulk_action(action: str, selected_values: list[str], all_values: list[str]) -> list[str]:
+    """Apply per-section bulk action to a selection list."""
+    if action == "all":
+        return list(all_values)
+    if action == "none":
+        return []
+    return list(selected_values)
+
+
+def _apply_bulk_action_to_target(
+    data: dict[str, Any],
+    target_key: str,
+    all_values: list[str],
+) -> bool:
+    """Apply bulk action for one target key by directly filling its list value."""
+    action_key = f"{target_key}_bulk_action"
+    action = data.pop(action_key, None)
+    if action not in ("all", "none"):
+        return False
+
+    current = data.get(target_key, [])
+    if not isinstance(current, list):
+        current = []
+    data[target_key] = _apply_bulk_action(action, current, all_values)
+    return True
 
 
 def _get_default_entity_options() -> dict[str, Any]:
@@ -153,8 +210,8 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
                             errors["host"] = "no_uuid"
                         else:
                             errors["host"] = "no_response"
-                except (TimeoutError, aiohttp.ClientError) as err:
-                    _LOGGER.error("Connection error during reconfigure: %s", err)
+                except TimeoutError, aiohttp.ClientError:
+                    _LOGGER.exception("Connection error during reconfigure")
                     errors["host"] = "cannot_connect"
 
         # Show form with current host as default
@@ -212,6 +269,7 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
                                         "cache_ttl": DEFAULT_CACHE_TTL,
                                         "max_retries": DEFAULT_MAX_RETRIES,
                                         "min_request_interval": DEFAULT_MIN_REQUEST_INTERVAL,
+                                        "inter_sensor_delay": DEFAULT_INTER_SENSOR_DELAY,
                                         "write_cooldown": DEFAULT_WRITE_COOLDOWN,
                                         "request_debounce": DEFAULT_REQUEST_DEBOUNCE,
                                     }
@@ -284,6 +342,17 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         self._pending_changes.update(data)
         self._has_changes = True
 
+    @staticmethod
+    def _add_bulk_action_selector(schema_dict: dict, key: str) -> None:
+        """Add bulk action selector for a multi-select key."""
+        schema_dict[vol.Optional(f"{key}_bulk_action", default="custom")] = selector.SelectSelector(
+            selector.SelectSelectorConfig(
+                options=_BULK_ACTION_OPTIONS,
+                multiple=False,
+                mode=selector.SelectSelectorMode.LIST,
+            )
+        )
+
     async def async_step_save_and_exit(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Save all pending changes and exit."""
         new_options = {**self.entry.options, **self._pending_changes}
@@ -307,7 +376,100 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         """Handle all entity selection in one page with multiple selectors."""
         _LOGGER.debug("===== async_step_entities CALLED =====")
 
+        # Get all sensor options
+        dashboard_options = get_dashboard_sensors()
+        thermalprofile_options = get_thermalprofile_sensors()
+        monitoring_options = get_monitoring_sensors()
+        connected_telemetry_options = get_connected_device_telemetry_sensors()
+        connected_properties_options = get_connected_device_properties_sensors()
+        connected_definition_options = get_connected_device_definition_sensors()
+        access_tracking_options = get_access_tracking_sensors()
+
+        # Split connected-device options by model for visual separation
+        telemetry_by_model = _split_options_by_model_name(connected_telemetry_options)
+        properties_by_model = _split_options_by_model_name(connected_properties_options)
+        definition_by_model = _split_options_by_model_name(connected_definition_options)
+
+        # Get switch, number, select options
+        all_switch_options = get_switches()
+        switch_options = [opt for opt in all_switch_options if opt["value"].startswith("switches_")]
+
+        all_number_options = get_numbers()
+        number_options = [opt for opt in all_number_options if opt["value"].startswith("numbers_")]
+
+        all_select_options = get_selects()
+        select_options = [opt for opt in all_select_options if opt["value"].startswith("selects_")]
+
         if user_input is not None:
+            normalized_input = dict(user_input)
+            bulk_action_applied = False
+
+            bulk_targets = [
+                ("enabled_dashboard", _extract_option_values(dashboard_options)),
+                ("enabled_thermalprofile", _extract_option_values(thermalprofile_options)),
+                ("enabled_monitoring", _extract_option_values(monitoring_options)),
+                ("enabled_access_tracking", _extract_option_values(access_tracking_options)),
+                ("enabled_switches", _extract_option_values(switch_options)),
+                ("enabled_numbers", _extract_option_values(number_options)),
+                ("enabled_selects", _extract_option_values(select_options)),
+                (
+                    "enabled_connected_device_telemetry_comfoclime",
+                    _extract_option_values(telemetry_by_model["comfoclime"]),
+                ),
+                (
+                    "enabled_connected_device_telemetry_comfoairq",
+                    _extract_option_values(telemetry_by_model["comfoairq"]),
+                ),
+                (
+                    "enabled_connected_device_telemetry_other",
+                    _extract_option_values(telemetry_by_model["other"]),
+                ),
+                (
+                    "enabled_connected_device_properties_comfoclime",
+                    _extract_option_values(properties_by_model["comfoclime"]),
+                ),
+                (
+                    "enabled_connected_device_properties_comfoairq",
+                    _extract_option_values(properties_by_model["comfoairq"]),
+                ),
+                (
+                    "enabled_connected_device_properties_other",
+                    _extract_option_values(properties_by_model["other"]),
+                ),
+                (
+                    "enabled_connected_device_definition_comfoclime",
+                    _extract_option_values(definition_by_model["comfoclime"]),
+                ),
+                (
+                    "enabled_connected_device_definition_comfoairq",
+                    _extract_option_values(definition_by_model["comfoairq"]),
+                ),
+                (
+                    "enabled_connected_device_definition_other",
+                    _extract_option_values(definition_by_model["other"]),
+                ),
+            ]
+            for target_key, all_values in bulk_targets:
+                if _apply_bulk_action_to_target(normalized_input, target_key, all_values):
+                    bulk_action_applied = True
+
+            # Merge model-separated connected-device selections into persisted option keys
+            normalized_input["enabled_connected_device_telemetry"] = (
+                normalized_input.pop("enabled_connected_device_telemetry_comfoclime", [])
+                + normalized_input.pop("enabled_connected_device_telemetry_comfoairq", [])
+                + normalized_input.pop("enabled_connected_device_telemetry_other", [])
+            )
+            normalized_input["enabled_connected_device_properties"] = (
+                normalized_input.pop("enabled_connected_device_properties_comfoclime", [])
+                + normalized_input.pop("enabled_connected_device_properties_comfoairq", [])
+                + normalized_input.pop("enabled_connected_device_properties_other", [])
+            )
+            normalized_input["enabled_connected_device_definition"] = (
+                normalized_input.pop("enabled_connected_device_definition_comfoclime", [])
+                + normalized_input.pop("enabled_connected_device_definition_comfoairq", [])
+                + normalized_input.pop("enabled_connected_device_definition_other", [])
+            )
+
             # Multi-select fields that are completely cleared by the user may be
             # omitted from user_input by the frontend. Ensure all expected
             # multi-select keys exist so an explicit empty list is saved.
@@ -324,36 +486,23 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 "enabled_selects",
             ]
             for key in expected_keys:
-                user_input.setdefault(key, [])
+                normalized_input.setdefault(key, [])
             # Bool keys: default True when not submitted
             for key in ("enabled_climate", "enabled_fan"):
-                user_input.setdefault(key, True)
+                normalized_input.setdefault(key, True)
 
             _LOGGER.info("User submitted entity selection")
-            self._update_pending(user_input)
+            self._update_pending(normalized_input)
+
+            # Keep user on the same page after quick actions so they can review
+            # and manually unselect/select individual entities.
+            if bulk_action_applied:
+                return await self.async_step_entities()
+
             return await self.async_step_init()
 
         errors: dict[str, str] = {}
         try:
-            # Get all sensor options
-            dashboard_options = get_dashboard_sensors()
-            thermalprofile_options = get_thermalprofile_sensors()
-            monitoring_options = get_monitoring_sensors()
-            connected_telemetry_options = get_connected_device_telemetry_sensors()
-            connected_properties_options = get_connected_device_properties_sensors()
-            connected_definition_options = get_connected_device_definition_sensors()
-            access_tracking_options = get_access_tracking_sensors()
-
-            # Get switch, number, select options
-            all_switch_options = get_switches()
-            switch_options = [opt for opt in all_switch_options if opt["value"].startswith("switches_")]
-
-            all_number_options = get_numbers()
-            number_options = [opt for opt in all_number_options if opt["value"].startswith("numbers_")]
-
-            all_select_options = get_selects()
-            select_options = [opt for opt in all_select_options if opt["value"].startswith("selects_")]
-
             # Get current enabled values - Sensors
             dashboard_enabled = self._get_current_value(
                 "enabled_dashboard", [opt["value"] for opt in dashboard_options]
@@ -377,6 +526,48 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 "enabled_connected_device_definition",
                 [opt["value"] for opt in connected_definition_options],
             )
+
+            telemetry_comfoclime_values = _extract_option_values(telemetry_by_model["comfoclime"])
+            telemetry_comfoairq_values = _extract_option_values(telemetry_by_model["comfoairq"])
+            telemetry_other_values = _extract_option_values(telemetry_by_model["other"])
+
+            properties_comfoclime_values = _extract_option_values(properties_by_model["comfoclime"])
+            properties_comfoairq_values = _extract_option_values(properties_by_model["comfoairq"])
+            properties_other_values = _extract_option_values(properties_by_model["other"])
+
+            definition_comfoclime_values = _extract_option_values(definition_by_model["comfoclime"])
+            definition_comfoairq_values = _extract_option_values(definition_by_model["comfoairq"])
+            definition_other_values = _extract_option_values(definition_by_model["other"])
+
+            connected_telemetry_enabled_comfoclime = [
+                value for value in connected_telemetry_enabled if value in telemetry_comfoclime_values
+            ]
+            connected_telemetry_enabled_comfoairq = [
+                value for value in connected_telemetry_enabled if value in telemetry_comfoairq_values
+            ]
+            connected_telemetry_enabled_other = [
+                value for value in connected_telemetry_enabled if value in telemetry_other_values
+            ]
+
+            connected_properties_enabled_comfoclime = [
+                value for value in connected_properties_enabled if value in properties_comfoclime_values
+            ]
+            connected_properties_enabled_comfoairq = [
+                value for value in connected_properties_enabled if value in properties_comfoairq_values
+            ]
+            connected_properties_enabled_other = [
+                value for value in connected_properties_enabled if value in properties_other_values
+            ]
+
+            connected_definition_enabled_comfoclime = [
+                value for value in connected_definition_enabled if value in definition_comfoclime_values
+            ]
+            connected_definition_enabled_comfoairq = [
+                value for value in connected_definition_enabled if value in definition_comfoairq_values
+            ]
+            connected_definition_enabled_other = [
+                value for value in connected_definition_enabled if value in definition_other_values
+            ]
             access_tracking_enabled = self._get_current_value(
                 "enabled_access_tracking", []
             )  # Diagnostic, empty by default
@@ -406,6 +597,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 )
+                self._add_bulk_action_selector(schema_dict, "enabled_dashboard")
 
             if thermalprofile_options:
                 schema_dict[vol.Optional("enabled_thermalprofile", default=thermalprofile_enabled)] = (
@@ -417,6 +609,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         )
                     )
                 )
+                self._add_bulk_action_selector(schema_dict, "enabled_thermalprofile")
 
             if monitoring_options:
                 schema_dict[vol.Optional("enabled_monitoring", default=monitoring_enabled)] = selector.SelectSelector(
@@ -426,48 +619,142 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 )
+                self._add_bulk_action_selector(schema_dict, "enabled_monitoring")
 
-            if connected_telemetry_options:
+            if telemetry_by_model["comfoclime"]:
                 schema_dict[
                     vol.Optional(
-                        "enabled_connected_device_telemetry",
-                        default=connected_telemetry_enabled,
+                        "enabled_connected_device_telemetry_comfoclime",
+                        default=connected_telemetry_enabled_comfoclime,
                     )
                 ] = selector.SelectSelector(
                     selector.SelectSelectorConfig(
-                        options=connected_telemetry_options,
+                        options=telemetry_by_model["comfoclime"],
                         multiple=True,
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 )
+                self._add_bulk_action_selector(schema_dict, "enabled_connected_device_telemetry_comfoclime")
 
-            if connected_properties_options:
+            if telemetry_by_model["comfoairq"]:
                 schema_dict[
                     vol.Optional(
-                        "enabled_connected_device_properties",
-                        default=connected_properties_enabled,
+                        "enabled_connected_device_telemetry_comfoairq",
+                        default=connected_telemetry_enabled_comfoairq,
                     )
                 ] = selector.SelectSelector(
                     selector.SelectSelectorConfig(
-                        options=connected_properties_options,
+                        options=telemetry_by_model["comfoairq"],
                         multiple=True,
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 )
+                self._add_bulk_action_selector(schema_dict, "enabled_connected_device_telemetry_comfoairq")
 
-            if connected_definition_options:
+            if telemetry_by_model["other"]:
                 schema_dict[
                     vol.Optional(
-                        "enabled_connected_device_definition",
-                        default=connected_definition_enabled,
+                        "enabled_connected_device_telemetry_other",
+                        default=connected_telemetry_enabled_other,
                     )
                 ] = selector.SelectSelector(
                     selector.SelectSelectorConfig(
-                        options=connected_definition_options,
+                        options=telemetry_by_model["other"],
                         multiple=True,
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 )
+                self._add_bulk_action_selector(schema_dict, "enabled_connected_device_telemetry_other")
+
+            if properties_by_model["comfoclime"]:
+                schema_dict[
+                    vol.Optional(
+                        "enabled_connected_device_properties_comfoclime",
+                        default=connected_properties_enabled_comfoclime,
+                    )
+                ] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=properties_by_model["comfoclime"],
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+                self._add_bulk_action_selector(schema_dict, "enabled_connected_device_properties_comfoclime")
+
+            if properties_by_model["comfoairq"]:
+                schema_dict[
+                    vol.Optional(
+                        "enabled_connected_device_properties_comfoairq",
+                        default=connected_properties_enabled_comfoairq,
+                    )
+                ] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=properties_by_model["comfoairq"],
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+                self._add_bulk_action_selector(schema_dict, "enabled_connected_device_properties_comfoairq")
+
+            if properties_by_model["other"]:
+                schema_dict[
+                    vol.Optional(
+                        "enabled_connected_device_properties_other",
+                        default=connected_properties_enabled_other,
+                    )
+                ] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=properties_by_model["other"],
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+                self._add_bulk_action_selector(schema_dict, "enabled_connected_device_properties_other")
+
+            if definition_by_model["comfoclime"]:
+                schema_dict[
+                    vol.Optional(
+                        "enabled_connected_device_definition_comfoclime",
+                        default=connected_definition_enabled_comfoclime,
+                    )
+                ] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=definition_by_model["comfoclime"],
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+                self._add_bulk_action_selector(schema_dict, "enabled_connected_device_definition_comfoclime")
+
+            if definition_by_model["comfoairq"]:
+                schema_dict[
+                    vol.Optional(
+                        "enabled_connected_device_definition_comfoairq",
+                        default=connected_definition_enabled_comfoairq,
+                    )
+                ] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=definition_by_model["comfoairq"],
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+                self._add_bulk_action_selector(schema_dict, "enabled_connected_device_definition_comfoairq")
+
+            if definition_by_model["other"]:
+                schema_dict[
+                    vol.Optional(
+                        "enabled_connected_device_definition_other",
+                        default=connected_definition_enabled_other,
+                    )
+                ] = selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=definition_by_model["other"],
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+                self._add_bulk_action_selector(schema_dict, "enabled_connected_device_definition_other")
 
             if access_tracking_options:
                 schema_dict[vol.Optional("enabled_access_tracking", default=access_tracking_enabled)] = (
@@ -479,6 +766,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         )
                     )
                 )
+                self._add_bulk_action_selector(schema_dict, "enabled_access_tracking")
 
             # Switches
             if switch_options:
@@ -489,6 +777,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 )
+                self._add_bulk_action_selector(schema_dict, "enabled_switches")
 
             # Numbers
             if number_options:
@@ -499,6 +788,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 )
+                self._add_bulk_action_selector(schema_dict, "enabled_numbers")
 
             # Selects
             if select_options:
@@ -509,6 +799,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 )
+                self._add_bulk_action_selector(schema_dict, "enabled_selects")
 
             # Core entities (single bool per entity)
             schema_dict[
@@ -528,7 +819,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 step_id="entities",
                 data_schema=vol.Schema(schema_dict),
                 description_placeholders={
-                    "info": "Wähle die Entities aus, die aktiviert werden sollen. Jede Kategorie kann separat konfiguriert werden."
+                    "info": "Wähle die Entities aus, die aktiviert werden sollen. Pro Bereich gibt es eine Aktion für Alle/Keine/Benutzerdefiniert. Verbundene Geräte sind nach ComfoClime und ComfoAirQ getrennt."
                 },
                 errors=errors,
             )
@@ -676,6 +967,18 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                         )
                     ),
                     vol.Optional(
+                        "inter_sensor_delay",
+                        default=self._get_current_value("inter_sensor_delay", DEFAULT_INTER_SENSOR_DELAY),
+                    ): selector.NumberSelector(
+                        selector.NumberSelectorConfig(
+                            min=0.0,
+                            max=5.0,
+                            step=0.1,
+                            mode=selector.NumberSelectorMode.BOX,
+                            unit_of_measurement="s",
+                        )
+                    ),
+                    vol.Optional(
                         "write_cooldown",
                         default=self._get_current_value("write_cooldown", DEFAULT_WRITE_COOLDOWN),
                     ): selector.NumberSelector(
@@ -738,12 +1041,18 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         _LOGGER.debug("===== async_step_entities_sensors_dashboard CALLED =====")
 
         if user_input is not None:
-            # Ensure empty selection is preserved when frontend omits the key
-            user_input.setdefault("enabled_dashboard", [])
-            _LOGGER.info(
-                f"User submitted dashboard sensor selection: {len(user_input.get('enabled_dashboard', []))} selected"
+            dashboard_options = get_dashboard_sensors()
+            normalized_input = dict(user_input)
+            bulk_applied = _apply_bulk_action_to_target(
+                normalized_input, "enabled_dashboard", _extract_option_values(dashboard_options)
             )
-            self._update_pending(user_input)
+            normalized_input.setdefault("enabled_dashboard", [])
+            _LOGGER.info(
+                f"User submitted dashboard sensor selection: {len(normalized_input.get('enabled_dashboard', []))} selected"
+            )
+            self._update_pending(normalized_input)
+            if bulk_applied:
+                return await self.async_step_entities_sensors_dashboard()
             return await self.async_step_entities_sensors()
 
         errors: dict[str, str] = {}
@@ -755,22 +1064,23 @@ class ComfoClimeOptionsFlow(OptionsFlow):
 
             _LOGGER.info(f"✓ Retrieved {len(dashboard_options)} dashboard sensor options")
 
+            schema_dict: dict = {
+                vol.Optional(
+                    "enabled_dashboard",
+                    default=dashboard_enabled,
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=dashboard_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+            }
+            self._add_bulk_action_selector(schema_dict, "enabled_dashboard")
+
             return self.async_show_form(
                 step_id="entities_sensors_dashboard",
-                data_schema=vol.Schema(
-                    {
-                        vol.Optional(
-                            "enabled_dashboard",
-                            default=dashboard_enabled,
-                        ): selector.SelectSelector(
-                            selector.SelectSelectorConfig(
-                                options=dashboard_options,
-                                multiple=True,
-                                mode=selector.SelectSelectorMode.DROPDOWN,
-                            )
-                        ),
-                    }
-                ),
+                data_schema=vol.Schema(schema_dict),
                 description_placeholders={"info": "Select dashboard sensors to enable."},
                 errors=errors,
             )
@@ -788,11 +1098,18 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         _LOGGER.debug("===== async_step_entities_sensors_thermalprofile CALLED =====")
 
         if user_input is not None:
-            user_input.setdefault("enabled_thermalprofile", [])
-            _LOGGER.info(
-                f"User submitted thermal profile sensor selection: {len(user_input.get('enabled_thermalprofile', []))} selected"
+            thermalprofile_options = get_thermalprofile_sensors()
+            normalized_input = dict(user_input)
+            bulk_applied = _apply_bulk_action_to_target(
+                normalized_input, "enabled_thermalprofile", _extract_option_values(thermalprofile_options)
             )
-            self._update_pending(user_input)
+            normalized_input.setdefault("enabled_thermalprofile", [])
+            _LOGGER.info(
+                f"User submitted thermal profile sensor selection: {len(normalized_input.get('enabled_thermalprofile', []))} selected"
+            )
+            self._update_pending(normalized_input)
+            if bulk_applied:
+                return await self.async_step_entities_sensors_thermalprofile()
             return await self.async_step_entities_sensors()
 
         errors: dict[str, str] = {}
@@ -805,22 +1122,23 @@ class ComfoClimeOptionsFlow(OptionsFlow):
 
             _LOGGER.info(f"✓ Retrieved {len(thermalprofile_options)} thermal profile sensor options")
 
+            schema_dict: dict = {
+                vol.Optional(
+                    "enabled_thermalprofile",
+                    default=thermalprofile_enabled,
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=thermalprofile_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+            }
+            self._add_bulk_action_selector(schema_dict, "enabled_thermalprofile")
+
             return self.async_show_form(
                 step_id="entities_sensors_thermalprofile",
-                data_schema=vol.Schema(
-                    {
-                        vol.Optional(
-                            "enabled_thermalprofile",
-                            default=thermalprofile_enabled,
-                        ): selector.SelectSelector(
-                            selector.SelectSelectorConfig(
-                                options=thermalprofile_options,
-                                multiple=True,
-                                mode=selector.SelectSelectorMode.DROPDOWN,
-                            )
-                        ),
-                    }
-                ),
+                data_schema=vol.Schema(schema_dict),
                 description_placeholders={"info": "Select thermal profile sensors to enable."},
                 errors=errors,
             )
@@ -838,11 +1156,18 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         _LOGGER.debug("===== async_step_entities_sensors_monitoring CALLED =====")
 
         if user_input is not None:
-            user_input.setdefault("enabled_monitoring", [])
-            _LOGGER.info(
-                f"User submitted monitoring sensor selection: {len(user_input.get('enabled_monitoring', []))} selected"
+            monitoring_options = get_monitoring_sensors()
+            normalized_input = dict(user_input)
+            bulk_applied = _apply_bulk_action_to_target(
+                normalized_input, "enabled_monitoring", _extract_option_values(monitoring_options)
             )
-            self._update_pending(user_input)
+            normalized_input.setdefault("enabled_monitoring", [])
+            _LOGGER.info(
+                f"User submitted monitoring sensor selection: {len(normalized_input.get('enabled_monitoring', []))} selected"
+            )
+            self._update_pending(normalized_input)
+            if bulk_applied:
+                return await self.async_step_entities_sensors_monitoring()
             return await self.async_step_entities_sensors()
 
         errors: dict[str, str] = {}
@@ -854,22 +1179,23 @@ class ComfoClimeOptionsFlow(OptionsFlow):
 
             _LOGGER.info(f"✓ Retrieved {len(monitoring_options)} monitoring sensor options")
 
+            schema_dict: dict = {
+                vol.Optional(
+                    "enabled_monitoring",
+                    default=monitoring_enabled,
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=monitoring_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+            }
+            self._add_bulk_action_selector(schema_dict, "enabled_monitoring")
+
             return self.async_show_form(
                 step_id="entities_sensors_monitoring",
-                data_schema=vol.Schema(
-                    {
-                        vol.Optional(
-                            "enabled_monitoring",
-                            default=monitoring_enabled,
-                        ): selector.SelectSelector(
-                            selector.SelectSelectorConfig(
-                                options=monitoring_options,
-                                multiple=True,
-                                mode=selector.SelectSelectorMode.DROPDOWN,
-                            )
-                        ),
-                    }
-                ),
+                data_schema=vol.Schema(schema_dict),
                 description_placeholders={"info": "Select monitoring sensors to enable."},
                 errors=errors,
             )
@@ -889,11 +1215,20 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         _LOGGER.debug("===== async_step_entities_sensors_connected_telemetry CALLED =====")
 
         if user_input is not None:
-            user_input.setdefault("enabled_connected_device_telemetry", [])
-            _LOGGER.info(
-                f"User submitted connected device telemetry sensor selection: {len(user_input.get('enabled_connected_device_telemetry', []))} selected"
+            connected_device_telemetry_options = get_connected_device_telemetry_sensors()
+            normalized_input = dict(user_input)
+            bulk_applied = _apply_bulk_action_to_target(
+                normalized_input,
+                "enabled_connected_device_telemetry",
+                _extract_option_values(connected_device_telemetry_options),
             )
-            self._update_pending(user_input)
+            normalized_input.setdefault("enabled_connected_device_telemetry", [])
+            _LOGGER.info(
+                f"User submitted connected device telemetry sensor selection: {len(normalized_input.get('enabled_connected_device_telemetry', []))} selected"
+            )
+            self._update_pending(normalized_input)
+            if bulk_applied:
+                return await self.async_step_entities_sensors_connected_telemetry()
             return await self.async_step_entities_sensors()
 
         errors: dict[str, str] = {}
@@ -908,22 +1243,23 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 f"✓ Retrieved {len(connected_device_telemetry_options)} connected device telemetry sensor options"
             )
 
+            schema_dict: dict = {
+                vol.Optional(
+                    "enabled_connected_device_telemetry",
+                    default=connected_device_telemetry_enabled,
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=connected_device_telemetry_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+            }
+            self._add_bulk_action_selector(schema_dict, "enabled_connected_device_telemetry")
+
             return self.async_show_form(
                 step_id="entities_sensors_connected_telemetry",
-                data_schema=vol.Schema(
-                    {
-                        vol.Optional(
-                            "enabled_connected_device_telemetry",
-                            default=connected_device_telemetry_enabled,
-                        ): selector.SelectSelector(
-                            selector.SelectSelectorConfig(
-                                options=connected_device_telemetry_options,
-                                multiple=True,
-                                mode=selector.SelectSelectorMode.DROPDOWN,
-                            )
-                        ),
-                    }
-                ),
+                data_schema=vol.Schema(schema_dict),
                 description_placeholders={"info": "Select connected device telemetry sensors to enable."},
                 errors=errors,
             )
@@ -943,11 +1279,20 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         _LOGGER.debug("===== async_step_entities_sensors_connected_properties CALLED =====")
 
         if user_input is not None:
-            user_input.setdefault("enabled_connected_device_properties", [])
-            _LOGGER.info(
-                f"User submitted connected device properties sensor selection: {len(user_input.get('enabled_connected_device_properties', []))} selected"
+            connected_device_properties_options = get_connected_device_properties_sensors()
+            normalized_input = dict(user_input)
+            bulk_applied = _apply_bulk_action_to_target(
+                normalized_input,
+                "enabled_connected_device_properties",
+                _extract_option_values(connected_device_properties_options),
             )
-            self._update_pending(user_input)
+            normalized_input.setdefault("enabled_connected_device_properties", [])
+            _LOGGER.info(
+                f"User submitted connected device properties sensor selection: {len(normalized_input.get('enabled_connected_device_properties', []))} selected"
+            )
+            self._update_pending(normalized_input)
+            if bulk_applied:
+                return await self.async_step_entities_sensors_connected_properties()
             return await self.async_step_entities_sensors()
 
         errors: dict[str, str] = {}
@@ -962,22 +1307,23 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 f"✓ Retrieved {len(connected_device_properties_options)} connected device properties sensor options"
             )
 
+            schema_dict: dict = {
+                vol.Optional(
+                    "enabled_connected_device_properties",
+                    default=connected_device_properties_enabled,
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=connected_device_properties_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+            }
+            self._add_bulk_action_selector(schema_dict, "enabled_connected_device_properties")
+
             return self.async_show_form(
                 step_id="entities_sensors_connected_properties",
-                data_schema=vol.Schema(
-                    {
-                        vol.Optional(
-                            "enabled_connected_device_properties",
-                            default=connected_device_properties_enabled,
-                        ): selector.SelectSelector(
-                            selector.SelectSelectorConfig(
-                                options=connected_device_properties_options,
-                                multiple=True,
-                                mode=selector.SelectSelectorMode.DROPDOWN,
-                            )
-                        ),
-                    }
-                ),
+                data_schema=vol.Schema(schema_dict),
                 description_placeholders={"info": "Select connected device properties sensors to enable."},
                 errors=errors,
             )
@@ -997,11 +1343,20 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         _LOGGER.debug("===== async_step_entities_sensors_connected_definition CALLED =====")
 
         if user_input is not None:
-            user_input.setdefault("enabled_connected_device_definition", [])
-            _LOGGER.info(
-                f"User submitted connected device definition sensor selection: {len(user_input.get('enabled_connected_device_definition', []))} selected"
+            connected_device_definition_options = get_connected_device_definition_sensors()
+            normalized_input = dict(user_input)
+            bulk_applied = _apply_bulk_action_to_target(
+                normalized_input,
+                "enabled_connected_device_definition",
+                _extract_option_values(connected_device_definition_options),
             )
-            self._update_pending(user_input)
+            normalized_input.setdefault("enabled_connected_device_definition", [])
+            _LOGGER.info(
+                f"User submitted connected device definition sensor selection: {len(normalized_input.get('enabled_connected_device_definition', []))} selected"
+            )
+            self._update_pending(normalized_input)
+            if bulk_applied:
+                return await self.async_step_entities_sensors_connected_definition()
             return await self.async_step_entities_sensors()
 
         errors: dict[str, str] = {}
@@ -1016,22 +1371,23 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 f"✓ Retrieved {len(connected_device_definition_options)} connected device definition sensor options"
             )
 
+            schema_dict: dict = {
+                vol.Optional(
+                    "enabled_connected_device_definition",
+                    default=connected_device_definition_enabled,
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=connected_device_definition_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+            }
+            self._add_bulk_action_selector(schema_dict, "enabled_connected_device_definition")
+
             return self.async_show_form(
                 step_id="entities_sensors_connected_definition",
-                data_schema=vol.Schema(
-                    {
-                        vol.Optional(
-                            "enabled_connected_device_definition",
-                            default=connected_device_definition_enabled,
-                        ): selector.SelectSelector(
-                            selector.SelectSelectorConfig(
-                                options=connected_device_definition_options,
-                                multiple=True,
-                                mode=selector.SelectSelectorMode.DROPDOWN,
-                            )
-                        ),
-                    }
-                ),
+                data_schema=vol.Schema(schema_dict),
                 description_placeholders={"info": "Select connected device definition sensors to enable."},
                 errors=errors,
             )
@@ -1049,11 +1405,18 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         _LOGGER.debug("===== async_step_entities_sensors_access_tracking CALLED =====")
 
         if user_input is not None:
-            user_input.setdefault("enabled_access_tracking", [])
-            _LOGGER.info(
-                f"User submitted access tracking sensor selection: {len(user_input.get('enabled_access_tracking', []))} selected"
+            access_tracking_options = get_access_tracking_sensors()
+            normalized_input = dict(user_input)
+            bulk_applied = _apply_bulk_action_to_target(
+                normalized_input, "enabled_access_tracking", _extract_option_values(access_tracking_options)
             )
-            self._update_pending(user_input)
+            normalized_input.setdefault("enabled_access_tracking", [])
+            _LOGGER.info(
+                f"User submitted access tracking sensor selection: {len(normalized_input.get('enabled_access_tracking', []))} selected"
+            )
+            self._update_pending(normalized_input)
+            if bulk_applied:
+                return await self.async_step_entities_sensors_access_tracking()
             return await self.async_step_entities_sensors()
 
         errors: dict[str, str] = {}
@@ -1066,22 +1429,23 @@ class ComfoClimeOptionsFlow(OptionsFlow):
 
             _LOGGER.info(f"✓ Retrieved {len(access_tracking_options)} access tracking sensor options")
 
+            schema_dict: dict = {
+                vol.Optional(
+                    "enabled_access_tracking",
+                    default=access_tracking_enabled,
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=access_tracking_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+            }
+            self._add_bulk_action_selector(schema_dict, "enabled_access_tracking")
+
             return self.async_show_form(
                 step_id="entities_sensors_access_tracking",
-                data_schema=vol.Schema(
-                    {
-                        vol.Optional(
-                            "enabled_access_tracking",
-                            default=access_tracking_enabled,
-                        ): selector.SelectSelector(
-                            selector.SelectSelectorConfig(
-                                options=access_tracking_options,
-                                multiple=True,
-                                mode=selector.SelectSelectorMode.DROPDOWN,
-                            )
-                        ),
-                    }
-                ),
+                data_schema=vol.Schema(schema_dict),
                 description_placeholders={"info": "Select access tracking sensors to enable (diagnostic only)."},
                 errors=errors,
             )
@@ -1099,11 +1463,19 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         _LOGGER.debug("===== async_step_entities_switches CALLED =====")
 
         if user_input is not None:
-            user_input.setdefault("enabled_switches", [])
-            _LOGGER.info(
-                f"User submitted switch selection: {len(user_input.get('enabled_switches', []))} switches selected"
+            all_options = get_switches()
+            switch_options = [opt for opt in all_options if opt["value"].startswith("switches_")]
+            normalized_input = dict(user_input)
+            bulk_applied = _apply_bulk_action_to_target(
+                normalized_input, "enabled_switches", _extract_option_values(switch_options)
             )
-            self._update_pending(user_input)
+            normalized_input.setdefault("enabled_switches", [])
+            _LOGGER.info(
+                f"User submitted switch selection: {len(normalized_input.get('enabled_switches', []))} switches selected"
+            )
+            self._update_pending(normalized_input)
+            if bulk_applied:
+                return await self.async_step_entities_switches()
             return await self.async_step_entities_menu()
 
         errors: dict[str, str] = {}
@@ -1116,22 +1488,23 @@ class ComfoClimeOptionsFlow(OptionsFlow):
 
             _LOGGER.info(f"✓ Retrieved {len(switch_options)} switch options")
 
+            schema_dict: dict = {
+                vol.Optional(
+                    "enabled_switches",
+                    default=current_enabled,
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=switch_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+            }
+            self._add_bulk_action_selector(schema_dict, "enabled_switches")
+
             return self.async_show_form(
                 step_id="entities_switches",
-                data_schema=vol.Schema(
-                    {
-                        vol.Optional(
-                            "enabled_switches",
-                            default=current_enabled,
-                        ): selector.SelectSelector(
-                            selector.SelectSelectorConfig(
-                                options=switch_options,
-                                multiple=True,
-                                mode=selector.SelectSelectorMode.DROPDOWN,
-                            )
-                        ),
-                    }
-                ),
+                data_schema=vol.Schema(schema_dict),
                 description_placeholders={"info": "Select switches to enable."},
                 errors=errors,
             )
@@ -1149,11 +1522,19 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         _LOGGER.debug("===== async_step_entities_numbers CALLED =====")
 
         if user_input is not None:
-            user_input.setdefault("enabled_numbers", [])
-            _LOGGER.info(
-                f"User submitted number selection: {len(user_input.get('enabled_numbers', []))} numbers selected"
+            all_options = get_numbers()
+            number_options = [opt for opt in all_options if opt["value"].startswith("numbers_")]
+            normalized_input = dict(user_input)
+            bulk_applied = _apply_bulk_action_to_target(
+                normalized_input, "enabled_numbers", _extract_option_values(number_options)
             )
-            self._update_pending(user_input)
+            normalized_input.setdefault("enabled_numbers", [])
+            _LOGGER.info(
+                f"User submitted number selection: {len(normalized_input.get('enabled_numbers', []))} numbers selected"
+            )
+            self._update_pending(normalized_input)
+            if bulk_applied:
+                return await self.async_step_entities_numbers()
             return await self.async_step_entities_menu()
 
         errors: dict[str, str] = {}
@@ -1166,22 +1547,23 @@ class ComfoClimeOptionsFlow(OptionsFlow):
 
             _LOGGER.info(f"✓ Retrieved {len(number_options)} number options")
 
+            schema_dict: dict = {
+                vol.Optional(
+                    "enabled_numbers",
+                    default=current_enabled,
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=number_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+            }
+            self._add_bulk_action_selector(schema_dict, "enabled_numbers")
+
             return self.async_show_form(
                 step_id="entities_numbers",
-                data_schema=vol.Schema(
-                    {
-                        vol.Optional(
-                            "enabled_numbers",
-                            default=current_enabled,
-                        ): selector.SelectSelector(
-                            selector.SelectSelectorConfig(
-                                options=number_options,
-                                multiple=True,
-                                mode=selector.SelectSelectorMode.DROPDOWN,
-                            )
-                        ),
-                    }
-                ),
+                data_schema=vol.Schema(schema_dict),
                 description_placeholders={"info": "Select number controls to enable."},
                 errors=errors,
             )
@@ -1199,11 +1581,19 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         _LOGGER.debug("===== async_step_entities_selects CALLED =====")
 
         if user_input is not None:
-            user_input.setdefault("enabled_selects", [])
-            _LOGGER.info(
-                f"User submitted select selection: {len(user_input.get('enabled_selects', []))} selects selected"
+            all_options = get_selects()
+            select_options = [opt for opt in all_options if opt["value"].startswith("selects_")]
+            normalized_input = dict(user_input)
+            bulk_applied = _apply_bulk_action_to_target(
+                normalized_input, "enabled_selects", _extract_option_values(select_options)
             )
-            self._update_pending(user_input)
+            normalized_input.setdefault("enabled_selects", [])
+            _LOGGER.info(
+                f"User submitted select selection: {len(normalized_input.get('enabled_selects', []))} selects selected"
+            )
+            self._update_pending(normalized_input)
+            if bulk_applied:
+                return await self.async_step_entities_selects()
             return await self.async_step_entities_menu()
 
         errors: dict[str, str] = {}
@@ -1216,22 +1606,23 @@ class ComfoClimeOptionsFlow(OptionsFlow):
 
             _LOGGER.info(f"✓ Retrieved {len(select_options)} select options")
 
+            schema_dict: dict = {
+                vol.Optional(
+                    "enabled_selects",
+                    default=current_enabled,
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=select_options,
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+            }
+            self._add_bulk_action_selector(schema_dict, "enabled_selects")
+
             return self.async_show_form(
                 step_id="entities_selects",
-                data_schema=vol.Schema(
-                    {
-                        vol.Optional(
-                            "enabled_selects",
-                            default=current_enabled,
-                        ): selector.SelectSelector(
-                            selector.SelectSelectorConfig(
-                                options=select_options,
-                                multiple=True,
-                                mode=selector.SelectSelectorMode.DROPDOWN,
-                            )
-                        ),
-                    }
-                ),
+                data_schema=vol.Schema(schema_dict),
                 description_placeholders={"info": "Select list controls to enable."},
                 errors=errors,
             )

@@ -1,5 +1,6 @@
 """Tests for ComfoClime integration setup."""
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -246,6 +247,50 @@ async def test_async_reload_entry(mock_hass, mock_config_entry):
 
     await async_reload_entry(mock_hass, mock_config_entry)
 
+    mock_hass.config_entries.async_reload.assert_called_once_with(mock_config_entry.entry_id)
+
+
+@pytest.mark.asyncio
+async def test_async_reload_entry_removes_disabled_entity_from_registry(mock_hass, mock_config_entry):
+    """Test reload removes stale entities that were disabled via options flow."""
+    mock_config_entry.options = {
+        "enabled_climate": True,
+        "enabled_fan": False,
+    }
+
+    # Provide minimal entry data needed by cleanup helper
+    mock_hass.data = {
+        "comfoclime": {
+            mock_config_entry.entry_id: {
+                "devices": [],
+                "main_device": None,
+            }
+        }
+    }
+
+    mock_hass.config_entries = MagicMock()
+    mock_hass.config_entries.async_reload = AsyncMock(return_value=True)
+
+    # fan is disabled and should be removed, climate remains expected
+    stale_fan = SimpleNamespace(
+        entity_id="fan.comfoclime_fan_speed",
+        unique_id=f"{mock_config_entry.entry_id}_fan_speed",
+    )
+    expected_climate = SimpleNamespace(
+        entity_id="climate.comfoclime",
+        unique_id=f"{mock_config_entry.entry_id}_climate",
+    )
+
+    mock_registry = MagicMock()
+
+    with patch("custom_components.comfoclime.er.async_get", return_value=mock_registry):
+        with patch(
+            "custom_components.comfoclime.er.async_entries_for_config_entry",
+            return_value=[stale_fan, expected_climate],
+        ):
+            await async_reload_entry(mock_hass, mock_config_entry)
+
+    mock_registry.async_remove.assert_called_once_with("fan.comfoclime_fan_speed")
     mock_hass.config_entries.async_reload.assert_called_once_with(mock_config_entry.entry_id)
 
 
