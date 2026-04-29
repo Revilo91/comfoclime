@@ -110,6 +110,23 @@ def _apply_bulk_action(action: str, selected_values: list[str], all_values: list
     return list(selected_values)
 
 
+def _apply_bulk_action_to_target(
+    data: dict[str, Any],
+    target_key: str,
+    all_values: list[str],
+) -> None:
+    """Apply bulk action for one target key by directly filling its list value."""
+    action_key = f"{target_key}_bulk_action"
+    action = data.pop(action_key, None)
+    if action not in ("all", "none"):
+        return
+
+    current = data.get(target_key, [])
+    if not isinstance(current, list):
+        current = []
+    data[target_key] = _apply_bulk_action(action, current, all_values)
+
+
 def _get_default_entity_options() -> dict[str, Any]:
     """Get default entity options for initial setup."""
     default_enabled = get_default_enabled_individual_entities()
@@ -385,39 +402,53 @@ class ComfoClimeOptionsFlow(OptionsFlow):
         if user_input is not None:
             normalized_input = dict(user_input)
 
-            section_option_values = {
-                "enabled_dashboard": _extract_option_values(dashboard_options),
-                "enabled_thermalprofile": _extract_option_values(thermalprofile_options),
-                "enabled_monitoring": _extract_option_values(monitoring_options),
-                "enabled_access_tracking": _extract_option_values(access_tracking_options),
-                "enabled_switches": _extract_option_values(switch_options),
-                "enabled_numbers": _extract_option_values(number_options),
-                "enabled_selects": _extract_option_values(select_options),
-                "enabled_connected_device_telemetry_comfoclime": _extract_option_values(
-                    telemetry_by_model["comfoclime"]
+            bulk_targets = [
+                ("enabled_dashboard", _extract_option_values(dashboard_options)),
+                ("enabled_thermalprofile", _extract_option_values(thermalprofile_options)),
+                ("enabled_monitoring", _extract_option_values(monitoring_options)),
+                ("enabled_access_tracking", _extract_option_values(access_tracking_options)),
+                ("enabled_switches", _extract_option_values(switch_options)),
+                ("enabled_numbers", _extract_option_values(number_options)),
+                ("enabled_selects", _extract_option_values(select_options)),
+                (
+                    "enabled_connected_device_telemetry_comfoclime",
+                    _extract_option_values(telemetry_by_model["comfoclime"]),
                 ),
-                "enabled_connected_device_telemetry_comfoairq": _extract_option_values(
-                    telemetry_by_model["comfoairq"]
+                (
+                    "enabled_connected_device_telemetry_comfoairq",
+                    _extract_option_values(telemetry_by_model["comfoairq"]),
                 ),
-                "enabled_connected_device_telemetry_other": _extract_option_values(telemetry_by_model["other"]),
-                "enabled_connected_device_properties_comfoclime": _extract_option_values(
-                    properties_by_model["comfoclime"]
+                (
+                    "enabled_connected_device_telemetry_other",
+                    _extract_option_values(telemetry_by_model["other"]),
                 ),
-                "enabled_connected_device_properties_comfoairq": _extract_option_values(properties_by_model["comfoairq"]),
-                "enabled_connected_device_properties_other": _extract_option_values(properties_by_model["other"]),
-                "enabled_connected_device_definition_comfoclime": _extract_option_values(
-                    definition_by_model["comfoclime"]
+                (
+                    "enabled_connected_device_properties_comfoclime",
+                    _extract_option_values(properties_by_model["comfoclime"]),
                 ),
-                "enabled_connected_device_definition_comfoairq": _extract_option_values(definition_by_model["comfoairq"]),
-                "enabled_connected_device_definition_other": _extract_option_values(definition_by_model["other"]),
-            }
-
-            for key, all_values in section_option_values.items():
-                action = normalized_input.pop(f"{key}_bulk_action", "custom")
-                selected = normalized_input.get(key, [])
-                if not isinstance(selected, list):
-                    selected = []
-                normalized_input[key] = _apply_bulk_action(action, selected, all_values)
+                (
+                    "enabled_connected_device_properties_comfoairq",
+                    _extract_option_values(properties_by_model["comfoairq"]),
+                ),
+                (
+                    "enabled_connected_device_properties_other",
+                    _extract_option_values(properties_by_model["other"]),
+                ),
+                (
+                    "enabled_connected_device_definition_comfoclime",
+                    _extract_option_values(definition_by_model["comfoclime"]),
+                ),
+                (
+                    "enabled_connected_device_definition_comfoairq",
+                    _extract_option_values(definition_by_model["comfoairq"]),
+                ),
+                (
+                    "enabled_connected_device_definition_other",
+                    _extract_option_values(definition_by_model["other"]),
+                ),
+            ]
+            for target_key, all_values in bulk_targets:
+                _apply_bulk_action_to_target(normalized_input, target_key, all_values)
 
             # Merge model-separated connected-device selections into persisted option keys
             normalized_input["enabled_connected_device_telemetry"] = (
