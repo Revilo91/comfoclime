@@ -651,3 +651,158 @@ class TestPropertyCoordinatorRegistry:
         assert len(coordinator._property_registry["device1"]) == 2
         assert "29/1/10" in coordinator._property_registry["device1"]
         assert "29/1/6" in coordinator._property_registry["device1"]
+
+    class TestDeviceProtection:
+        """Tests for inter-sensor delay and circuit breaker protection features."""
+
+        @pytest.mark.asyncio
+        async def test_telemetry_coordinator_sensor_delay_default(self, hass_with_frame_helper, mock_api):
+            """Test that TelemetryCoordinator initializes with correct sensor_delay default."""
+            coordinator = ComfoClimeTelemetryCoordinator(hass_with_frame_helper, mock_api, devices=[])
+            assert coordinator._sensor_delay == 0.3
+
+        @pytest.mark.asyncio
+        async def test_property_coordinator_sensor_delay_default(self, hass_with_frame_helper, mock_api):
+            """Test that PropertyCoordinator initializes with correct sensor_delay default."""
+            coordinator = ComfoClimePropertyCoordinator(hass_with_frame_helper, mock_api, devices=[])
+            assert coordinator._sensor_delay == 0.3
+
+        @pytest.mark.asyncio
+        async def test_telemetry_coordinator_custom_sensor_delay(self, hass_with_frame_helper, mock_api):
+            """Test that TelemetryCoordinator accepts custom sensor_delay."""
+            coordinator = ComfoClimeTelemetryCoordinator(hass_with_frame_helper, mock_api, devices=[], sensor_delay=1.0)
+            assert coordinator._sensor_delay == 1.0
+
+        @pytest.mark.asyncio
+        async def test_property_coordinator_custom_sensor_delay(self, hass_with_frame_helper, mock_api):
+            """Test that PropertyCoordinator accepts custom sensor_delay."""
+            coordinator = ComfoClimePropertyCoordinator(hass_with_frame_helper, mock_api, devices=[], sensor_delay=0.0)
+            assert coordinator._sensor_delay == 0.0
+
+        @pytest.mark.asyncio
+        async def test_telemetry_circuit_breaker_defaults(self, hass_with_frame_helper, mock_api):
+            """Test that circuit breaker initializes in closed (normal) state."""
+            coordinator = ComfoClimeTelemetryCoordinator(hass_with_frame_helper, mock_api, devices=[])
+            assert coordinator._consecutive_failures == 0
+            assert coordinator._circuit_open_until is None
+            assert coordinator._circuit_breaker_threshold == 5
+            assert coordinator._circuit_breaker_cooldown == 300
+
+        @pytest.mark.asyncio
+        async def test_property_circuit_breaker_defaults(self, hass_with_frame_helper, mock_api):
+            """Test that property circuit breaker initializes in closed (normal) state."""
+            coordinator = ComfoClimePropertyCoordinator(hass_with_frame_helper, mock_api, devices=[])
+            assert coordinator._consecutive_failures == 0
+            assert coordinator._circuit_open_until is None
+            assert coordinator._circuit_breaker_threshold == 5
+            assert coordinator._circuit_breaker_cooldown == 300
+
+        @pytest.mark.asyncio
+        async def test_telemetry_circuit_breaker_trips_on_all_failures(self, hass_with_frame_helper, mock_api):
+            """Test that circuit breaker trips after threshold consecutive all-failure cycles."""
+            from datetime import UTC, datetime
+
+            coordinator = ComfoClimeTelemetryCoordinator(
+                hass_with_frame_helper, mock_api, devices=[], circuit_breaker_threshold=3, circuit_breaker_cooldown=60
+            )
+            mock_api.async_read_telemetry_for_device = AsyncMock(side_effect=aiohttp.ClientError("device down"))
+            await coordinator.register_telemetry("dev1", "100", faktor=1.0, signed=False, byte_count=1)
+
+            # First two failures: counter increases, breaker still closed
+            await coordinator._async_update_data()
+            assert coordinator._consecutive_failures == 1
+            assert coordinator._circuit_open_until is None
+
+            await coordinator._async_update_data()
+            assert coordinator._consecutive_failures == 2
+            assert coordinator._circuit_open_until is None
+
+            # Third failure: circuit breaker trips
+            await coordinator._async_update_data()
+            assert coordinator._consecutive_failures == 3
+            assert coordinator._circuit_open_until is not None
+            assert coordinator._circuit_open_until > datetime.now(UTC)
+
+        @pytest.mark.asyncio
+        async def test_telemetry_circuit_breaker_skips_while_open(self, hass_with_frame_helper, mock_api):
+            """Test that circuit breaker skips update cycles while open."""
+            from datetime import UTC, datetime, timedelta
+
+            coordinator = ComfoClimeTelemetryCoordinator(hass_with_frame_helper, mock_api, devices=[])
+            # Manually open circuit breaker
+            coordinator._circuit_open_until = datetime.now(UTC) + timedelta(seconds=300)
+            coordinator._consecutive_failures = 5
+            # Seed last data
+            coordinator.data = {"dev1": {"100": 42.0}}
+
+            mock_api.async_read_telemetry_for_device = AsyncMock()
+            result = await coordinator._async_update_data()
+
+            # Should return cached data without calling API
+            mock_api.async_read_telemetry_for_device.assert_not_called()
+            assert result == {"dev1": {"100": 42.0}}
+
+        @pytest.mark.asyncio
+        async def test_telemetry_circuit_breaker_resets_on_success(self, hass_with_frame_helper, mock_api):
+            """Test that a successful read resets the consecutive failure counter."""
+            from datetime import UTC, datetime, timedelta
+
+            coordinator = ComfoClimeTelemetryCoordinator(hass_with_frame_helper, mock_api, devices=[])
+            coordinator._consecutive_failures = 3
+            # Expired cooldown (breaker should auto-reset)
+            coordinator._circuit_open_until = datetime.now(UTC) - timedelta(seconds=1)
+
+            mock_api.async_read_telemetry_for_device = AsyncMock(
+                return_value=TelemetryReading(
+                    device_uuid="dev1", telemetry_id="100", raw_value=100, faktor=0.1, signed=False, byte_count=2
+                )
+            )
+            await coordinator._async_update_data()
+
+            # Failures reset because a successful read occurred
+            assert coordinator._consecutive_failures == 0
+            assert coordinator._circuit_open_until is None
+
+        @pytest.mark.asyncio
+        async def test_property_circuit_breaker_trips_on_all_failures(self, hass_with_frame_helper, mock_api):
+            """Test that property circuit breaker trips after threshold consecutive all-failure cycles."""
+            from datetime import UTC, datetime
+
+            coordinator = ComfoClimePropertyCoordinator(
+                hass_with_frame_helper, mock_api, devices=[], circuit_breaker_threshold=2, circuit_breaker_cooldown=120
+            )
+            mock_api.async_read_property_for_device = AsyncMock(side_effect=aiohttp.ClientError("device down"))
+            await coordinator.register_property("dev1", "22/1/9", faktor=0.1, signed=False, byte_count=2)
+
+            await coordinator._async_update_data()
+            assert coordinator._consecutive_failures == 1
+
+            await coordinator._async_update_data()
+            assert coordinator._consecutive_failures == 2
+            assert coordinator._circuit_open_until is not None
+            assert coordinator._circuit_open_until > datetime.now(UTC)
+
+        @pytest.mark.asyncio
+        async def test_telemetry_sensor_delay_is_called(self, hass_with_frame_helper, mock_api):
+            """Test that asyncio.sleep is called with sensor_delay between reads."""
+            from unittest.mock import patch
+
+            coordinator = ComfoClimeTelemetryCoordinator(hass_with_frame_helper, mock_api, devices=[], sensor_delay=0.5)
+            mock_reading = TelemetryReading(
+                device_uuid="dev1", telemetry_id="100", raw_value=100, faktor=1.0, signed=False, byte_count=1
+            )
+            mock_api.async_read_telemetry_for_device = AsyncMock(return_value=mock_reading)
+            await coordinator.register_telemetry("dev1", "100", faktor=1.0, signed=False, byte_count=1)
+            await coordinator.register_telemetry("dev1", "200", faktor=1.0, signed=False, byte_count=1)
+
+            sleep_calls = []
+
+            async def capture_sleep(delay):
+                sleep_calls.append(delay)
+                # Don't actually sleep in tests
+
+            with patch("custom_components.comfoclime.coordinator.asyncio.sleep", side_effect=capture_sleep):
+                await coordinator._async_update_data()
+
+            # One sleep per sensor read
+            assert sleep_calls.count(0.5) == 2

@@ -66,7 +66,8 @@ DEFAULT_WRITE_TIMEOUT = 30
 DEFAULT_POLLING_INTERVAL = 60
 DEFAULT_CACHE_TTL = 30
 DEFAULT_MAX_RETRIES = 3
-DEFAULT_MIN_REQUEST_INTERVAL = 0.1
+DEFAULT_MIN_REQUEST_INTERVAL = 0.5
+DEFAULT_INTER_SENSOR_DELAY = 0.3
 DEFAULT_WRITE_COOLDOWN = 2.0
 DEFAULT_REQUEST_DEBOUNCE = 0.3
 
@@ -212,6 +213,7 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
                                         "cache_ttl": DEFAULT_CACHE_TTL,
                                         "max_retries": DEFAULT_MAX_RETRIES,
                                         "min_request_interval": DEFAULT_MIN_REQUEST_INTERVAL,
+                                        "inter_sensor_delay": DEFAULT_INTER_SENSOR_DELAY,
                                         "write_cooldown": DEFAULT_WRITE_COOLDOWN,
                                         "request_debounce": DEFAULT_REQUEST_DEBOUNCE,
                                     }
@@ -666,6 +668,18 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                     vol.Optional(
                         "min_request_interval",
                         default=self._get_current_value("min_request_interval", DEFAULT_MIN_REQUEST_INTERVAL),
+                    ): selector.NumberSelector(
+                        selector.NumberSelectorConfig(
+                            min=0.0,
+                            max=5.0,
+                            step=0.1,
+                            mode=selector.NumberSelectorMode.BOX,
+                            unit_of_measurement="s",
+                        )
+                    ),
+                    vol.Optional(
+                        "inter_sensor_delay",
+                        default=self._get_current_value("inter_sensor_delay", DEFAULT_INTER_SENSOR_DELAY),
                     ): selector.NumberSelector(
                         selector.NumberSelectorConfig(
                             min=0.0,

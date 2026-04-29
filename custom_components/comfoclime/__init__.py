@@ -118,19 +118,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     polling_interval = int(entry.options.get("polling_interval", 60))
     cache_ttl = int(entry.options.get("cache_ttl", 30))
     max_retries = int(entry.options.get("max_retries", 3))
-    min_request_interval = entry.options.get("min_request_interval", 0.1)
+    min_request_interval = entry.options.get("min_request_interval", 0.5)
+    inter_sensor_delay = entry.options.get("inter_sensor_delay", 0.3)
     write_cooldown = entry.options.get("write_cooldown", 2.0)
     request_debounce = entry.options.get("request_debounce", 0.3)
 
     _LOGGER.debug(
         "Configuration loaded: read_timeout=%s, write_timeout=%s, polling_interval=%s, "
-        "cache_ttl=%s, max_retries=%s, min_request_interval=%s, write_cooldown=%s, request_debounce=%s",
+        "cache_ttl=%s, max_retries=%s, min_request_interval=%s, inter_sensor_delay=%s, "
+        "write_cooldown=%s, request_debounce=%s",
         read_timeout,
         write_timeout,
         polling_interval,
         cache_ttl,
         max_retries,
         min_request_interval,
+        inter_sensor_delay,
         write_cooldown,
         request_debounce,
     )
@@ -235,26 +238,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
 
     # Parallel initialization of all coordinators for faster startup
-    _LOGGER.debug("Starting parallel first refresh of all coordinators")
-    results = await asyncio.gather(
-        dashboard_coordinator.async_config_entry_first_refresh(),
-        thermalprofile_coordinator.async_config_entry_first_refresh(),
-        monitoring_coordinator.async_config_entry_first_refresh(),
-        definitioncoordinator.async_config_entry_first_refresh(),
-        return_exceptions=True,
-    )
-
-    # Check for failures and raise ConfigEntryNotReady if any coordinator failed
-    for i, result in enumerate(results):
-        if isinstance(result, Exception):
-            coordinator_names = [
-                "dashboard",
-                "thermalprofile",
-                "monitoring",
-                "definition",
-            ]
-            _LOGGER.error("Coordinator %s first refresh failed: %s", coordinator_names[i], result)
-            raise ConfigEntryNotReady(f"Failed to initialize {coordinator_names[i]} coordinator: {result}") from result
+    # NOTE: We run them sequentially with a small stagger to prevent simultaneous
+    # bursts of API requests on the first poll cycle after startup.
+    _LOGGER.debug("Starting staggered first refresh of all coordinators")
+    coordinator_init_pairs = [
+        (dashboard_coordinator, "dashboard"),
+        (thermalprofile_coordinator, "thermalprofile"),
+        (monitoring_coordinator, "monitoring"),
+        (definitioncoordinator, "definition"),
+    ]
+    for coord, name in coordinator_init_pairs:
+        try:
+            await coord.async_config_entry_first_refresh()
+        except Exception as exc:
+            _LOGGER.error("Coordinator %s first refresh failed: %s", name, exc)
+            raise ConfigEntryNotReady(f"Failed to initialize {name} coordinator: {exc}") from exc
+        # Small stagger between coordinator starts to desynchronize their poll cycles
+        await asyncio.sleep(1)
 
     _LOGGER.debug("Coordinator first refresh completed successfully")
 
@@ -266,10 +266,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         telemetry_interval,
         access_tracker=access_tracker,
         config_entry=entry,
+        sensor_delay=inter_sensor_delay,
     )
     _LOGGER.debug(
-        "Created ComfoClimeTelemetryCoordinator with polling_interval=%s",
+        "Created ComfoClimeTelemetryCoordinator with polling_interval=%s, sensor_delay=%s",
         telemetry_interval,
+        inter_sensor_delay,
     )
 
     propcoordinator = ComfoClimePropertyCoordinator(
@@ -279,10 +281,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         property_interval,
         access_tracker=access_tracker,
         config_entry=entry,
+        sensor_delay=inter_sensor_delay,
     )
     _LOGGER.debug(
-        "Created ComfoClimePropertyCoordinator with polling_interval=%s",
+        "Created ComfoClimePropertyCoordinator with polling_interval=%s, sensor_delay=%s",
         property_interval,
+        inter_sensor_delay,
     )
 
     hass.data[DOMAIN][entry.entry_id] = {
