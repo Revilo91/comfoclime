@@ -280,7 +280,7 @@ MONITORING_SENSORS = [
         name="Uptime",
         translation_key="uptime",
         unit="s",
-        device_class=SensorDeviceClass.DURATION,
+        device_class=SensorDeviceClass.UPTIME,
         state_class=SensorStateClass.MEASUREMENT,
         entity_category="diagnostic",
     ),
