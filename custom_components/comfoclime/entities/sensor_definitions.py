@@ -23,6 +23,39 @@ class SensorCategory(Enum):
     ACCESS_TRACKING = auto()
 
 
+class PollingPriority(Enum):
+    """Priority levels for coordinator polling intervals.
+
+    Each priority level defines a multiplier applied to the base polling interval.
+    Higher priority means more frequent polling. Inspired by the marstek_venus_modbus
+    integration pattern for configurable polling frequencies.
+
+    Example:
+        With a base interval of 60s:
+        - HIGH: 60s (1x)
+        - MEDIUM: 120s (2x)
+        - LOW: 180s (3x)
+        - VERY_LOW: 240s (4x)
+    """
+
+    HIGH = 1
+    MEDIUM = 2
+    LOW = 3
+    VERY_LOW = 4
+
+
+# Default polling priorities per coordinator category.
+# These can be overridden in the config flow options.
+DEFAULT_POLLING_PRIORITIES: dict[str, PollingPriority] = {
+    "dashboard": PollingPriority.HIGH,
+    "thermalprofile": PollingPriority.HIGH,
+    "monitoring": PollingPriority.MEDIUM,
+    "telemetry": PollingPriority.MEDIUM,
+    "property": PollingPriority.LOW,
+    "definition": PollingPriority.VERY_LOW,
+}
+
+
 class SensorDefinition(KeyEntityDefinitionBase):
     """Definition of a sensor entity.
 

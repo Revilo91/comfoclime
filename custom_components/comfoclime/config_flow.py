@@ -37,6 +37,7 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.helpers import selector
 
+from .entities.sensor_definitions import DEFAULT_POLLING_PRIORITIES, PollingPriority
 from .entity_helper import (
     # get_individual_entity_options,
     get_access_tracking_sensors,
@@ -75,6 +76,11 @@ _BULK_ACTION_OPTIONS = [
     selector.SelectOptionDict(value="custom", label="Benutzerdefiniert"),
     selector.SelectOptionDict(value="all", label="Alle auswählen"),
     selector.SelectOptionDict(value="none", label="Keine auswählen"),
+]
+
+_POLLING_PRIORITY_OPTIONS = [
+    selector.SelectOptionDict(value=p.name, label=p.name.replace("_", " ").title())
+    for p in PollingPriority
 ]
 
 
@@ -210,7 +216,8 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
                             errors["host"] = "no_uuid"
                         else:
                             errors["host"] = "no_response"
-                except TimeoutError, aiohttp.ClientError:
+                except (TimeoutError, aiohttp.ClientError):
+
                     _LOGGER.exception("Connection error during reconfigure")
                     errors["host"] = "cannot_connect"
 
@@ -274,6 +281,9 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
                                         "request_debounce": DEFAULT_REQUEST_DEBOUNCE,
                                     }
                                 )
+                                # Add default polling priorities per coordinator
+                                for coord_name, prio in DEFAULT_POLLING_PRIORITIES.items():
+                                    default_options[f"polling_priority_{coord_name}"] = prio.name
                                 return self.async_create_entry(
                                     title=f"ComfoClime @ {host}",
                                     data={"host": host},
@@ -282,7 +292,8 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
                             errors["host"] = "no_uuid"
                         else:
                             errors["host"] = "no_response"
-                except TimeoutError, aiohttp.ClientError:
+                except (TimeoutError, aiohttp.ClientError):
+
                     errors["host"] = "cannot_connect"
 
         return self.async_show_form(
@@ -907,41 +918,58 @@ class ComfoClimeOptionsFlow(OptionsFlow):
             self._update_pending(user_input)
             return await self.async_step_general()
 
+        schema_dict: dict[vol.Marker, Any] = {
+            vol.Optional(
+                "polling_interval",
+                default=self._get_current_value("polling_interval", DEFAULT_POLLING_INTERVAL),
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=10,
+                    max=600,
+                    mode=selector.NumberSelectorMode.BOX,
+                    unit_of_measurement="s",
+                )
+            ),
+            vol.Optional(
+                "cache_ttl",
+                default=self._get_current_value("cache_ttl", DEFAULT_CACHE_TTL),
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=0,
+                    max=300,
+                    mode=selector.NumberSelectorMode.BOX,
+                    unit_of_measurement="s",
+                )
+            ),
+            vol.Optional(
+                "max_retries",
+                default=self._get_current_value("max_retries", DEFAULT_MAX_RETRIES),
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(min=0, max=10, mode=selector.NumberSelectorMode.BOX)
+            ),
+        }
+
+        # Per-coordinator polling priority selectors
+        for coord_name, default_prio in DEFAULT_POLLING_PRIORITIES.items():
+            current = self._get_current_value(
+                f"polling_priority_{coord_name}", default_prio.name
+            )
+            schema_dict[
+                vol.Optional(f"polling_priority_{coord_name}", default=current)
+            ] = selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=_POLLING_PRIORITY_OPTIONS,
+                    multiple=False,
+                    mode=selector.SelectSelectorMode.DROPDOWN,
+                )
+            )
+
         return self.async_show_form(
             step_id="general_polling",
-            data_schema=vol.Schema(
-                {
-                    vol.Optional(
-                        "polling_interval",
-                        default=self._get_current_value("polling_interval", DEFAULT_POLLING_INTERVAL),
-                    ): selector.NumberSelector(
-                        selector.NumberSelectorConfig(
-                            min=10,
-                            max=600,
-                            mode=selector.NumberSelectorMode.BOX,
-                            unit_of_measurement="s",
-                        )
-                    ),
-                    vol.Optional(
-                        "cache_ttl",
-                        default=self._get_current_value("cache_ttl", DEFAULT_CACHE_TTL),
-                    ): selector.NumberSelector(
-                        selector.NumberSelectorConfig(
-                            min=0,
-                            max=300,
-                            mode=selector.NumberSelectorMode.BOX,
-                            unit_of_measurement="s",
-                        )
-                    ),
-                    vol.Optional(
-                        "max_retries",
-                        default=self._get_current_value("max_retries", DEFAULT_MAX_RETRIES),
-                    ): selector.NumberSelector(
-                        selector.NumberSelectorConfig(min=0, max=10, mode=selector.NumberSelectorMode.BOX)
-                    ),
-                }
-            ),
-            description_placeholders={"info": "Configure polling intervals, caching, and retry behavior."},
+            data_schema=vol.Schema(schema_dict),
+            description_placeholders={"info": "Configure polling intervals, caching, and retry behavior. "
+                                              "Priority controls how often each coordinator polls: "
+                                              "High = 1× base interval, Medium = 2×, Low = 3×, Very Low = 4×."},
         )
 
     async def async_step_general_rate_limiting(self, user_input: dict[str, Any] | None = None) -> FlowResult:
@@ -1084,7 +1112,8 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 description_placeholders={"info": "Select dashboard sensors to enable."},
                 errors=errors,
             )
-        except KeyError, TypeError, ValueError:
+        except (KeyError, TypeError, ValueError):
+
             _LOGGER.exception("✗ ERROR in async_step_entities_sensors_dashboard")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -1142,7 +1171,8 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 description_placeholders={"info": "Select thermal profile sensors to enable."},
                 errors=errors,
             )
-        except KeyError, TypeError, ValueError:
+        except (KeyError, TypeError, ValueError):
+
             _LOGGER.exception("✗ ERROR in async_step_entities_sensors_thermalprofile")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -1199,7 +1229,8 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 description_placeholders={"info": "Select monitoring sensors to enable."},
                 errors=errors,
             )
-        except KeyError, TypeError, ValueError:
+        except (KeyError, TypeError, ValueError):
+
             _LOGGER.exception("✗ ERROR in async_step_entities_sensors_monitoring")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -1263,7 +1294,8 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 description_placeholders={"info": "Select connected device telemetry sensors to enable."},
                 errors=errors,
             )
-        except KeyError, TypeError, ValueError:
+        except (KeyError, TypeError, ValueError):
+
             _LOGGER.exception("✗ ERROR in async_step_entities_sensors_connected_telemetry")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -1327,7 +1359,8 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 description_placeholders={"info": "Select connected device properties sensors to enable."},
                 errors=errors,
             )
-        except KeyError, TypeError, ValueError:
+        except (KeyError, TypeError, ValueError):
+
             _LOGGER.exception("✗ ERROR in async_step_entities_sensors_connected_properties")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -1391,7 +1424,8 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 description_placeholders={"info": "Select connected device definition sensors to enable."},
                 errors=errors,
             )
-        except KeyError, TypeError, ValueError:
+        except (KeyError, TypeError, ValueError):
+
             _LOGGER.exception("✗ ERROR in async_step_entities_sensors_connected_definition")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -1449,7 +1483,8 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 description_placeholders={"info": "Select access tracking sensors to enable (diagnostic only)."},
                 errors=errors,
             )
-        except KeyError, TypeError, ValueError:
+        except (KeyError, TypeError, ValueError):
+
             _LOGGER.exception("✗ ERROR in async_step_entities_sensors_access_tracking")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -1508,7 +1543,8 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 description_placeholders={"info": "Select switches to enable."},
                 errors=errors,
             )
-        except KeyError, TypeError, ValueError:
+        except (KeyError, TypeError, ValueError):
+
             _LOGGER.exception("✗ ERROR in async_step_entities_switches")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -1567,7 +1603,8 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 description_placeholders={"info": "Select number controls to enable."},
                 errors=errors,
             )
-        except KeyError, TypeError, ValueError:
+        except (KeyError, TypeError, ValueError):
+
             _LOGGER.exception("✗ ERROR in async_step_entities_numbers")
             errors["base"] = "entity_options_error"
             return self.async_show_form(
@@ -1626,7 +1663,8 @@ class ComfoClimeOptionsFlow(OptionsFlow):
                 description_placeholders={"info": "Select list controls to enable."},
                 errors=errors,
             )
-        except KeyError, TypeError, ValueError:
+        except (KeyError, TypeError, ValueError):
+
             _LOGGER.exception("✗ ERROR in async_step_entities_selects")
             errors["base"] = "entity_options_error"
             return self.async_show_form(

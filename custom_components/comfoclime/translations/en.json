@@ -445,6 +445,21 @@
                     "entities": "Entity Selection"
                 }
             },
+            "general_polling": {
+                "title": "Polling & Caching",
+                "description": "Configure polling intervals, caching, and retry behavior. Priority controls how often each coordinator polls: High = 1× base interval, Medium = 2×, Low = 3×, Very Low = 4×.",
+                "data": {
+                    "polling_interval": "Base Polling Interval (s)",
+                    "cache_ttl": "Cache TTL (s)",
+                    "max_retries": "Max Retries",
+                    "polling_priority_dashboard": "🔄 Dashboard Priority",
+                    "polling_priority_thermalprofile": "🔄 Thermal Profile Priority",
+                    "polling_priority_monitoring": "🔄 Monitoring Priority",
+                    "polling_priority_telemetry": "🔄 Telemetry Priority",
+                    "polling_priority_property": "🔄 Property Priority",
+                    "polling_priority_definition": "🔄 Definition Priority"
+                }
+            },
             "entities": {
                 "title": "Entity Selection",
                 "description": "Select which entities should be enabled in each category",

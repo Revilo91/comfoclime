@@ -578,7 +578,8 @@ class ComfoClimeTelemetrySensor(ComfoClimeBaseEntity, CoordinatorEntity, SensorE
         try:
             value = self.coordinator.get_telemetry_value(self._override_uuid, self._id)
             self._state = value
-        except KeyError, TypeError, ValueError:
+        except (KeyError, TypeError, ValueError):
+
             _LOGGER.debug("Error updating telemetry %s", self._id, exc_info=True)
             self._state = None
         self.async_write_ha_state()
@@ -644,7 +645,8 @@ class ComfoClimePropertySensor(ComfoClimeBaseEntity, CoordinatorEntity, SensorEn
                 self._state = VALUE_MAPPINGS[self._mapping_key].get(value, value)
             else:
                 self._state = value
-        except KeyError, TypeError, ValueError:
+        except (KeyError, TypeError, ValueError):
+
             _LOGGER.debug("Error fetching property %s", self._path, exc_info=True)
             self._state = None
         self.async_write_ha_state()
@@ -706,7 +708,8 @@ class ComfoClimeDefinitionSensor(ComfoClimeBaseEntity, CoordinatorEntity, Sensor
                     self._state = definition_data.get(self._key)
             else:
                 self._state = None
-        except KeyError, TypeError, ValueError:
+        except (KeyError, TypeError, ValueError):
+
             _LOGGER.debug("Error retrieving definition %s", self._key, exc_info=True)
             self._state = None
         self.async_write_ha_state()
@@ -777,7 +780,8 @@ class ComfoClimeAccessTrackingSensor(ComfoClimeBaseEntity, SensorEntity):
                 self._state = self._access_tracker.get_total_accesses_per_hour()
             else:
                 self._state = 0
-        except KeyError, TypeError, ValueError:
+        except (KeyError, TypeError, ValueError):
+
             _LOGGER.debug("Error updating access tracking sensor %s", self._name, exc_info=True)
             self._state = 0
 

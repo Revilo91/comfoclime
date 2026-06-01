@@ -489,6 +489,21 @@
                     "enabled_fan": "💨 Lüfterstufe (Fan Entity)"
                 }
             },
+            "general_polling": {
+                "title": "Polling & Caching",
+                "description": "Konfigurieren Sie die Abfrageintervalle, Caching und Wiederholungsversuche. Die Priorität steuert, wie oft jeder Coordinator abfragt: Hoch = 1× Basisintervall, Mittel = 2×, Niedrig = 3×, Sehr niedrig = 4×.",
+                "data": {
+                    "polling_interval": "Basis-Abfrageintervall (s)",
+                    "cache_ttl": "Cache-Gültigkeitsdauer (s)",
+                    "max_retries": "Maximale Wiederholungsversuche",
+                    "polling_priority_dashboard": "🔄 Dashboard Priorität",
+                    "polling_priority_thermalprofile": "🔄 Thermalprofil Priorität",
+                    "polling_priority_monitoring": "🔄 Monitoring Priorität",
+                    "polling_priority_telemetry": "🔄 Telemetrie Priorität",
+                    "polling_priority_property": "🔄 Eigenschaften Priorität",
+                    "polling_priority_definition": "🔄 Definitionen Priorität"
+                }
+            },
             "general": {
                 "title": "Allgemeine Einstellungen",
                 "description": "Erweiterte Einstellungen für die Integration",

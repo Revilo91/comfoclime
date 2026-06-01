@@ -25,9 +25,11 @@ from .entities.sensor_definitions import (
     CONNECTED_DEVICE_PROPERTIES,
     CONNECTED_DEVICE_SENSORS,
     DASHBOARD_SENSORS,
+    DEFAULT_POLLING_PRIORITIES,
     MONITORING_SENSORS,
     TELEMETRY_SENSORS,
     THERMALPROFILE_SENSORS,
+    PollingPriority,
 )
 from .entities.switch_definitions import SWITCHES
 from .entity_helper import (
@@ -273,6 +275,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             new_options[core_key] = True
             needs_update = True
 
+    # Migrate: add polling priority options if missing (legacy installs used hardcoded staggering)
+    for coord_name, prio in DEFAULT_POLLING_PRIORITIES.items():
+        prio_key = f"polling_priority_{coord_name}"
+        if prio_key not in new_options:
+            new_options[prio_key] = prio.name
+            needs_update = True
+
     if needs_update:
         hass.config_entries.async_update_entry(entry, options=new_options)
 
@@ -302,13 +311,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         request_debounce,
     )
 
-    # Stagger coordinator intervals to reduce sustained API pressure on devices.
-    dashboard_interval = polling_interval
-    thermalprofile_interval = polling_interval
-    monitoring_interval = polling_interval
-    telemetry_interval = polling_interval * 2
-    property_interval = polling_interval * 3
-    definition_interval = polling_interval * 4
+    # Compute coordinator intervals from per-coordinator polling priorities.
+    # Each priority level defines a multiplier on the base polling_interval.
+    def _get_priority(name: str) -> int:
+        prio_str = entry.options.get(f"polling_priority_{name}")
+        if prio_str:
+            try:
+                return PollingPriority[prio_str].value
+            except KeyError:
+                pass
+        return DEFAULT_POLLING_PRIORITIES[name].value
+
+    dashboard_interval = polling_interval * _get_priority("dashboard")
+    thermalprofile_interval = polling_interval * _get_priority("thermalprofile")
+    monitoring_interval = polling_interval * _get_priority("monitoring")
+    telemetry_interval = polling_interval * _get_priority("telemetry")
+    property_interval = polling_interval * _get_priority("property")
+    definition_interval = polling_interval * _get_priority("definition")
 
     _LOGGER.debug(
         "Coordinator polling intervals: dashboard=%s, thermalprofile=%s, monitoring=%s, "
