@@ -128,7 +128,7 @@ class TestComfoClimeSensor:
             name="Uptime",
             translation_key="uptime",
             unit="s",
-            device_class="duration",
+            device_class="uptime",
             state_class="measurement",
             entity_category="diagnostic",
             device=None,
