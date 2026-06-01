@@ -8,7 +8,7 @@ from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.const import EntityCategory
 from pydantic import ConfigDict, Field
 
-from .base_definitions import EntityDefinitionBase, KeyEntityDefinitionBase
+from .base_definitions import EntityDefinitionBase, KeyEntityDefinitionBase, SensorPriority
 
 
 class SensorCategory(Enum):
@@ -165,6 +165,7 @@ DASHBOARD_SENSORS = [
         unit="°C",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        priority=SensorPriority.HIGH,  # Critical real-time temperature data
     ),
     SensorDefinition(
         key="outdoorTemperature",
@@ -173,6 +174,7 @@ DASHBOARD_SENSORS = [
         unit="°C",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        priority=SensorPriority.HIGH,  # Critical real-time temperature data
     ),
     SensorDefinition(
         key="setPointTemperature",
@@ -181,6 +183,7 @@ DASHBOARD_SENSORS = [
         unit="°C",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        priority=SensorPriority.HIGH,  # Critical real-time temperature data
     ),
     SensorDefinition(
         key="exhaustAirFlow",
@@ -189,6 +192,7 @@ DASHBOARD_SENSORS = [
         unit="m³/h",
         device_class=SensorDeviceClass.VOLUME_FLOW_RATE,
         state_class=SensorStateClass.MEASUREMENT,
+        priority=SensorPriority.MEDIUM,  # Important monitoring data
     ),
     SensorDefinition(
         key="supplyAirFlow",
@@ -197,12 +201,14 @@ DASHBOARD_SENSORS = [
         unit="m³/h",
         device_class=SensorDeviceClass.VOLUME_FLOW_RATE,
         state_class=SensorStateClass.MEASUREMENT,
+        priority=SensorPriority.MEDIUM,  # Important monitoring data
     ),
     SensorDefinition(
         key="fanSpeed",
         name="Fan Speed",
         translation_key="fan_speed",
         device_class=SensorDeviceClass.ENUM,
+        priority=SensorPriority.HIGH,  # Critical operational status
     ),
     SensorDefinition(
         key="seasonProfile",
@@ -210,53 +216,62 @@ DASHBOARD_SENSORS = [
         translation_key="season_profile",
         device_class=SensorDeviceClass.ENUM,
         entity_category="diagnostic",
+        priority=SensorPriority.LOW,  # Less frequently changing diagnostic
     ),
     SensorDefinition(
         key="temperatureProfile",
         name="Temperature Profile Status",
         translation_key="temperature_profile_status",
         device_class=SensorDeviceClass.ENUM,
+        priority=SensorPriority.MEDIUM,  # Important operating mode
     ),
     SensorDefinition(
         key="season",
         name="Season",
         translation_key="season",
         device_class=SensorDeviceClass.ENUM,
+        priority=SensorPriority.MEDIUM,  # Important operating mode
     ),
     SensorDefinition(
         key="schedule",
         name="Schedule",
         translation_key="schedule_status",
         entity_category="diagnostic",
+        priority=SensorPriority.LOW,  # Less frequently changing diagnostic
     ),
     SensorDefinition(
         key="status",
         name="Status",
         translation_key="dashboard_status",
         entity_category="diagnostic",
+        priority=SensorPriority.HIGH,  # Critical operational status
     ),
     SensorDefinition(
         key="heatPumpStatus",
         name="Heat Pump Status",
         translation_key="heat_pump_status",
+        priority=SensorPriority.HIGH,  # Critical operational status
     ),
     SensorDefinition(
         key="hpStandby",
         name="Device Power Status",
         translation_key="device_power_status",
         entity_category="diagnostic",
+        priority=SensorPriority.MEDIUM,  # Important diagnostic status
     ),
     SensorDefinition(
         key="freeCoolingEnabled",
         name="Free Cooling Status",
         translation_key="free_cooling_status",
         entity_category="diagnostic",
+        priority=SensorPriority.MEDIUM,  # Important diagnostic status
     ),
     SensorDefinition(
         key="caqFreeCoolingAvailable",
         name="ComfoAirQ Free Cooling Available",
         translation_key="caq_free_cooling_available",
         entity_category="diagnostic",
+        priority=SensorPriority.MEDIUM,  # Important diagnostic status
     ),
     SensorDefinition(
         key="scenarioTimeLeft",
@@ -265,12 +280,14 @@ DASHBOARD_SENSORS = [
         unit="s",
         device_class=SensorDeviceClass.DURATION,
         state_class=SensorStateClass.MEASUREMENT,
+        priority=SensorPriority.HIGH,  # Real-time scenario countdown
     ),
     SensorDefinition(
         key="scenario",
         name="Scenario",
         translation_key="scenario",
         entity_category="diagnostic",
+        priority=SensorPriority.HIGH,  # Active scenario mode
     ),
 ]
 
@@ -283,6 +300,7 @@ MONITORING_SENSORS = [
         device_class=SensorDeviceClass.DURATION,
         state_class=SensorStateClass.MEASUREMENT,
         entity_category="diagnostic",
+        priority=SensorPriority.VERY_LOW,  # Rarely changing diagnostic
     ),
 ]
 
@@ -292,12 +310,14 @@ THERMALPROFILE_SENSORS = [
         name="Season Status",
         translation_key="thermal_season_status",
         entity_category="diagnostic",
+        priority=SensorPriority.LOW,  # Configuration data
     ),
     SensorDefinition(
         key="season.season",
         name="Season Mode",
         translation_key="thermal_season_mode",
         device_class=SensorDeviceClass.ENUM,
+        priority=SensorPriority.MEDIUM,  # Important operating mode
     ),
     SensorDefinition(
         key="season.heatingThresholdTemperature",
@@ -306,6 +326,7 @@ THERMALPROFILE_SENSORS = [
         unit="°C",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        priority=SensorPriority.LOW,  # Configuration data
     ),
     SensorDefinition(
         key="season.coolingThresholdTemperature",
@@ -314,12 +335,14 @@ THERMALPROFILE_SENSORS = [
         unit="°C",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        priority=SensorPriority.LOW,  # Configuration data
     ),
     SensorDefinition(
         key="temperature.status",
         name="Temperature Control Status",
         translation_key="thermal_temperature_status",
         entity_category="diagnostic",
+        priority=SensorPriority.LOW,  # Configuration data
     ),
     SensorDefinition(
         key="temperature.manualTemperature",
@@ -328,12 +351,14 @@ THERMALPROFILE_SENSORS = [
         unit="°C",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        priority=SensorPriority.MEDIUM,  # Important manual setpoint
     ),
     SensorDefinition(
         key="temperatureProfile",
         name="Temperature Profile",
         translation_key="thermal_temperature_profile",
         device_class=SensorDeviceClass.ENUM,
+        priority=SensorPriority.LOW,  # Configuration data
     ),
     SensorDefinition(
         key="heatingThermalProfileSeasonData.comfortTemperature",
@@ -342,6 +367,7 @@ THERMALPROFILE_SENSORS = [
         unit="°C",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        priority=SensorPriority.LOW,  # Configuration data
     ),
     SensorDefinition(
         key="heatingThermalProfileSeasonData.kneePointTemperature",
@@ -350,6 +376,7 @@ THERMALPROFILE_SENSORS = [
         unit="°C",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        priority=SensorPriority.LOW,  # Configuration data
     ),
     SensorDefinition(
         key="heatingThermalProfileSeasonData.reductionDeltaTemperature",
@@ -358,6 +385,7 @@ THERMALPROFILE_SENSORS = [
         unit="°C",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        priority=SensorPriority.LOW,  # Configuration data
     ),
     SensorDefinition(
         key="coolingThermalProfileSeasonData.comfortTemperature",
@@ -366,6 +394,7 @@ THERMALPROFILE_SENSORS = [
         unit="°C",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        priority=SensorPriority.LOW,  # Configuration data
     ),
     SensorDefinition(
         key="coolingThermalProfileSeasonData.kneePointTemperature",
@@ -374,6 +403,7 @@ THERMALPROFILE_SENSORS = [
         unit="°C",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        priority=SensorPriority.LOW,  # Configuration data
     ),
     SensorDefinition(
         key="coolingThermalProfileSeasonData.temperatureLimit",
@@ -382,6 +412,7 @@ THERMALPROFILE_SENSORS = [
         unit="°C",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        priority=SensorPriority.LOW,  # Configuration data
     ),
 ]
 
@@ -400,6 +431,7 @@ CONNECTED_DEVICE_SENSORS = {
             faktor=0.1,
             signed=True,
             byte_count=2,
+            priority=SensorPriority.HIGH,
         ),
         TelemetrySensorDefinition(
             name="TPMA Temperature",
@@ -411,12 +443,14 @@ CONNECTED_DEVICE_SENSORS = {
             faktor=0.1,
             signed=True,
             byte_count=2,
+            priority=SensorPriority.HIGH,
         ),
         TelemetrySensorDefinition(
             name="Device Mode",
             translation_key="device_mode_status",
             telemetry_id=4149,
             faktor=1.0,
+            priority=SensorPriority.HIGH,
         ),
         TelemetrySensorDefinition(
             name="Current Comfort Temperature",
@@ -428,6 +462,7 @@ CONNECTED_DEVICE_SENSORS = {
             faktor=0.1,
             signed=True,
             byte_count=2,
+            priority=SensorPriority.HIGH,
         ),
         TelemetrySensorDefinition(
             name="Indoor Temperature",
@@ -439,6 +474,7 @@ CONNECTED_DEVICE_SENSORS = {
             faktor=0.1,
             signed=True,
             byte_count=2,
+            priority=SensorPriority.HIGH,
         ),
         TelemetrySensorDefinition(
             name="Exhaust Temperature",
@@ -450,6 +486,7 @@ CONNECTED_DEVICE_SENSORS = {
             faktor=0.1,
             signed=True,
             byte_count=2,
+            priority=SensorPriority.HIGH,
         ),
         TelemetrySensorDefinition(
             name="Supply Coil Temperature",
@@ -462,6 +499,7 @@ CONNECTED_DEVICE_SENSORS = {
             signed=True,
             byte_count=2,
             diagnose=True,
+            priority=SensorPriority.LOW,
         ),
         TelemetrySensorDefinition(
             name="Exhaust Coil Temperature",
@@ -474,6 +512,7 @@ CONNECTED_DEVICE_SENSORS = {
             signed=True,
             byte_count=2,
             diagnose=True,
+            priority=SensorPriority.LOW,
         ),
         TelemetrySensorDefinition(
             name="Compressor Temperature",
@@ -486,6 +525,7 @@ CONNECTED_DEVICE_SENSORS = {
             signed=True,
             byte_count=2,
             diagnose=True,
+            priority=SensorPriority.LOW,
         ),
         TelemetrySensorDefinition(
             name="Power Factor Heatpump",
@@ -493,6 +533,7 @@ CONNECTED_DEVICE_SENSORS = {
             unit="%",
             state_class=SensorStateClass.MEASUREMENT,
             telemetry_id=4198,
+            priority=SensorPriority.HIGH,
         ),
         TelemetrySensorDefinition(
             name="Power Heatpump",
@@ -502,6 +543,7 @@ CONNECTED_DEVICE_SENSORS = {
             state_class=SensorStateClass.MEASUREMENT,
             telemetry_id=4201,
             byte_count=2,
+            priority=SensorPriority.HIGH,
         ),
         TelemetrySensorDefinition(
             name="High Pressure",
@@ -512,6 +554,7 @@ CONNECTED_DEVICE_SENSORS = {
             telemetry_id=4202,
             byte_count=2,
             diagnose=True,
+            priority=SensorPriority.LOW,
         ),
         TelemetrySensorDefinition(
             name="Expansion Valve",
@@ -521,6 +564,7 @@ CONNECTED_DEVICE_SENSORS = {
             telemetry_id=4203,
             byte_count=2,
             diagnose=True,
+            priority=SensorPriority.LOW,
         ),
         TelemetrySensorDefinition(
             name="Heat Pump Diagnostic",
@@ -529,6 +573,7 @@ CONNECTED_DEVICE_SENSORS = {
             telemetry_id=4204,
             byte_count=2,
             diagnose=True,
+            priority=SensorPriority.LOW,
         ),
         TelemetrySensorDefinition(
             name="Low Pressure",
@@ -539,6 +584,7 @@ CONNECTED_DEVICE_SENSORS = {
             telemetry_id=4205,
             byte_count=2,
             diagnose=True,
+            priority=SensorPriority.LOW,
         ),
         TelemetrySensorDefinition(
             name="Heat Pump Status (Telemetry)",
@@ -555,6 +601,7 @@ CONNECTED_DEVICE_SENSORS = {
             telemetry_id=4207,
             byte_count=2,
             diagnose=True,
+            priority=SensorPriority.LOW,
         ),
         TelemetrySensorDefinition(
             name="Heat Pump Diagnostic",
@@ -563,6 +610,7 @@ CONNECTED_DEVICE_SENSORS = {
             telemetry_id=4208,
             byte_count=2,
             diagnose=True,
+            priority=SensorPriority.LOW,
         ),
     ],
     1: [
@@ -572,6 +620,7 @@ CONNECTED_DEVICE_SENSORS = {
             unit="%",
             state_class=SensorStateClass.MEASUREMENT,
             telemetry_id=117,
+            priority=SensorPriority.HIGH,
         ),
         TelemetrySensorDefinition(
             name="Supply Fan Duty",
@@ -579,6 +628,7 @@ CONNECTED_DEVICE_SENSORS = {
             unit="%",
             state_class=SensorStateClass.MEASUREMENT,
             telemetry_id=118,
+            priority=SensorPriority.HIGH,
         ),
         TelemetrySensorDefinition(
             name="Exhaust Fan Speed",
@@ -587,6 +637,7 @@ CONNECTED_DEVICE_SENSORS = {
             state_class=SensorStateClass.MEASUREMENT,
             telemetry_id=121,
             byte_count=2,
+            priority=SensorPriority.HIGH,
         ),
         TelemetrySensorDefinition(
             name="Supply Fan Speed",
@@ -595,6 +646,7 @@ CONNECTED_DEVICE_SENSORS = {
             state_class=SensorStateClass.MEASUREMENT,
             telemetry_id=122,
             byte_count=2,
+            priority=SensorPriority.HIGH,
         ),
         TelemetrySensorDefinition(
             name="Power Ventilation",
@@ -604,6 +656,7 @@ CONNECTED_DEVICE_SENSORS = {
             state_class=SensorStateClass.MEASUREMENT,
             telemetry_id=128,
             byte_count=2,
+            priority=SensorPriority.HIGH,
         ),
         TelemetrySensorDefinition(
             name="Energy YTD",
@@ -613,6 +666,7 @@ CONNECTED_DEVICE_SENSORS = {
             state_class=SensorStateClass.TOTAL_INCREASING,
             telemetry_id=129,
             byte_count=2,
+            priority=SensorPriority.LOW,
         ),
         TelemetrySensorDefinition(
             name="Energy Total",
@@ -622,6 +676,7 @@ CONNECTED_DEVICE_SENSORS = {
             state_class=SensorStateClass.TOTAL_INCREASING,
             telemetry_id=130,
             byte_count=2,
+            priority=SensorPriority.LOW,
         ),
         TelemetrySensorDefinition(
             name="Mean outdoor temperature (RMOT)",
@@ -640,6 +695,7 @@ CONNECTED_DEVICE_SENSORS = {
             unit="%",
             state_class=SensorStateClass.MEASUREMENT,
             telemetry_id=227,
+            priority=SensorPriority.MEDIUM,
         ),
         TelemetrySensorDefinition(
             name="Exhaust Temperature",
@@ -651,6 +707,7 @@ CONNECTED_DEVICE_SENSORS = {
             faktor=0.1,
             signed=True,
             byte_count=2,
+            priority=SensorPriority.HIGH,
         ),
         TelemetrySensorDefinition(
             name="Supply Temperature",
@@ -662,6 +719,7 @@ CONNECTED_DEVICE_SENSORS = {
             faktor=0.1,
             signed=True,
             byte_count=2,
+            priority=SensorPriority.HIGH,
         ),
         TelemetrySensorDefinition(
             name="Extract Humidity",
@@ -670,6 +728,7 @@ CONNECTED_DEVICE_SENSORS = {
             device_class=SensorDeviceClass.HUMIDITY,
             state_class=SensorStateClass.MEASUREMENT,
             telemetry_id=290,
+            priority=SensorPriority.MEDIUM,
         ),
         TelemetrySensorDefinition(
             name="Exhaust Humidity",
@@ -678,6 +737,7 @@ CONNECTED_DEVICE_SENSORS = {
             device_class=SensorDeviceClass.HUMIDITY,
             state_class=SensorStateClass.MEASUREMENT,
             telemetry_id=291,
+            priority=SensorPriority.MEDIUM,
         ),
         TelemetrySensorDefinition(
             name="Outdoor Humidity",
@@ -686,6 +746,7 @@ CONNECTED_DEVICE_SENSORS = {
             device_class=SensorDeviceClass.HUMIDITY,
             state_class=SensorStateClass.MEASUREMENT,
             telemetry_id=292,
+            priority=SensorPriority.HIGH,
         ),
         TelemetrySensorDefinition(
             name="Supply Humidity",
@@ -694,6 +755,7 @@ CONNECTED_DEVICE_SENSORS = {
             device_class=SensorDeviceClass.HUMIDITY,
             state_class=SensorStateClass.MEASUREMENT,
             telemetry_id=294,
+            priority=SensorPriority.MEDIUM,
         ),
         TelemetrySensorDefinition(
             name="Filter Days Remaining",
@@ -704,6 +766,7 @@ CONNECTED_DEVICE_SENSORS = {
             entity_category=EntityCategory.DIAGNOSTIC,
             telemetry_id=192,
             byte_count=2,
+            priority=SensorPriority.LOW,
         ),
     ],
 }
@@ -721,6 +784,7 @@ CONNECTED_DEVICE_PROPERTIES = {
             faktor=0.1,
             signed=True,
             byte_count=2,
+            priority=SensorPriority.LOW,
         ),
         PropertySensorDefinition(
             name="HP Min. Supply Temperature Cooling",
@@ -733,6 +797,7 @@ CONNECTED_DEVICE_PROPERTIES = {
             faktor=0.1,
             signed=True,
             byte_count=2,
+            priority=SensorPriority.LOW,
         ),
         PropertySensorDefinition(
             name="HP Max. Supply Temperature Heating",
@@ -745,6 +810,7 @@ CONNECTED_DEVICE_PROPERTIES = {
             faktor=0.1,
             signed=False,
             byte_count=2,
+            priority=SensorPriority.LOW,
         ),
         PropertySensorDefinition(
             name="HP Min. Comfort Temperature Cooling",
@@ -757,6 +823,7 @@ CONNECTED_DEVICE_PROPERTIES = {
             faktor=0.1,
             signed=True,
             byte_count=2,
+            priority=SensorPriority.LOW,
         ),
         PropertySensorDefinition(
             name="HP Maximum Power",
@@ -768,6 +835,7 @@ CONNECTED_DEVICE_PROPERTIES = {
             faktor=1.0,
             signed=False,
             byte_count=1,
+            priority=SensorPriority.LOW,
         ),
         PropertySensorDefinition(
             name="HP Hysteresis Heating",
@@ -780,6 +848,7 @@ CONNECTED_DEVICE_PROPERTIES = {
             faktor=0.1,
             signed=False,
             byte_count=2,
+            priority=SensorPriority.LOW,
         ),
         PropertySensorDefinition(
             name="HP Hysteresis Cooling",
@@ -792,6 +861,7 @@ CONNECTED_DEVICE_PROPERTIES = {
             faktor=0.1,
             signed=False,
             byte_count=2,
+            priority=SensorPriority.LOW,
         ),
     ],
     1: [
@@ -802,6 +872,7 @@ CONNECTED_DEVICE_PROPERTIES = {
             path="30/1/18",
             faktor=0.1,
             byte_count=2,
+            priority=SensorPriority.LOW,
         ),
     ],
 }
@@ -817,6 +888,7 @@ CONNECTED_DEVICE_DEFINITION_SENSORS = {
             unit="°C",
             device_class=SensorDeviceClass.TEMPERATURE,
             state_class=SensorStateClass.MEASUREMENT,
+            priority=SensorPriority.HIGH,  # Real-time temperature data
         ),
         SensorDefinition(
             key="outdoorTemperature",
@@ -825,6 +897,7 @@ CONNECTED_DEVICE_DEFINITION_SENSORS = {
             unit="°C",
             device_class=SensorDeviceClass.TEMPERATURE,
             state_class=SensorStateClass.MEASUREMENT,
+            priority=SensorPriority.HIGH,  # Real-time temperature data
         ),
         SensorDefinition(
             key="extractTemperature",
@@ -833,6 +906,7 @@ CONNECTED_DEVICE_DEFINITION_SENSORS = {
             unit="°C",
             device_class=SensorDeviceClass.TEMPERATURE,
             state_class=SensorStateClass.MEASUREMENT,
+            priority=SensorPriority.HIGH,  # Real-time temperature data
         ),
         SensorDefinition(
             key="supplyTemperature",
@@ -841,6 +915,7 @@ CONNECTED_DEVICE_DEFINITION_SENSORS = {
             unit="°C",
             device_class=SensorDeviceClass.TEMPERATURE,
             state_class=SensorStateClass.MEASUREMENT,
+            priority=SensorPriority.HIGH,  # Real-time temperature data
         ),
         SensorDefinition(
             key="exhaustTemperature",
@@ -849,6 +924,7 @@ CONNECTED_DEVICE_DEFINITION_SENSORS = {
             unit="°C",
             device_class=SensorDeviceClass.TEMPERATURE,
             state_class=SensorStateClass.MEASUREMENT,
+            priority=SensorPriority.HIGH,  # Real-time temperature data
         ),
     ],
 }
@@ -864,6 +940,7 @@ ACCESS_TRACKING_SENSORS = [
         entity_category="diagnostic",
         coordinator="Dashboard",
         metric="per_minute",
+        priority=SensorPriority.VERY_LOW,
     ),
     AccessTrackingSensorDefinition(
         name="Thermalprofile Accesses per Minute",
@@ -872,6 +949,7 @@ ACCESS_TRACKING_SENSORS = [
         entity_category="diagnostic",
         coordinator="Thermalprofile",
         metric="per_minute",
+        priority=SensorPriority.VERY_LOW,
     ),
     AccessTrackingSensorDefinition(
         name="Telemetry Accesses per Minute",
@@ -880,6 +958,7 @@ ACCESS_TRACKING_SENSORS = [
         entity_category="diagnostic",
         coordinator="Telemetry",
         metric="per_minute",
+        priority=SensorPriority.VERY_LOW,
     ),
     AccessTrackingSensorDefinition(
         name="Property Accesses per Minute",
@@ -888,6 +967,7 @@ ACCESS_TRACKING_SENSORS = [
         entity_category="diagnostic",
         coordinator="Property",
         metric="per_minute",
+        priority=SensorPriority.VERY_LOW,
     ),
     AccessTrackingSensorDefinition(
         name="Definition Accesses per Minute",
@@ -896,6 +976,7 @@ ACCESS_TRACKING_SENSORS = [
         entity_category="diagnostic",
         coordinator="Definition",
         metric="per_minute",
+        priority=SensorPriority.VERY_LOW,
     ),
     AccessTrackingSensorDefinition(
         name="Monitoring Accesses per Minute",
@@ -904,6 +985,7 @@ ACCESS_TRACKING_SENSORS = [
         entity_category="diagnostic",
         coordinator="Monitoring",
         metric="per_minute",
+        priority=SensorPriority.VERY_LOW,
     ),
     # Per-coordinator per-hour sensors
     AccessTrackingSensorDefinition(
@@ -913,6 +995,7 @@ ACCESS_TRACKING_SENSORS = [
         entity_category="diagnostic",
         coordinator="Dashboard",
         metric="per_hour",
+        priority=SensorPriority.VERY_LOW,
     ),
     AccessTrackingSensorDefinition(
         name="Thermalprofile Accesses per Hour",
@@ -921,6 +1004,7 @@ ACCESS_TRACKING_SENSORS = [
         entity_category="diagnostic",
         coordinator="Thermalprofile",
         metric="per_hour",
+        priority=SensorPriority.VERY_LOW,
     ),
     AccessTrackingSensorDefinition(
         name="Telemetry Accesses per Hour",
@@ -929,6 +1013,7 @@ ACCESS_TRACKING_SENSORS = [
         entity_category="diagnostic",
         coordinator="Telemetry",
         metric="per_hour",
+        priority=SensorPriority.VERY_LOW,
     ),
     AccessTrackingSensorDefinition(
         name="Property Accesses per Hour",
@@ -937,6 +1022,7 @@ ACCESS_TRACKING_SENSORS = [
         entity_category="diagnostic",
         coordinator="Property",
         metric="per_hour",
+        priority=SensorPriority.VERY_LOW,
     ),
     AccessTrackingSensorDefinition(
         name="Definition Accesses per Hour",
@@ -945,6 +1031,7 @@ ACCESS_TRACKING_SENSORS = [
         entity_category="diagnostic",
         coordinator="Definition",
         metric="per_hour",
+        priority=SensorPriority.VERY_LOW,
     ),
     AccessTrackingSensorDefinition(
         name="Monitoring Accesses per Hour",
@@ -953,6 +1040,7 @@ ACCESS_TRACKING_SENSORS = [
         entity_category="diagnostic",
         coordinator="Monitoring",
         metric="per_hour",
+        priority=SensorPriority.VERY_LOW,
     ),
     # Total access sensors
     AccessTrackingSensorDefinition(
@@ -962,6 +1050,7 @@ ACCESS_TRACKING_SENSORS = [
         entity_category="diagnostic",
         coordinator=None,
         metric="total_per_minute",
+        priority=SensorPriority.VERY_LOW,
     ),
     AccessTrackingSensorDefinition(
         name="Total API Accesses per Hour",
@@ -970,5 +1059,6 @@ ACCESS_TRACKING_SENSORS = [
         entity_category="diagnostic",
         coordinator=None,
         metric="total_per_hour",
+        priority=SensorPriority.VERY_LOW,
     ),
 ]
