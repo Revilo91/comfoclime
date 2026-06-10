@@ -16,13 +16,21 @@ from custom_components.comfoclime.models import ConnectedDevicesResponse
 
 @pytest.mark.asyncio
 async def test_async_setup():
-    """Test async_setup returns True."""
+    """Test async_setup returns True and registers services."""
     mock_hass = MagicMock()
+    mock_hass.services = MagicMock()
+    mock_hass.services.async_register = MagicMock()
     config = {}
 
     result = await async_setup(mock_hass, config)
 
     assert result is True
+
+    # Verify all three services were registered
+    service_names = {call[0][1] for call in mock_hass.services.async_register.call_args_list}
+    assert "set_property" in service_names
+    assert "reset_system" in service_names
+    assert "set_scenario_mode" in service_names
 
 
 @pytest.mark.asyncio
@@ -37,8 +45,6 @@ async def test_async_setup_entry(
     """Test async_setup_entry."""
     mock_hass.config_entries = MagicMock()
     mock_hass.config_entries.async_forward_entry_setups = AsyncMock()
-    mock_hass.services = MagicMock()
-    mock_hass.services.async_register = MagicMock()
 
     with patch("custom_components.comfoclime.ComfoClimeAPI") as mock_api_class:
         with patch("custom_components.comfoclime.ComfoClimeDashboardCoordinator") as mock_db_coord:
@@ -98,8 +104,7 @@ async def test_async_setup_entry(
                             assert "fan" in platforms
                             assert "climate" in platforms
 
-                            # Verify services were registered (set_property, reset_system, set_scenario_mode)
-                            assert mock_hass.services.async_register.call_count == 3
+                            # Services are registered in async_setup, not async_setup_entry
 
 
 @pytest.mark.asyncio
@@ -126,8 +131,6 @@ async def test_async_setup_entry_with_float_max_retries(
     }
     mock_hass.config_entries = MagicMock()
     mock_hass.config_entries.async_forward_entry_setups = AsyncMock()
-    mock_hass.services = MagicMock()
-    mock_hass.services.async_register = MagicMock()
 
     with patch("custom_components.comfoclime.ComfoClimeAPI") as mock_api_class:
         with patch("custom_components.comfoclime.ComfoClimeDashboardCoordinator") as mock_db_coord:

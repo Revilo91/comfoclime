@@ -13,14 +13,13 @@ from typing import TYPE_CHECKING
 
 import aiohttp
 import homeassistant.helpers.device_registry as dr
+from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import HomeAssistantError
 
 from .infrastructure import validate_byte_value, validate_duration, validate_property_path
 from .models import PropertyWriteRequest
 
 if TYPE_CHECKING:
-    from homeassistant.core import HomeAssistant, ServiceCall
-
     from .comfoclime_api import ComfoClimeAPI
 
 _LOGGER = logging.getLogger(__name__)
@@ -28,16 +27,48 @@ _LOGGER = logging.getLogger(__name__)
 DOMAIN = "comfoclime"
 
 
-async def async_register_services(hass: HomeAssistant, api: ComfoClimeAPI, domain: str = DOMAIN):
+def _get_api_for_device(
+    hass: HomeAssistant, domain: str, device: dr.DeviceEntry
+) -> ComfoClimeAPI:
+    """Return the ComfoClimeAPI for the config entry that owns *device*.
+
+    Raises HomeAssistantError when no loaded entry is found.
+    """
+    for entry_id in device.config_entries:
+        entry_data = hass.data.get(domain, {}).get(entry_id)
+        if isinstance(entry_data, dict) and "api" in entry_data:
+            return entry_data["api"]
+    raise HomeAssistantError(
+        f"Keine geladene ComfoClime-Integration für das Gerät gefunden"
+    )
+
+
+def _get_any_api(hass: HomeAssistant, domain: str) -> ComfoClimeAPI:
+    """Return the first available ComfoClimeAPI.
+
+    Raises HomeAssistantError when no loaded entry is found.
+    """
+    for entry_data in hass.data.get(domain, {}).values():
+        if isinstance(entry_data, dict) and "api" in entry_data:
+            return entry_data["api"]
+    raise HomeAssistantError(
+        "Keine ComfoClime-Integration ist geladen. Bitte zuerst konfigurieren."
+    )
+
+
+@callback
+def async_setup_services(hass: HomeAssistant, domain: str = DOMAIN) -> None:
     """Register all ComfoClime services.
+
+    Must be called from async_setup so that services are available
+    across the full config-entry lifecycle (including reloads).
 
     Args:
         hass: Home Assistant instance
-        api: ComfoClimeAPI instance for API calls
         domain: Integration domain (default: comfoclime)
     """
 
-    async def handle_set_property_service(call: ServiceCall):
+    async def handle_set_property_service(call: ServiceCall) -> None:
         """Handle set_property service call."""
         device_id = call.data["device_id"]
         path = call.data["path"]
@@ -78,8 +109,10 @@ async def async_register_services(hass: HomeAssistant, api: ComfoClimeAPI, domai
             raise HomeAssistantError("Gerät nicht gefunden oder ungültig")
         domain_check, device_uuid = next(iter(device.identifiers))
         if domain_check != domain:
-            _LOGGER.error(f"Gerät gehört nicht zur Integration {domain}")
+            _LOGGER.error("Gerät gehört nicht zur Integration %s", domain)
             raise HomeAssistantError(f"Gerät gehört nicht zur Integration {domain}")
+
+        api = _get_api_for_device(hass, domain, device)
         try:
             request = PropertyWriteRequest(
                 device_uuid=device_uuid,
@@ -90,13 +123,14 @@ async def async_register_services(hass: HomeAssistant, api: ComfoClimeAPI, domai
                 faktor=faktor,
             )
             await api.async_set_property_for_device(request=request)
-            _LOGGER.info(f"Property {path} auf {value} gesetzt für {device_uuid}")
+            _LOGGER.info("Property %s auf %s gesetzt für %s", path, value, device_uuid)
         except (TimeoutError, aiohttp.ClientError) as e:
             _LOGGER.exception("Fehler beim Setzen von Property %s", path)
             raise HomeAssistantError(f"Fehler beim Setzen von Property {path}") from e
 
-    async def handle_reset_system_service(call: ServiceCall):
+    async def handle_reset_system_service(call: ServiceCall) -> None:
         """Handle reset_system service call."""
+        api = _get_any_api(hass, domain)
         try:
             await api.async_reset_system()
             _LOGGER.info("ComfoClime Neustart ausgelöst")
@@ -104,7 +138,7 @@ async def async_register_services(hass: HomeAssistant, api: ComfoClimeAPI, domai
             _LOGGER.exception("Fehler beim Neustart des Geräts")
             raise HomeAssistantError("Fehler beim Neustart des Geräts") from e
 
-    async def handle_set_scenario_mode_service(call: ServiceCall):
+    async def handle_set_scenario_mode_service(call: ServiceCall) -> None:
         """Handle set_scenario_mode service call.
 
         This service activates special operating modes (scenarios) on the ComfoClime
@@ -136,7 +170,7 @@ async def async_register_services(hass: HomeAssistant, api: ComfoClimeAPI, domai
                 raise HomeAssistantError(f"Invalid start_delay: {error_message}")
 
         # Find climate entity with matching entity_id in all ComfoClime integrations
-        for _entry_id, data in hass.data[domain].items():
+        for _entry_id, data in hass.data.get(domain, {}).items():
             if isinstance(data, dict):  # Skip non-dict entries
                 climate_entities = data.get("climate_entities", [])
 
@@ -153,12 +187,20 @@ async def async_register_services(hass: HomeAssistant, api: ComfoClimeAPI, domai
                                 start_delay=start_delay,
                             )
                         except (TimeoutError, aiohttp.ClientError, ValueError) as e:
-                            _LOGGER.exception("Error setting scenario mode '%s' on %s", scenario, entity_id)
-                            raise HomeAssistantError(f"Failed to set scenario mode '{scenario}'") from e
+                            _LOGGER.exception(
+                                "Error setting scenario mode '%s' on %s", scenario, entity_id
+                            )
+                            raise HomeAssistantError(
+                                f"Failed to set scenario mode '{scenario}'"
+                            ) from e
                         else:
                             _LOGGER.info(
-                                f"Scenario mode '{scenario}' activated for {entity_id} "
-                                f"with duration {duration} and start_delay {start_delay}"
+                                "Scenario mode '%s' activated for %s "
+                                "with duration %s and start_delay %s",
+                                scenario,
+                                entity_id,
+                                duration,
+                                start_delay,
                             )
                             return
 

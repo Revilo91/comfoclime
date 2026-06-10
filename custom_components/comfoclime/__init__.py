@@ -38,7 +38,7 @@ from .entity_helper import (
     is_entity_enabled,
 )
 from .infrastructure import AccessTracker
-from .services import async_register_services
+from .services import async_setup_services
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -207,6 +207,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     Returns:
         True if setup successful
     """
+    async_setup_services(hass, DOMAIN)
     return True  # wir nutzen keine YAML-Konfiguration mehr
 
 
@@ -470,9 +471,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
-    # Register services
-    await async_register_services(hass, api, DOMAIN)
 
     return True
 
