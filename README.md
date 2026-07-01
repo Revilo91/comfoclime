@@ -23,8 +23,8 @@ ComfoClime is a HVAC solution as additional device for the ComfoAir Q series. It
 ## Requirements
 
 ### System Requirements
-- **Home Assistant**: ≥ 2025.6.0
-- **Python**: ≥ 3.13.2
+- **Home Assistant**: ≥ 2026.2.0
+- **Python**: ≥ 3.14
 - **aiohttp**: ≥ 3.8.0, < 4.0
 - **pydantic**: ≥ 2.0.0
 
@@ -37,45 +37,25 @@ ComfoClime is a HVAC solution as additional device for the ComfoAir Q series. It
 
 - Clone this repository or open it in a Codespace/Dev Container as described below
 - Install dependencies and set up the development environment
-- Home Assistant (2025.6.0+) and the integration will be available for local development and testing
+- Home Assistant (2026.2.0+) and the integration will be available for local development and testing
 - Home Assistant runs automatically on port 8123.
 - See [.devcontainer/README.md](.devcontainer/README.md) for detailed instructions.
 
 ### Python Version Requirements
-This integration requires **Python 3.13.2 or newer** due to Home Assistant 2025+ dependencies. The Dev Container automatically provides a compatible environment.
+This integration requires **Python 3.14 or newer** due to Home Assistant 2026.2+ dependencies. The Dev Container automatically provides a compatible environment.
 
 ## 📚 Documentation
 
-### Architecture & Developer Documentation
+All developer/AI-agent documentation (architecture, coding conventions, byte-decoding rules,
+entity categorization, scenario modes, services, troubleshooting) lives in a single place:
 
-Comprehensive architecture documentation for developers and maintainers:
+- **[CLAUDE.md](CLAUDE.md)** - the canonical technical reference for this repository
 
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Complete system architecture documentation
-  - Executive summary with codebase metrics
-  - Architecture diagrams and data flow
-  - Detailed module reference (23 modules, 48 classes, 197 methods)
-  - Call graphs and dependency mapping
-  - Dead code analysis and cleanup recommendations
-- **[docs/](docs/)** - Additional technical documentation
-  - [Class & Method Reference](docs/CLASS_METHOD_REFERENCE.md) - All classes and methods with signatures
-  - [Dependency Matrix](docs/DEPENDENCY_MATRIX.md) - Inter-module dependencies
-  - [Cleanup Recommendations](docs/CLEANUP_RECOMMENDATIONS.md) - Code quality improvements
-  - [Dependency Graph](docs/pydeps_graph.svg) - Visual dependency diagram
+For the full, upstream reverse-engineered API/protocol reference, see:
 
-### API Documentation
-
-API documentation with practical Python examples:
-
-- **[ComfoClimeAPI.md](ComfoClimeAPI.md)** - Concise API reference with Python code examples
-- **[Original documentation](https://github.com/Revilo91/comfoclime_api/blob/main/ComfoClimeAPI.md)** - Detailed reverse engineered API knowledge
-- **[PDO Protocol](https://github.com/michaelarnauts/aiocomfoconnect/blob/master/docs/PROTOCOL-PDO.md)** - Telemetry sensor protocol
-- **[RMI Protocol](https://github.com/michaelarnauts/aiocomfoconnect/blob/master/docs/PROTOCOL-RMI.md)** - Property access protocol
-
-### Additional Documentation
-
-* **[SCENARIO_MODES.md](SCENARIO_MODES.md)** - Scenario modes documentation (cooking, party, away, boost)
-* **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues and solutions
-* **[Pydantic Migration Guide](docs/migration/PYDANTIC_MIGRATION.md)** - Pydantic v2 migration documentation
+- **[ComfoClimeAPI.md](https://github.com/Revilo91/comfoclime_api/blob/main/ComfoClimeAPI.md)** - detailed reverse engineered API knowledge
+- **[PDO Protocol](https://github.com/michaelarnauts/aiocomfoconnect/blob/master/docs/PROTOCOL-PDO.md)** - telemetry sensor protocol
+- **[RMI Protocol](https://github.com/michaelarnauts/aiocomfoconnect/blob/master/docs/PROTOCOL-RMI.md)** - property access protocol
 
 Feel free to extend!
 
@@ -244,7 +224,8 @@ Tests are automatically run via GitHub Actions on push and pull requests.
 
 ## Troubleshooting
 
-Having issues with the integration? Check our [Troubleshooting Guide](TROUBLESHOOTING.md) for common issues and solutions, including:
+Having issues with the integration? Check the "Bekannte Fallstricke" section in
+[CLAUDE.md](CLAUDE.md#11-bekannte-fallstricke) for common issues and solutions, including:
 
 - GitHub integration timeout errors (not related to ComfoClime)
 - Connection issues with the device
