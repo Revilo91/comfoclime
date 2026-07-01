@@ -445,7 +445,7 @@ class TestMonitoringSensorDefinitions:
         )
         assert uptime_sensor.translation_key == "uptime"
         assert uptime_sensor.unit == "s"
-        assert uptime_sensor.device_class == "duration"
+        assert uptime_sensor.device_class == "uptime"
         assert uptime_sensor.state_class == "measurement"
         assert uptime_sensor.entity_category == "diagnostic"
 
