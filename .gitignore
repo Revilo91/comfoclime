@@ -24,3 +24,5 @@ test.py
 
 # uv
 uv.lock
+.serena
+.ruff_cache

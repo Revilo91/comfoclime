@@ -378,6 +378,31 @@ class TestComfoClimeAPIWriteOperations:
 
         assert isinstance(result, DashboardUpdateResponse)
 
+    @pytest.mark.asyncio
+    async def test_async_reset_system_performs_put_request(self):
+        """Test that async_reset_system actually sends a PUT request.
+
+        Regression test: the api_put decorator used to skip the request
+        entirely when the decorated function returned an empty payload
+        (e.g. {}), which is exactly what async_reset_system returns since
+        the reset endpoint requires no body.
+        """
+        api = ComfoClimeAPI("http://192.168.1.100")
+
+        mock_response = AsyncMock()
+        mock_response.raise_for_status = MagicMock()
+        mock_response.status = 200
+
+        mock_session = AsyncMock()
+        mock_session.put = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
+
+        with patch.object(api, "_get_session", AsyncMock(return_value=mock_session)):
+            await api.async_reset_system()
+
+        mock_session.put.assert_called_once()
+        called_url = mock_session.put.call_args.args[0]
+        assert called_url == "http://192.168.1.100/system/reset"
+
 
 class TestComfoClimeAPIRateLimiting:
     """Test ComfoClimeAPI rate limiting functionality."""

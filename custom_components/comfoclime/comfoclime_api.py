@@ -888,7 +888,7 @@ class ComfoClimeAPI:
             return PropertyWriteResponse(**response_dict)
         return PropertyWriteResponse(status=200)
 
-    @api_put("/system/reset")
+    @api_put("/system/reset", allow_empty_payload=True)
     async def async_reset_system(self):
         """Trigger a system restart of the ComfoClime device.
 

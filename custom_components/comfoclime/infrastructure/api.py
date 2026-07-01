@@ -481,6 +481,7 @@ def api_put(
     requires_uuid: bool = False,
     is_dashboard: bool = False,
     skip_lock: bool = False,
+    allow_empty_payload: bool = False,
 ):
     """Decorator for PUT API endpoints.
 
@@ -500,6 +501,9 @@ def api_put(
         requires_uuid: Whether the endpoint requires the system UUID to be fetched first.
         is_dashboard: Whether this is a dashboard update (adds timestamp and headers).
         skip_lock: Skip lock acquisition (for methods called from within locked context).
+        allow_empty_payload: If True, still perform the PUT request even when the
+            decorated function returns an empty/falsy payload (e.g. {}). Useful for
+            endpoints like /system/reset that require no body.
 
     The decorated function should build and return the payload dict.
     The URL is built from the template.
@@ -543,9 +547,12 @@ def api_put(
                 # Call the decorated function to get payload
                 payload = await func(self, *args, **kwargs)
 
-                if not payload:
+                if not payload and not allow_empty_payload:
                     _LOGGER.debug("No fields to update (empty payload) - skipping PUT.")
                     return {} if is_dashboard else True
+
+                if payload is None:
+                    payload = {}
 
                 # Prepare headers and add timestamp for dashboard updates
                 headers = None
@@ -577,7 +584,7 @@ def api_put(
                             if is_dashboard:
                                 try:
                                     resp_json = await response.json()
-                                except aiohttp.ContentTypeError, ValueError:
+                                except (aiohttp.ContentTypeError, ValueError):
                                     resp_json = {"text": await response.text()}
                                 _LOGGER.debug("Update OK response=%s", resp_json)
                                 return resp_json
