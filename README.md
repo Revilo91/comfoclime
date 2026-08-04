@@ -23,7 +23,7 @@ ComfoClime is a HVAC solution as additional device for the ComfoAir Q series. It
 ## Requirements
 
 ### System Requirements
-- **Home Assistant**: ≥ 2026.2.0
+- **Home Assistant**: ≥ 2026.5.0
 - **Python**: ≥ 3.14
 - **aiohttp**: ≥ 3.8.0, < 4.0
 - **pydantic**: ≥ 2.0.0
@@ -37,17 +37,20 @@ ComfoClime is a HVAC solution as additional device for the ComfoAir Q series. It
 
 - Clone this repository or open it in a Codespace/Dev Container as described below
 - Install dependencies and set up the development environment
-- Home Assistant (2026.2.0+) and the integration will be available for local development and testing
+- Home Assistant (2026.5.0+) and the integration will be available for local development and testing
 - Home Assistant runs automatically on port 8123.
 - See [.devcontainer/README.md](.devcontainer/README.md) for detailed instructions.
 
 ### Python Version Requirements
-This integration requires **Python 3.14 or newer** due to Home Assistant 2026.2+ dependencies. The Dev Container automatically provides a compatible environment.
+This integration requires **Python 3.14.2 or newer**: Home Assistant 2026.3+ declares
+`Requires-Python >= 3.14.2`, so an older 3.14 (including release candidates) silently resolves to
+Home Assistant 2026.2.x and the integration will fail to import. The Dev Container provides a
+compatible environment.
 
-The source uses [PEP 758](https://peps.python.org/pep-0758/) unparenthesised `except A, B:` clauses,
-which `ruff format` produces because the project targets `py314`. On Python 3.13 or older these are
-a `SyntaxError` — that means the interpreter is too old, not that the file is broken. Do not add the
-parentheses back; the formatter removes them again.
+The source also uses [PEP 758](https://peps.python.org/pep-0758/) unparenthesised `except A, B:`
+clauses, which `ruff format` produces because the project targets `py314`. On Python 3.13 or older
+these are a `SyntaxError` — that means the interpreter is too old, not that the file is broken. Do
+not add the parentheses back; the formatter removes them again.
 
 ## 📚 Documentation
 

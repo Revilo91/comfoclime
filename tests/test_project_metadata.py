@@ -77,12 +77,17 @@ def test_hacs_does_not_force_release_zip_install() -> None:
 
 
 def test_python_and_ruff_targets_are_aligned() -> None:
+    """ruff's target-version must track requires-python's major.minor.
+
+    The patch component matters too - Home Assistant 2026.3+ requires 3.14.2
+    specifically - but ruff targets only major.minor, so it is ignored here.
+    """
     pyproject = _read_pyproject()
 
     requires_python = pyproject["project"]["requires-python"]
-    match = re.fullmatch(r">=(\d+)\.(\d+)", requires_python)
+    match = re.fullmatch(r">=(\d+)\.(\d+)(?:\.\d+)?", requires_python)
 
-    assert match is not None
+    assert match is not None, f"unexpected requires-python format: {requires_python}"
     assert pyproject["tool"]["ruff"]["target-version"] == f"py{match.group(1)}{match.group(2)}"
 
 

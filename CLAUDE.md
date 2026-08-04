@@ -22,8 +22,8 @@ Geräte am ComfoNet-Bus (v. a. ComfoAir Q). Kanonisches Repo: **https://github.c
 
 | | Wert | Quelle |
 |---|---|---|
-| Home Assistant | ≥ 2026.2.0 | `hacs.json`, `pyproject.toml` (dev-dep `homeassistant>=2026.2.1`) |
-| Python | ≥ 3.14 | `pyproject.toml` (`requires-python`) |
+| Home Assistant | ≥ 2026.5.0 | `hacs.json`, `pyproject.toml` (dev-dep `homeassistant>=2026.5.0`) |
+| Python | ≥ 3.14.2 | `pyproject.toml` (`requires-python`); HA 2026.3+ verlangt genau diese Patch-Version |
 | aiohttp | ≥ 3.8.0, < 4.0 | `manifest.json` |
 | pydantic | ≥ 2.0.0 | `manifest.json` |
 | Integrationsversion | siehe `manifest.json` (`version`) – muss identisch mit `pyproject.toml` sein | |
@@ -256,17 +256,22 @@ uv run ruff format --check .        # Formatierung prüfen
   - Integration im Dev-Container hinzufügen: über die UI (Geräte & Dienste → Integration
     hinzufügen → „ComfoClime“ → IP eingeben) oder manuell in `.devcontainer/configuration.yaml`
     (`comfoclime: host: "<IP>"`).
-⚠️ **Python 3.14 ist Pflicht, nicht Kosmetik.** Der Code nutzt PEP-758-Syntax
-(`except TimeoutError, aiohttp.ClientError:` **ohne** Klammern), die ruff wegen
-`target-version = "py314"` beim Formatieren aktiv herstellt. Auf Python ≤ 3.13 ist das ein
-`SyntaxError`. Wenn du also „43 Syntaxfehler“ siehst: du parst mit dem falschen Interpreter –
-die Datei ist in Ordnung. Klammern **nicht** wieder einfügen, `ruff format` entfernt sie sofort
-wieder.
+⚠️ **Python 3.14.2 ist die echte Untergrenze, nicht 3.14.0.** Home Assistant ≥ 2026.3 deklariert
+`Requires-Python >= 3.14.2`. Mit einem älteren 3.14 (z. B. einem Release Candidate) löst uv
+still auf HA 2026.2.x auf – und dann fehlen neuere Symbole wie `SensorDeviceClass.UPTIME`, was
+sich als `AttributeError` beim Import zeigt. Ebenso schlägt dort `mashumaro` mit
+`AttributeError: module 'typing' has no attribute 'ByteString'` fehl. Beides heißt: **falscher
+Interpreter**, nicht kaputter Code. `uv python list` prüfen, bevor du eine Stunde suchst.
 
-⚠️ In manchen Umgebungen lässt sich Home Assistant auf 3.14 nicht importieren, weil `mashumaro`
-(bis mind. 3.22, transitiv über `webrtc-models`) noch `typing.ByteString` referenziert – in 3.14
-entfernt. Symptom: `AttributeError: module 'typing' has no attribute 'ByteString'` beim
-Test-Collect. Das ist ein Dependency-Problem, kein Fehler in diesem Repo.
+⚠️ **PEP-758-Syntax.** Der Code nutzt `except TimeoutError, aiohttp.ClientError:` **ohne** Klammern;
+ruff stellt das wegen `target-version = "py314"` beim Formatieren aktiv her. Auf Python ≤ 3.13 ist
+das ein `SyntaxError`. Wenn du also „43 Syntaxfehler“ siehst: du parst mit dem falschen Interpreter.
+Klammern **nicht** wieder einfügen, `ruff format` entfernt sie sofort wieder.
+
+⚠️ **Neue HA-Symbole ziehen die Mindestversion hoch.** `SensorDeviceClass.UPTIME` gibt es erst ab
+HA 2026.5.0 – deshalb steht dort auch die Untergrenze in `hacs.json`. Wer ein Symbol aus einer
+neueren HA-Version verwendet, muss `hacs.json`, `pyproject.toml`, `README.md` und diese Tabelle
+mitziehen, sonst installiert HACS die Integration auf eine HA, auf der sie nicht importierbar ist.
 
 - **Pflicht bei jeder Codeänderung**: passende Tests aktualisieren/ergänzen – Modelle →
   `tests/test_models.py`, API → `tests/test_api.py`, Koordinatoren → `tests/test_coordinator.py`,
