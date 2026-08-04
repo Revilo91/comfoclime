@@ -342,27 +342,8 @@ async def test_set_scenario_mode_activates_mode():
 
     hass = _make_hass({"entry1": {"climate_entities": [climate_entity]}})
     call = MagicMock()
-    call.data = {
-        "entity_id": "climate.comfoclime",
-        "scenario": "cooking",
-        "duration": None,
-        "start_delay": None,
-    }
-    call.data.get = lambda key, default=None: (
-        call.data.get.__wrapped__(key, default)
-        if hasattr(call.data.get, "__wrapped__")
-        else call.data.get(key)
-        if key in call.data
-        else default
-    )
-
-    # Use a real dict for call.data to simplify
-    call.data = {
-        "entity_id": "climate.comfoclime",
-        "scenario": "cooking",
-    }
-    # Patch .get to return None for optional fields
-    original = dict(call.data)
+    # Setup mock call.data with required fields
+    original = {"entity_id": "climate.comfoclime", "scenario": "cooking"}
     call.data = MagicMock()
     call.data.__getitem__ = lambda _, key: original[key]
     call.data.get = lambda key, default=None: original.get(key, default)

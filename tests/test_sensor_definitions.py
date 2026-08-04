@@ -444,9 +444,14 @@ class TestMonitoringSensorDefinitions:
             "The model normalizes 'uptime' and 'upTimeSeconds' to 'up_time_seconds'."
         )
         assert uptime_sensor.translation_key == "uptime"
-        assert uptime_sensor.unit == "s"
+        assert uptime_sensor.unit is None, (
+            "Uptime sensor must have no unit. Home Assistant formats uptime values automatically "
+            "when using the uptime device class."
+        )
         assert uptime_sensor.device_class == "uptime"
-        assert uptime_sensor.state_class == "measurement"
+        assert uptime_sensor.state_class == "total_increasing", (
+            "Uptime sensor must use total_increasing state class since it only increases."
+        )
         assert uptime_sensor.entity_category == "diagnostic"
 
 
