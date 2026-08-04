@@ -11,7 +11,6 @@ from custom_components.comfoclime.services import (
     async_setup_services,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helper factories
 # ---------------------------------------------------------------------------
