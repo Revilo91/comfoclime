@@ -7,7 +7,7 @@ byte conversion and temperature value processing.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
@@ -144,6 +144,47 @@ def fix_signed_temperatures_in_dict(data: dict) -> dict:
         elif "Temperature" in key and val is not None and isinstance(val, (int, float)):
             data[key] = fix_signed_temperature(val)
     return data
+
+
+# Weicht die Geräteuhr weiter als das von der Systemzeit ab, ist sie nicht
+# synchronisiert, dann ankert die Home-Assistant-Zeit den Bootzeitpunkt.
+MAX_DEVICE_CLOCK_SKEW = timedelta(hours=1)
+
+
+def uptime_to_boot_time(up_time_seconds: float | None, device_timestamp: float | None = None) -> datetime | None:
+    """Convert an uptime in seconds to the point in time the device booted.
+
+    ``SensorDeviceClass.UPTIME`` expects a timezone-aware datetime of the last
+    restart, but the device reports the elapsed seconds instead. The device also
+    sends its own clock in ``/monitoring/ping``; using that as the anchor keeps
+    the derived boot time stable across polls, because both values come from the
+    same device tick. If the device clock is off (unsynchronized or unparsable),
+    the local clock is used instead: the elapsed duration is what matters.
+
+    Args:
+        up_time_seconds: Seconds since the device booted.
+        device_timestamp: Unix timestamp reported by the device, if available.
+
+    Returns:
+        Timezone-aware UTC datetime of the last restart, or ``None`` if no
+        uptime was reported.
+
+    Example:
+        >>> boot_time = uptime_to_boot_time(3600, int(datetime.now(UTC).timestamp()))
+        >>> (datetime.now(UTC) - boot_time).total_seconds() >= 3600
+        True
+    """
+    if up_time_seconds is None or not isinstance(up_time_seconds, (int, float)):
+        return None
+
+    now = datetime.now(UTC)
+    anchor = now
+    if isinstance(device_timestamp, (int, float)):
+        device_now = datetime.fromtimestamp(device_timestamp, tz=UTC)
+        if abs(device_now - now) <= MAX_DEVICE_CLOCK_SKEW:
+            anchor = device_now
+
+    return anchor - timedelta(seconds=up_time_seconds)
 
 
 class DeviceConfig(ComfoClimeModel):
@@ -671,6 +712,15 @@ class MonitoringPing(ComfoClimeModel):
                     # Remove invalid timestamp to avoid validation error
                     v.pop("timestamp", None)
         return v
+
+    @property
+    def boot_time(self) -> datetime | None:
+        """Point in time the device last restarted (UTC).
+
+        Derived from ``up_time_seconds`` and the device timestamp; this is what
+        ``SensorDeviceClass.UPTIME`` expects, the raw second count is not.
+        """
+        return uptime_to_boot_time(self.up_time_seconds, self.timestamp)
 
 
 class PropertyWriteRequest(ComfoClimeModel):

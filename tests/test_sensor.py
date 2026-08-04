@@ -1,6 +1,6 @@
 """Tests for ComfoClime sensor entities."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
 
 import pytest
@@ -110,13 +110,18 @@ class TestComfoClimeSensor:
         assert device_info["manufacturer"] == "Zehnder"
 
     def test_monitoring_sensor_update(self, mock_hass, mock_config_entry):
-        """Test monitoring sensor state update from MonitoringPing coordinator."""
+        """Test monitoring sensor state update from MonitoringPing coordinator.
+
+        The uptime device class needs the point in time of the last restart, so
+        the raw second count from the device is converted to an aware datetime.
+        """
         # Create a mock monitoring coordinator with MonitoringPing data
+        device_now = datetime.now(UTC).replace(microsecond=0)
         mock_monitoring_coordinator = MagicMock()
         mock_monitoring_coordinator.data = MonitoringPing(
             uuid="test-uuid",
             up_time_seconds=123456,
-            timestamp=1705314600,
+            timestamp=int(device_now.timestamp()),
         )
         mock_monitoring_coordinator.last_update_success_time = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
 
@@ -129,7 +134,7 @@ class TestComfoClimeSensor:
             translation_key="uptime",
             unit=None,
             device_class="uptime",
-            state_class="total_increasing",
+            state_class=None,
             entity_category="diagnostic",
             device=None,
             entry=mock_config_entry,
@@ -142,10 +147,11 @@ class TestComfoClimeSensor:
         # Trigger coordinator update
         sensor._handle_coordinator_update()
 
-        # Verify the sensor correctly retrieved the uptime value
-        assert sensor._state == 123456
+        # The raw value stays available as an attribute, the state is the boot time
         assert sensor._raw_value == 123456
-        assert sensor.native_value == 123456
+        assert sensor.native_value == device_now - timedelta(seconds=123456)
+        assert sensor.native_value.tzinfo is not None
+        assert sensor.extra_state_attributes["raw_value"] == 123456
 
     def test_sensor_extra_state_attributes_dashboard(
         self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry

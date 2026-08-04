@@ -1,5 +1,7 @@
 """Tests for data models in models.py"""
 
+from datetime import UTC, datetime, timedelta
+
 import pytest
 from pydantic import ValidationError
 
@@ -27,6 +29,7 @@ from custom_components.comfoclime.models import (
     fix_signed_temperature,
     fix_signed_temperatures_in_dict,
     signed_int_to_bytes,
+    uptime_to_boot_time,
 )
 
 
@@ -776,6 +779,87 @@ class TestMonitoringPing:
 
         with pytest.raises(ValidationError):
             ping.uuid = "new-uuid"
+
+    def test_monitoring_ping_invalid_timestamp_string(self):
+        """Test that invalid timestamp string is removed (set to None)."""
+        # Invalid timestamp should be removed to avoid validation error
+        ping = MonitoringPing(
+            uuid="test-uuid",
+            up_time_seconds=123456,
+            timestamp="invalid-timestamp",
+        )
+
+        assert ping.uuid == "test-uuid"
+        assert ping.up_time_seconds == 123456
+        # Invalid timestamp should be removed
+        assert ping.timestamp is None
+
+    def test_boot_time_uses_device_timestamp(self):
+        """Boot time is anchored to the device clock when it is plausible."""
+        device_now = datetime.now(UTC).replace(microsecond=0)
+        ping = MonitoringPing(
+            uuid="test-uuid",
+            up_time_seconds=3600,
+            timestamp=int(device_now.timestamp()),
+        )
+
+        assert ping.boot_time == device_now - timedelta(hours=1)
+
+    def test_boot_time_falls_back_to_local_clock(self):
+        """A missing device timestamp still yields an aware boot time."""
+        ping = MonitoringPing(uuid="test-uuid", up_time_seconds=3600)
+
+        boot_time = ping.boot_time
+
+        assert boot_time is not None
+        assert boot_time.tzinfo is not None
+        assert abs(datetime.now(UTC) - boot_time - timedelta(hours=1)) < timedelta(seconds=5)
+
+    def test_boot_time_without_uptime(self):
+        """Without an uptime there is nothing to derive."""
+        assert MonitoringPing(uuid="test-uuid", timestamp=1705314600).boot_time is None
+
+
+class TestUptimeToBootTime:
+    """Tests for the uptime -> boot time conversion (SensorDeviceClass.UPTIME)."""
+
+    def test_returns_aware_datetime(self):
+        """The result must carry timezone info, HA rejects naive datetimes."""
+        device_now = datetime.now(UTC).replace(microsecond=0)
+
+        boot_time = uptime_to_boot_time(120, int(device_now.timestamp()))
+
+        assert boot_time == device_now - timedelta(seconds=120)
+        assert boot_time.tzinfo is not None
+
+    def test_stable_across_polls(self):
+        """Device timestamp and uptime advance together, boot time stays put."""
+        device_now = int(datetime.now(UTC).timestamp())
+
+        first = uptime_to_boot_time(100, device_now)
+        later = uptime_to_boot_time(160, device_now + 60)
+
+        assert first == later
+
+    def test_implausible_device_clock_uses_local_time(self):
+        """An unsynchronized device clock must not shift the boot time."""
+        # Device claims it is 2001 - fall back to the local clock instead.
+        boot_time = uptime_to_boot_time(60, 1000000000)
+
+        assert abs(datetime.now(UTC) - boot_time - timedelta(seconds=60)) < timedelta(seconds=5)
+
+    def test_invalid_values_return_none(self):
+        """Missing or non-numeric uptimes have no boot time."""
+        device_now = int(datetime.now(UTC).timestamp())
+
+        assert uptime_to_boot_time(None, device_now) is None
+        assert uptime_to_boot_time("unknown", device_now) is None
+
+    def test_invalid_device_timestamp_is_ignored(self):
+        """A non-numeric device timestamp falls back to the local clock."""
+        boot_time = uptime_to_boot_time(60, "not-a-timestamp")
+
+        assert abs(datetime.now(UTC) - boot_time - timedelta(seconds=60)) < timedelta(seconds=5)
 
     def test_monitoring_ping_invalid_timestamp_string(self):
         """Test that invalid timestamp string is removed (set to None)."""

@@ -454,8 +454,9 @@ class TestMonitoringSensorDefinitions:
         assert uptime_sensor.device_class == "uptime", (
             "SensorDeviceClass.UPTIME requires Home Assistant >= 2026.5.0; see hacs.json."
         )
-        assert uptime_sensor.state_class == "total_increasing", (
-            "Uptime sensor must use total_increasing state class since it only increases."
+        assert uptime_sensor.state_class is None, (
+            "The uptime device class is a point in time, not a measurement: "
+            "Home Assistant allows no state class for it."
         )
         assert uptime_sensor.entity_category == "diagnostic"
 

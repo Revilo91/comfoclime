@@ -261,12 +261,15 @@ DASHBOARD_SENSORS = [
 ]
 
 MONITORING_SENSORS = [
+    # Der Schlüssel bleibt bewusst "up_time_seconds" (Rohwert der API und Teil der
+    # unique_id); der Sensor rechnet ihn für die UPTIME-Device-Class in den
+    # Zeitpunkt des letzten Neustarts um. Diese Device-Class ist nicht numerisch,
+    # daher weder unit noch state_class.
     SensorDefinition(
         key="up_time_seconds",
         name="Uptime",
         translation_key="uptime",
         device_class=SensorDeviceClass.UPTIME,
-        state_class=SensorStateClass.TOTAL_INCREASING,
         entity_category="diagnostic",
     ),
 ]

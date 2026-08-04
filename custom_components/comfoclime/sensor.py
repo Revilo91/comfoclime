@@ -73,6 +73,7 @@ from .entity_helper import (
     get_device_model_type_id,
     get_device_uuid,
 )
+from .models import uptime_to_boot_time
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -326,8 +327,14 @@ class ComfoClimeSensor(ComfoClimeBaseEntity, CoordinatorEntity, SensorEntity):
 
             self._raw_value = raw_value
 
+            # Die Geräte-API liefert Sekunden seit dem Start, Home Assistant
+            # erwartet für diese Device-Class den Zeitpunkt des letzten Neustarts
+            # als aware datetime (siehe models.uptime_to_boot_time).
+            if self._attr_device_class is SensorDeviceClass.UPTIME:
+                timestamp = data.get("timestamp") if isinstance(data, dict) else getattr(data, "timestamp", None)
+                self._state = uptime_to_boot_time(raw_value, timestamp)
             # Wenn es eine definierte Übersetzung gibt, wende sie an
-            if self._type in VALUE_MAPPINGS:
+            elif self._type in VALUE_MAPPINGS:
                 self._state = VALUE_MAPPINGS[self._type].get(raw_value, raw_value)
             else:
                 self._state = raw_value
