@@ -296,6 +296,27 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
             )
             _LOGGER.debug("Registered telemetry %s for device %s", telemetry_id, device_uuid)
 
+    async def unregister_telemetry(self, device_uuid: str, telemetry_id: str) -> None:
+        """Stop fetching a telemetry value.
+
+        Called when an entity is removed from Home Assistant, including when
+        the user disables it in the entity registry. Dropping the registration
+        is what makes disabling an entity actually reduce load on the device.
+
+        Args:
+            device_uuid: UUID of the device the telemetry belongs to
+            telemetry_id: Telemetry sensor ID to stop fetching
+        """
+        async with self._registry_lock:
+            device_entries = self._telemetry_registry.get(device_uuid)
+            if not device_entries:
+                return
+            if device_entries.pop(str(telemetry_id), None) is None:
+                return
+            if not device_entries:
+                del self._telemetry_registry[device_uuid]
+            _LOGGER.debug("Unregistered telemetry %s for device %s", telemetry_id, device_uuid)
+
     async def _async_update_data(self) -> dict[str, DeviceDefinitionData]:
         """Fetch all registered telemetry data in a batched manner.
 
@@ -478,6 +499,8 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
         self.last_update_success_time: datetime | None = None
         # Registry of property requests: {device_uuid: {path: PropertyRegistryEntry}}
         self._property_registry: dict[str, dict[str, PropertyRegistryEntry]] = {}
+        # How many entities want each path, so the last one out clears it.
+        self._property_refcounts: dict[str, dict[str, int]] = {}
         # Lock to prevent concurrent modifications during iteration
         self._registry_lock = asyncio.Lock()
         # Device protection: inter-sensor delay and circuit breaker
@@ -517,16 +540,61 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
             ...     byte_count=2
             ... )
         """
-        async with self._registry_lock:
-            if device_uuid not in self._property_registry:
-                self._property_registry[device_uuid] = {}
+        entry = PropertyRegistryEntry(faktor=faktor, signed=signed, byte_count=byte_count)
 
-            self._property_registry[device_uuid][property_path] = PropertyRegistryEntry(
-                faktor=faktor,
-                signed=signed,
-                byte_count=byte_count,
-            )
+        async with self._registry_lock:
+            device_entries = self._property_registry.setdefault(device_uuid, {})
+            refcounts = self._property_refcounts.setdefault(device_uuid, {})
+
+            existing = device_entries.get(property_path)
+            if existing is not None and existing != entry:
+                # Two entity definitions disagree about how to decode the same
+                # property. Whichever registered last would silently win, so
+                # make the mismatch visible instead of guessing.
+                _LOGGER.warning(
+                    "Conflicting decode parameters registered for property %s on device %s: "
+                    "%s vs %s - keeping the first registration",
+                    property_path,
+                    device_uuid,
+                    existing,
+                    entry,
+                )
+            elif existing is None:
+                device_entries[property_path] = entry
+
+            refcounts[property_path] = refcounts.get(property_path, 0) + 1
             _LOGGER.debug("Registered property %s for device %s", property_path, device_uuid)
+
+    async def unregister_property(self, device_uuid: str, property_path: str) -> None:
+        """Stop fetching a property value.
+
+        Called when an entity is removed from Home Assistant, including when
+        the user disables it in the entity registry. Dropping the registration
+        is what makes disabling an entity actually reduce load on the device.
+
+        A path may be shared by several entities (a read-only sensor and a
+        writable number, say), so the registration is reference counted and
+        only removed once the last entity using it has gone.
+
+        Args:
+            device_uuid: UUID of the device the property belongs to
+            property_path: Property path in format "X/Y/Z"
+        """
+        async with self._registry_lock:
+            device_entries = self._property_registry.get(device_uuid)
+            if not device_entries or property_path not in device_entries:
+                return
+
+            remaining = self._property_refcounts.get(device_uuid, {}).get(property_path, 1) - 1
+            if remaining > 0:
+                self._property_refcounts[device_uuid][property_path] = remaining
+                return
+
+            self._property_refcounts.get(device_uuid, {}).pop(property_path, None)
+            del device_entries[property_path]
+            if not device_entries:
+                del self._property_registry[device_uuid]
+            _LOGGER.debug("Unregistered property %s for device %s", property_path, device_uuid)
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         """Fetch all registered property data in a batched manner.

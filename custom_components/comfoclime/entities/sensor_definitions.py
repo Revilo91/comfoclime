@@ -2,25 +2,11 @@
 
 from __future__ import annotations
 
-from enum import Enum, auto
-
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.const import EntityCategory
 from pydantic import ConfigDict, Field
 
 from .base_definitions import EntityDefinitionBase, KeyEntityDefinitionBase
-
-
-class SensorCategory(Enum):
-    """Categories of sensors in the integration."""
-
-    DASHBOARD = auto()
-    THERMALPROFILE = auto()
-    MONITORING = auto()
-    TELEMETRY = auto()
-    PROPERTY = auto()
-    DEFINITION = auto()
-    ACCESS_TRACKING = auto()
 
 
 class SensorDefinition(KeyEntityDefinitionBase):
@@ -297,6 +283,7 @@ THERMALPROFILE_SENSORS = [
         name="Season Mode",
         translation_key="thermal_season_mode",
         device_class=SensorDeviceClass.ENUM,
+        entity_category="diagnostic",
     ),
     SensorDefinition(
         key="season.heatingThresholdTemperature",
@@ -305,6 +292,7 @@ THERMALPROFILE_SENSORS = [
         unit="°C",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category="diagnostic",
     ),
     SensorDefinition(
         key="season.coolingThresholdTemperature",
@@ -313,6 +301,7 @@ THERMALPROFILE_SENSORS = [
         unit="°C",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category="diagnostic",
     ),
     SensorDefinition(
         key="temperature.status",
@@ -327,12 +316,14 @@ THERMALPROFILE_SENSORS = [
         unit="°C",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category="diagnostic",
     ),
     SensorDefinition(
         key="temperatureProfile",
         name="Temperature Profile",
         translation_key="thermal_temperature_profile",
         device_class=SensorDeviceClass.ENUM,
+        entity_category="diagnostic",
     ),
     SensorDefinition(
         key="heatingThermalProfileSeasonData.comfortTemperature",
@@ -341,6 +332,7 @@ THERMALPROFILE_SENSORS = [
         unit="°C",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category="diagnostic",
     ),
     SensorDefinition(
         key="heatingThermalProfileSeasonData.kneePointTemperature",
@@ -349,6 +341,7 @@ THERMALPROFILE_SENSORS = [
         unit="°C",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category="diagnostic",
     ),
     SensorDefinition(
         key="heatingThermalProfileSeasonData.reductionDeltaTemperature",
@@ -357,6 +350,7 @@ THERMALPROFILE_SENSORS = [
         unit="°C",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category="diagnostic",
     ),
     SensorDefinition(
         key="coolingThermalProfileSeasonData.comfortTemperature",
@@ -365,6 +359,7 @@ THERMALPROFILE_SENSORS = [
         unit="°C",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category="diagnostic",
     ),
     SensorDefinition(
         key="coolingThermalProfileSeasonData.kneePointTemperature",
@@ -373,6 +368,7 @@ THERMALPROFILE_SENSORS = [
         unit="°C",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category="diagnostic",
     ),
     SensorDefinition(
         key="coolingThermalProfileSeasonData.temperatureLimit",
@@ -381,6 +377,7 @@ THERMALPROFILE_SENSORS = [
         unit="°C",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category="diagnostic",
     ),
 ]
 
@@ -833,21 +830,27 @@ CONNECTED_DEVICE_DEFINITION_SENSORS = {
             device_class=SensorDeviceClass.TEMPERATURE,
             state_class=SensorStateClass.MEASUREMENT,
         ),
+        # Duplicates of telemetry 278 and 275 on the same device. Kept for
+        # continuity but filed as diagnostic, and given distinct translation
+        # keys so they do not render under the same name as the telemetry
+        # sensors.
         SensorDefinition(
             key="supplyTemperature",
-            name="Supply Temperature",
-            translation_key="supply_temperature",
+            name="Supply Temperature (Definition)",
+            translation_key="definition_supply_temperature",
             unit="°C",
             device_class=SensorDeviceClass.TEMPERATURE,
             state_class=SensorStateClass.MEASUREMENT,
+            entity_category="diagnostic",
         ),
         SensorDefinition(
             key="exhaustTemperature",
-            name="Exhaust Temperature",
-            translation_key="exhaust_temperature",
+            name="Exhaust Temperature (Definition)",
+            translation_key="definition_exhaust_temperature",
             unit="°C",
             device_class=SensorDeviceClass.TEMPERATURE,
             state_class=SensorStateClass.MEASUREMENT,
+            entity_category="diagnostic",
         ),
     ],
 }

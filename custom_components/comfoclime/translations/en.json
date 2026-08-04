@@ -13,9 +13,6 @@
             "extract_temperature": {
                 "name": "Extract Temperature"
             },
-            "supply_temperature": {
-                "name": "Supply Temperature"
-            },
             "extract_humidity": {
                 "name": "Extract Humidity"
             },
@@ -48,9 +45,6 @@
             },
             "tpma_temperature": {
                 "name": "Mean Outdoor Temperature"
-            },
-            "comfo_clime_status": {
-                "name": "ComfoClime Status"
             },
             "current_comfort_temperature": {
                 "name": "Current Comfort Temperature"
@@ -278,6 +272,21 @@
             },
             "total_api_accesses_per_hour": {
                 "name": "Total API Accesses per Hour"
+            },
+            "heating_comfort_temperature": {
+                "name": "Heating Comfort Temperature"
+            },
+            "cooling_comfort_temperature": {
+                "name": "Cooling Comfort Temperature"
+            },
+            "cooling_temperature_limit": {
+                "name": "Cooling Temperature Limit"
+            },
+            "definition_supply_temperature": {
+                "name": "Supply Temperature (Definition)"
+            },
+            "definition_exhaust_temperature": {
+                "name": "Exhaust Temperature (Definition)"
             }
         },
         "select": {
@@ -426,9 +435,7 @@
             "cannot_connect": "Connection failed, cannot connect.",
             "no_uuid": "Device online, but didn't get a serial number.",
             "no_response": "Device didn't respond with valid data.",
-            "invalid_host": "Invalid hostname or IP address. Please check for dangerous characters or invalid IP ranges.",
-            "entity_options_error": "Failed to load entity options. Check the logs for more details.",
-            "no_entities_available": "No entities available. This may indicate a configuration error."
+            "invalid_host": "Invalid hostname or IP address. Please check for dangerous characters or invalid IP ranges."
         },
         "abort": {
             "already_configured": "This device is already configured.",
@@ -438,54 +445,39 @@
     "options": {
         "step": {
             "init": {
-                "title": "Configuration Options",
-                "description": "Select which settings you want to configure",
+                "title": "ComfoClime settings",
+                "description": "Individual entities are switched on and off under Settings > Devices & services > ComfoClime, on the device page. Entities you disable there are no longer polled. The settings below control how the integration talks to the device.",
                 "menu_options": {
-                    "general": "General Settings",
-                    "entities": "Entity Selection"
+                    "timeouts": "Timeouts",
+                    "polling": "Polling & caching",
+                    "rate_limiting": "Rate limiting"
                 }
             },
-            "entities": {
-                "title": "Entity Selection",
-                "description": "Select which entities should be enabled in each category",
+            "timeouts": {
+                "title": "Timeouts",
+                "description": "How long to wait for the device to answer before giving up.",
                 "data": {
-                    "enabled_dashboard": "📈 Dashboard Sensors",
-                    "enabled_dashboard_bulk_action": "Dashboard Quick Action (All/None)",
-                    "enabled_thermalprofile": "🌡️ Thermal Profile Sensors",
-                    "enabled_thermalprofile_bulk_action": "Thermal Profile Quick Action (All/None)",
-                    "enabled_monitoring": "⏱️ Monitoring Sensors",
-                    "enabled_monitoring_bulk_action": "Monitoring Quick Action (All/None)",
-                    "enabled_connected_device_telemetry": "📡 Connected Device Telemetry",
-                    "enabled_connected_device_telemetry_comfoclime": "📡 Telemetry - ComfoClime",
-                    "enabled_connected_device_telemetry_comfoairq": "📡 Telemetry - ComfoAirQ",
-                    "enabled_connected_device_telemetry_other": "📡 Telemetry - Other Devices",
-                    "enabled_connected_device_telemetry_comfoclime_bulk_action": "Telemetry ComfoClime Quick Action (All/None)",
-                    "enabled_connected_device_telemetry_comfoairq_bulk_action": "Telemetry ComfoAirQ Quick Action (All/None)",
-                    "enabled_connected_device_telemetry_other_bulk_action": "Telemetry Other Devices Quick Action (All/None)",
-                    "enabled_connected_device_properties": "🔧 Connected Device Properties",
-                    "enabled_connected_device_properties_comfoclime": "🔧 Properties - ComfoClime",
-                    "enabled_connected_device_properties_comfoairq": "🔧 Properties - ComfoAirQ",
-                    "enabled_connected_device_properties_other": "🔧 Properties - Other Devices",
-                    "enabled_connected_device_properties_comfoclime_bulk_action": "Properties ComfoClime Quick Action (All/None)",
-                    "enabled_connected_device_properties_comfoairq_bulk_action": "Properties ComfoAirQ Quick Action (All/None)",
-                    "enabled_connected_device_properties_other_bulk_action": "Properties Other Devices Quick Action (All/None)",
-                    "enabled_connected_device_definition": "📋 Connected Device Definition",
-                    "enabled_connected_device_definition_comfoclime": "📋 Definitions - ComfoClime",
-                    "enabled_connected_device_definition_comfoairq": "📋 Definitions - ComfoAirQ",
-                    "enabled_connected_device_definition_other": "📋 Definitions - Other Devices",
-                    "enabled_connected_device_definition_comfoclime_bulk_action": "Definitions ComfoClime Quick Action (All/None)",
-                    "enabled_connected_device_definition_comfoairq_bulk_action": "Definitions ComfoAirQ Quick Action (All/None)",
-                    "enabled_connected_device_definition_other_bulk_action": "Definitions Other Devices Quick Action (All/None)",
-                    "enabled_access_tracking": "🔍 Access Tracking (Diagnostic)",
-                    "enabled_access_tracking_bulk_action": "Access Tracking Quick Action (All/None)",
-                    "enabled_switches": "🔌 Switches",
-                    "enabled_switches_bulk_action": "Switches Quick Action (All/None)",
-                    "enabled_numbers": "🔢 Number Controls",
-                    "enabled_numbers_bulk_action": "Number Controls Quick Action (All/None)",
-                    "enabled_selects": "📝 Select Controls",
-                    "enabled_selects_bulk_action": "Select Controls Quick Action (All/None)",
-                    "enabled_climate": "🌡 Climate Control (Climate Entity)",
-                    "enabled_fan": "💨 Fan Speed (Fan Entity)"
+                    "read_timeout": "Read timeout",
+                    "write_timeout": "Write timeout"
+                }
+            },
+            "polling": {
+                "title": "Polling & caching",
+                "description": "How often values are refreshed. Longer intervals reduce load on the device. Telemetry, property and definition data are polled at multiples of this interval.",
+                "data": {
+                    "polling_interval": "Polling interval",
+                    "cache_ttl": "Cache lifetime",
+                    "max_retries": "Retries on failure"
+                }
+            },
+            "rate_limiting": {
+                "title": "Rate limiting",
+                "description": "Spacing between requests. The device's Airduino board is easily overwhelmed, so raise these values if you see timeouts or unavailable entities.",
+                "data": {
+                    "min_request_interval": "Minimum interval between requests",
+                    "inter_sensor_delay": "Delay between individual sensor reads",
+                    "write_cooldown": "Cooldown after a write",
+                    "request_debounce": "Debounce for repeated requests"
                 }
             }
         }

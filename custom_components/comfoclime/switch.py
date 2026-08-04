@@ -13,10 +13,6 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from . import DOMAIN
 from .entities.switch_definitions import SWITCHES
 from .entity_base import ComfoClimeBaseEntity
-from .entity_helper import (
-    is_entity_category_enabled,
-    is_entity_enabled,
-)
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -42,32 +38,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
     # Note: Coordinator first refresh is already done in __init__.py
     # We don't need to await it here to avoid blocking switch setup
-    switches = []
-
-    # Create switches from definitions only if enabled
-    if is_entity_category_enabled(entry.options, "switches", "all"):
-        for s in SWITCHES:
-            # Check if this individual switch is enabled
-            if not is_entity_enabled(entry.options, "switches", "all", s):
-                continue
-
-            # Determine which coordinator to use based on endpoint
-            coordinator = tpcoordinator if s.endpoint == "thermal_profile" else dbcoordinator
-
-            switches.append(
-                ComfoClimeSwitch(
-                    hass,
-                    coordinator,
-                    api,
-                    s.key,
-                    s.translation_key,
-                    s.name,
-                    invert=s.invert,
-                    endpoint=s.endpoint,
-                    device=main_device,
-                    entry=entry,
-                )
-            )
+    switches = [
+        ComfoClimeSwitch(
+            hass,
+            # Each switch reads back from whichever endpoint it writes to.
+            tpcoordinator if s.endpoint == "thermal_profile" else dbcoordinator,
+            api,
+            s.key,
+            s.translation_key,
+            s.name,
+            invert=s.invert,
+            endpoint=s.endpoint,
+            device=main_device,
+            entry=entry,
+        )
+        for s in SWITCHES
+    ]
 
     async_add_entities(switches, True)
 

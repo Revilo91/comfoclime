@@ -38,6 +38,7 @@ class PropertyNumberDefinition(EntityDefinitionBase):
         step: Step increment.
         unit: Optional unit of measurement.
         faktor: Multiplication factor for the raw value.
+        signed: Whether the raw value is a signed integer.
         byte_count: Number of bytes to read/write.
     """
 
@@ -47,6 +48,11 @@ class PropertyNumberDefinition(EntityDefinitionBase):
     step: float = Field(..., description="Step increment")
     unit: str | None = Field(default=None, description="Optional unit of measurement")
     faktor: float = Field(default=1.0, description="Multiplication factor for the raw value")
+    signed: bool = Field(
+        default=False,
+        description="Whether the raw value is a signed integer. Must match the sensor definition "
+        "for the same path, since both share one coordinator registration.",
+    )
     byte_count: int = Field(default=1, description="Number of bytes to read/write")
 
 
@@ -136,6 +142,7 @@ CONNECTED_DEVICE_NUMBER_PROPERTIES = {
             step=0.5,
             unit="°C",
             faktor=0.1,
+            signed=True,
             byte_count=2,
         ),
         PropertyNumberDefinition(
@@ -147,6 +154,7 @@ CONNECTED_DEVICE_NUMBER_PROPERTIES = {
             step=0.5,
             unit="°C",
             faktor=0.1,
+            signed=True,
             byte_count=2,
         ),
     ],
@@ -160,6 +168,7 @@ CONNECTED_DEVICE_NUMBER_PROPERTIES = {
             step=1,
             unit="°C",
             faktor=0.1,
+            signed=True,
             byte_count=2,
         ),
         PropertyNumberDefinition(
@@ -171,6 +180,7 @@ CONNECTED_DEVICE_NUMBER_PROPERTIES = {
             step=1,
             unit="°C",
             faktor=0.1,
+            signed=True,
             byte_count=2,
         ),
     ],

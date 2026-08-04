@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from custom_components.comfoclime import (
+    async_migrate_entry,
     async_reload_entry,
     async_setup,
     async_setup_entry,
@@ -254,47 +255,77 @@ async def test_async_reload_entry(mock_hass, mock_config_entry):
 
 
 @pytest.mark.asyncio
-async def test_async_reload_entry_removes_disabled_entity_from_registry(mock_hass, mock_config_entry):
-    """Test reload removes stale entities that were disabled via options flow."""
-    mock_config_entry.options = {
-        "enabled_climate": True,
-        "enabled_fan": False,
-    }
+async def test_async_reload_entry_leaves_registry_alone(mock_hass, mock_config_entry):
+    """Reloading must not delete entities.
 
-    # Provide minimal entry data needed by cleanup helper
-    mock_hass.data = {
-        "comfoclime": {
-            mock_config_entry.entry_id: {
-                "devices": [],
-                "main_device": None,
-            }
-        }
-    }
-
+    The old options flow pruned the registry on every options change, which
+    threw away the user's names, areas and history along with the entity.
+    Reload is now purely a reload; visibility is registry state.
+    """
+    mock_config_entry.options = {"polling_interval": 60}
+    mock_hass.data = {"comfoclime": {mock_config_entry.entry_id: {"devices": [], "main_device": None}}}
     mock_hass.config_entries = MagicMock()
     mock_hass.config_entries.async_reload = AsyncMock(return_value=True)
 
-    # fan is disabled and should be removed, climate remains expected
+    mock_registry = MagicMock()
+    with patch("custom_components.comfoclime.er.async_get", return_value=mock_registry):
+        await async_reload_entry(mock_hass, mock_config_entry)
+
+    mock_registry.async_remove.assert_not_called()
+    mock_hass.config_entries.async_reload.assert_called_once_with(mock_config_entry.entry_id)
+
+
+@pytest.mark.asyncio
+async def test_async_migrate_entry_disables_deselected_entities(mock_hass, mock_config_entry):
+    """A version 1 entry's deselections become registry disables, not deletions."""
+    mock_config_entry.version = 1
+    mock_config_entry.options = {
+        "enabled_fan": False,
+        "polling_interval": 45,
+    }
+    mock_hass.config_entries = MagicMock()
+    mock_hass.config_entries.async_update_entry = MagicMock()
+
     stale_fan = SimpleNamespace(
         entity_id="fan.comfoclime_fan_speed",
         unique_id=f"{mock_config_entry.entry_id}_fan_speed",
+        disabled=False,
     )
-    expected_climate = SimpleNamespace(
+    kept_climate = SimpleNamespace(
         entity_id="climate.comfoclime",
         unique_id=f"{mock_config_entry.entry_id}_climate",
+        disabled=False,
     )
-
     mock_registry = MagicMock()
 
-    with patch("custom_components.comfoclime.er.async_get", return_value=mock_registry):
-        with patch(
+    with (
+        patch("custom_components.comfoclime.er.async_get", return_value=mock_registry),
+        patch(
             "custom_components.comfoclime.er.async_entries_for_config_entry",
-            return_value=[stale_fan, expected_climate],
-        ):
-            await async_reload_entry(mock_hass, mock_config_entry)
+            return_value=[stale_fan, kept_climate],
+        ),
+    ):
+        assert await async_migrate_entry(mock_hass, mock_config_entry) is True
 
-    mock_registry.async_remove.assert_called_once_with("fan.comfoclime_fan_speed")
-    mock_hass.config_entries.async_reload.assert_called_once_with(mock_config_entry.entry_id)
+    mock_registry.async_remove.assert_not_called()
+    mock_registry.async_update_entity.assert_called_once()
+    assert mock_registry.async_update_entity.call_args.args[0] == "fan.comfoclime_fan_speed"
+
+    new_options = mock_hass.config_entries.async_update_entry.call_args.kwargs["options"]
+    assert "enabled_fan" not in new_options
+    assert new_options["polling_interval"] == 45
+    assert mock_hass.config_entries.async_update_entry.call_args.kwargs["version"] == 2
+
+
+@pytest.mark.asyncio
+async def test_async_migrate_entry_is_a_noop_at_current_version(mock_hass, mock_config_entry):
+    """Already-migrated entries are left untouched."""
+    mock_config_entry.version = 2
+    mock_hass.config_entries = MagicMock()
+
+    assert await async_migrate_entry(mock_hass, mock_config_entry) is True
+
+    mock_hass.config_entries.async_update_entry.assert_not_called()
 
 
 @pytest.mark.asyncio
