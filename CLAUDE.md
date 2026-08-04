@@ -295,6 +295,13 @@ mitziehen, sonst installiert HACS die Integration auf eine HA, auf der sie nicht
 - Der Options-Flow enthält **absichtlich** keine Entity-Auswahl (Abschnitt 6). Bug-Reports wie
   „Sensor X fehlt“ sind fast immer eine in der Registry deaktivierte Entity, kein fehlender
   Sensor – zuerst auf der Geräteseite unter „+N Entitäten deaktiviert“ nachsehen.
+- **`SensorDeviceClass.UPTIME` ist keine Zahl.** HA erwartet dort den Zeitpunkt des letzten
+  Neustarts als *aware* `datetime` (ISO 8601), keine Sekunden – sonst wirft der Sensor beim
+  Schreiben des States `AttributeError: 'int' object has no attribute 'tzinfo'`, der im Coordinator
+  als „Unexpected error updating listener …“ landet. `/monitoring/ping` liefert Sekunden plus den
+  Geräte-Zeitstempel; `models.uptime_to_boot_time()` rechnet daraus den Bootzeitpunkt (Anker =
+  Geräteuhr, bei mehr als einer Stunde Abweichung stattdessen die HA-Uhr). Die Device-Class erlaubt
+  außerdem weder `unit` noch `state_class`; Drift zwischen Abfragen glättet HA selbst (60 s).
 - Reauth-Flow ist bewusst **nicht** implementiert – die Geräte-API kennt keine Authentifizierung
   und keine Auth-Fehler. Nur relevant, falls Zehnder das per Firmware-Update ändert.
 - **GitHub-Integration-Timeout-Fehler** (`homeassistant.components.github`, `Timeout of 20 reached
