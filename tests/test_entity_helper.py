@@ -390,6 +390,7 @@ def test_is_entity_category_enabled_prefers_new_connected_device_key_over_legacy
 # Switch / Number / Select: category-level option keys (enabled_switches etc.)
 # ---------------------------------------------------------------------------
 
+
 def test_is_entity_enabled_switch_all_subcategory_disabled():
     """Disabling a switch via enabled_switches must be respected."""
     from custom_components.comfoclime.entities.switch_definitions import SwitchDefinition
@@ -401,9 +402,11 @@ def test_is_entity_enabled_switch_all_subcategory_disabled():
         endpoint="thermal_profile",
     )
     # Only "season.status" switch is enabled - "temperature.status" is disabled
-    season_switch_id = _make_sensor_id("switches", "all", SwitchDefinition(
-        key="season.status", name="x", translation_key="x", endpoint="thermal_profile"
-    ))
+    season_switch_id = _make_sensor_id(
+        "switches",
+        "all",
+        SwitchDefinition(key="season.status", name="x", translation_key="x", endpoint="thermal_profile"),
+    )
     options = {"enabled_switches": [season_switch_id]}
 
     assert is_entity_enabled(options, "switches", "all", switch_def) is False
@@ -458,7 +461,9 @@ def test_is_entity_enabled_number_thermal_profile_disabled():
         key="heatingThermalProfileSeasonData.comfortTemperature",
         name="Heating Comfort Temperature",
         translation_key="heating_comfort_temperature",
-        min=15, max=25, step=0.5,
+        min=15,
+        max=25,
+        step=0.5,
     )
     options = {"enabled_numbers": []}  # nothing enabled
 
@@ -474,7 +479,9 @@ def test_is_entity_enabled_number_thermal_profile_enabled():
         key="heatingThermalProfileSeasonData.comfortTemperature",
         name="Heating Comfort Temperature",
         translation_key="heating_comfort_temperature",
-        min=15, max=25, step=0.5,
+        min=15,
+        max=25,
+        step=0.5,
     )
     entity_id = _make_sensor_id("numbers", "thermal_profile", number_def)
     options = {"enabled_numbers": [entity_id]}
@@ -489,7 +496,11 @@ def test_is_entity_category_enabled_numbers_subcategory_filter():
 
     tp_def = NumberDefinition(
         key="heatingThermalProfileSeasonData.comfortTemperature",
-        name="x", translation_key="x", min=15, max=25, step=0.5,
+        name="x",
+        translation_key="x",
+        min=15,
+        max=25,
+        step=0.5,
     )
     tp_id = _make_sensor_id("numbers", "thermal_profile", tp_def)
     # Only thermal_profile numbers enabled; connected_properties subcategory should be False

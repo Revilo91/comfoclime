@@ -197,11 +197,7 @@ async def test_set_property_invalid_path_raises():
     }
 
     async_setup_services(hass, DOMAIN)
-    handler = next(
-        c[0][2]
-        for c in hass.services.async_register.call_args_list
-        if c[0][1] == "set_property"
-    )
+    handler = next(c[0][2] for c in hass.services.async_register.call_args_list if c[0][1] == "set_property")
 
     with pytest.raises(HomeAssistantError, match="Ungültiger Property-Pfad"):
         await handler(call)
@@ -224,11 +220,7 @@ async def test_set_property_invalid_byte_count_raises():
     }
 
     async_setup_services(hass, DOMAIN)
-    handler = next(
-        c[0][2]
-        for c in hass.services.async_register.call_args_list
-        if c[0][1] == "set_property"
-    )
+    handler = next(c[0][2] for c in hass.services.async_register.call_args_list if c[0][1] == "set_property")
 
     with pytest.raises(HomeAssistantError, match="byte_count"):
         await handler(call)
@@ -251,11 +243,7 @@ async def test_set_property_device_not_found_raises():
     }
 
     async_setup_services(hass, DOMAIN)
-    handler = next(
-        c[0][2]
-        for c in hass.services.async_register.call_args_list
-        if c[0][1] == "set_property"
-    )
+    handler = next(c[0][2] for c in hass.services.async_register.call_args_list if c[0][1] == "set_property")
 
     with patch("homeassistant.helpers.device_registry.async_get") as mock_dr:
         mock_dr.return_value.async_get.return_value = None
@@ -282,11 +270,7 @@ async def test_set_property_wrong_domain_raises():
     device = _make_device(entry_ids={"entry1"}, identifiers={("other_integration", "dev-uuid")})
 
     async_setup_services(hass, DOMAIN)
-    handler = next(
-        c[0][2]
-        for c in hass.services.async_register.call_args_list
-        if c[0][1] == "set_property"
-    )
+    handler = next(c[0][2] for c in hass.services.async_register.call_args_list if c[0][1] == "set_property")
 
     with patch("homeassistant.helpers.device_registry.async_get") as mock_dr:
         mock_dr.return_value.async_get.return_value = device
@@ -307,11 +291,7 @@ async def test_reset_system_calls_api():
     call = MagicMock()
 
     async_setup_services(hass, DOMAIN)
-    handler = next(
-        c[0][2]
-        for c in hass.services.async_register.call_args_list
-        if c[0][1] == "reset_system"
-    )
+    handler = next(c[0][2] for c in hass.services.async_register.call_args_list if c[0][1] == "reset_system")
     await handler(call)
 
     api.async_reset_system.assert_called_once()
@@ -326,11 +306,7 @@ async def test_reset_system_no_integration_loaded_raises():
     call = MagicMock()
 
     async_setup_services(hass, DOMAIN)
-    handler = next(
-        c[0][2]
-        for c in hass.services.async_register.call_args_list
-        if c[0][1] == "reset_system"
-    )
+    handler = next(c[0][2] for c in hass.services.async_register.call_args_list if c[0][1] == "reset_system")
 
     with pytest.raises(HomeAssistantError):
         await handler(call)
@@ -349,11 +325,7 @@ async def test_reset_system_propagates_timeout_error():
     call = MagicMock()
 
     async_setup_services(hass, DOMAIN)
-    handler = next(
-        c[0][2]
-        for c in hass.services.async_register.call_args_list
-        if c[0][1] == "reset_system"
-    )
+    handler = next(c[0][2] for c in hass.services.async_register.call_args_list if c[0][1] == "reset_system")
 
     with pytest.raises(HomeAssistantError, match="Neustart"):
         await handler(call)
@@ -379,7 +351,13 @@ async def test_set_scenario_mode_activates_mode():
         "duration": None,
         "start_delay": None,
     }
-    call.data.get = lambda key, default=None: call.data.get.__wrapped__(key, default) if hasattr(call.data.get, "__wrapped__") else call.data.get(key) if key in call.data else default  # noqa: E501
+    call.data.get = lambda key, default=None: (
+        call.data.get.__wrapped__(key, default)
+        if hasattr(call.data.get, "__wrapped__")
+        else call.data.get(key)
+        if key in call.data
+        else default
+    )  # noqa: E501
 
     # Use a real dict for call.data to simplify
     call.data = {
@@ -393,11 +371,7 @@ async def test_set_scenario_mode_activates_mode():
     call.data.get = lambda key, default=None: original.get(key, default)
 
     async_setup_services(hass, DOMAIN)
-    handler = next(
-        c[0][2]
-        for c in hass.services.async_register.call_args_list
-        if c[0][1] == "set_scenario_mode"
-    )
+    handler = next(c[0][2] for c in hass.services.async_register.call_args_list if c[0][1] == "set_scenario_mode")
     await handler(call)
 
     climate_entity.async_set_scenario_mode.assert_called_once_with(
@@ -421,11 +395,7 @@ async def test_set_scenario_mode_entity_not_found_raises():
     call.data.get = lambda key, default=None: original.get(key, default)
 
     async_setup_services(hass, DOMAIN)
-    handler = next(
-        c[0][2]
-        for c in hass.services.async_register.call_args_list
-        if c[0][1] == "set_scenario_mode"
-    )
+    handler = next(c[0][2] for c in hass.services.async_register.call_args_list if c[0][1] == "set_scenario_mode")
 
     with pytest.raises(HomeAssistantError, match="not found"):
         await handler(call)
@@ -441,11 +411,7 @@ async def test_set_scenario_mode_uses_hass_data_at_call_time():
     hass = _make_hass({})  # empty at registration time
 
     async_setup_services(hass, DOMAIN)
-    handler = next(
-        c[0][2]
-        for c in hass.services.async_register.call_args_list
-        if c[0][1] == "set_scenario_mode"
-    )
+    handler = next(c[0][2] for c in hass.services.async_register.call_args_list if c[0][1] == "set_scenario_mode")
 
     # Simulate config entry reload: new climate entity appears in hass.data
     climate_entity = MagicMock()
@@ -473,11 +439,7 @@ async def test_reset_system_uses_hass_data_at_call_time():
     hass = _make_hass({})  # empty at registration time
 
     async_setup_services(hass, DOMAIN)
-    handler = next(
-        c[0][2]
-        for c in hass.services.async_register.call_args_list
-        if c[0][1] == "reset_system"
-    )
+    handler = next(c[0][2] for c in hass.services.async_register.call_args_list if c[0][1] == "reset_system")
 
     # Simulate config entry reload: new api appears in hass.data
     api = _make_api()
