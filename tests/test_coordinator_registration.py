@@ -173,3 +173,65 @@ class TestEntityLifecycle:
         await sensor._async_unregister_data_source()
 
         assert telemetry_coordinator._telemetry_registry == {}
+
+
+class TestHookChain:
+    """The mixin's hooks only run if it precedes CoordinatorEntity in the MRO.
+
+    If a subclass were declared as (CoordinatorEntity, ComfoClimeBaseEntity, ...)
+    or overrode async_added_to_hass without calling super(), registration would
+    silently stop happening and telemetry entities would sit at unknown forever.
+    """
+
+    @staticmethod
+    def _entity_classes():
+        import importlib
+
+        from custom_components.comfoclime.entity_base import ComfoClimeBaseEntity
+
+        classes = []
+        for module_name in ("sensor", "switch", "number", "select", "fan", "climate"):
+            module = importlib.import_module(f"custom_components.comfoclime.{module_name}")
+            classes.extend(
+                obj
+                for obj in vars(module).values()
+                if isinstance(obj, type) and issubclass(obj, ComfoClimeBaseEntity) and obj is not ComfoClimeBaseEntity
+            )
+        return classes
+
+    def test_mixin_precedes_coordinator_entity(self):
+        from homeassistant.helpers.update_coordinator import CoordinatorEntity
+
+        from custom_components.comfoclime.entity_base import ComfoClimeBaseEntity
+
+        classes = self._entity_classes()
+        assert classes, "no entity classes found"
+
+        for entity_class in classes:
+            mro = entity_class.__mro__
+            if CoordinatorEntity not in mro:
+                continue
+            assert mro.index(ComfoClimeBaseEntity) < mro.index(CoordinatorEntity), (
+                f"{entity_class.__name__} lists CoordinatorEntity before ComfoClimeBaseEntity, "
+                "so the registration hooks would never run"
+            )
+
+    def test_overrides_delegate_to_the_mixin(self):
+        """Any subclass override must chain, or registration is lost."""
+        import inspect
+
+        from custom_components.comfoclime.entity_base import ComfoClimeBaseEntity
+
+        for entity_class in self._entity_classes():
+            for hook in ("async_added_to_hass", "async_will_remove_from_hass"):
+                override = vars(entity_class).get(hook)
+                if override is None:
+                    continue
+                source = inspect.getsource(override)
+                assert f"super().{hook}()" in source, (
+                    f"{entity_class.__name__}.{hook} overrides the mixin without calling super()"
+                )
+
+        # Sanity check that the mixin still defines both hooks at all.
+        assert "async_added_to_hass" in vars(ComfoClimeBaseEntity)
+        assert "async_will_remove_from_hass" in vars(ComfoClimeBaseEntity)

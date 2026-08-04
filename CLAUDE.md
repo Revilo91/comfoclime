@@ -62,17 +62,13 @@ __init__.py (async_setup_entry / async_unload_entry / Service-Registrierung)
 | `models.py` | Pydantic-v2-Modelle für alle API-Responses + Byte/Temperatur-Hilfsfunktionen |
 | `constants.py` | `APIDefaults`, `FanSpeed`, `ScenarioMode` (IntEnum) u. a. |
 | `entity_base.py` | Gemeinsames Mixin für alle Entity-Klassen (Device-Info, Naming) |
-| `entity_helper.py` | Sammelt/selektiert Entity-Definitionen aus `entities/*_definitions.py` |
-| `entities/base_definitions.py` | **Aktiv genutzte** Basisklasse `EntityDefinitionBase` für alle Definitionsdateien |
+| `entity_helper.py` | Accessors für Gerätemetadaten (UUID, modelTypeId, Name, Version) aus Pydantic-Model *oder* API-Dict |
+| `entities/base_definitions.py` | Basisklassen für Definitionen + `entity_category_for()` / `enabled_by_default()` |
 | `entities/*_definitions.py` | Statische Sensor-/Switch-/Number-/Select-Definitionen pro Gerätetyp |
 | `climate.py` | Climate-Entity: HVAC-Modi, Presets, Szenario-Modi |
-| `config_flow.py` | Config-Flow (Setup per Host/IP) + Options-Flow |
+| `config_flow.py` | Config-Flow (Setup per Host/IP) + Options-Flow (nur Performance-Einstellungen) |
+| `migration.py` | Einmalige Migration Config-Entry v1 → v2 (Entity-Auswahl → Entity-Registry) |
 | `services.yaml` / `services.py` | Service-Definitionen und -Handler |
-
-⚠️ **Bekannter toter Code:** `entities/base.py` definiert dieselbe Klasse `EntityDefinitionBase`
-wie `entities/base_definitions.py`, wird aber **nirgends importiert** (geprüft per grep). Vermutlich
-ein Duplikat aus einer früheren Refactoring-Session. Vor dem nächsten Cleanup-Durchgang entfernen
-oder klären, ob es ersetzt werden sollte.
 
 ## 4. Wichtige Muster & Konventionen
 
@@ -141,25 +137,55 @@ Entity-Definitionen erweitern/prüfen.
    `byte_count`, `faktor`, `signed`.
 3. Keine manuelle Registrierung nötig – Entities registrieren sich automatisch beim
    Telemetry-/Property-Coordinator; `sensor.py` instanziiert sie anhand erkannter Geräte.
-4. Passenden Test in `tests/test_sensor_definitions.py` ergänzen.
+4. `entity_category` setzen, falls die Entity nicht standardmäßig sichtbar sein soll (Abschnitt 6).
+5. `translation_key` in **beiden** `translations/*.json` unter der richtigen Plattform ergänzen –
+   `tests/test_entity_defaults.py` schlägt sonst fehl (fehlende *und* verwaiste Keys).
+6. Passenden Test in `tests/test_sensor_definitions.py` ergänzen. Für ComfoAirQ-Telemetrie zusätzlich
+   den Eintrag in `TestAgainstUpstreamProtocolDocs.PDO_TYPES` – dort ist die PDO-Tabelle
+   abgeschrieben, und unbekannte IDs lassen den Test bewusst fehlschlagen.
 
-## 6. Entity-Kategorisierung
+## 6. Entity-Sichtbarkeit – **die Entity-Registry entscheidet, nicht der Config-Flow**
 
-Home-Assistant-Standard: **Standard** (immer sichtbar), **Configuration**
-(`entity_category="config"`, default disabled), **Diagnostic**
-(`entity_category="diagnostic"`, default disabled).
+Die Integration legt **immer alle** Entities an, die sie für die gefundenen Geräte kennt. Was davon
+sichtbar ist, regelt ausschließlich Home Assistants Entity-Registry (Einstellungen → Geräte &
+Dienste → ComfoClime → Geräteseite → Entität → aktivieren/deaktivieren).
 
-- Standard (~20–30 Entities): Climate, Fan-Speed, Kern-Sensoren (Innen-/Außentemp, Sollwert,
-  Luftmengen, Fan-Speed, Profil-Status, Season, Wärmepumpenstatus), Komfort-Number/Switch/Select.
-- Configuration (~10–15): Heiz-/Kühlkurven-Parameter (Knickpunkt, Schwelle, RMOT-Schwellen,
-  Wärmepumpen-Min/Max), Feuchtigkeitskontrolle.
-- Diagnostic (~60–80): alle rohen Dashboard-/Monitoring-/Thermalprofil-Detailwerte, sämtliche
-  Telemetrie-Sensoren (ComfoClime + ComfoAir) und alle Access-Tracking-Sensoren
-  (`*_accesses_per_minute`/`_per_hour` je Koordinator).
+Es gibt **keine** `enabled_*`-Optionen mehr und keinen Entity-Auswahlschritt im Options-Flow. Wer so
+etwas wieder einbauen will: es war schon einmal da (~1.200 Zeilen) und hatte zwei strukturelle
+Probleme – in späteren Releases ergänzte Sensoren tauchten bei Bestandsnutzern nie auf, weil sie
+nicht in der gespeicherten Auswahlliste standen, und jede Options-Änderung löschte Entities aus der
+Registry (samt Verlauf, Bereich und Umbenennungen).
 
-Neue Entity hinzufügen → Kategorie im `*_definitions.py`-Eintrag setzen
-(`entity_category="config"|"diagnostic"|None`); `entity_registry_enabled_default` folgt daraus
-automatisch (`True` nur wenn `entity_category is None`).
+**Default-Sichtbarkeit** kommt aus der Kategorie der Definition:
+
+| `entity_category` | `entity_registry_enabled_default` | Typischer Inhalt |
+|---|---|---|
+| `None` | `True` | Climate, Fan, Kern-Sensoren (Innen-/Außentemp, Luftmengen, Fan-Speed, Wärmepumpenstatus), Komfort-Number/Switch/Select |
+| `"config"` | `False` | Heiz-/Kühlkurven-Parameter, RMOT-Schwellen, Wärmepumpen-Min/Max, Feuchtigkeitskontrolle |
+| `"diagnostic"` | `False` | Thermalprofil-Sensoren (Duplikate der Number/Select/Switch), rohe Telemetrie, Definition-Sensoren, Access-Tracking |
+
+Beides wird zentral abgeleitet in `entities/base_definitions.py`:
+`entity_category_for()` (bezieht `diagnose=True` bei Telemetrie mit ein) und `enabled_by_default()`.
+Neue Entity hinzufügen → nur `entity_category` im `*_definitions.py`-Eintrag setzen, sonst nichts.
+
+**Warum das die API-Last löst** (der ursprüngliche Grund für die Eigenbau-Auswahl): Home Assistant
+fügt deaktivierte Entities gar nicht erst zu `hass` hinzu. Telemetrie- und Property-Entities
+registrieren sich deshalb erst in `async_added_to_hass()` beim Koordinator (`_async_register_data_source()`
+im `ComfoClimeBaseEntity`-Mixin) und melden sich in `async_will_remove_from_hass()` wieder ab. Eine
+deaktivierte Entity erzeugt damit exakt null Requests. Property-Registrierungen sind
+referenzgezählt, weil ein Pfad (z. B. `23/1/4`) gleichzeitig von einem Sensor und einer Number
+gelesen werden kann.
+
+⚠️ Zwei Definitionen für denselben Property-Pfad **müssen** in `faktor`/`signed`/`byte_count`
+übereinstimmen – der Koordinator hält pro `(device, path)` nur einen Eintrag. Abweichungen werden
+geloggt und per Test (`tests/test_entity_defaults.py`) abgefangen.
+
+### Migration bestehender Einträge
+
+Config-Entry-Version **2**. `async_migrate_entry()` (in `__init__.py`, Mapping in `migration.py`)
+übersetzt die alten Auswahllisten einmalig in Registry-Zustand: abgewählte Entities werden
+*deaktiviert*, nicht gelöscht. Danach werden die `enabled_*`-Keys entfernt. `migration.py` ist
+bewusst Wegwerf-Code und kann entfallen, sobald keine v1-Einträge mehr existieren.
 
 ## 7. Szenario-Modi (Climate-Presets)
 
@@ -230,6 +256,18 @@ uv run ruff format --check .        # Formatierung prüfen
   - Integration im Dev-Container hinzufügen: über die UI (Geräte & Dienste → Integration
     hinzufügen → „ComfoClime“ → IP eingeben) oder manuell in `.devcontainer/configuration.yaml`
     (`comfoclime: host: "<IP>"`).
+⚠️ **Python 3.14 ist Pflicht, nicht Kosmetik.** Der Code nutzt PEP-758-Syntax
+(`except TimeoutError, aiohttp.ClientError:` **ohne** Klammern), die ruff wegen
+`target-version = "py314"` beim Formatieren aktiv herstellt. Auf Python ≤ 3.13 ist das ein
+`SyntaxError`. Wenn du also „43 Syntaxfehler“ siehst: du parst mit dem falschen Interpreter –
+die Datei ist in Ordnung. Klammern **nicht** wieder einfügen, `ruff format` entfernt sie sofort
+wieder.
+
+⚠️ In manchen Umgebungen lässt sich Home Assistant auf 3.14 nicht importieren, weil `mashumaro`
+(bis mind. 3.22, transitiv über `webrtc-models`) noch `typing.ByteString` referenziert – in 3.14
+entfernt. Symptom: `AttributeError: module 'typing' has no attribute 'ByteString'` beim
+Test-Collect. Das ist ein Dependency-Problem, kein Fehler in diesem Repo.
+
 - **Pflicht bei jeder Codeänderung**: passende Tests aktualisieren/ergänzen – Modelle →
   `tests/test_models.py`, API → `tests/test_api.py`, Koordinatoren → `tests/test_coordinator.py`,
   Entities → jeweilige `tests/test_<platform>.py`. Pydantic-Validierungsfehler in Tests als
@@ -249,8 +287,9 @@ uv run ruff format --check .        # Formatierung prüfen
 - aiohttp-Session muss beim Unload geschlossen werden (`api.close()` in `async_unload_entry`).
 - Rate-Limiting greift aktiv – schnelle Folge-Requests führen zu Wartezeiten; Koordinatoren
   bündeln deshalb bewusst.
-- `entities/base.py` ist toter Code (siehe Abschnitt 3) – nicht als Referenz für neue
-  Definitionsklassen verwenden, sondern `entities/base_definitions.py`.
+- Der Options-Flow enthält **absichtlich** keine Entity-Auswahl (Abschnitt 6). Bug-Reports wie
+  „Sensor X fehlt“ sind fast immer eine in der Registry deaktivierte Entity, kein fehlender
+  Sensor – zuerst auf der Geräteseite unter „+N Entitäten deaktiviert“ nachsehen.
 - Reauth-Flow ist bewusst **nicht** implementiert – die Geräte-API kennt keine Authentifizierung
   und keine Auth-Fehler. Nur relevant, falls Zehnder das per Firmware-Update ändert.
 - **GitHub-Integration-Timeout-Fehler** (`homeassistant.components.github`, `Timeout of 20 reached

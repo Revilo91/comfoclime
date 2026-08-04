@@ -2,25 +2,11 @@
 
 from __future__ import annotations
 
-from enum import Enum, auto
-
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.const import EntityCategory
 from pydantic import ConfigDict, Field
 
 from .base_definitions import EntityDefinitionBase, KeyEntityDefinitionBase
-
-
-class SensorCategory(Enum):
-    """Categories of sensors in the integration."""
-
-    DASHBOARD = auto()
-    THERMALPROFILE = auto()
-    MONITORING = auto()
-    TELEMETRY = auto()
-    PROPERTY = auto()
-    DEFINITION = auto()
-    ACCESS_TRACKING = auto()
 
 
 class SensorDefinition(KeyEntityDefinitionBase):

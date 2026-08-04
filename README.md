@@ -44,6 +44,11 @@ ComfoClime is a HVAC solution as additional device for the ComfoAir Q series. It
 ### Python Version Requirements
 This integration requires **Python 3.14 or newer** due to Home Assistant 2026.2+ dependencies. The Dev Container automatically provides a compatible environment.
 
+The source uses [PEP 758](https://peps.python.org/pep-0758/) unparenthesised `except A, B:` clauses,
+which `ruff format` produces because the project targets `py314`. On Python 3.13 or older these are
+a `SyntaxError` — that means the interpreter is too old, not that the file is broken. Do not add the
+parentheses back; the formatter removes them again.
+
 ## 📚 Documentation
 
 All developer/AI-agent documentation (architecture, coding conventions, byte-decoding rules,
@@ -78,6 +83,25 @@ This provides a complete Home Assistant development environment with debugging s
 - install the "Zehnder ComfoClime" integration in HACS
 - restart Home Assistant
 - add the ComfoClime device (connected devices like the ComfoAir Q are detected and added automatically)
+
+## Choosing which entities you see
+
+The integration creates every entity it knows about for the devices it finds, and lets Home
+Assistant decide what is shown. Everyday values — temperatures, air flows, fan speed, the climate
+and fan entities, the comfort controls — are enabled straight away. Configuration and diagnostic
+entities (heating and cooling curve parameters, raw telemetry, API access counters) are created but
+**disabled**, so a fresh install is not flooded with a hundred entities.
+
+To turn something on or off, go to **Settings → Devices & services → ComfoClime**, open the device,
+and use the entity's own enable/disable toggle. Disabled entities are not polled at all, so
+switching off the ones you don't need genuinely reduces the load on the device.
+
+> Missing a sensor you expected? Check the **"+N entities disabled"** link on the device page before
+> opening an issue — it is almost always sitting there, disabled by default.
+
+The integration's options dialog only holds connection tuning: timeouts, polling interval and
+caching, and request rate limiting. Raise the rate limiting values if you see timeouts or entities
+going unavailable; the ComfoClime's Airduino board is easily overwhelmed.
 
 ## Climate Control Features
 
@@ -217,7 +241,11 @@ The test suite includes:
 
 - Unit tests for all entity types (sensor, switch, select, number, climate, fan)
 - API tests
-- Integration setup tests
+- Integration setup tests, including the config entry v1 → v2 migration
+- Conformance checks of the sensor definitions against the upstream protocol documentation
+  (byte counts, signedness and scaling factors), so a wrong decode is caught rather than showing a
+  plausible but wrong number
+- Consistency checks between entity definitions, the config flow and both translation files
 - Mock fixtures for testing without a real device
 
 Tests are automatically run via GitHub Actions on push and pull requests.
