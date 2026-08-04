@@ -1,510 +1,89 @@
-"""Tests for entity_helper module."""
+"""Tests for entity_helper module.
 
-from custom_components.comfoclime.entities.sensor_definitions import (
-    AccessTrackingSensorDefinition,
-    PropertySensorDefinition,
-    SensorDefinition,
-    TelemetrySensorDefinition,
-)
+The entity-selection machinery this module used to own is gone; enabling and
+disabling entities is Home Assistant's job now. What remains is the set of
+accessors that read device metadata from either a Pydantic ``DeviceConfig``
+or a raw API dict, which is why every accessor is tested against both shapes.
+"""
+
 from custom_components.comfoclime.entity_helper import (
-    _make_sensor_id,
-    get_all_entity_categories,
-    get_default_enabled_entities,
-    get_default_enabled_individual_entities,
+    MODEL_TYPE_NAMES,
+    _friendly_model_name,
+    get_device_display_name,
+    get_device_model_type,
     get_device_model_type_id,
     get_device_uuid,
-    get_entity_selection_options,
-    get_individual_entity_options,
-    is_entity_category_enabled,
-    is_entity_enabled,
+    get_device_version,
 )
 from custom_components.comfoclime.models import DeviceConfig
 
 
 def test_get_device_uuid():
-    """Test get_device_uuid with a Pydantic DeviceConfig model."""
+    """get_device_uuid reads a Pydantic DeviceConfig model."""
     device = DeviceConfig(uuid="pydantic-uuid-456", model_type_id=20, display_name="Test Device")
     assert get_device_uuid(device) == "pydantic-uuid-456"
 
 
-def test_get_device_uuid_with_different_uuid():
-    """Test get_device_uuid with different UUID values."""
-    device = DeviceConfig(uuid="unique-uuid-xyz", model_type_id=1, display_name="Device")
-    assert get_device_uuid(device) == "unique-uuid-xyz"
+def test_get_device_uuid_from_dict():
+    """get_device_uuid reads the raw API dict shape."""
+    assert get_device_uuid({"uuid": "dict-uuid-123"}) == "dict-uuid-123"
+
+
+def test_get_device_uuid_missing():
+    """A device without a UUID yields None rather than raising."""
+    assert get_device_uuid({}) is None
+    assert get_device_uuid(object()) is None
 
 
 def test_get_device_model_type_id():
-    """Test get_device_model_type_id with a Pydantic DeviceConfig model."""
+    """get_device_model_type_id reads a Pydantic DeviceConfig model."""
     device = DeviceConfig(uuid="test-uuid", model_type_id=1, display_name="ComfoAirQ")
     assert get_device_model_type_id(device) == 1
 
 
-def test_get_device_model_type_id_with_different_model():
-    """Test get_device_model_type_id with different model type IDs."""
-    device = DeviceConfig(uuid="test-uuid", model_type_id=20, display_name="ComfoClime")
-    assert get_device_model_type_id(device) == 20
+def test_get_device_model_type_id_from_dict():
+    """The dict shape uses the API's camelCase 'modelTypeId' key."""
+    assert get_device_model_type_id({"modelTypeId": 20}) == 20
+    assert get_device_model_type_id({}) is None
 
 
-def test_get_all_entity_categories():
-    """Test that get_all_entity_categories returns expected structure."""
-    categories = get_all_entity_categories()
+def test_get_device_display_name_falls_back():
+    """A missing or empty display name falls back to the supplied default."""
+    device = DeviceConfig(uuid="u", model_type_id=20, display_name="ComfoClime 36")
+    assert get_device_display_name(device) == "ComfoClime 36"
+    assert get_device_display_name({}, default="Fallback") == "Fallback"
 
-    assert "sensors" in categories
-    assert "switches" in categories
-    assert "numbers" in categories
-    assert "selects" in categories
 
-    # Check sensor subcategories
-    assert "dashboard" in categories["sensors"]
-    assert "thermalprofile" in categories["sensors"]
-    assert "connected_device_telemetry" in categories["sensors"]
-    assert "connected_device_properties" in categories["sensors"]
-    assert "connected_device_definition" in categories["sensors"]
-    assert "access_tracking" in categories["sensors"]
+def test_get_device_version():
+    """Firmware version is read from both shapes."""
+    device = DeviceConfig(uuid="u", model_type_id=20, display_name="d", version="R1.5.0")
+    assert get_device_version(device) == "R1.5.0"
+    assert get_device_version({"version": "R1.4.0"}) == "R1.4.0"
+    assert get_device_version({}) is None
 
-    # Check numbers subcategories
-    assert "thermal_profile" in categories["numbers"]
-    assert "connected_device_properties" in categories["numbers"]
 
-    # Check selects subcategories
-    assert "thermal_profile" in categories["selects"]
-    assert "connected_device_properties" in categories["selects"]
+def test_get_device_model_type_prefers_vendor_string_for_dicts():
+    """Dicts carry the vendor's '@modelType' verbatim."""
+    assert get_device_model_type({"@modelType": "ComfoAirQ 600"}) == "ComfoAirQ 600"
 
 
-def test_get_entity_selection_options():
-    """Test that selection options are properly formatted."""
-    options = get_entity_selection_options()
+def test_get_device_model_type_derives_name_for_models():
+    """Pydantic models have no vendor string, so a friendly name is derived."""
+    device = DeviceConfig(uuid="u", model_type_id=20, display_name="d")
+    assert get_device_model_type(device) == "ComfoClime"
 
-    assert isinstance(options, list)
-    assert len(options) > 0
 
-    # Check that each option has required keys
-    for option in options:
-        assert "value" in option
-        assert "label" in option
-        assert isinstance(option["value"], str)
-        assert isinstance(option["label"], str)
+def test_friendly_model_name_known_ids():
+    """Known modelTypeIds map to their product names."""
+    assert _friendly_model_name(1) == "ComfoAirQ"
+    assert _friendly_model_name(20) == "ComfoClime"
+    assert _friendly_model_name(222) == "ComfoHub"
+    assert set(MODEL_TYPE_NAMES) == {1, 20, 222}
 
-    # Check that specific categories are present
-    values = [opt["value"] for opt in options]
-    assert "sensors_dashboard" in values
-    assert "sensors_thermalprofile" in values
-    assert "switches" in values
-    assert "numbers_thermal_profile" in values
-    assert "selects_thermal_profile" in values
 
-
-def test_get_default_enabled_entities():
-    """Test that default enabled entities returns a set."""
-    defaults = get_default_enabled_entities()
-
-    assert isinstance(defaults, set)
-    assert len(defaults) > 0
-
-    # Check that core categories are enabled by default
-    assert "sensors_dashboard" in defaults
-    assert "sensors_thermalprofile" in defaults
-    assert "switches" in defaults
-    assert "numbers_thermal_profile" in defaults
-    assert "selects_thermal_profile" in defaults
-
-
-def test_is_entity_category_enabled_with_none():
-    """Test that all categories are enabled when options is None or empty."""
-    # When enabled_entities is None (not configured yet), everything should be enabled
-    assert is_entity_category_enabled({}, "sensors", "dashboard") is True
-    assert is_entity_category_enabled({}, "switches") is True
-    assert is_entity_category_enabled({}, "numbers", "thermal_profile") is True
-
-
-def test_is_entity_category_enabled_with_selection():
-    """Test entity category checking with explicit selection."""
-    options = {
-        "enabled_entities": [
-            "sensors_dashboard",
-            "switches",
-        ]
-    }
-
-    # Enabled categories should return True
-    assert is_entity_category_enabled(options, "sensors", "dashboard") is True
-    assert is_entity_category_enabled(options, "switches") is True
-
-    # Disabled categories should return False
-    assert is_entity_category_enabled(options, "sensors", "thermalprofile") is False
-    assert is_entity_category_enabled(options, "numbers", "thermal_profile") is False
-    assert is_entity_category_enabled(options, "selects", "thermal_profile") is False
-
-
-def test_is_entity_category_enabled_category_only():
-    """Test checking categories without subcategories."""
-    options = {"enabled_entities": ["switches"]}
-
-    # Without subcategory parameter
-    assert is_entity_category_enabled(options, "switches") is True
-
-    # Categories not in the list should be disabled
-    options2 = {"enabled_entities": ["sensors_dashboard"]}
-    assert is_entity_category_enabled(options2, "switches") is False
-
-
-def test_is_entity_category_enabled_empty_selection():
-    """Test that empty selection list disables all categories."""
-    options = {"enabled_entities": []}
-
-    assert is_entity_category_enabled(options, "sensors", "dashboard") is False
-    assert is_entity_category_enabled(options, "switches") is False
-    assert is_entity_category_enabled(options, "numbers", "thermal_profile") is False
-
-
-def test_make_sensor_id_with_key():
-    """Test _make_sensor_id with key field."""
-    sensor_def = SensorDefinition(
-        key="indoorTemperature",
-        name="Indoor Temperature",
-        translation_key="indoor_temperature",
-    )
-    result = _make_sensor_id("sensors", "dashboard", sensor_def)
-    assert result == "sensors_dashboard_indoorTemperature"
-
-
-def test_make_sensor_id_with_telemetry_id():
-    """Test _make_sensor_id with telemetry_id field."""
-    sensor_def = TelemetrySensorDefinition(
-        telemetry_id=4193,
-        name="Supply Air Temperature",
-        translation_key="supply_air_temperature",
-    )
-    result = _make_sensor_id("sensors", "connected_telemetry", sensor_def)
-    assert result == "sensors_connected_telemetry_telem_4193"
-
-
-def test_make_sensor_id_with_path():
-    """Test _make_sensor_id with path field."""
-    sensor_def = PropertySensorDefinition(
-        path="30/1/18",
-        name="Ventilation Disbalance",
-        translation_key="ventilation_disbalance",
-    )
-    result = _make_sensor_id("sensors", "connected_properties", sensor_def)
-    assert result == "sensors_connected_properties_prop_30_1_18"
-
-
-def test_make_sensor_id_with_property():
-    """Test _make_sensor_id with property field."""
-
-    # Use PropertySensorDefinition but rename to property for this test
-    # Since PropertySensorDefinition uses 'path' not 'property', we use a different approach
-    class PropertyDef:
-        """Minimal property definition for testing."""
-
-        def __init__(self):
-            self.property = "29/1/2"
-            self.name = "RMOT Heating Threshold"
-
-    sensor_def = PropertyDef()
-    result = _make_sensor_id("numbers", "connected_properties", sensor_def)
-    assert result == "numbers_connected_properties_prop_29_1_2"
-
-
-def test_make_sensor_id_with_metric():
-    """Test _make_sensor_id with coordinator and metric fields."""
-    sensor_def = AccessTrackingSensorDefinition(
-        coordinator="Dashboard",
-        metric="per_minute",
-        name="Dashboard Accesses",
-        translation_key="dashboard_accesses",
-    )
-    result = _make_sensor_id("sensors", "access_tracking", sensor_def)
-    assert result == "sensors_access_tracking_dashboard_per_minute"
-
-
-def test_get_individual_entity_options():
-    """Test that individual entity options are properly formatted as flat list."""
-    options = get_individual_entity_options()
-
-    assert isinstance(options, list)
-    assert len(options) > 0
-
-    # Check that each option has required keys (flat structure, not grouped)
-    for option in options:
-        assert "label" in option, "Option should have 'label' key"
-        assert "value" in option, "Option should have 'value' key"
-        assert isinstance(option["label"], str), "Option label should be string"
-        assert isinstance(option["value"], str), "Option value should be string"
-
-        # Check that label has emoji prefix (verifies user-friendly formatting)
-        # Note: Emojis are: 📊 Dashboard, 🌡️ Thermal, 📡 Device telemetry, 🔧 Device property,
-        # 📋 Device definition, 🔍 Access tracking, 🔌 Switch, 🔢 Number, 📝 Select
-        has_emoji = any(char in option["label"] for char in "📊🌡️📡🔧📋🔍🔌🔢📝")
-        assert has_emoji, f"Option label '{option['label']}' should have emoji prefix"
-
-    # Check that some specific entities are present (flat structure)
-    all_values = [opt["value"] for opt in options]
-
-    assert any("sensors_dashboard_indoorTemperature" in v for v in all_values), (
-        "Should contain indoor temperature sensor"
-    )
-    assert any("switches_all_" in v for v in all_values), "Should contain switches"
-    assert len(all_values) > 10, "Should have multiple entities"
-
-
-def test_get_default_enabled_individual_entities():
-    """Test that default enabled individual entities returns a set."""
-    defaults = get_default_enabled_individual_entities()
-
-    assert isinstance(defaults, set)
-    assert len(defaults) > 0
-
-    # Check that some core entities are enabled by default
-    assert any("sensors_dashboard_indoorTemperature" in d for d in defaults)
-    assert any("switches_all_" in d for d in defaults)
-
-    # Check that diagnostic sensors are NOT enabled by default
-    # (access tracking sensors should not be in defaults)
-    assert not any("access_tracking" in d and "per_minute" in d for d in defaults)
-
-
-def test_is_entity_enabled_with_none():
-    """Test that all entities are enabled when options is None or empty."""
-    sensor_def = SensorDefinition(
-        key="indoorTemperature",
-        name="Indoor Temperature",
-        translation_key="indoor_temperature",
-    )
-
-    # When enabled_entities is None (not configured yet), everything should be enabled
-    assert is_entity_enabled({}, "sensors", "dashboard", sensor_def) is True
-
-
-def test_is_entity_enabled_individual_selected():
-    """Test entity checking when individual entity is selected."""
-    sensor_def = SensorDefinition(
-        key="indoorTemperature",
-        name="Indoor Temperature",
-        translation_key="indoor_temperature",
-    )
-    options = {"enabled_entities": ["sensors_dashboard_indoorTemperature"]}
-
-    assert is_entity_enabled(options, "sensors", "dashboard", sensor_def) is True
-
-
-def test_is_entity_enabled_individual_not_selected():
-    """Test entity checking when individual entity is NOT selected."""
-    sensor_def = SensorDefinition(
-        key="indoorTemperature",
-        name="Indoor Temperature",
-        translation_key="indoor_temperature",
-    )
-    other_sensor_def = SensorDefinition(
-        key="outdoorTemperature",
-        name="Outdoor Temperature",
-        translation_key="outdoor_temperature",
-    )
-    options = {"enabled_entities": ["sensors_dashboard_outdoorTemperature"]}
-
-    # indoor temp is not selected, should be False
-    assert is_entity_enabled(options, "sensors", "dashboard", sensor_def) is False
-    # outdoor temp is selected, should be True
-    assert is_entity_enabled(options, "sensors", "dashboard", other_sensor_def) is True
-
-
-def test_is_entity_enabled_category_backward_compat():
-    """Test backward compatibility with old category-based selection."""
-    sensor_def = SensorDefinition(
-        key="indoorTemperature",
-        name="Indoor Temperature",
-        translation_key="indoor_temperature",
-    )
-    options = {
-        "enabled_entities": ["sensors_dashboard"]  # Old-style category selection
-    }
-
-    # Should enable all entities in that category for backward compatibility
-    assert is_entity_enabled(options, "sensors", "dashboard", sensor_def) is True
-
-
-def test_is_entity_enabled_mixed_selection():
-    """Test that individual selection takes precedence over category."""
-    sensor_def = SensorDefinition(
-        key="indoorTemperature",
-        name="Indoor Temperature",
-        translation_key="indoor_temperature",
-    )
-    other_sensor_def = SensorDefinition(
-        key="outdoorTemperature",
-        name="Outdoor Temperature",
-        translation_key="outdoor_temperature",
-    )
-    options = {
-        "enabled_entities": [
-            "sensors_dashboard",  # Category
-            "sensors_dashboard_outdoorTemperature",  # Individual entity
-        ]
-    }
-
-    # When individual entities are present, category is ignored
-    # Only outdoor temp is explicitly enabled
-    assert is_entity_enabled(options, "sensors", "dashboard", sensor_def) is False
-    assert is_entity_enabled(options, "sensors", "dashboard", other_sensor_def) is True
-
-
-def test_is_entity_category_enabled_with_individual_entities():
-    """Test that category check works when individual entities are selected."""
-    options = {
-        "enabled_entities": [
-            "sensors_dashboard_indoorTemperature",
-            "sensors_dashboard_outdoorTemperature",
-        ]
-    }
-
-    # Category should be enabled if any individual entities from it are enabled
-    assert is_entity_category_enabled(options, "sensors", "dashboard") is True
-    # Other categories should be disabled
-    assert is_entity_category_enabled(options, "sensors", "thermalprofile") is False
-
-
-def test_is_entity_enabled_prefers_new_connected_device_key_over_legacy():
-    """New connected_device option keys must take precedence over legacy keys."""
-    telemetry_def = {"telemetry_id": 4193, "name": "Supply Air Temperature"}
-    entity_id = "sensors_connected_telemetry_telem_4193"
-    options = {
-        "enabled_connected_device_telemetry": [],
-        "enabled_connected_telemetry": [entity_id],
-    }
-
-    assert is_entity_enabled(options, "sensors", "connected_telemetry", telemetry_def) is False
-
-
-def test_is_entity_category_enabled_prefers_new_connected_device_key_over_legacy():
-    """Category checks must honor new keys first so UI changes apply immediately."""
-    options = {
-        "enabled_connected_device_telemetry": [],
-        "enabled_connected_telemetry": ["sensors_connected_telemetry_telem_4193"],
-    }
-
-    assert is_entity_category_enabled(options, "sensors", "connected_telemetry") is False
-
-
-# ---------------------------------------------------------------------------
-# Switch / Number / Select: category-level option keys (enabled_switches etc.)
-# ---------------------------------------------------------------------------
-
-
-def test_is_entity_enabled_switch_all_subcategory_disabled():
-    """Disabling a switch via enabled_switches must be respected."""
-    from custom_components.comfoclime.entities.switch_definitions import SwitchDefinition
-
-    switch_def = SwitchDefinition(
-        key="temperature.status",
-        name="Automatic Comfort Temperature",
-        translation_key="automatic_comfort_temperature",
-        endpoint="thermal_profile",
-    )
-    # Only "season.status" switch is enabled - "temperature.status" is disabled
-    season_switch_id = _make_sensor_id(
-        "switches",
-        "all",
-        SwitchDefinition(key="season.status", name="x", translation_key="x", endpoint="thermal_profile"),
-    )
-    options = {"enabled_switches": [season_switch_id]}
-
-    assert is_entity_enabled(options, "switches", "all", switch_def) is False
-
-
-def test_is_entity_enabled_switch_all_subcategory_enabled():
-    """A switch present in enabled_switches is considered enabled."""
-    from custom_components.comfoclime.entities.switch_definitions import SwitchDefinition
-
-    switch_def = SwitchDefinition(
-        key="temperature.status",
-        name="Automatic Comfort Temperature",
-        translation_key="automatic_comfort_temperature",
-        endpoint="thermal_profile",
-    )
-    entity_id = _make_sensor_id("switches", "all", switch_def)
-    options = {"enabled_switches": [entity_id]}
-
-    assert is_entity_enabled(options, "switches", "all", switch_def) is True
-
-
-def test_is_entity_enabled_switch_all_subcategory_empty_list():
-    """Empty enabled_switches list means no switches are enabled."""
-    from custom_components.comfoclime.entities.switch_definitions import SwitchDefinition
-
-    switch_def = SwitchDefinition(
-        key="hpstandby",
-        name="Heatpump on/off",
-        translation_key="heatpump_onoff",
-        endpoint="dashboard",
-        invert=True,
-    )
-    options = {"enabled_switches": []}
-
-    assert is_entity_enabled(options, "switches", "all", switch_def) is False
-    assert is_entity_category_enabled(options, "switches", "all") is False
-
-
-def test_is_entity_category_enabled_switches_with_entries():
-    """is_entity_category_enabled returns True when enabled_switches has entries."""
-    entity_id = "switches_all_season_status"
-    options = {"enabled_switches": [entity_id]}
-
-    assert is_entity_category_enabled(options, "switches", "all") is True
-
-
-def test_is_entity_enabled_number_thermal_profile_disabled():
-    """A number not in enabled_numbers must be disabled."""
-    from custom_components.comfoclime.entities.number_definitions import NumberDefinition
-
-    number_def = NumberDefinition(
-        key="heatingThermalProfileSeasonData.comfortTemperature",
-        name="Heating Comfort Temperature",
-        translation_key="heating_comfort_temperature",
-        min=15,
-        max=25,
-        step=0.5,
-    )
-    options = {"enabled_numbers": []}  # nothing enabled
-
-    assert is_entity_enabled(options, "numbers", "thermal_profile", number_def) is False
-    assert is_entity_category_enabled(options, "numbers", "thermal_profile") is False
-
-
-def test_is_entity_enabled_number_thermal_profile_enabled():
-    """A number present in enabled_numbers is considered enabled."""
-    from custom_components.comfoclime.entities.number_definitions import NumberDefinition
-
-    number_def = NumberDefinition(
-        key="heatingThermalProfileSeasonData.comfortTemperature",
-        name="Heating Comfort Temperature",
-        translation_key="heating_comfort_temperature",
-        min=15,
-        max=25,
-        step=0.5,
-    )
-    entity_id = _make_sensor_id("numbers", "thermal_profile", number_def)
-    options = {"enabled_numbers": [entity_id]}
-
-    assert is_entity_enabled(options, "numbers", "thermal_profile", number_def) is True
-    assert is_entity_category_enabled(options, "numbers", "thermal_profile") is True
-
-
-def test_is_entity_category_enabled_numbers_subcategory_filter():
-    """Category check for a subcategory only counts matching prefix entries."""
-    from custom_components.comfoclime.entities.number_definitions import NumberDefinition
-
-    tp_def = NumberDefinition(
-        key="heatingThermalProfileSeasonData.comfortTemperature",
-        name="x",
-        translation_key="x",
-        min=15,
-        max=25,
-        step=0.5,
-    )
-    tp_id = _make_sensor_id("numbers", "thermal_profile", tp_def)
-    # Only thermal_profile numbers enabled; connected_properties subcategory should be False
-    options = {"enabled_numbers": [tp_id]}
-
-    assert is_entity_category_enabled(options, "numbers", "thermal_profile") is True
-    assert is_entity_category_enabled(options, "numbers", "connected_properties") is False
+def test_friendly_model_name_handles_unknown_and_junk():
+    """Unknown or non-numeric IDs degrade to a readable label, never an error."""
+    assert _friendly_model_name(99) == "Model 99"
+    assert _friendly_model_name("20") == "ComfoClime"
+    assert _friendly_model_name("NULL") == "Model NULL"
+    assert _friendly_model_name(None) == "Unknown Model"

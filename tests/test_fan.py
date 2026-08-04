@@ -266,16 +266,22 @@ async def test_async_setup_entry_no_main_device(mock_hass, mock_config_entry, mo
 
 
 @pytest.mark.asyncio
-async def test_async_setup_entry_fan_disabled(mock_hass, mock_config_entry, mock_api, mock_coordinator, mock_device):
-    """Test async_setup_entry skips fan creation when enabled_fan is False."""
-    mock_config_entry.options = {"enabled_fan": False}
+async def test_async_setup_entry_without_main_device(
+    mock_hass, mock_config_entry, mock_api, mock_coordinator, mock_device
+):
+    """Without a ComfoClime on the bus there is no fan to expose.
+
+    Options no longer gate entity creation; the entity registry does. The one
+    remaining reason to skip setup is that no main device was discovered.
+    """
+    mock_config_entry.options = {}
     mock_hass.data = {
         "comfoclime": {
             "test_entry_id": {
                 "api": mock_api,
                 "coordinator": mock_coordinator,
                 "devices": [mock_device],
-                "main_device": mock_device,
+                "main_device": None,
             }
         }
     }

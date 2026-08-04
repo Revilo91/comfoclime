@@ -30,8 +30,6 @@ from .entity_base import ComfoClimeBaseEntity
 from .entity_helper import (
     get_device_model_type_id,
     get_device_uuid,
-    is_entity_category_enabled,
-    is_entity_enabled,
 )
 from .models import DeviceConfig, PropertyWriteRequest
 
@@ -50,52 +48,39 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     # We don't need to await it here to avoid blocking number setup
     entities = []
 
-    if is_entity_category_enabled(entry.options, "numbers", "thermal_profile"):
-        entities.extend(
-            ComfoClimeTemperatureNumber(hass, tpcoordinator, api, conf, device=main_device, entry=entry)
-            for conf in NUMBER_ENTITIES
-            if is_entity_enabled(entry.options, "numbers", "thermal_profile", conf)
+    entities.extend(
+        ComfoClimeTemperatureNumber(hass, tpcoordinator, api, conf, device=main_device, entry=entry)
+        for conf in NUMBER_ENTITIES
+    )
+
+    for device in devices:
+        model_id = get_device_model_type_id(device)
+        dev_uuid = get_device_uuid(device)
+        if not dev_uuid or dev_uuid == "NULL":
+            _LOGGER.debug("Skipping device with NULL uuid (model_id: %s)", model_id)
+            continue
+
+        number_properties = CONNECTED_DEVICE_NUMBER_PROPERTIES.get(model_id, [])
+        _LOGGER.debug(
+            "Found %s number properties for model_id %s",
+            len(number_properties),
+            model_id,
         )
 
-    if is_entity_category_enabled(entry.options, "numbers", "connected_properties"):
-        for device in devices:
-            model_id = get_device_model_type_id(device)
-            dev_uuid = get_device_uuid(device)
-            if dev_uuid == "NULL":
-                _LOGGER.debug("Skipping device with NULL uuid (model_id: %s)", model_id)
-                continue
-
-            number_properties = CONNECTED_DEVICE_NUMBER_PROPERTIES.get(model_id, [])
-            _LOGGER.debug(
-                "Found %s number properties for model_id %s",
-                len(number_properties),
-                model_id,
+        # The property itself is registered with the coordinator from
+        # async_added_to_hass, so a number the user disabled is never polled.
+        entities.extend(
+            ComfoClimePropertyNumber(
+                hass=hass,
+                coordinator=propcoordinator,
+                api=api,
+                config=number_def,
+                device=device,
+                entry=entry,
+                device_uuid=dev_uuid,
             )
-
-            for number_def in number_properties:
-                # Check if this individual number property is enabled
-                if not is_entity_enabled(entry.options, "numbers", "connected_properties", number_def):
-                    continue
-
-                _LOGGER.debug("Creating number entity for property: %s", number_def)
-                # Register property with coordinator for batched fetching
-                await propcoordinator.register_property(
-                    device_uuid=dev_uuid,
-                    property_path=number_def.property,
-                    faktor=number_def.faktor,
-                    signed=False,
-                    byte_count=number_def.byte_count,
-                )
-                entities.append(
-                    ComfoClimePropertyNumber(
-                        hass=hass,
-                        coordinator=propcoordinator,
-                        api=api,
-                        config=number_def,
-                        device=device,
-                        entry=entry,
-                    )
-                )
+            for number_def in number_properties
+        )
 
     _LOGGER.debug("Adding %s number entities to Home Assistant", len(entities))
     async_add_entities(entities, True)
@@ -248,6 +233,7 @@ class ComfoClimePropertyNumber(ComfoClimeBaseEntity, CoordinatorEntity, NumberEn
         config: PropertyNumberDefinition,
         device: DeviceConfig,
         entry: ConfigEntry,
+        device_uuid: str | None = None,
     ) -> None:
         super().__init__(coordinator)
         self._hass = hass
@@ -269,14 +255,33 @@ class ComfoClimePropertyNumber(ComfoClimeBaseEntity, CoordinatorEntity, NumberEn
         self._attr_native_unit_of_measurement = config.unit
         self._faktor = config.faktor
         self._byte_count = config.byte_count
-        self._signed = False
+        self._signed = config.signed
+        self._device_uuid = device_uuid or get_device_uuid(device)
 
         _LOGGER.debug(
             "ComfoClimePropertyNumber initialized: path=%s, device=%s, unique_id=%s",
             self._property_path,
-            get_device_uuid(device),
+            self._device_uuid,
             self._attr_unique_id,
         )
+
+    async def _async_register_data_source(self) -> None:
+        """Start polling this property now that the entity is live."""
+        if not self._device_uuid:
+            return
+        await self.coordinator.register_property(
+            device_uuid=self._device_uuid,
+            property_path=self._property_path,
+            faktor=self._faktor,
+            signed=self._signed,
+            byte_count=self._byte_count,
+        )
+        await self._async_request_coordinator_refresh()
+
+    async def _async_unregister_data_source(self) -> None:
+        """Stop polling this property once the entity goes away."""
+        if self._device_uuid:
+            await self.coordinator.unregister_property(self._device_uuid, self._property_path)
 
     @property
     def name(self):

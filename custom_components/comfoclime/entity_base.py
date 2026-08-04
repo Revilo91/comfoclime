@@ -122,6 +122,41 @@ class ComfoClimeBaseEntity:
         return val
 
     # ------------------------------------------------------------------
+    # Coordinator registration lifecycle
+    # ------------------------------------------------------------------
+
+    async def async_added_to_hass(self) -> None:
+        """Register this entity's data needs once it is actually live.
+
+        Doing this here rather than in ``async_setup_entry`` is what lets the
+        entity registry govern API load: Home Assistant never adds a disabled
+        entity, so a disabled sensor never registers and is never polled.
+        """
+        await super().async_added_to_hass()
+        await self._async_register_data_source()
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Drop this entity's data registration when it goes away."""
+        await self._async_unregister_data_source()
+        await super().async_will_remove_from_hass()
+
+    async def _async_register_data_source(self) -> None:
+        """Register with a batching coordinator. No-op unless overridden."""
+
+    async def _async_unregister_data_source(self) -> None:
+        """Unregister from a batching coordinator. No-op unless overridden."""
+
+    async def _async_request_coordinator_refresh(self) -> None:
+        """Ask the coordinator for fresh data after a registration change.
+
+        ``async_request_refresh`` is debounced, so a whole platform's worth of
+        entities registering during startup collapses into a single fetch.
+        """
+        coordinator = getattr(self, "coordinator", None)
+        if coordinator is not None:
+            await self._safe_refresh(coordinator, type(self).__name__)
+
+    # ------------------------------------------------------------------
     # Safe coordinator refresh
     # ------------------------------------------------------------------
 

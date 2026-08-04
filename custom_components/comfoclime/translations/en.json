@@ -13,9 +13,6 @@
             "extract_temperature": {
                 "name": "Extract Temperature"
             },
-            "supply_temperature": {
-                "name": "Supply Temperature"
-            },
             "extract_humidity": {
                 "name": "Extract Humidity"
             },
@@ -48,9 +45,6 @@
             },
             "tpma_temperature": {
                 "name": "Mean Outdoor Temperature"
-            },
-            "comfo_clime_status": {
-                "name": "ComfoClime Status"
             },
             "current_comfort_temperature": {
                 "name": "Current Comfort Temperature"
@@ -278,6 +272,21 @@
             },
             "total_api_accesses_per_hour": {
                 "name": "Total API Accesses per Hour"
+            },
+            "heating_comfort_temperature": {
+                "name": "Heating Comfort Temperature"
+            },
+            "cooling_comfort_temperature": {
+                "name": "Cooling Comfort Temperature"
+            },
+            "cooling_temperature_limit": {
+                "name": "Cooling Temperature Limit"
+            },
+            "definition_supply_temperature": {
+                "name": "Supply Temperature (Definition)"
+            },
+            "definition_exhaust_temperature": {
+                "name": "Exhaust Temperature (Definition)"
             }
         },
         "select": {

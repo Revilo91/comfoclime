@@ -30,8 +30,6 @@ from .entity_base import ComfoClimeBaseEntity
 from .entity_helper import (
     get_device_model_type_id,
     get_device_uuid,
-    is_entity_category_enabled,
-    is_entity_enabled,
 )
 from .models import DeviceConfig, PropertyWriteRequest
 
@@ -50,10 +48,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     # We don't need to await it here to avoid blocking select setup
     entities = []
 
-    if is_entity_category_enabled(entry.options, "selects", "thermal_profile"):
-        for conf in SELECT_ENTITIES:
-            if is_entity_enabled(entry.options, "selects", "thermal_profile", conf):
-                entities.append(ComfoClimeSelect(hass, tpcoordinator, api, conf, device=main_device, entry=entry))
+    entities.extend(
+        ComfoClimeSelect(hass, tpcoordinator, api, conf, device=main_device, entry=entry) for conf in SELECT_ENTITIES
+    )
 
     # Verbundene Geräte abrufen
     try:
@@ -62,40 +59,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         _LOGGER.warning("Could not load connected devices: %s", e)
         devices = []
 
-    if is_entity_category_enabled(entry.options, "selects", "connected_properties"):
-        for device in devices:
-            model_id = get_device_model_type_id(device)
-            dev_uuid = get_device_uuid(device)
-            if dev_uuid == "NULL":
-                continue
+    for device in devices:
+        model_id = get_device_model_type_id(device)
+        dev_uuid = get_device_uuid(device)
+        if not dev_uuid or dev_uuid == "NULL":
+            continue
 
-            select_defs = PROPERTY_SELECT_ENTITIES.get(model_id)
-            if not select_defs:
-                continue
+        # The property itself is registered with the coordinator from
+        # async_added_to_hass, so a select the user disabled is never polled.
+        entities.extend(
+            ComfoClimePropertySelect(
+                hass=hass,
+                coordinator=propcoordinator,
+                api=api,
+                conf=select_def,
+                device=device,
+                entry=entry,
+                device_uuid=dev_uuid,
+            )
+            for select_def in PROPERTY_SELECT_ENTITIES.get(model_id, [])
+        )
 
-            for select_def in select_defs:
-                # Check if this individual select property is enabled
-                if not is_entity_enabled(entry.options, "selects", "connected_properties", select_def):
-                    continue
-
-                # Register property with coordinator for batched fetching
-                await propcoordinator.register_property(
-                    device_uuid=dev_uuid,
-                    property_path=select_def.path,
-                    faktor=1.0,
-                    signed=False,
-                    byte_count=1,
-                )
-                entities.append(
-                    ComfoClimePropertySelect(
-                        hass=hass,
-                        coordinator=propcoordinator,
-                        api=api,
-                        conf=select_def,
-                        device=device,
-                        entry=entry,
-                    )
-                )
     async_add_entities(entities, True)
 
 
@@ -185,6 +169,7 @@ class ComfoClimePropertySelect(ComfoClimeBaseEntity, CoordinatorEntity, SelectEn
         conf: PropertySelectDefinition,
         device: DeviceConfig | None = None,
         entry: ConfigEntry | None = None,
+        device_uuid: str | None = None,
     ) -> None:
         super().__init__(coordinator)
         self._hass = hass
@@ -200,6 +185,25 @@ class ComfoClimePropertySelect(ComfoClimeBaseEntity, CoordinatorEntity, SelectEn
         self._attr_unique_id = f"{entry.entry_id}_select_{conf.path.replace('/', '_')}"
         self._attr_translation_key = conf.translation_key
         self._attr_has_entity_name = True
+        self._device_uuid = device_uuid or get_device_uuid(device)
+
+    async def _async_register_data_source(self) -> None:
+        """Start polling this property now that the entity is live."""
+        if not self._device_uuid:
+            return
+        await self.coordinator.register_property(
+            device_uuid=self._device_uuid,
+            property_path=self._path,
+            faktor=1.0,
+            signed=False,
+            byte_count=1,
+        )
+        await self._async_request_coordinator_refresh()
+
+    async def _async_unregister_data_source(self) -> None:
+        """Stop polling this property once the entity goes away."""
+        if self._device_uuid:
+            await self.coordinator.unregister_property(self._device_uuid, self._path)
 
     @property
     def options(self):

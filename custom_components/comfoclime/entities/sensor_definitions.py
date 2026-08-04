@@ -279,7 +279,8 @@ MONITORING_SENSORS = [
         key="up_time_seconds",
         name="Uptime",
         translation_key="uptime",
-        device_class=SensorDeviceClass.UPTIME,
+        unit="s",
+        device_class=SensorDeviceClass.DURATION,
         state_class=SensorStateClass.TOTAL_INCREASING,
         entity_category="diagnostic",
     ),
@@ -297,6 +298,7 @@ THERMALPROFILE_SENSORS = [
         name="Season Mode",
         translation_key="thermal_season_mode",
         device_class=SensorDeviceClass.ENUM,
+        entity_category="diagnostic",
     ),
     SensorDefinition(
         key="season.heatingThresholdTemperature",
@@ -305,6 +307,7 @@ THERMALPROFILE_SENSORS = [
         unit="°C",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category="diagnostic",
     ),
     SensorDefinition(
         key="season.coolingThresholdTemperature",
@@ -313,6 +316,7 @@ THERMALPROFILE_SENSORS = [
         unit="°C",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category="diagnostic",
     ),
     SensorDefinition(
         key="temperature.status",
@@ -327,12 +331,14 @@ THERMALPROFILE_SENSORS = [
         unit="°C",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category="diagnostic",
     ),
     SensorDefinition(
         key="temperatureProfile",
         name="Temperature Profile",
         translation_key="thermal_temperature_profile",
         device_class=SensorDeviceClass.ENUM,
+        entity_category="diagnostic",
     ),
     SensorDefinition(
         key="heatingThermalProfileSeasonData.comfortTemperature",
@@ -341,6 +347,7 @@ THERMALPROFILE_SENSORS = [
         unit="°C",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category="diagnostic",
     ),
     SensorDefinition(
         key="heatingThermalProfileSeasonData.kneePointTemperature",
@@ -349,6 +356,7 @@ THERMALPROFILE_SENSORS = [
         unit="°C",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category="diagnostic",
     ),
     SensorDefinition(
         key="heatingThermalProfileSeasonData.reductionDeltaTemperature",
@@ -357,6 +365,7 @@ THERMALPROFILE_SENSORS = [
         unit="°C",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category="diagnostic",
     ),
     SensorDefinition(
         key="coolingThermalProfileSeasonData.comfortTemperature",
@@ -365,6 +374,7 @@ THERMALPROFILE_SENSORS = [
         unit="°C",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category="diagnostic",
     ),
     SensorDefinition(
         key="coolingThermalProfileSeasonData.kneePointTemperature",
@@ -373,6 +383,7 @@ THERMALPROFILE_SENSORS = [
         unit="°C",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category="diagnostic",
     ),
     SensorDefinition(
         key="coolingThermalProfileSeasonData.temperatureLimit",
@@ -381,6 +392,7 @@ THERMALPROFILE_SENSORS = [
         unit="°C",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category="diagnostic",
     ),
 ]
 
@@ -833,21 +845,27 @@ CONNECTED_DEVICE_DEFINITION_SENSORS = {
             device_class=SensorDeviceClass.TEMPERATURE,
             state_class=SensorStateClass.MEASUREMENT,
         ),
+        # Duplicates of telemetry 278 and 275 on the same device. Kept for
+        # continuity but filed as diagnostic, and given distinct translation
+        # keys so they do not render under the same name as the telemetry
+        # sensors.
         SensorDefinition(
             key="supplyTemperature",
-            name="Supply Temperature",
-            translation_key="supply_temperature",
+            name="Supply Temperature (Definition)",
+            translation_key="definition_supply_temperature",
             unit="°C",
             device_class=SensorDeviceClass.TEMPERATURE,
             state_class=SensorStateClass.MEASUREMENT,
+            entity_category="diagnostic",
         ),
         SensorDefinition(
             key="exhaustTemperature",
-            name="Exhaust Temperature",
-            translation_key="exhaust_temperature",
+            name="Exhaust Temperature (Definition)",
+            translation_key="definition_exhaust_temperature",
             unit="°C",
             device_class=SensorDeviceClass.TEMPERATURE,
             state_class=SensorStateClass.MEASUREMENT,
+            entity_category="diagnostic",
         ),
     ],
 }

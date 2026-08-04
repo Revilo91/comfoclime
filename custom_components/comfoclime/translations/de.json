@@ -13,9 +13,6 @@
             "extract_temperature": {
                 "name": "Abluft Temperatur"
             },
-            "supply_temperature": {
-                "name": "Zuluft Temperatur"
-            },
             "extract_humidity": {
                 "name": "Abluft Feuchtigkeit"
             },
@@ -48,9 +45,6 @@
             },
             "tpma_temperature": {
                 "name": "Mittlere Außentemperatur"
-            },
-            "comfo_clime_status": {
-                "name": "ComfoClime Status"
             },
             "current_comfort_temperature": {
                 "name": "Aktuelle Zieltemperatur"
@@ -278,6 +272,21 @@
             },
             "total_api_accesses_per_hour": {
                 "name": "Gesamt API Zugriffe pro Stunde"
+            },
+            "heating_comfort_temperature": {
+                "name": "Komforttemperatur Heizen"
+            },
+            "cooling_comfort_temperature": {
+                "name": "Komforttemperatur Kühlen"
+            },
+            "cooling_temperature_limit": {
+                "name": "Temperaturgrenze Kühlen"
+            },
+            "definition_supply_temperature": {
+                "name": "Zulufttemperatur (Definition)"
+            },
+            "definition_exhaust_temperature": {
+                "name": "Fortlufttemperatur (Definition)"
             }
         },
         "select": {

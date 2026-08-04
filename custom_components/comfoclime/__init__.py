@@ -1,3 +1,13 @@
+"""ComfoClime integration setup.
+
+Which entities exist is decided entirely by the entity definitions and the
+devices found on the ComfoNet bus. Which of them are *visible* is decided by
+Home Assistant's entity registry, not by this integration - see
+``config_flow.py`` for why. Entries created before that change carried the
+selection in their options; ``async_migrate_entry`` translates those lists
+into registry state once and then drops them.
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -9,6 +19,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv, entity_registry as er
 
 from .comfoclime_api import ComfoClimeAPI
+from .config_flow import CONFIG_ENTRY_VERSION, DEFAULT_OPTIONS, LEGACY_ENTITY_OPTION_KEYS
 from .coordinator import (
     ComfoClimeDashboardCoordinator,
     ComfoClimeDefinitionCoordinator,
@@ -17,27 +28,9 @@ from .coordinator import (
     ComfoClimeTelemetryCoordinator,
     ComfoClimeThermalprofileCoordinator,
 )
-from .entities.number_definitions import CONNECTED_DEVICE_NUMBER_PROPERTIES, NUMBER_ENTITIES
-from .entities.select_definitions import PROPERTY_SELECT_ENTITIES, SELECT_ENTITIES
-from .entities.sensor_definitions import (
-    ACCESS_TRACKING_SENSORS,
-    CONNECTED_DEVICE_DEFINITION_SENSORS,
-    CONNECTED_DEVICE_PROPERTIES,
-    CONNECTED_DEVICE_SENSORS,
-    DASHBOARD_SENSORS,
-    MONITORING_SENSORS,
-    TELEMETRY_SENSORS,
-    THERMALPROFILE_SENSORS,
-)
-from .entities.switch_definitions import SWITCHES
-from .entity_helper import (
-    get_access_tracking_sensors,
-    get_device_model_type_id,
-    get_device_uuid,
-    is_entity_category_enabled,
-    is_entity_enabled,
-)
+from .entity_helper import get_device_model_type_id
 from .infrastructure import AccessTracker
+from .migration import matches, unique_ids_to_disable
 from .services import async_setup_services
 
 if TYPE_CHECKING:
@@ -52,149 +45,49 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 _LOGGER = logging.getLogger(__name__)
 
 
-def _get_expected_unique_ids(entry: ConfigEntry, devices: list, main_device) -> set[str]:
-    """Return the set of unique IDs expected for the current options state."""
-    expected: set[str] = set()
-    entry_id = entry.entry_id
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Migrate a config entry to the current version.
 
-    # Core entities
-    if entry.options.get("enabled_climate", True):
-        expected.add(f"{entry_id}_climate")
-    if entry.options.get("enabled_fan", True):
-        expected.add(f"{entry_id}_fan_speed")
+    Version 1 stored per-entity selection in the entry options. Version 2
+    hands that job to the entity registry: entities the user had deselected
+    are disabled there rather than deleted, so their history, area and
+    customisations survive, and the now-meaningless option keys are dropped.
+    """
+    if entry.version >= CONFIG_ENTRY_VERSION:
+        return True
 
-    # Sensor categories from dashboard/thermalprofile/monitoring
-    if is_entity_category_enabled(entry.options, "sensors", "dashboard"):
-        for sensor_def in DASHBOARD_SENSORS:
-            if is_entity_enabled(entry.options, "sensors", "dashboard", sensor_def):
-                expected.add(f"{entry_id}_dashboard_{sensor_def.key.replace('.', '_')}")
+    _LOGGER.info(
+        "Migrating ComfoClime config entry %s from version %s to %s",
+        entry.entry_id,
+        entry.version,
+        CONFIG_ENTRY_VERSION,
+    )
 
-    if is_entity_category_enabled(entry.options, "sensors", "thermalprofile"):
-        for sensor_def in THERMALPROFILE_SENSORS:
-            if is_entity_enabled(entry.options, "sensors", "thermalprofile", sensor_def):
-                expected.add(f"{entry_id}_thermalprofile_{sensor_def.key.replace('.', '_')}")
-
-    if is_entity_category_enabled(entry.options, "sensors", "monitoring"):
-        for sensor_def in MONITORING_SENSORS:
-            if is_entity_enabled(entry.options, "sensors", "monitoring", sensor_def):
-                expected.add(f"{entry_id}_monitoring_{sensor_def.key.replace('.', '_')}")
-
-    # Fixed telemetry sensors are always created for the main device when uuid is available.
-    main_device_uuid = get_device_uuid(main_device) if main_device else None
-    if main_device_uuid and main_device_uuid != "NULL":
-        for sensor_def in TELEMETRY_SENSORS:
-            expected.add(f"{entry_id}_telemetry_{sensor_def['id']}")
-
-    diagnostics_enabled = entry.options.get("enable_diagnostics", False)
-
-    # Connected device entities
-    for device in devices:
-        model_id = get_device_model_type_id(device)
-        device_uuid = get_device_uuid(device)
-        if not device_uuid or device_uuid == "NULL":
-            continue
-
-        telemetry_defs = CONNECTED_DEVICE_SENSORS.get(model_id, [])
-        if telemetry_defs and is_entity_category_enabled(entry.options, "sensors", "connected_telemetry"):
-            for sensor_def in telemetry_defs:
-                if not is_entity_enabled(entry.options, "sensors", "connected_telemetry", sensor_def):
-                    continue
-                if sensor_def.diagnose and not diagnostics_enabled:
-                    continue
-                expected.add(f"{entry_id}_telemetry_{sensor_def.telemetry_id}")
-
-        property_defs = CONNECTED_DEVICE_PROPERTIES.get(model_id, [])
-        if property_defs and is_entity_category_enabled(entry.options, "sensors", "connected_properties"):
-            for prop_def in property_defs:
-                if not is_entity_enabled(entry.options, "sensors", "connected_properties", prop_def):
-                    continue
-                expected.add(f"{entry_id}_property_{prop_def.path.replace('/', '_')}")
-
-        definition_defs = CONNECTED_DEVICE_DEFINITION_SENSORS.get(model_id, [])
-        if definition_defs and is_entity_category_enabled(entry.options, "sensors", "connected_definition"):
-            for def_sensor in definition_defs:
-                if not is_entity_enabled(entry.options, "sensors", "connected_definition", def_sensor):
-                    continue
-                expected.add(f"{entry_id}_definition_{device_uuid}_{def_sensor.key}")
-
-        number_defs = CONNECTED_DEVICE_NUMBER_PROPERTIES.get(model_id, [])
-        if number_defs and is_entity_category_enabled(entry.options, "numbers", "connected_properties"):
-            for number_def in number_defs:
-                if not is_entity_enabled(entry.options, "numbers", "connected_properties", number_def):
-                    continue
-                expected.add(f"{entry_id}_property_number_{number_def.property.replace('/', '_')}")
-
-        select_defs = PROPERTY_SELECT_ENTITIES.get(model_id, [])
-        if select_defs and is_entity_category_enabled(entry.options, "selects", "connected_properties"):
-            for select_def in select_defs:
-                if not is_entity_enabled(entry.options, "selects", "connected_properties", select_def):
-                    continue
-                expected.add(f"{entry_id}_select_{select_def.path.replace('/', '_')}")
-
-    # Access tracking sensors
-    if is_entity_category_enabled(entry.options, "sensors", "access_tracking"):
-        for sensor_def in ACCESS_TRACKING_SENSORS:
-            if not is_entity_enabled(entry.options, "sensors", "access_tracking", sensor_def):
+    to_disable = unique_ids_to_disable(entry.options, entry.entry_id)
+    if to_disable:
+        registry = er.async_get(hass)
+        disabled = 0
+        for reg_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
+            if reg_entry.disabled or not matches(reg_entry.unique_id or "", to_disable):
                 continue
-            if sensor_def.coordinator:
-                expected.add(f"{entry_id}_access_{sensor_def.coordinator.lower()}_{sensor_def.metric}")
-            else:
-                expected.add(f"{entry_id}_access_{sensor_def.metric}")
+            registry.async_update_entity(
+                reg_entry.entity_id,
+                disabled_by=er.RegistryEntryDisabler.INTEGRATION,
+            )
+            disabled += 1
+        if disabled:
+            _LOGGER.info(
+                "Disabled %s entities that were deselected in the previous options flow. "
+                "They can be re-enabled individually under Settings > Devices & Services",
+                disabled,
+            )
 
-    # Switches
-    if is_entity_category_enabled(entry.options, "switches", "all"):
-        for switch_def in SWITCHES:
-            if is_entity_enabled(entry.options, "switches", "all", switch_def):
-                expected.add(f"{entry_id}_switch_{switch_def.key}")
+    new_options = {key: value for key, value in entry.options.items() if key not in LEGACY_ENTITY_OPTION_KEYS}
+    for key, default in DEFAULT_OPTIONS.items():
+        new_options.setdefault(key, default)
 
-    # Numbers (thermal profile)
-    if is_entity_category_enabled(entry.options, "numbers", "thermal_profile"):
-        for number_def in NUMBER_ENTITIES:
-            if is_entity_enabled(entry.options, "numbers", "thermal_profile", number_def):
-                expected.add(f"{entry_id}_{number_def.key}")
-
-    # Selects (thermal profile)
-    if is_entity_category_enabled(entry.options, "selects", "thermal_profile"):
-        for select_def in SELECT_ENTITIES:
-            if is_entity_enabled(entry.options, "selects", "thermal_profile", select_def):
-                expected.add(f"{entry_id}_select_{select_def.key}")
-
-    return expected
-
-
-def _cleanup_disabled_entities_from_registry(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Remove entities from the registry that are no longer expected by options."""
-    entry_data = hass.data.get(DOMAIN, {}).get(entry.entry_id)
-    if not entry_data:
-        return
-
-    devices = entry_data.get("devices", [])
-    main_device = entry_data.get("main_device")
-    expected_unique_ids = _get_expected_unique_ids(entry, devices, main_device)
-
-    registry = er.async_get(hass)
-    registry_entries = er.async_entries_for_config_entry(registry, entry.entry_id)
-
-    removed_count = 0
-    for reg_entry in registry_entries:
-        unique_id = reg_entry.unique_id
-        if not unique_id:
-            continue
-        if not unique_id.startswith(f"{entry.entry_id}_"):
-            continue
-        if unique_id in expected_unique_ids:
-            continue
-
-        _LOGGER.debug(
-            "Removing stale entity from registry after options change: entity_id=%s unique_id=%s",
-            reg_entry.entity_id,
-            unique_id,
-        )
-        registry.async_remove(reg_entry.entity_id)
-        removed_count += 1
-
-    if removed_count:
-        _LOGGER.info("Removed %s stale entities after options update", removed_count)
+    hass.config_entries.async_update_entry(entry, options=new_options, version=CONFIG_ENTRY_VERSION)
+    return True
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
@@ -228,54 +121,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     host = entry.data["host"]
     _LOGGER.debug("Setting up ComfoClime integration for host: %s", host)
-
-    # Migration: Add missing default entity options for existing setups
-    # This ensures that existing configurations have all entity options
-    needs_update = False
-    new_options = dict(entry.options)
-
-    if "enabled_dashboard" not in entry.options:
-        from .config_flow import _get_default_entity_options
-
-        default_options = _get_default_entity_options()
-        new_options = {**entry.options, **default_options}
-        needs_update = True
-
-    # Also migrate if enabled_monitoring is missing (older configs may have other keys but not this one)
-    if "enabled_monitoring" not in new_options:
-        from .config_flow import _get_default_entity_options
-        from .entity_helper import get_monitoring_sensors
-
-        new_options["enabled_monitoring"] = [opt["value"] for opt in get_monitoring_sensors()]
-        needs_update = True
-
-    # Migrate legacy option keys to the current options-flow keys.
-    legacy_to_current_keys = {
-        "enabled_connected_telemetry": "enabled_connected_device_telemetry",
-        "enabled_connected_properties": "enabled_connected_device_properties",
-        "enabled_connected_definition": "enabled_connected_device_definition",
-    }
-    for legacy_key, current_key in legacy_to_current_keys.items():
-        if current_key not in new_options and legacy_key in new_options:
-            new_options[current_key] = new_options.get(legacy_key, [])
-            needs_update = True
-
-    # Legacy versions enabled all access-tracking sensors by default.
-    # If we detect that exact legacy default, disable them to avoid noisy helper entities.
-    legacy_access_tracking_default = {opt["value"] for opt in get_access_tracking_sensors()}
-    current_access_tracking = set(new_options.get("enabled_access_tracking", []))
-    if current_access_tracking == legacy_access_tracking_default:
-        new_options["enabled_access_tracking"] = []
-        needs_update = True
-
-    # Migrate: add core entity toggles if missing (legacy installs have no such key)
-    for core_key in ("enabled_climate", "enabled_fan"):
-        if core_key not in new_options:
-            new_options[core_key] = True
-            needs_update = True
-
-    if needs_update:
-        hass.config_entries.async_update_entry(entry, options=new_options)
 
     # Get configuration options with defaults
     read_timeout = int(entry.options.get("read_timeout", 10))
@@ -498,5 +343,5 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    _cleanup_disabled_entities_from_registry(hass, entry)
+    """Reload the entry after its options changed."""
     await hass.config_entries.async_reload(entry.entry_id)

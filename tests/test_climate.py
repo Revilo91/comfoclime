@@ -686,7 +686,7 @@ async def test_async_setup_entry_no_main_device(
 
 
 @pytest.mark.asyncio
-async def test_async_setup_entry_climate_disabled(
+async def test_async_setup_entry_without_main_device(
     mock_hass,
     mock_config_entry,
     mock_api,
@@ -694,15 +694,19 @@ async def test_async_setup_entry_climate_disabled(
     mock_thermalprofile_coordinator,
     mock_device,
 ):
-    """Test async_setup_entry skips climate creation when enabled_climate is False."""
-    mock_config_entry.options = {"enabled_climate": False}
+    """Without a ComfoClime on the bus there is nothing for climate to control.
+
+    Options no longer gate entity creation; the entity registry does. The one
+    remaining reason to skip setup is that no main device was discovered.
+    """
+    mock_config_entry.options = {}
     mock_hass.data = {
         "comfoclime": {
             "test_entry_id": {
                 "api": mock_api,
                 "coordinator": mock_coordinator,
                 "tpcoordinator": mock_thermalprofile_coordinator,
-                "main_device": mock_device,
+                "main_device": None,
             }
         }
     }
