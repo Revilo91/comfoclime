@@ -27,9 +27,7 @@ _LOGGER = logging.getLogger(__name__)
 DOMAIN = "comfoclime"
 
 
-def _get_api_for_device(
-    hass: HomeAssistant, domain: str, device: dr.DeviceEntry
-) -> ComfoClimeAPI:
+def _get_api_for_device(hass: HomeAssistant, domain: str, device: dr.DeviceEntry) -> ComfoClimeAPI:
     """Return the ComfoClimeAPI for the config entry that owns *device*.
 
     Raises HomeAssistantError when no loaded entry is found.
@@ -38,9 +36,7 @@ def _get_api_for_device(
         entry_data = hass.data.get(domain, {}).get(entry_id)
         if isinstance(entry_data, dict) and "api" in entry_data:
             return entry_data["api"]
-    raise HomeAssistantError(
-        f"Keine geladene ComfoClime-Integration für das Gerät gefunden"
-    )
+    raise HomeAssistantError("Keine geladene ComfoClime-Integration für das Gerät gefunden")
 
 
 def _get_any_api(hass: HomeAssistant, domain: str) -> ComfoClimeAPI:
@@ -51,9 +47,7 @@ def _get_any_api(hass: HomeAssistant, domain: str) -> ComfoClimeAPI:
     for entry_data in hass.data.get(domain, {}).values():
         if isinstance(entry_data, dict) and "api" in entry_data:
             return entry_data["api"]
-    raise HomeAssistantError(
-        "Keine ComfoClime-Integration ist geladen. Bitte zuerst konfigurieren."
-    )
+    raise HomeAssistantError("Keine ComfoClime-Integration ist geladen. Bitte zuerst konfigurieren.")
 
 
 @callback
@@ -187,16 +181,11 @@ def async_setup_services(hass: HomeAssistant, domain: str = DOMAIN) -> None:
                                 start_delay=start_delay,
                             )
                         except (TimeoutError, aiohttp.ClientError, ValueError) as e:
-                            _LOGGER.exception(
-                                "Error setting scenario mode '%s' on %s", scenario, entity_id
-                            )
-                            raise HomeAssistantError(
-                                f"Failed to set scenario mode '{scenario}'"
-                            ) from e
+                            _LOGGER.exception("Error setting scenario mode '%s' on %s", scenario, entity_id)
+                            raise HomeAssistantError(f"Failed to set scenario mode '{scenario}'") from e
                         else:
                             _LOGGER.info(
-                                "Scenario mode '%s' activated for %s "
-                                "with duration %s and start_delay %s",
+                                "Scenario mode '%s' activated for %s with duration %s and start_delay %s",
                                 scenario,
                                 entity_id,
                                 duration,
