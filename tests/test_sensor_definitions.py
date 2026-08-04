@@ -1,5 +1,9 @@
 """Tests for sensor definitions in entities/sensor_definitions.py"""
 
+from typing import ClassVar
+
+from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
+
 from custom_components.comfoclime.entities.sensor_definitions import (
     CONNECTED_DEVICE_PROPERTIES,
     CONNECTED_DEVICE_SENSORS,
@@ -511,3 +515,92 @@ class TestConnectedDeviceProperties:
         assert 1 in CONNECTED_DEVICE_PROPERTIES, "ComfoAir (modelTypeId=1) should still have property definitions"
         paths = {p.path for p in CONNECTED_DEVICE_PROPERTIES[1]}
         assert "30/1/18" in paths, "Ventilation disbalance property (30/1/18) should still be defined"
+
+
+class TestAgainstUpstreamProtocolDocs:
+    """Cross-check definitions against the canonical protocol documentation.
+
+    A wrong byte_count or signedness does not fail loudly - it produces a
+    plausible-looking but wrong number, which is the hardest kind of bug to
+    notice. The tables below are transcribed from the upstream references
+    listed in CLAUDE.md section 4:
+
+      ComfoAirQ PDO:
+        https://github.com/michaelarnauts/aiocomfoconnect/blob/master/docs/PROTOCOL-PDO.md
+      ComfoClime telemetry and properties:
+        https://github.com/Revilo91/comfoclime_api/blob/main/ComfoClimeAPI.md
+    """
+
+    # pdid -> (byte_count, signed) derived from the documented CN_* type.
+    PDO_TYPES: ClassVar[dict[int, tuple[int, bool]]] = {
+        117: (1, False),  # CN_UINT8  Exhaust fan duty %
+        118: (1, False),  # CN_UINT8  Supply fan duty %
+        121: (2, False),  # CN_UINT16 Exhaust fan speed rpm
+        122: (2, False),  # CN_UINT16 Supply fan speed rpm
+        128: (2, False),  # CN_UINT16 Current ventilation power W
+        129: (2, False),  # CN_UINT16 Energy year-to-date kWh
+        130: (2, False),  # CN_UINT16 Energy total kWh
+        192: (2, False),  # CN_UINT16 Days until filter change
+        209: (2, True),  # CN_INT16  RMOT
+        227: (1, False),  # CN_UINT8  Bypass state %
+        275: (2, True),  # CN_INT16  Exhaust air temperature
+        278: (2, True),  # CN_INT16  Supply air temperature
+        290: (1, False),  # CN_UINT8  Extract air humidity %
+        291: (1, False),  # CN_UINT8  Exhaust air humidity %
+        292: (1, False),  # CN_UINT8  Outdoor air humidity %
+        294: (1, False),  # CN_UINT8  Supply air humidity %
+    }
+
+    def test_comfoairq_telemetry_matches_pdo_types(self):
+        """Every ComfoAirQ telemetry sensor decodes per the PDO table."""
+        for definition in CONNECTED_DEVICE_SENSORS[1]:
+            expected = self.PDO_TYPES.get(definition.telemetry_id)
+            assert expected is not None, (
+                f"telemetry {definition.telemetry_id} is not in the documented PDO table; "
+                "add it here with its CN_* type, or drop the sensor"
+            )
+            assert (definition.byte_count, definition.signed) == expected, (
+                f"telemetry {definition.telemetry_id} ({definition.name}) decodes as "
+                f"byte_count={definition.byte_count} signed={definition.signed}, "
+                f"but PROTOCOL-PDO.md documents byte_count={expected[0]} signed={expected[1]}"
+            )
+
+    def test_comfoclime_temperatures_are_signed_two_byte(self):
+        """ComfoClime temperatures are INT16 with a 0.1 factor throughout."""
+        for definition in CONNECTED_DEVICE_SENSORS[20]:
+            if definition.unit != "°C":
+                continue
+            assert (definition.byte_count, definition.signed, definition.faktor) == (2, True, 0.1), (
+                f"telemetry {definition.telemetry_id} ({definition.name}) is a temperature and "
+                "must decode as a signed 2-byte value scaled by 0.1"
+            )
+
+    def test_comfoclime_telemetry_ids_are_documented(self):
+        """Only telemetry IDs the upstream doc actually lists are exposed."""
+        documented = set(range(4145, 4155)) | set(range(4193, 4212))
+        for definition in CONNECTED_DEVICE_SENSORS[20]:
+            assert definition.telemetry_id in documented, (
+                f"telemetry {definition.telemetry_id} is not listed in ComfoClimeAPI.md"
+            )
+
+    def test_percentage_sensors_have_no_device_class(self):
+        """Percent values like fan duty and valve position have no HA device class.
+
+        Setting one (POWER_FACTOR in particular) would make Home Assistant
+        convert or reject the value.
+        """
+        for definitions in CONNECTED_DEVICE_SENSORS.values():
+            for definition in definitions:
+                if definition.unit == "%" and definition.device_class is not None:
+                    assert definition.device_class == SensorDeviceClass.HUMIDITY, (
+                        f"{definition.name} reports % with device class {definition.device_class}"
+                    )
+
+    def test_energy_sensors_are_total_increasing(self):
+        """Energy counters must be TOTAL_INCREASING so the energy dashboard works."""
+        for definitions in CONNECTED_DEVICE_SENSORS.values():
+            for definition in definitions:
+                if definition.device_class == SensorDeviceClass.ENERGY:
+                    assert definition.state_class == SensorStateClass.TOTAL_INCREASING, (
+                        f"{definition.name} is an energy counter and needs state_class total_increasing"
+                    )

@@ -173,3 +173,49 @@ class TestTranslationCompleteness:
             wanted = {definition.translation_key for definition in definitions}
             orphaned = sorted(set(section.get(platform, {})) - wanted)
             assert not orphaned, f"{language}.json has unused entity.{platform} entries {orphaned}"
+
+
+@pytest.mark.parametrize("language", ["en", "de"])
+class TestFlowTranslations:
+    """The translation files must describe the flow that actually exists."""
+
+    @staticmethod
+    def _load(language: str) -> dict:
+        return json.loads((TRANSLATIONS_DIR / f"{language}.json").read_text())
+
+    def test_options_steps_match_the_flow(self, language):
+        from custom_components.comfoclime.config_flow import ComfoClimeOptionsFlow
+
+        implemented = {
+            name.removeprefix("async_step_") for name in vars(ComfoClimeOptionsFlow) if name.startswith("async_step_")
+        }
+        translated = set(self._load(language)["options"]["step"])
+
+        assert translated == implemented, (
+            f"{language}.json describes options steps {sorted(translated)} "
+            f"but the flow implements {sorted(implemented)}"
+        )
+
+    def test_config_steps_match_the_flow(self, language):
+        from custom_components.comfoclime.config_flow import ComfoClimeConfigFlow
+
+        # Only steps this flow defines itself; ConfigFlow inherits a long list
+        # of discovery handlers (dhcp, zeroconf, ...) that need no translation.
+        implemented = {
+            name.removeprefix("async_step_") for name in vars(ComfoClimeConfigFlow) if name.startswith("async_step_")
+        }
+        translated = set(self._load(language)["config"]["step"])
+
+        assert translated == implemented
+
+    def test_every_option_field_is_labelled(self, language):
+        """A field with no label renders as a raw key in the UI."""
+        from custom_components.comfoclime.config_flow import DEFAULT_OPTIONS
+
+        labelled = set()
+        for step in self._load(language)["options"]["step"].values():
+            labelled.update(step.get("data", {}))
+
+        assert set(DEFAULT_OPTIONS) == labelled, (
+            f"{language}.json labels {sorted(labelled)} but the flow stores {sorted(DEFAULT_OPTIONS)}"
+        )

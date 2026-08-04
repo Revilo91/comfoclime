@@ -436,9 +436,7 @@
             "cannot_connect": "Verbindung fehlgeschlagen.",
             "no_uuid": "Antwort erhalten, aber keine UUID gefunden.",
             "no_response": "Das Gerät hat nicht korrekt geantwortet.",
-            "invalid_host": "Ungültiger Hostname oder IP-Adresse. Bitte überprüfen Sie gefährliche Zeichen oder ungültige IP-Bereiche.",
-            "entity_options_error": "Fehler beim Laden der Entity-Optionen. Überprüfen Sie die Logs für weitere Details.",
-            "no_entities_available": "Keine Entities verfügbar. Dies kann auf einen Konfigurationsfehler hindeuten."
+            "invalid_host": "Ungültiger Hostname oder IP-Adresse. Bitte überprüfen Sie gefährliche Zeichen oder ungültige IP-Bereiche."
         },
         "abort": {
             "already_configured": "Dieses Gerät ist bereits konfiguriert.",
@@ -448,80 +446,39 @@
     "options": {
         "step": {
             "init": {
-                "title": "Konfigurationsoptionen",
-                "description": "Wählen Sie aus, welche Einstellungen Sie konfigurieren möchten",
+                "title": "ComfoClime Einstellungen",
+                "description": "Einzelne Entitäten schaltest du unter Einstellungen > Geräte & Dienste > ComfoClime auf der Geräteseite ein und aus. Deaktivierte Entitäten werden nicht mehr abgefragt. Die folgenden Einstellungen steuern die Kommunikation mit dem Gerät.",
                 "menu_options": {
-                    "general": "Allgemeine Einstellungen",
-                    "entities": "Entity-Auswahl"
+                    "timeouts": "Zeitlimits",
+                    "polling": "Abfrage & Caching",
+                    "rate_limiting": "Anfragebegrenzung"
                 }
             },
-            "entities": {
-                "title": "Entity-Auswahl",
-                "description": "Wählen Sie die Entities aus, die aktiviert sein sollen. Jede Kategorie kann separat konfiguriert werden.",
+            "timeouts": {
+                "title": "Zeitlimits",
+                "description": "Wie lange auf eine Antwort des Geräts gewartet wird.",
                 "data": {
-                    "enabled_dashboard": "📈 Dashboard Sensoren",
-                    "enabled_dashboard_bulk_action": "Dashboard Schnellwahl (Alle/Keine)",
-                    "enabled_thermalprofile": "🌡️ Thermalprofil Sensoren",
-                    "enabled_thermalprofile_bulk_action": "Thermalprofil Schnellwahl (Alle/Keine)",
-                    "enabled_monitoring": "⏱️ Monitoring Sensoren",
-                    "enabled_monitoring_bulk_action": "Monitoring Schnellwahl (Alle/Keine)",
-                    "enabled_connected_device_telemetry": "📡 Gerät Telemetrie",
-                    "enabled_connected_device_telemetry_comfoclime": "📡 Telemetrie - ComfoClime",
-                    "enabled_connected_device_telemetry_comfoairq": "📡 Telemetrie - ComfoAirQ",
-                    "enabled_connected_device_telemetry_other": "📡 Telemetrie - Weitere Geräte",
-                    "enabled_connected_device_telemetry_comfoclime_bulk_action": "Telemetrie ComfoClime Schnellwahl (Alle/Keine)",
-                    "enabled_connected_device_telemetry_comfoairq_bulk_action": "Telemetrie ComfoAirQ Schnellwahl (Alle/Keine)",
-                    "enabled_connected_device_telemetry_other_bulk_action": "Telemetrie Weitere Geräte Schnellwahl (Alle/Keine)",
-                    "enabled_connected_device_properties": "🔧 Gerät Eigenschaften",
-                    "enabled_connected_device_properties_comfoclime": "🔧 Eigenschaften - ComfoClime",
-                    "enabled_connected_device_properties_comfoairq": "🔧 Eigenschaften - ComfoAirQ",
-                    "enabled_connected_device_properties_other": "🔧 Eigenschaften - Weitere Geräte",
-                    "enabled_connected_device_properties_comfoclime_bulk_action": "Eigenschaften ComfoClime Schnellwahl (Alle/Keine)",
-                    "enabled_connected_device_properties_comfoairq_bulk_action": "Eigenschaften ComfoAirQ Schnellwahl (Alle/Keine)",
-                    "enabled_connected_device_properties_other_bulk_action": "Eigenschaften Weitere Geräte Schnellwahl (Alle/Keine)",
-                    "enabled_connected_device_definition": "📋 Gerät Definitionen",
-                    "enabled_connected_device_definition_comfoclime": "📋 Definitionen - ComfoClime",
-                    "enabled_connected_device_definition_comfoairq": "📋 Definitionen - ComfoAirQ",
-                    "enabled_connected_device_definition_other": "📋 Definitionen - Weitere Geräte",
-                    "enabled_connected_device_definition_comfoclime_bulk_action": "Definitionen ComfoClime Schnellwahl (Alle/Keine)",
-                    "enabled_connected_device_definition_comfoairq_bulk_action": "Definitionen ComfoAirQ Schnellwahl (Alle/Keine)",
-                    "enabled_connected_device_definition_other_bulk_action": "Definitionen Weitere Geräte Schnellwahl (Alle/Keine)",
-                    "enabled_access_tracking": "🔍 Zugriffs-Tracking (Diagnose)",
-                    "enabled_access_tracking_bulk_action": "Zugriffs-Tracking Schnellwahl (Alle/Keine)",
-                    "enabled_switches": "🔌 Schalter",
-                    "enabled_switches_bulk_action": "Schalter Schnellwahl (Alle/Keine)",
-                    "enabled_numbers": "🔢 Zahlen-Steuerungen",
-                    "enabled_numbers_bulk_action": "Zahlen-Steuerungen Schnellwahl (Alle/Keine)",
-                    "enabled_selects": "📝 Auswahl-Steuerungen",
-                    "enabled_selects_bulk_action": "Auswahl-Steuerungen Schnellwahl (Alle/Keine)",
-                    "enabled_climate": "🌡️ Klima-Regelung (Climate Entity)",
-                    "enabled_fan": "💨 Lüfterstufe (Fan Entity)"
+                    "read_timeout": "Zeitlimit Lesen",
+                    "write_timeout": "Zeitlimit Schreiben"
                 }
             },
-            "general": {
-                "title": "Allgemeine Einstellungen",
-                "description": "Erweiterte Einstellungen für die Integration",
+            "polling": {
+                "title": "Abfrage & Caching",
+                "description": "Wie oft Werte aktualisiert werden. Längere Intervalle entlasten das Gerät. Telemetrie-, Property- und Definitionsdaten werden in Vielfachen dieses Intervalls abgefragt.",
                 "data": {
-                    "enable_diagnostics": "Diagnose-Sensoren standardmäßig aktivieren",
-                    "read_timeout": "Timeout für Lese-Operationen (Sekunden, 1-120)",
-                    "write_timeout": "Timeout für Schreib-Operationen (Sekunden, 1-120)",
-                    "polling_interval": "Aktualisierungsintervall (Sekunden, 10-600)",
-                    "cache_ttl": "Cache-Gültigkeitsdauer (Sekunden, 0-300)",
-                    "max_retries": "Maximale Wiederholungsversuche (0-10)",
-                    "min_request_interval": "Mindestabstand zwischen Anfragen (Sekunden, 0.0-5.0)",
-                    "write_cooldown": "Wartezeit nach Schreibvorgängen (Sekunden, 0.0-10.0)",
-                    "request_debounce": "Anfrage-Entprellzeit (Sekunden, 0.0-2.0)"
-                },
-                "data_description": {
-                    "enable_diagnostics": "Aktiviert Diagnose-Sensoren standardmäßig. Diese können auch manuell in der Geräte-Oberfläche aktiviert werden.",
-                    "read_timeout": "Maximale Wartezeit für API-Leseanfragen (Standard: 10 Sekunden)",
-                    "write_timeout": "Maximale Wartezeit für API-Schreibanfragen (Standard: 30 Sekunden)",
-                    "polling_interval": "Wie oft die Daten vom Gerät abgerufen werden (Standard: 60 Sekunden)",
-                    "cache_ttl": "Wie lange Telemetrie- und Property-Daten zwischengespeichert werden (Standard: 30 Sekunden, 0 = kein Cache)",
-                    "max_retries": "Anzahl der Wiederholungsversuche bei fehlgeschlagenen API-Anfragen (Standard: 3, 0 = keine Wiederholung)",
-                    "min_request_interval": "Minimaler Zeitabstand zwischen aufeinanderfolgenden API-Anfragen (Standard: 0.1 Sekunden)",
-                    "write_cooldown": "Wartezeit nach Schreibvorgängen bevor Lesevorgänge erlaubt sind (Standard: 2.0 Sekunden)",
-                    "request_debounce": "Entprellzeit für schnell aufeinanderfolgende gleiche Anfragen (Standard: 0.3 Sekunden)"
+                    "polling_interval": "Abfrageintervall",
+                    "cache_ttl": "Cache-Lebensdauer",
+                    "max_retries": "Wiederholversuche bei Fehlern"
+                }
+            },
+            "rate_limiting": {
+                "title": "Anfragebegrenzung",
+                "description": "Abstände zwischen Anfragen. Das Airduino-Board im Gerät ist schnell überlastet - erhöhe die Werte, wenn Zeitüberschreitungen oder nicht verfügbare Entitäten auftreten.",
+                "data": {
+                    "min_request_interval": "Mindestabstand zwischen Anfragen",
+                    "inter_sensor_delay": "Verzögerung zwischen einzelnen Sensor-Abfragen",
+                    "write_cooldown": "Wartezeit nach einem Schreibvorgang",
+                    "request_debounce": "Entprellung wiederholter Anfragen"
                 }
             }
         }
