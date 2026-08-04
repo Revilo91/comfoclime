@@ -515,7 +515,7 @@ class ComfoClimeAPI:
         return parsed.reading
 
     @api_get("/device/{device_uuid}/property/{property_path}")
-    async def _read_property_for_device_raw(self, response_data, device_uuid: str, property_path: str) -> None | list:
+    async def _read_property_for_device_raw(self, response_data, device_uuid: str, property_path: str) -> list | None:
         """Read raw property data from device.
 
         The @api_get decorator handles:

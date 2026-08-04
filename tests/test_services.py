@@ -315,8 +315,6 @@ async def test_reset_system_no_integration_loaded_raises():
 @pytest.mark.asyncio
 async def test_reset_system_propagates_timeout_error():
     """reset_system handler wraps TimeoutError in HomeAssistantError."""
-    import asyncio
-
     from homeassistant.exceptions import HomeAssistantError
 
     api = _make_api()
@@ -357,7 +355,7 @@ async def test_set_scenario_mode_activates_mode():
         else call.data.get(key)
         if key in call.data
         else default
-    )  # noqa: E501
+    )
 
     # Use a real dict for call.data to simplify
     call.data = {
@@ -367,7 +365,7 @@ async def test_set_scenario_mode_activates_mode():
     # Patch .get to return None for optional fields
     original = dict(call.data)
     call.data = MagicMock()
-    call.data.__getitem__ = lambda self, key: original[key]
+    call.data.__getitem__ = lambda _, key: original[key]
     call.data.get = lambda key, default=None: original.get(key, default)
 
     async_setup_services(hass, DOMAIN)
@@ -391,7 +389,7 @@ async def test_set_scenario_mode_entity_not_found_raises():
     original = {"entity_id": "climate.nonexistent", "scenario": "party"}
     call = MagicMock()
     call.data = MagicMock()
-    call.data.__getitem__ = lambda self, key: original[key]
+    call.data.__getitem__ = lambda _, key: original[key]
     call.data.get = lambda key, default=None: original.get(key, default)
 
     async_setup_services(hass, DOMAIN)
@@ -422,7 +420,7 @@ async def test_set_scenario_mode_uses_hass_data_at_call_time():
     original = {"entity_id": "climate.comfoclime", "scenario": "boost"}
     call = MagicMock()
     call.data = MagicMock()
-    call.data.__getitem__ = lambda self, key: original[key]
+    call.data.__getitem__ = lambda _, key: original[key]
     call.data.get = lambda key, default=None: original.get(key, default)
 
     await handler(call)

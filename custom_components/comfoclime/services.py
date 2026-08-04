@@ -36,7 +36,7 @@ def _get_api_for_device(hass: HomeAssistant, domain: str, device: dr.DeviceEntry
         entry_data = hass.data.get(domain, {}).get(entry_id)
         if isinstance(entry_data, dict) and "api" in entry_data:
             return entry_data["api"]
-    raise HomeAssistantError(f"Keine geladene ComfoClime-Integration für das Gerät gefunden")
+    raise HomeAssistantError("Keine geladene ComfoClime-Integration für das Gerät gefunden")
 
 
 def _get_any_api(hass: HomeAssistant, domain: str) -> ComfoClimeAPI:
