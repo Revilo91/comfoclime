@@ -12,29 +12,35 @@ from custom_components.comfoclime.config_flow import (
 )
 
 
+def _mock_session(response=None, *, get_error=None):
+    """Build a mock aiohttp session whose .get() returns/raises as given."""
+    session = MagicMock()
+    get_cm = MagicMock()
+    if get_error is not None:
+        get_cm.__aenter__ = AsyncMock(side_effect=get_error)
+    else:
+        get_cm.__aenter__ = AsyncMock(return_value=response)
+    get_cm.__aexit__ = AsyncMock(return_value=False)
+    session.get = MagicMock(return_value=get_cm)
+    return session
+
+
 @pytest.mark.asyncio
 async def test_user_flow_success():
     """Test successful user configuration flow."""
     flow = ComfoClimeConfigFlow()
     flow.hass = MagicMock()
+    flow.async_set_unique_id = AsyncMock(return_value=None)
+    flow._abort_if_unique_id_configured = MagicMock(return_value=None)
 
-    # Mock successful ping response
     mock_response = MagicMock()
     mock_response.status = 200
     mock_response.json = AsyncMock(return_value={"uuid": "test-uuid-123"})
 
-    with patch("aiohttp.ClientSession") as mock_session_class:
-        mock_session = MagicMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock()
-
-        mock_get = MagicMock()
-        mock_get.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_get.__aexit__ = AsyncMock()
-        mock_session.get = MagicMock(return_value=mock_get)
-
-        mock_session_class.return_value = mock_session
-
+    with patch(
+        "custom_components.comfoclime.config_flow.async_get_clientsession",
+        return_value=_mock_session(mock_response),
+    ):
         result = await flow.async_step_user(user_input={"host": "192.168.1.100"})
 
     assert result["type"] == FlowResultType.CREATE_ENTRY
@@ -44,6 +50,8 @@ async def test_user_flow_success():
     # only performance settings.
     assert result["options"] == DEFAULT_OPTIONS
     assert not [key for key in result["options"] if key.startswith("enabled")]
+    flow.async_set_unique_id.assert_awaited_once_with("test-uuid-123")
+    flow._abort_if_unique_id_configured.assert_called_once_with(updates={"host": "192.168.1.100"})
 
 
 @pytest.mark.asyncio
@@ -52,23 +60,14 @@ async def test_user_flow_no_uuid():
     flow = ComfoClimeConfigFlow()
     flow.hass = MagicMock()
 
-    # Mock ping response without uuid
     mock_response = MagicMock()
     mock_response.status = 200
     mock_response.json = AsyncMock(return_value={})
 
-    with patch("aiohttp.ClientSession") as mock_session_class:
-        mock_session = MagicMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock()
-
-        mock_get = MagicMock()
-        mock_get.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_get.__aexit__ = AsyncMock()
-        mock_session.get = MagicMock(return_value=mock_get)
-
-        mock_session_class.return_value = mock_session
-
+    with patch(
+        "custom_components.comfoclime.config_flow.async_get_clientsession",
+        return_value=_mock_session(mock_response),
+    ):
         result = await flow.async_step_user(user_input={"host": "192.168.1.100"})
 
     assert result["type"] == FlowResultType.FORM
@@ -81,13 +80,10 @@ async def test_user_flow_connection_error():
     flow = ComfoClimeConfigFlow()
     flow.hass = MagicMock()
 
-    with patch("aiohttp.ClientSession") as mock_session_class:
-        mock_session = MagicMock()
-        mock_session.__aenter__ = AsyncMock(side_effect=TimeoutError())
-        mock_session.__aexit__ = AsyncMock()
-
-        mock_session_class.return_value = mock_session
-
+    with patch(
+        "custom_components.comfoclime.config_flow.async_get_clientsession",
+        return_value=_mock_session(get_error=TimeoutError()),
+    ):
         result = await flow.async_step_user(user_input={"host": "192.168.1.100"})
 
     assert result["type"] == FlowResultType.FORM
@@ -100,25 +96,16 @@ async def test_user_flow_no_response():
     flow = ComfoClimeConfigFlow()
     flow.hass = MagicMock()
 
-    # Mock failed connection response
     mock_response = MagicMock()
     mock_response.status = 500
 
     with patch("custom_components.comfoclime.config_flow.validate_host") as mock_validate:
         mock_validate.return_value = (True, "")
 
-        with patch("aiohttp.ClientSession") as mock_session_class:
-            mock_session = MagicMock()
-            mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-            mock_session.__aexit__ = AsyncMock()
-
-            mock_get = MagicMock()
-            mock_get.__aenter__ = AsyncMock(return_value=mock_response)
-            mock_get.__aexit__ = AsyncMock()
-            mock_session.get = MagicMock(return_value=mock_get)
-
-            mock_session_class.return_value = mock_session
-
+        with patch(
+            "custom_components.comfoclime.config_flow.async_get_clientsession",
+            return_value=_mock_session(mock_response),
+        ):
             result = await flow.async_step_user(user_input={"host": "192.168.1.100"})
 
     assert result["type"] == FlowResultType.FORM
@@ -139,6 +126,63 @@ async def test_user_flow_invalid_host():
     assert result["type"] == FlowResultType.FORM
     assert result["step_id"] == "user"
     assert result["errors"]["host"] == "invalid_host"
+
+
+@pytest.mark.asyncio
+async def test_reconfigure_flow_success():
+    """A matching device (same or unset unique_id) updates the entry's host."""
+    flow = ComfoClimeConfigFlow()
+    flow.hass = MagicMock()
+    flow.context = {"entry_id": "entry-1"}
+
+    entry = MagicMock()
+    entry.unique_id = "test-uuid-123"
+    entry.data = {"host": "192.168.1.50"}
+    flow.hass.config_entries.async_get_entry = MagicMock(return_value=entry)
+    flow.hass.config_entries.async_reload = AsyncMock()
+
+    mock_response = MagicMock()
+    mock_response.status = 200
+    mock_response.json = AsyncMock(return_value={"uuid": "test-uuid-123"})
+
+    with patch(
+        "custom_components.comfoclime.config_flow.async_get_clientsession",
+        return_value=_mock_session(mock_response),
+    ):
+        result = await flow.async_step_reconfigure(user_input={"host": "192.168.1.100"})
+
+    assert result["type"] == FlowResultType.ABORT
+    assert result["reason"] == "reconfigure_successful"
+    flow.hass.config_entries.async_update_entry.assert_called_once_with(
+        entry, data={"host": "192.168.1.100"}, unique_id="test-uuid-123"
+    )
+
+
+@pytest.mark.asyncio
+async def test_reconfigure_flow_wrong_device():
+    """A host that answers as a different device is rejected, entry is untouched."""
+    flow = ComfoClimeConfigFlow()
+    flow.hass = MagicMock()
+    flow.context = {"entry_id": "entry-1"}
+
+    entry = MagicMock()
+    entry.unique_id = "test-uuid-123"
+    entry.data = {"host": "192.168.1.50"}
+    flow.hass.config_entries.async_get_entry = MagicMock(return_value=entry)
+
+    mock_response = MagicMock()
+    mock_response.status = 200
+    mock_response.json = AsyncMock(return_value={"uuid": "some-other-uuid"})
+
+    with patch(
+        "custom_components.comfoclime.config_flow.async_get_clientsession",
+        return_value=_mock_session(mock_response),
+    ):
+        result = await flow.async_step_reconfigure(user_input={"host": "192.168.1.100"})
+
+    assert result["type"] == FlowResultType.FORM
+    assert result["errors"] == {"host": "wrong_device"}
+    flow.hass.config_entries.async_update_entry.assert_not_called()
 
 
 @pytest.mark.asyncio

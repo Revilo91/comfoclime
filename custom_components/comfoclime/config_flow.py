@@ -21,11 +21,13 @@ import aiohttp
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.helpers import selector
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .constants import API_DEFAULTS
 from .infrastructure import validate_host
 
 if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
     from homeassistant.data_entry_flow import FlowResult
 
 _LOGGER = logging.getLogger(__name__)
@@ -81,29 +83,27 @@ DEFAULT_OPTIONS: dict[str, Any] = {
 }
 
 
-async def _async_probe_host(host: str) -> str | None:
-    """Return an error key if the host is not a reachable ComfoClime, else None."""
+async def _async_probe_host(hass: HomeAssistant, host: str) -> tuple[str | None, str | None]:
+    """Probe a host and return (error_key, uuid). error_key is None on success."""
     is_valid, error_message = validate_host(host)
     if not is_valid:
         _LOGGER.warning("Invalid host provided: %s - %s", host, error_message)
-        return "invalid_host"
+        return "invalid_host", None
 
     url = f"http://{host}/monitoring/ping"
+    session = async_get_clientsession(hass)
     try:
-        connector = aiohttp.TCPConnector(ssl=False)
-        async with (
-            aiohttp.ClientSession(connector=connector) as session,
-            session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp,
-        ):
+        async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
             if resp.status != 200:
-                return "no_response"
+                return "no_response", None
             data = await resp.json()
-            if "uuid" not in data:
-                return "no_uuid"
+            uuid = data.get("uuid")
+            if not uuid:
+                return "no_uuid", None
     except TimeoutError, aiohttp.ClientError:
         _LOGGER.debug("Connection error while probing %s", host, exc_info=True)
-        return "cannot_connect"
-    return None
+        return "cannot_connect", None
+    return None, uuid
 
 
 class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -117,8 +117,10 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             host = user_input["host"]
-            error = await _async_probe_host(host)
+            error, uuid = await _async_probe_host(self.hass, host)
             if error is None:
+                await self.async_set_unique_id(uuid)
+                self._abort_if_unique_id_configured(updates={"host": host})
                 return self.async_create_entry(
                     title=f"ComfoClime @ {host}",
                     data={"host": host},
@@ -139,12 +141,16 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             host = user_input["host"]
-            error = await _async_probe_host(host)
+            error, uuid = await _async_probe_host(self.hass, host)
             if error is None:
-                self.hass.config_entries.async_update_entry(entry, data={"host": host})
-                await self.hass.config_entries.async_reload(entry.entry_id)
-                return self.async_abort(reason="reconfigure_successful")
-            errors["host"] = error
+                if entry.unique_id is not None and entry.unique_id != uuid:
+                    errors["host"] = "wrong_device"
+                else:
+                    self.hass.config_entries.async_update_entry(entry, data={"host": host}, unique_id=uuid)
+                    await self.hass.config_entries.async_reload(entry.entry_id)
+                    return self.async_abort(reason="reconfigure_successful")
+            else:
+                errors["host"] = error
 
         return self.async_show_form(
             step_id="reconfigure",
