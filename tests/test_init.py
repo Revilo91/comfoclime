@@ -228,6 +228,103 @@ async def test_async_setup_entry_with_float_max_retries(
 
 
 @pytest.mark.asyncio
+async def test_async_setup_entry_coordinator_first_refresh_failure(
+    mock_hass,
+    mock_config_entry,
+    mock_device,
+):
+    """A coordinator that fails its first refresh aborts setup with ConfigEntryNotReady.
+
+    Coordinators are refreshed concurrently (see async_setup_entry), so this also
+    covers that a single failure among several concurrent refreshes is still
+    detected and reported with the failing coordinator's name.
+    """
+    from homeassistant.exceptions import ConfigEntryNotReady
+
+    mock_hass.config_entries = MagicMock()
+    mock_hass.config_entries.async_forward_entry_setups = AsyncMock()
+
+    with patch("custom_components.comfoclime.ComfoClimeAPI") as mock_api_class:
+        with patch("custom_components.comfoclime.ComfoClimeDashboardCoordinator") as mock_db_coord:
+            with patch("custom_components.comfoclime.ComfoClimeThermalprofileCoordinator") as mock_tp_coord:
+                with patch("custom_components.comfoclime.ComfoClimeMonitoringCoordinator") as mock_mon_coord:
+                    with patch("custom_components.comfoclime.ComfoClimeDefinitionCoordinator") as mock_def_coord:
+                        mock_api_instance = MagicMock()
+                        mock_api_instance.async_get_connected_devices = AsyncMock(
+                            return_value=ConnectedDevicesResponse(devices=[mock_device])
+                        )
+                        mock_api_class.return_value = mock_api_instance
+
+                        mock_db_coord_instance = MagicMock()
+                        mock_db_coord_instance.async_config_entry_first_refresh = AsyncMock()
+                        mock_db_coord.return_value = mock_db_coord_instance
+
+                        mock_tp_coord_instance = MagicMock()
+                        mock_tp_coord_instance.async_config_entry_first_refresh = AsyncMock()
+                        mock_tp_coord.return_value = mock_tp_coord_instance
+
+                        mock_mon_coord_instance = MagicMock()
+                        mock_mon_coord_instance.async_config_entry_first_refresh = AsyncMock(
+                            side_effect=RuntimeError("boom")
+                        )
+                        mock_mon_coord.return_value = mock_mon_coord_instance
+
+                        mock_def_coord_instance = MagicMock()
+                        mock_def_coord_instance.async_config_entry_first_refresh = AsyncMock()
+                        mock_def_coord.return_value = mock_def_coord_instance
+
+                        with pytest.raises(ConfigEntryNotReady, match="monitoring"):
+                            await async_setup_entry(mock_hass, mock_config_entry)
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_coordinator_first_refresh_cancelled(
+    mock_hass,
+    mock_config_entry,
+    mock_device,
+):
+    """A cancelled first refresh (e.g. setup task cancelled by a concurrent reload)
+    propagates as CancelledError instead of being masked as ConfigEntryNotReady.
+    """
+    import asyncio
+
+    mock_hass.config_entries = MagicMock()
+    mock_hass.config_entries.async_forward_entry_setups = AsyncMock()
+
+    with patch("custom_components.comfoclime.ComfoClimeAPI") as mock_api_class:
+        with patch("custom_components.comfoclime.ComfoClimeDashboardCoordinator") as mock_db_coord:
+            with patch("custom_components.comfoclime.ComfoClimeThermalprofileCoordinator") as mock_tp_coord:
+                with patch("custom_components.comfoclime.ComfoClimeMonitoringCoordinator") as mock_mon_coord:
+                    with patch("custom_components.comfoclime.ComfoClimeDefinitionCoordinator") as mock_def_coord:
+                        mock_api_instance = MagicMock()
+                        mock_api_instance.async_get_connected_devices = AsyncMock(
+                            return_value=ConnectedDevicesResponse(devices=[mock_device])
+                        )
+                        mock_api_class.return_value = mock_api_instance
+
+                        mock_db_coord_instance = MagicMock()
+                        mock_db_coord_instance.async_config_entry_first_refresh = AsyncMock()
+                        mock_db_coord.return_value = mock_db_coord_instance
+
+                        mock_tp_coord_instance = MagicMock()
+                        mock_tp_coord_instance.async_config_entry_first_refresh = AsyncMock()
+                        mock_tp_coord.return_value = mock_tp_coord_instance
+
+                        mock_mon_coord_instance = MagicMock()
+                        mock_mon_coord_instance.async_config_entry_first_refresh = AsyncMock(
+                            side_effect=asyncio.CancelledError()
+                        )
+                        mock_mon_coord.return_value = mock_mon_coord_instance
+
+                        mock_def_coord_instance = MagicMock()
+                        mock_def_coord_instance.async_config_entry_first_refresh = AsyncMock()
+                        mock_def_coord.return_value = mock_def_coord_instance
+
+                        with pytest.raises(asyncio.CancelledError):
+                            await async_setup_entry(mock_hass, mock_config_entry)
+
+
+@pytest.mark.asyncio
 async def test_async_unload_entry(mock_hass, mock_config_entry):
     """Test async_unload_entry."""
     mock_hass.config_entries = MagicMock()

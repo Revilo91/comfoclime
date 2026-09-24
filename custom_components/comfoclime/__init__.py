@@ -247,24 +247,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         definition_interval,
     )
 
-    # Parallel initialization of all coordinators for faster startup
-    # NOTE: We run them sequentially with a small stagger to prevent simultaneous
-    # bursts of API requests on the first poll cycle after startup.
-    _LOGGER.debug("Starting staggered first refresh of all coordinators")
+    # Concurrent initialization of all coordinators. They share one ComfoClimeAPI
+    # instance, whose internal request lock already serializes actual HTTP calls
+    # (see infrastructure/api.py), so no artificial staggering is needed here -
+    # sequential sleeps only made this setup slower and more likely to be
+    # cancelled (e.g. by a concurrent reload) before it could finish.
+    _LOGGER.debug("Starting concurrent first refresh of all coordinators")
     coordinator_init_pairs = [
         (dashboard_coordinator, "dashboard"),
         (thermalprofile_coordinator, "thermalprofile"),
         (monitoring_coordinator, "monitoring"),
         (definitioncoordinator, "definition"),
     ]
-    for coord, name in coordinator_init_pairs:
-        try:
-            await coord.async_config_entry_first_refresh()
-        except Exception as exc:
-            _LOGGER.error("Coordinator %s first refresh failed: %s", name, exc)
-            raise ConfigEntryNotReady(f"Failed to initialize {name} coordinator: {exc}") from exc
-        # Small stagger between coordinator starts to desynchronize their poll cycles
-        await asyncio.sleep(1)
+    results = await asyncio.gather(
+        *(coord.async_config_entry_first_refresh() for coord, _name in coordinator_init_pairs),
+        return_exceptions=True,
+    )
+    for (_coord, name), result in zip(coordinator_init_pairs, results, strict=True):
+        if isinstance(result, BaseException):
+            if isinstance(result, asyncio.CancelledError):
+                raise result
+            _LOGGER.error("Coordinator %s first refresh failed: %s", name, result)
+            raise ConfigEntryNotReady(f"Failed to initialize {name} coordinator: {result}") from result
 
     _LOGGER.debug("Coordinator first refresh completed successfully")
 
