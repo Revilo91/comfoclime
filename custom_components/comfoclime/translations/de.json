@@ -436,7 +436,8 @@
             "cannot_connect": "Verbindung fehlgeschlagen.",
             "no_uuid": "Antwort erhalten, aber keine UUID gefunden.",
             "no_response": "Das Gerät hat nicht korrekt geantwortet.",
-            "invalid_host": "Ungültiger Hostname oder IP-Adresse. Bitte überprüfen Sie gefährliche Zeichen oder ungültige IP-Bereiche."
+            "invalid_host": "Ungültiger Hostname oder IP-Adresse. Bitte überprüfen Sie gefährliche Zeichen oder ungültige IP-Bereiche.",
+            "wrong_device": "Dieser Host antwortet als ein anderes Gerät als das aktuell für diesen Eintrag konfigurierte."
         },
         "abort": {
             "already_configured": "Dieses Gerät ist bereits konfiguriert.",
