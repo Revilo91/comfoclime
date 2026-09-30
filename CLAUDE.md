@@ -427,6 +427,7 @@ Rollen bewährt – bei Bedarf als Rollenbeschreibung für einen Subagenten verw
 - Parallel nur bei unabhängigen Aufgaben (keine gemeinsamen Dateien).
 - Auftrag an Subagenten immer vollständig: Ziel, betroffene Dateien, erwartetes Ergebnisformat, Grenzen aus Abschnitt 2.
 - Ergebnis nie ungeprüft übernehmen: Diff lesen, Tests selbst ausführen (Abschnitt 1, Schritt 5).
+- Haupt-KI hat immer das letzte Wort: Subagenten ändern nur Dateien und committen nie; den Commit für ihre Änderungen macht die Haupt-KI nach Diff-Prüfung und Tests.
 
 Modellwahl (Aliase `haiku`, `sonnet`, `opus` nutzen, keine Versionsnummern):
 - **haiku**: Dateien suchen/lesen, Logs zusammenfassen, Formatierung, Doku-Kleinkram.
