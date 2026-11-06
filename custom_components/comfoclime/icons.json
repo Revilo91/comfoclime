@@ -1,0 +1,13 @@
+{
+  "services": {
+    "set_property": {
+      "service": "mdi:tune-variant"
+    },
+    "reset_system": {
+      "service": "mdi:restart"
+    },
+    "set_scenario_mode": {
+      "service": "mdi:playlist-play"
+    }
+  }
+}

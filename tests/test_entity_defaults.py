@@ -299,3 +299,37 @@ EXPECTED_PARALLEL_UPDATES = {
 def test_platform_sets_parallel_updates(platform: str, expected: int) -> None:
     module = importlib.import_module(f"custom_components.comfoclime.{platform}")
     assert getattr(module, "PARALLEL_UPDATES", None) == expected
+
+
+# Quality scale rule "icon-translations": icons live in icons.json, never in code.
+INTEGRATION_DIR = pathlib.Path("custom_components/comfoclime")
+
+
+class TestIconTranslations:
+    @staticmethod
+    def _icons() -> dict:
+        return json.loads((INTEGRATION_DIR / "icons.json").read_text(encoding="utf-8"))
+
+    def test_every_service_has_an_icon(self):
+        import yaml
+
+        services = yaml.safe_load((INTEGRATION_DIR / "services.yaml").read_text(encoding="utf-8"))
+        icons = self._icons().get("services", {})
+        assert set(services) <= set(icons)
+        for name in services:
+            assert icons[name]["service"].startswith("mdi:"), name
+
+    def test_entity_icon_keys_exist_in_strings(self):
+        strings = json.loads((INTEGRATION_DIR / "strings.json").read_text(encoding="utf-8"))
+        for platform, entries in self._icons().get("entity", {}).items():
+            known = set(strings["entity"].get(platform, {}))
+            assert set(entries) <= known, f"{platform}: unknown translation keys {set(entries) - known}"
+            for key, spec in entries.items():
+                assert spec["default"].startswith("mdi:"), f"{platform}.{key}"
+
+    def test_no_hardcoded_icons_in_source(self):
+        pattern = re.compile(r"_attr_icon|\bicon\s*=|\bdef icon\b|\"icon\"\s*:")
+        offenders = [
+            str(path) for path in INTEGRATION_DIR.rglob("*.py") if pattern.search(path.read_text(encoding="utf-8"))
+        ]
+        assert offenders == []

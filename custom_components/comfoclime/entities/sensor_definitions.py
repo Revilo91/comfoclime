@@ -20,7 +20,6 @@ class SensorDefinition(KeyEntityDefinitionBase):
         device_class: Home Assistant device class.
         state_class: Home Assistant state class.
         entity_category: Entity category (None, diagnostic, config).
-        icon: MDI icon name.
         suggested_display_precision: Decimal places for display.
     """
 
@@ -32,7 +31,6 @@ class SensorDefinition(KeyEntityDefinitionBase):
     entity_category: EntityCategory | str | None = Field(
         default=None, description="Entity category (None, diagnostic, config)"
     )
-    icon: str | None = Field(default=None, description="MDI icon name")
     suggested_display_precision: int | None = Field(default=None, description="Decimal places for display")
 
 
@@ -50,7 +48,6 @@ class TelemetrySensorDefinition(EntityDefinitionBase):
         device_class: Home Assistant device class.
         state_class: Home Assistant state class.
         entity_category: Entity category (None, diagnostic, config).
-        icon: MDI icon name.
         suggested_display_precision: Decimal places for display.
         diagnose: Whether this is a diagnostic sensor (experimental/unknown).
     """
@@ -67,7 +64,6 @@ class TelemetrySensorDefinition(EntityDefinitionBase):
     entity_category: EntityCategory | str | None = Field(
         default=None, description="Entity category (None, diagnostic, config)"
     )
-    icon: str | None = Field(default=None, description="MDI icon name")
     suggested_display_precision: int | None = Field(default=None, description="Decimal places for display")
     diagnose: bool = Field(
         default=False,
@@ -89,7 +85,6 @@ class PropertySensorDefinition(EntityDefinitionBase):
         device_class: Home Assistant device class.
         state_class: Home Assistant state class.
         entity_category: Entity category (None, diagnostic, config).
-        icon: MDI icon name.
         suggested_display_precision: Decimal places for display.
     """
 
@@ -105,7 +100,6 @@ class PropertySensorDefinition(EntityDefinitionBase):
     entity_category: EntityCategory | str | None = Field(
         default=None, description="Entity category (None, diagnostic, config)"
     )
-    icon: str | None = Field(default=None, description="MDI icon name")
     suggested_display_precision: int | None = Field(default=None, description="Decimal places for display")
 
 
