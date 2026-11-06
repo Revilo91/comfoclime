@@ -40,11 +40,13 @@ if TYPE_CHECKING:
 from .constants import API_DEFAULTS
 from .infrastructure import RateLimiterCache, api_get, api_put
 from .models import (
+    AlarmsResponse,
     ConnectedDevicesResponse,
     DashboardData,
     DashboardUpdate,
     DashboardUpdateResponse,
     DeviceDefinitionData,
+    MonitoringHealth,
     MonitoringPing,
     PropertyReading,
     PropertyReadResult,
@@ -293,6 +295,41 @@ class ComfoClimeAPI:
             UUID retrieval, session management, and temperature value fixing.
         """
         return DashboardData(**response_data)
+
+    @api_get("/monitoring/health")
+    async def async_get_monitoring_health(self, response_data):
+        """Get device memory and CAN-bus counters from /monitoring/health.
+
+        Args:
+            response_data: JSON response from the /monitoring/health endpoint.
+
+        Returns:
+            MonitoringHealth model with heap statistics and ``twai_*`` counters.
+
+        Raises:
+            aiohttp.ClientError: If connection to device fails.
+            asyncio.TimeoutError: If request times out.
+        """
+        return MonitoringHealth(**response_data)
+
+    @api_get("/system/{uuid}/alarms", requires_uuid=True)
+    async def async_get_alarms(self, response_data):
+        """Get the alarm bytes of all devices on the ComfoNet bus.
+
+        Only reads. The device also has a ``/alarms/reset`` endpoint, but it is
+        a GET that changes state, so this client deliberately does not call it.
+
+        Args:
+            response_data: JSON response from the /system/{uuid}/alarms endpoint.
+
+        Returns:
+            AlarmsResponse model with one DeviceAlarms entry per bus device.
+
+        Raises:
+            aiohttp.ClientError: If connection to device fails.
+            asyncio.TimeoutError: If request times out.
+        """
+        return AlarmsResponse.from_api(response_data)
 
     @api_get(
         "/system/{uuid}/devices",
