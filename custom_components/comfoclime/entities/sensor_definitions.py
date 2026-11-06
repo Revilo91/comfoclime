@@ -235,6 +235,72 @@ MONITORING_SENSORS = [
     ),
 ]
 
+# Memory and CAN-bus counters of /monitoring/health. All diagnostic (and therefore
+# disabled by default): they are useful to spot a struggling device or a noisy
+# ComfoNet bus, not for everyday use. The keys are fields of MonitoringHealth.
+HEALTH_SENSORS = [
+    SensorDefinition(
+        key="total_free_bytes",
+        name="Free Memory",
+        translation_key="health_free_memory",
+        unit="B",
+        device_class=SensorDeviceClass.DATA_SIZE,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category="diagnostic",
+    ),
+    SensorDefinition(
+        key="minimum_free_bytes",
+        name="Minimum Free Memory",
+        translation_key="health_minimum_free_memory",
+        unit="B",
+        device_class=SensorDeviceClass.DATA_SIZE,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category="diagnostic",
+    ),
+    SensorDefinition(
+        key="largest_free_block",
+        name="Largest Free Memory Block",
+        translation_key="health_largest_free_block",
+        unit="B",
+        device_class=SensorDeviceClass.DATA_SIZE,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category="diagnostic",
+    ),
+    SensorDefinition(
+        key="twai_arb_lost_count",
+        name="CAN Arbitration Lost",
+        translation_key="health_can_arbitration_lost",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category="diagnostic",
+    ),
+    SensorDefinition(
+        key="twai_tx_failed_count",
+        name="CAN Transmissions Failed",
+        translation_key="health_can_tx_failed",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category="diagnostic",
+    ),
+    SensorDefinition(
+        key="twai_bus_error_count",
+        name="CAN Bus Errors",
+        translation_key="health_can_bus_errors",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category="diagnostic",
+    ),
+]
+
+# One of these is created per ComfoNet device (ComfoClime, ComfoAir Q, gateway).
+# The key is a DeviceAlarms property, not a field of the coordinator's top-level data.
+ALARM_SENSORS = [
+    SensorDefinition(
+        key="active_error_count",
+        name="Active Alarms",
+        translation_key="active_alarms",
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category="diagnostic",
+    ),
+]
+
 THERMALPROFILE_SENSORS = [
     SensorDefinition(
         key="season.status",

@@ -105,15 +105,23 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: ComfoCl
         dumped["alias"] = aliases.get(_device_uuid(device) or "")
         devices.append(dumped)
 
+    coordinators = {
+        "dashboard": _coordinator_info(runtime.coordinator, aliases),
+        "thermalprofile": _coordinator_info(runtime.tpcoordinator, aliases),
+        "monitoring": _coordinator_info(runtime.monitoringcoordinator, aliases),
+        "telemetry": _coordinator_info(runtime.tlcoordinator, aliases, runtime.tlcoordinator._telemetry_registry),
+        "property": _coordinator_info(runtime.propcoordinator, aliases, runtime.propcoordinator._property_registry),
+        "definition": _coordinator_info(runtime.definitioncoordinator, aliases),
+    }
+    # Lazy coordinators: reported only when set up. Their data may still be None
+    # if no enabled entity has ever requested it.
+    if runtime.healthcoordinator is not None:
+        coordinators["health"] = _coordinator_info(runtime.healthcoordinator, aliases)
+    if runtime.alarmscoordinator is not None:
+        coordinators["alarms"] = _coordinator_info(runtime.alarmscoordinator, aliases)
+
     return {
         "entry": async_redact_data(entry.as_dict(), TO_REDACT),
         "devices": devices,
-        "coordinators": {
-            "dashboard": _coordinator_info(runtime.coordinator, aliases),
-            "thermalprofile": _coordinator_info(runtime.tpcoordinator, aliases),
-            "monitoring": _coordinator_info(runtime.monitoringcoordinator, aliases),
-            "telemetry": _coordinator_info(runtime.tlcoordinator, aliases, runtime.tlcoordinator._telemetry_registry),
-            "property": _coordinator_info(runtime.propcoordinator, aliases, runtime.propcoordinator._property_registry),
-            "definition": _coordinator_info(runtime.definitioncoordinator, aliases),
-        },
+        "coordinators": coordinators,
     }

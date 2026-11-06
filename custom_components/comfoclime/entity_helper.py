@@ -63,6 +63,11 @@ def telemetry_unique_id(entry_id: str, device_uuid: str, telemetry_id: str | int
     return f"{entry_id}_telemetry_{device_uuid}_{telemetry_id}"
 
 
+def alarm_sensor_unique_id(entry_id: str, device_uuid: str) -> str:
+    """Return the unique ID of a bus device's alarm counter sensor."""
+    return f"{entry_id}_alarms_{device_uuid}"
+
+
 def property_sensor_unique_id(entry_id: str, device_uuid: str, path: str) -> str:
     """Return the unique ID of a bus device's property sensor."""
     return f"{entry_id}_property_{device_uuid}_{_flat_path(path)}"

@@ -14,8 +14,10 @@ from homeassistant.config_entries import ConfigEntry
 if TYPE_CHECKING:
     from .comfoclime_api import ComfoClimeAPI
     from .coordinator import (
+        ComfoClimeAlarmsCoordinator,
         ComfoClimeDashboardCoordinator,
         ComfoClimeDefinitionCoordinator,
+        ComfoClimeHealthCoordinator,
         ComfoClimeMonitoringCoordinator,
         ComfoClimePropertyCoordinator,
         ComfoClimeTelemetryCoordinator,
@@ -37,6 +39,9 @@ class ComfoClimeRuntimeData:
     devices: list[Any]
     main_device: Any | None
     main_device_registry_id: str | None
+    # Lazy coordinators: no first refresh, they poll only while an enabled entity uses them.
+    healthcoordinator: ComfoClimeHealthCoordinator | None = None
+    alarmscoordinator: ComfoClimeAlarmsCoordinator | None = None
 
 
 type ComfoClimeConfigEntry = ConfigEntry[ComfoClimeRuntimeData]

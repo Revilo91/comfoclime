@@ -201,6 +201,27 @@
             "uptime": {
                 "name": "Uptime"
             },
+            "health_free_memory": {
+                "name": "Free Memory"
+            },
+            "health_minimum_free_memory": {
+                "name": "Minimum Free Memory"
+            },
+            "health_largest_free_block": {
+                "name": "Largest Free Memory Block"
+            },
+            "health_can_arbitration_lost": {
+                "name": "CAN Arbitration Lost"
+            },
+            "health_can_tx_failed": {
+                "name": "CAN Transmissions Failed"
+            },
+            "health_can_bus_errors": {
+                "name": "CAN Bus Errors"
+            },
+            "active_alarms": {
+                "name": "Active Alarms"
+            },
             "cooling_knee_point_temperature": {
                 "name": "Cooling Knee Point Temperature"
             },

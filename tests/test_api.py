@@ -6,10 +6,12 @@ import pytest
 
 from custom_components.comfoclime.comfoclime_api import ComfoClimeAPI
 from custom_components.comfoclime.models import (
+    AlarmsResponse,
     DashboardData,
     DashboardUpdate,
     DashboardUpdateResponse,
     DeviceDefinitionData,
+    MonitoringHealth,
     PropertyWriteResponse,
 )
 
@@ -105,6 +107,75 @@ class TestComfoClimeAPI:
         assert isinstance(data, DashboardData)
         assert data.indoor_temperature == 22.5
         assert data.fan_speed == 2
+
+    @staticmethod
+    def _session_returning(payload):
+        """Build a mocked aiohttp session whose GET returns ``payload``."""
+        mock_response = AsyncMock()
+        mock_response.json = AsyncMock(return_value=payload)
+        mock_response.raise_for_status = MagicMock()
+        mock_session = AsyncMock()
+        mock_session.get = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
+        return mock_session
+
+    @pytest.mark.asyncio
+    async def test_async_get_monitoring_health(self):
+        """Health endpoint is parsed into a MonitoringHealth model."""
+        api = ComfoClimeAPI("http://192.168.1.100")
+        session = self._session_returning(
+            {"total_free_bytes": 96612, "twai_arb_lost_count": 4437, "open_sockets": [58, 59]}
+        )
+
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            health = await api.async_get_monitoring_health()
+
+        assert isinstance(health, MonitoringHealth)
+        assert health.total_free_bytes == 96612
+        assert health.twai_arb_lost_count == 4437
+        assert health.open_socket_count == 2
+        assert session.get.call_args.args[0] == "http://192.168.1.100/monitoring/health"
+
+    @pytest.mark.asyncio
+    async def test_async_get_monitoring_health_needs_no_system_uuid(self):
+        """Health lives under /monitoring, so no UUID lookup is required."""
+        api = ComfoClimeAPI("http://192.168.1.100")
+        session = self._session_returning({})
+
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            await api.async_get_monitoring_health()
+
+        assert api.uuid is None
+        assert session.get.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_async_get_alarms(self):
+        """Alarm endpoint is parsed into an AlarmsResponse model."""
+        api = ComfoClimeAPI("http://192.168.1.100")
+        api.uuid = "MBE00000000"
+        errors = [0] * 32
+        errors[12] = 16
+        session = self._session_returning(
+            {"devices": [{"uuid": "SIT00000000", "modelTypeId": 1, "variant": 1, "zoneId": 1, "errors": errors}]}
+        )
+
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            alarms = await api.async_get_alarms()
+
+        assert isinstance(alarms, AlarmsResponse)
+        assert alarms.for_device("SIT00000000").active_errors == {12: 16}
+        assert session.get.call_args.args[0] == "http://192.168.1.100/system/MBE00000000/alarms"
+
+    @pytest.mark.asyncio
+    async def test_async_get_alarms_never_calls_reset_endpoint(self):
+        """Reading alarms must not hit the state-changing /alarms/reset endpoint."""
+        api = ComfoClimeAPI("http://192.168.1.100")
+        api.uuid = "MBE00000000"
+        session = self._session_returning({"devices": []})
+
+        with patch.object(api, "_get_session", AsyncMock(return_value=session)):
+            await api.async_get_alarms()
+
+        assert all("reset" not in call.args[0] for call in session.get.call_args_list)
 
     @pytest.mark.asyncio
     async def test_async_get_connected_devices(self):

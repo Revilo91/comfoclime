@@ -41,9 +41,10 @@ __init__.py (async_setup_entry / async_unload_entry / Service-Registrierung)
         │
         ├── ComfoClimeAPI (comfoclime_api.py) ── aiohttp-Client, nutzt infrastructure/
         │
-        ├── 6 Koordinatoren (coordinator.py, Update-Intervall 60s)
+        ├── 8 Koordinatoren (coordinator.py, Update-Intervall 60s)
         │     Dashboard, Monitoring, Thermalprofile, Telemetry (gebündelt),
-        │     Property (gebündelt), Definition
+        │     Property (gebündelt), Definition sowie die lazy Koordinatoren
+        │     Health und Alarms (kein First-Refresh, siehe Abschnitt 6)
         │
         └── Entity-Plattformen: climate, fan, sensor, switch, number, select
 ```
@@ -57,7 +58,7 @@ __init__.py (async_setup_entry / async_unload_entry / Service-Registrierung)
 | `infrastructure/api.py` | Rate-Limiting & Caching (`RateLimiterCache`), `api_get`/`api_put`/`api_post`-Decorator |
 | `infrastructure/validation.py` | Input-Validierung (Host/IP, Property-Pfad `X/Y/Z`, Byte-Werte, Dauer) |
 | `infrastructure/errors.py` | Custom Exceptions (`ComfoClimeError`, `ComfoClimeConnectionError`, …) |
-| `coordinator.py` | 6 `DataUpdateCoordinator`-Klassen (siehe oben) |
+| `coordinator.py` | 8 `DataUpdateCoordinator`-Klassen (siehe oben) |
 | `models.py` | Pydantic-v2-Modelle für alle API-Responses + Byte/Temperatur-Hilfsfunktionen |
 | `constants.py` | `APIDefaults`, `FanSpeed`, `ScenarioMode` (IntEnum) u. a. |
 | `entity_base.py` | Gemeinsames Mixin für alle Entity-Klassen (Device-Info, Naming) |
@@ -68,7 +69,7 @@ __init__.py (async_setup_entry / async_unload_entry / Service-Registrierung)
 | `config_flow.py` | Config-Flow (Setup per Host/IP) + Options-Flow (nur Performance-Einstellungen) |
 | `migration.py` | Einmalige Migration Config-Entry v1 → v2 (Entity-Auswahl → Entity-Registry) |
 | `services.yaml` / `services.py` | Service-Definitionen und -Handler |
-| `diagnostics.py` | Diagnostics-Download (`async_get_config_entry_diagnostics`): Entry, Geräte und alle 6 Koordinatoren; Host/UUID/Seriennummern per `TO_REDACT` geschwärzt, UUID-Dict-Keys durch `device_N` ersetzt |
+| `diagnostics.py` | Diagnostics-Download (`async_get_config_entry_diagnostics`): Entry, Geräte und alle Koordinatoren (Health/Alarms nur, wenn angelegt); Host/UUID/Seriennummern per `TO_REDACT` geschwärzt, UUID-Dict-Keys durch `device_N` ersetzt |
 
 ## 4. Wichtige Muster & Konventionen
 
@@ -179,6 +180,14 @@ deaktivierte Entity erzeugt damit exakt null Requests. Property-Registrierungen 
 referenzgezählt, weil ein Pfad (z. B. `23/1/4`) gleichzeitig von einem Sensor und einer Number
 gelesen werden kann.
 
+**Lazy-Koordinatoren (Health, Alarms):** `ComfoClimeHealthCoordinator` (`GET /monitoring/health`) und
+`ComfoClimeAlarmsCoordinator` (`GET /system/{UUID}/alarms`) machen in `async_setup_entry` bewusst
+**keinen** First-Refresh. Ihre Sensoren sind alle `diagnostic` und damit standardmäßig deaktiviert;
+die erste aktivierte Entity stößt den ersten Abruf selbst an (`_async_register_data_source()`).
+So entstehen im Standardzustand keine zusätzlichen Requests, und eine Firmware ohne diese Endpoints
+kann das Setup nicht blockieren. Alarm-Sensoren gibt es einen pro Bus-Gerät
+(`alarm_sensor_unique_id()`, Zustand = Anzahl der Alarm-Positionen ungleich 0).
+
 ⚠️ Zwei Definitionen für denselben Property-Pfad **müssen** in `faktor`/`signed`/`byte_count`
 übereinstimmen – der Koordinator hält pro `(device, path)` nur einen Eintrag. Abweichungen werden
 geloggt und per Test (`tests/test_entity_defaults.py`) abgefangen.
@@ -229,9 +238,13 @@ Abtau-Zustände korrekt als heating/cooling/idle erkannt werden – Details sieh
 - Wichtigste Endpunkte: `GET /monitoring/ping`, `GET|PUT /system/{UUID}/dashboard`,
   `GET /system/{UUID}/devices`, `GET|PUT /system/{UUID}/thermalprofile`,
   `GET /device/{UUID}/telemetry/{ID}`, `GET /device/{UUID}/property/{UNIT}/{SUBUNIT}/{PROPERTY}`,
-  `PUT /device/{UUID}/method/{UNIT}/{SUBUNIT}/3`, `PUT /system/reset`.
+  `PUT /device/{UUID}/method/{UNIT}/{SUBUNIT}/3`, `PUT /system/reset`, `GET /monitoring/health`,
+  `GET /system/{UUID}/alarms`.
+- ⚠️ `GET /system/{UUID}/alarms/reset` setzt Alarme zurück – ein **GET, das den Zustand ändert**. Der
+  Client ruft es bewusst nicht auf; nie zum „Ausprobieren“ aufrufen.
 - API-Ebene liefert überall Pydantic-Modelle zurück (`DashboardData`, `ThermalProfileData`,
-  `MonitoringPing`, `DeviceDefinitionData`, `ConnectedDevicesResponse` mit `.devices`,
+  `MonitoringPing`, `MonitoringHealth`, `AlarmsResponse`, `DeviceDefinitionData`,
+  `ConnectedDevicesResponse` mit `.devices`,
   `PropertyWriteRequest` für PUT-Property-Writes).
 - Ausführliche Endpoint-Doku mit Beispiel-Requests/-Responses: siehe Upstream-Referenzen in
   Abschnitt 4. Dieses Repo hält bewusst **keine** vollständige Endpoint-Referenz mehr lokal vor –
@@ -292,6 +305,12 @@ mitziehen, sonst installiert HACS die Integration auf eine HA, auf der sie nicht
   https://github.com/Revilo91/comfoclime/releases
 
 ## 11. Bekannte Fallstricke
+
+- **Keine Mitschnitte und keine Zugangsdaten ins Git.** `PUT /wifi/update` überträgt das WLAN-Passwort
+  im Klartext (`{"ssid", "psk"}`); ein Paketmitschnitt (`.pcap`, `.har`) der Hersteller-App enthält es
+  damit. `*.pcap`/`*.pcapng` stehen in `.gitignore`, und `tests/test_no_secrets.py` schlägt fehl, wenn
+  eine Capture-Datei oder ein Klartext-`psk`/`password` getrackt ist. Testdaten immer erfinden
+  (z. B. UUID `MBE0000000000`), nie echte Werte aus einem Mitschnitt übernehmen.
 
 - Die Geräte-API ist lokal und **unauthentifiziert** – Tests brauchen ein echtes Gerät im Netz
   oder Mocks (siehe `tests/conftest.py`).

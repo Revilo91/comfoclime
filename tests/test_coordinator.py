@@ -7,16 +7,20 @@ import pytest
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from custom_components.comfoclime.coordinator import (
+    ComfoClimeAlarmsCoordinator,
     ComfoClimeDashboardCoordinator,
     ComfoClimeDefinitionCoordinator,
+    ComfoClimeHealthCoordinator,
     ComfoClimeMonitoringCoordinator,
     ComfoClimePropertyCoordinator,
     ComfoClimeTelemetryCoordinator,
     ComfoClimeThermalprofileCoordinator,
 )
 from custom_components.comfoclime.models import (
+    AlarmsResponse,
     DashboardData,
     DeviceDefinitionData,
+    MonitoringHealth,
     MonitoringPing,
     PropertyReading,
     PropertyRegistryEntry,
@@ -806,3 +810,67 @@ class TestPropertyCoordinatorRegistry:
 
             # One sleep per sensor read
             assert sleep_calls.count(0.5) == 2
+
+
+@pytest.mark.asyncio
+async def test_health_coordinator_success(hass_with_frame_helper, mock_api):
+    """Health coordinator returns the MonitoringHealth model from the API."""
+    health = MonitoringHealth(total_free_bytes=96612, twai_arb_lost_count=4437)
+    mock_api.async_get_monitoring_health = AsyncMock(return_value=health)
+
+    coordinator = ComfoClimeHealthCoordinator(hass_with_frame_helper, mock_api)
+    result = await coordinator._async_update_data()
+
+    assert result is health
+    mock_api.async_get_monitoring_health.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_health_coordinator_failure(hass_with_frame_helper, mock_api):
+    """Connection errors become UpdateFailed so entities turn unavailable."""
+    mock_api.async_get_monitoring_health = AsyncMock(side_effect=aiohttp.ClientError("Connection error"))
+
+    coordinator = ComfoClimeHealthCoordinator(hass_with_frame_helper, mock_api)
+
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+
+
+@pytest.mark.asyncio
+async def test_health_coordinator_custom_interval(hass_with_frame_helper, mock_api):
+    coordinator = ComfoClimeHealthCoordinator(hass_with_frame_helper, mock_api, polling_interval=120)
+
+    assert coordinator.update_interval.total_seconds() == 120
+    assert coordinator.api == mock_api
+
+
+@pytest.mark.asyncio
+async def test_alarms_coordinator_success(hass_with_frame_helper, mock_api):
+    """Alarms coordinator returns the AlarmsResponse model from the API."""
+    alarms = AlarmsResponse.from_api({"devices": [{"uuid": "SIT00000000", "modelTypeId": 1, "errors": [0, 16]}]})
+    mock_api.async_get_alarms = AsyncMock(return_value=alarms)
+
+    coordinator = ComfoClimeAlarmsCoordinator(hass_with_frame_helper, mock_api)
+    result = await coordinator._async_update_data()
+
+    assert result is alarms
+    assert result.for_device("SIT00000000").active_errors == {1: 16}
+    mock_api.async_get_alarms.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_alarms_coordinator_failure(hass_with_frame_helper, mock_api):
+    mock_api.async_get_alarms = AsyncMock(side_effect=TimeoutError("timeout"))
+
+    coordinator = ComfoClimeAlarmsCoordinator(hass_with_frame_helper, mock_api)
+
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+
+
+@pytest.mark.asyncio
+async def test_alarms_coordinator_custom_interval(hass_with_frame_helper, mock_api):
+    coordinator = ComfoClimeAlarmsCoordinator(hass_with_frame_helper, mock_api, polling_interval=120)
+
+    assert coordinator.update_interval.total_seconds() == 120
+    assert coordinator.api == mock_api

@@ -49,8 +49,10 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from pydantic import BaseModel
 
 from .coordinator import (
+    ComfoClimeAlarmsCoordinator,
     ComfoClimeDashboardCoordinator,
     ComfoClimeDefinitionCoordinator,
+    ComfoClimeHealthCoordinator,
     ComfoClimeMonitoringCoordinator,
     ComfoClimePropertyCoordinator,
     ComfoClimeTelemetryCoordinator,
@@ -58,15 +60,19 @@ from .coordinator import (
 )
 from .entities.base_definitions import enabled_by_default, entity_category_for
 from .entities.sensor_definitions import (
+    ALARM_SENSORS,
     CONNECTED_DEVICE_DEFINITION_SENSORS,
     CONNECTED_DEVICE_PROPERTIES,
     CONNECTED_DEVICE_SENSORS,
     DASHBOARD_SENSORS,
+    HEALTH_SENSORS,
     MONITORING_SENSORS,
     THERMALPROFILE_SENSORS,
+    SensorDefinition,
 )
 from .entity_base import ComfoClimeBaseEntity
 from .entity_helper import (
+    alarm_sensor_unique_id,
     get_device_model_type_id,
     get_device_uuid,
     property_sensor_unique_id,
@@ -140,6 +146,8 @@ async def async_setup_entry(
     ]
     if monitoring_coordinator is not None:
         system_sources.append((monitoring_coordinator, MONITORING_SENSORS))
+    if data.healthcoordinator is not None:
+        system_sources.append((data.healthcoordinator, HEALTH_SENSORS))
 
     for source_coordinator, sensor_defs in system_sources:
         for sensor_def in sensor_defs:
@@ -231,6 +239,18 @@ async def async_setup_entry(
                 )
             )
 
+        if data.alarmscoordinator is not None:
+            sensors.extend(
+                ComfoClimeAlarmSensor(
+                    hass=hass,
+                    coordinator=data.alarmscoordinator,
+                    device=device,
+                    entry=entry,
+                    definition=alarm_def,
+                )
+                for alarm_def in ALARM_SENSORS
+            )
+
     # Entities that are enabled register their telemetry/property needs in
     # async_added_to_hass and then ask for a (debounced) coordinator refresh,
     # so there is nothing to prefetch here.
@@ -244,7 +264,8 @@ class ComfoClimeSensor(ComfoClimeBaseEntity, CoordinatorEntity, SensorEntity):
         hass: HomeAssistant,
         coordinator: ComfoClimeDashboardCoordinator
         | ComfoClimeThermalprofileCoordinator
-        | ComfoClimeMonitoringCoordinator,
+        | ComfoClimeMonitoringCoordinator
+        | ComfoClimeHealthCoordinator,
         api: ComfoClimeAPI,
         sensor_type: str,
         name: str,
@@ -278,6 +299,8 @@ class ComfoClimeSensor(ComfoClimeBaseEntity, CoordinatorEntity, SensorEntity):
             data_source = "thermalprofile"
         elif isinstance(coordinator, ComfoClimeMonitoringCoordinator):
             data_source = "monitoring"
+        elif isinstance(coordinator, ComfoClimeHealthCoordinator):
+            data_source = "health"
         else:
             data_source = "dashboard"
         self._data_source = data_source
@@ -287,6 +310,15 @@ class ComfoClimeSensor(ComfoClimeBaseEntity, CoordinatorEntity, SensorEntity):
         else:
             self._attr_translation_key = translation_key
         self._attr_has_entity_name = True
+
+    async def _async_register_data_source(self) -> None:
+        """Fetch once if the coordinator has never run.
+
+        Only the lazy health coordinator is still empty at this point; the
+        others did their first refresh during setup, so this is a no-op for them.
+        """
+        if self.coordinator.data is None:
+            await self._async_request_coordinator_refresh()
 
     @property
     def native_value(self):
@@ -328,6 +360,63 @@ class ComfoClimeSensor(ComfoClimeBaseEntity, CoordinatorEntity, SensorEntity):
             _LOGGER.warning("Error updating sensor '%s' values: %s", self._name, e)
             self._state = None
 
+        self.async_write_ha_state()
+
+
+class ComfoClimeAlarmSensor(ComfoClimeBaseEntity, CoordinatorEntity, SensorEntity):
+    """Number of active alarms of one ComfoNet device.
+
+    The device reports a fixed list of alarm bytes; the state is how many of them
+    are non-zero and the attribute ``active_errors`` names the positions. The
+    manufacturer does not document what each position means.
+    """
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        coordinator: ComfoClimeAlarmsCoordinator,
+        device: DeviceConfig,
+        entry: ConfigEntry,
+        definition: SensorDefinition,
+    ) -> None:
+        super().__init__(coordinator)
+        self._hass = hass
+        self._device = device
+        self._device_uuid = get_device_uuid(device)
+        self._entry = entry
+        self._state: int | None = None
+        self._active_errors: dict[int, int] = {}
+        self._attr_config_entry_id = entry.entry_id
+        self._attr_unique_id = alarm_sensor_unique_id(entry.entry_id, self._device_uuid)
+        self._attr_state_class = SensorStateClass(definition.state_class) if definition.state_class else None
+        category = entity_category_for(definition)
+        self._attr_entity_category = EntityCategory(category) if category else None
+        self._attr_entity_registry_enabled_default = enabled_by_default(definition)
+        self._attr_translation_key = definition.translation_key
+        self._attr_has_entity_name = True
+        self._data_source = "alarms"
+
+    async def _async_register_data_source(self) -> None:
+        """Fetch once if the lazy alarms coordinator has never run."""
+        if self.coordinator.data is None:
+            await self._async_request_coordinator_refresh()
+
+    @property
+    def native_value(self) -> int | None:
+        return self._state
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        attributes = super().extra_state_attributes
+        attributes["active_errors"] = {str(position): value for position, value in self._active_errors.items()}
+        return attributes
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        data = self.coordinator.data
+        alarms = data.for_device(self._device_uuid) if data is not None else None
+        self._state = alarms.active_error_count if alarms is not None else None
+        self._active_errors = alarms.active_errors if alarms is not None else {}
         self.async_write_ha_state()
 
 

@@ -26,3 +26,6 @@ test.py
 uv.lock
 .serena
 .ruff_cache
+# Network captures (can contain credentials)
+*.pcap
+*.pcapng
