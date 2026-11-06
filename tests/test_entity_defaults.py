@@ -24,7 +24,6 @@ from custom_components.comfoclime.entities.select_definitions import (
     SELECT_ENTITIES,
 )
 from custom_components.comfoclime.entities.sensor_definitions import (
-    ACCESS_TRACKING_SENSORS,
     CONNECTED_DEVICE_DEFINITION_SENSORS,
     CONNECTED_DEVICE_PROPERTIES,
     CONNECTED_DEVICE_SENSORS,
@@ -47,7 +46,6 @@ ALL_SENSOR_DEFS = [
     *DASHBOARD_SENSORS,
     *THERMALPROFILE_SENSORS,
     *MONITORING_SENSORS,
-    *ACCESS_TRACKING_SENSORS,
     *_flat(CONNECTED_DEVICE_SENSORS),
     *_flat(CONNECTED_DEVICE_PROPERTIES),
     *_flat(CONNECTED_DEVICE_DEFINITION_SENSORS),
@@ -106,10 +104,6 @@ class TestEnabledDefaults:
             assert entity_category_for(definition) == "diagnostic", (
                 f"{definition.key} duplicates a control entity and should be diagnostic"
             )
-
-    def test_access_tracking_is_diagnostic(self):
-        for definition in ACCESS_TRACKING_SENSORS:
-            assert enabled_by_default(definition) is False
 
 
 class TestNoDuplicateNames:

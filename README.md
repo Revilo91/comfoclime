@@ -25,7 +25,7 @@ ComfoClime is a HVAC solution as additional device for the ComfoAir Q series. It
 ### System Requirements
 - **Home Assistant**: ≥ 2026.5.0
 - **Python**: ≥ 3.14
-- **aiohttp**: ≥ 3.8.0, < 4.0
+- **aiohttp**: provided by Home Assistant (not listed in `manifest.json`)
 - **pydantic**: ≥ 2.0.0
 
 ### Supported Devices
@@ -92,7 +92,7 @@ This provides a complete Home Assistant development environment with debugging s
 The integration creates every entity it knows about for the devices it finds, and lets Home
 Assistant decide what is shown. Everyday values — temperatures, air flows, fan speed, the climate
 and fan entities, the comfort controls — are enabled straight away. Configuration and diagnostic
-entities (heating and cooling curve parameters, raw telemetry, API access counters) are created but
+entities (heating and cooling curve parameters, raw telemetry) are created but
 **disabled**, so a fresh install is not flooded with a hundred entities.
 
 To turn something on or off, go to **Settings → Devices & services → ComfoClime**, open the device,

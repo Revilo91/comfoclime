@@ -8,7 +8,6 @@ entity they kept must be left alone.
 
 from custom_components.comfoclime.entities.number_definitions import NUMBER_ENTITIES
 from custom_components.comfoclime.entities.sensor_definitions import (
-    ACCESS_TRACKING_SENSORS,
     CONNECTED_DEVICE_SENSORS,
     DASHBOARD_SENSORS,
 )
@@ -38,7 +37,6 @@ def test_option_id_map_covers_every_definition():
         len(DASHBOARD_SENSORS)
         + len(SWITCHES)
         + len(NUMBER_ENTITIES)
-        + len(ACCESS_TRACKING_SENSORS)
         + sum(len(defs) for defs in CONNECTED_DEVICE_SENSORS.values())
     )
     assert len(mapping) >= expected_minimum

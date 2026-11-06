@@ -29,7 +29,6 @@ from .coordinator import (
     ComfoClimeThermalprofileCoordinator,
 )
 from .entity_helper import get_device_model_type_id
-from .infrastructure import AccessTracker
 from .migration import matches, unique_ids_to_disable
 from .services import async_setup_services
 
@@ -88,6 +87,31 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.config_entries.async_update_entry(entry, options=new_options, version=CONFIG_ENTRY_VERSION)
     return True
+
+
+def _remove_legacy_access_tracking_entities(hass: HomeAssistant, entry: ConfigEntry) -> int:
+    """Remove registry entries of the dropped API access-tracking sensors.
+
+    Earlier releases created diagnostic "accesses per minute/hour" sensors with
+    unique IDs ``<entry_id>_access_*``. The feature is gone, so without this
+    cleanup existing installations would keep orphaned, permanently
+    unavailable entities in their entity registry.
+
+    Returns:
+        Number of removed registry entries.
+    """
+    registry = er.async_get(hass)
+    prefix = f"{entry.entry_id}_access_"
+    stale = [
+        reg_entry.entity_id
+        for reg_entry in er.async_entries_for_config_entry(registry, entry.entry_id)
+        if (reg_entry.unique_id or "").startswith(prefix)
+    ]
+    for entity_id in stale:
+        registry.async_remove(entity_id)
+    if stale:
+        _LOGGER.info("Removed %s obsolete access-tracking entities from the entity registry", len(stale))
+    return len(stale)
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
@@ -167,9 +191,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         definition_interval,
     )
 
-    # Create access tracker for monitoring API access patterns
-    access_tracker = AccessTracker()
-
     # Create API instance with configured timeouts, cache TTL, max retries, and rate limiting
     api = ComfoClimeAPI(
         f"http://{host}",
@@ -199,9 +220,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         raise ConfigEntryNotReady(f"Unable to connect to ComfoClime device at {host}: {err}") from err
 
     # Create Dashboard-Coordinator
-    dashboard_coordinator = ComfoClimeDashboardCoordinator(
-        hass, api, dashboard_interval, access_tracker=access_tracker, config_entry=entry
-    )
+    dashboard_coordinator = ComfoClimeDashboardCoordinator(hass, api, dashboard_interval, config_entry=entry)
     _LOGGER.debug(
         "Created ComfoClimeDashboardCoordinator with polling_interval=%s",
         polling_interval,
@@ -212,7 +231,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass,
         api,
         thermalprofile_interval,
-        access_tracker=access_tracker,
         config_entry=entry,
     )
     _LOGGER.debug(
@@ -225,7 +243,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass,
         api,
         monitoring_interval,
-        access_tracker=access_tracker,
         config_entry=entry,
     )
     _LOGGER.debug(
@@ -239,7 +256,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         api,
         devices,
         definition_interval,
-        access_tracker=access_tracker,
         config_entry=entry,
     )
     _LOGGER.debug(
@@ -278,7 +294,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         api,
         devices,
         telemetry_interval,
-        access_tracker=access_tracker,
         config_entry=entry,
         sensor_delay=inter_sensor_delay,
     )
@@ -293,7 +308,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         api,
         devices,
         property_interval,
-        access_tracker=access_tracker,
         config_entry=entry,
         sensor_delay=inter_sensor_delay,
     )
@@ -311,13 +325,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "tlcoordinator": tlcoordinator,
         "propcoordinator": propcoordinator,
         "definitioncoordinator": definitioncoordinator,
-        "access_tracker": access_tracker,
         "devices": devices,
         "main_device": next((d for d in devices if get_device_model_type_id(d) == 20), None),
     }
 
-    # Register update listener to reload integration when options change
-    entry.async_on_unload(entry.add_update_listener(async_reload_entry))
+    _remove_legacy_access_tracking_entities(hass, entry)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
@@ -344,8 +356,3 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         hass.data[DOMAIN].pop(entry.entry_id, None)
     return unload_ok
-
-
-async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Reload the entry after its options changed."""
-    await hass.config_entries.async_reload(entry.entry_id)

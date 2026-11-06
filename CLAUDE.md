@@ -24,7 +24,7 @@ Geräte am ComfoNet-Bus (v. a. ComfoAir Q). Kanonisches Repo: **https://github.c
 |---|---|---|
 | Home Assistant | ≥ 2026.5.0 | `hacs.json`, `pyproject.toml` (dev-dep `homeassistant>=2026.5.0`) |
 | Python | ≥ 3.14.2 | `pyproject.toml` (`requires-python`); HA 2026.3+ verlangt genau diese Patch-Version |
-| aiohttp | ≥ 3.8.0, < 4.0 | `manifest.json` |
+| aiohttp | wird von Home Assistant mitgeliefert – **nicht** in `manifest.json` eintragen (hassfest lehnt das ab) | |
 | pydantic | ≥ 2.0.0 | `manifest.json` |
 | Integrationsversion | siehe `manifest.json` (`version`) – muss identisch mit `pyproject.toml` sein | |
 
@@ -56,7 +56,6 @@ __init__.py (async_setup_entry / async_unload_entry / Service-Registrierung)
 | `comfoclime_api.py` | Öffentlicher async API-Client (`ComfoClimeAPI`), nutzt `infrastructure/` |
 | `infrastructure/api.py` | Rate-Limiting & Caching (`RateLimiterCache`), `api_get`/`api_put`/`api_post`-Decorator |
 | `infrastructure/validation.py` | Input-Validierung (Host/IP, Property-Pfad `X/Y/Z`, Byte-Werte, Dauer) |
-| `infrastructure/tracking.py` | `AccessTracker` – API-Zugriffszähler für Diagnose-Sensoren |
 | `infrastructure/errors.py` | Custom Exceptions (`ComfoClimeError`, `ComfoClimeConnectionError`, …) |
 | `coordinator.py` | 6 `DataUpdateCoordinator`-Klassen (siehe oben) |
 | `models.py` | Pydantic-v2-Modelle für alle API-Responses + Byte/Temperatur-Hilfsfunktionen |
@@ -162,7 +161,7 @@ Registry (samt Verlauf, Bereich und Umbenennungen).
 |---|---|---|
 | `None` | `True` | Climate, Fan, Kern-Sensoren (Innen-/Außentemp, Luftmengen, Fan-Speed, Wärmepumpenstatus), Komfort-Number/Switch/Select |
 | `"config"` | `False` | Heiz-/Kühlkurven-Parameter, RMOT-Schwellen, Wärmepumpen-Min/Max, Feuchtigkeitskontrolle |
-| `"diagnostic"` | `False` | Thermalprofil-Sensoren (Duplikate der Number/Select/Switch), rohe Telemetrie, Definition-Sensoren, Access-Tracking |
+| `"diagnostic"` | `False` | Thermalprofil-Sensoren (Duplikate der Number/Select/Switch), rohe Telemetrie, Definition-Sensoren |
 
 Beides wird zentral abgeleitet in `entities/base_definitions.py`:
 `entity_category_for()` (bezieht `diagnose=True` bei Telemetrie mit ein) und `enabled_by_default()`.
@@ -213,7 +212,7 @@ Abtau-Zustände korrekt als heating/cooling/idle erkannt werden – Details sieh
 |---|---|---|
 | `comfoclime.set_property` | `device_id`, `path` (X/Y/Z), `value`, `byte_count` (1–2) | `signed`, `faktor` |
 | `comfoclime.reset_system` | – | – |
-| `comfoclime.set_scenario_mode` | `entity_id`, `scenario` (cooking/party/away/boost) | `duration` (min), `start_delay` |
+| `comfoclime.set_scenario_mode` | Ziel-Entity (`target:`, bzw. `entity_id` in `data`), `scenario` (cooking/party/away/scenario_boost; `boost` wird als Alias akzeptiert) | `duration` (min), `start_delay` (`YYYY-MM-DD HH:MM:SS`) |
 
 ## 9. API-Kurzreferenz
 

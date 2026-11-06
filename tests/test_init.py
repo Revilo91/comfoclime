@@ -6,13 +6,20 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from custom_components.comfoclime import (
+    _remove_legacy_access_tracking_entities,
     async_migrate_entry,
-    async_reload_entry,
     async_setup,
     async_setup_entry,
     async_unload_entry,
 )
 from custom_components.comfoclime.models import ConnectedDevicesResponse
+
+
+@pytest.fixture(autouse=True)
+def _mock_entity_registry():
+    """Keep the setup-time registry cleanup away from the bare mock hass."""
+    with patch("custom_components.comfoclime.er.async_get", return_value=MagicMock()):
+        yield
 
 
 @pytest.mark.asyncio
@@ -104,6 +111,9 @@ async def test_async_setup_entry(
                             assert "select" in platforms
                             assert "fan" in platforms
                             assert "climate" in platforms
+
+                            # Reloads come from the config/options flow, not a listener
+                            mock_config_entry.add_update_listener.assert_not_called()
 
                             # Services are registered in async_setup, not async_setup_entry
 
@@ -340,36 +350,71 @@ async def test_async_unload_entry(mock_hass, mock_config_entry):
     mock_hass.config_entries.async_unload_platforms.assert_called_once()
 
 
-@pytest.mark.asyncio
-async def test_async_reload_entry(mock_hass, mock_config_entry):
-    """Test async_reload_entry delegates to Home Assistant reload."""
-    mock_hass.config_entries = MagicMock()
-    mock_hass.config_entries.async_reload = AsyncMock(return_value=True)
-
-    await async_reload_entry(mock_hass, mock_config_entry)
-
-    mock_hass.config_entries.async_reload.assert_called_once_with(mock_config_entry.entry_id)
-
-
-@pytest.mark.asyncio
-async def test_async_reload_entry_leaves_registry_alone(mock_hass, mock_config_entry):
-    """Reloading must not delete entities.
-
-    The old options flow pruned the registry on every options change, which
-    threw away the user's names, areas and history along with the entity.
-    Reload is now purely a reload; visibility is registry state.
-    """
-    mock_config_entry.options = {"polling_interval": 60}
-    mock_hass.data = {"comfoclime": {mock_config_entry.entry_id: {"devices": [], "main_device": None}}}
-    mock_hass.config_entries = MagicMock()
-    mock_hass.config_entries.async_reload = AsyncMock(return_value=True)
-
+def test_remove_legacy_access_tracking_entities(mock_hass, mock_config_entry):
+    """Only this entry's former access-tracking sensors are removed."""
+    entry_id = mock_config_entry.entry_id
+    stale = [
+        SimpleNamespace(entity_id="sensor.a", unique_id=f"{entry_id}_access_dashboard_per_minute"),
+        SimpleNamespace(entity_id="sensor.b", unique_id=f"{entry_id}_access_total_per_hour"),
+    ]
+    kept = [
+        SimpleNamespace(entity_id="sensor.c", unique_id=f"{entry_id}_telemetry_4145"),
+        SimpleNamespace(entity_id="sensor.d", unique_id=None),
+        SimpleNamespace(entity_id="sensor.e", unique_id="other_entry_access_total_per_hour"),
+    ]
     mock_registry = MagicMock()
-    with patch("custom_components.comfoclime.er.async_get", return_value=mock_registry):
-        await async_reload_entry(mock_hass, mock_config_entry)
+
+    with (
+        patch("custom_components.comfoclime.er.async_get", return_value=mock_registry),
+        patch(
+            "custom_components.comfoclime.er.async_entries_for_config_entry",
+            return_value=[*stale, *kept],
+        ) as mock_entries,
+    ):
+        removed = _remove_legacy_access_tracking_entities(mock_hass, mock_config_entry)
+
+    mock_entries.assert_called_once_with(mock_registry, entry_id)
+    assert removed == 2
+    assert [c.args[0] for c in mock_registry.async_remove.call_args_list] == ["sensor.a", "sensor.b"]
+
+
+def test_remove_legacy_access_tracking_entities_noop_when_none(mock_hass, mock_config_entry):
+    """A clean registry is left untouched."""
+    mock_registry = MagicMock()
+    with (
+        patch("custom_components.comfoclime.er.async_get", return_value=mock_registry),
+        patch("custom_components.comfoclime.er.async_entries_for_config_entry", return_value=[]),
+    ):
+        assert _remove_legacy_access_tracking_entities(mock_hass, mock_config_entry) == 0
 
     mock_registry.async_remove.assert_not_called()
-    mock_hass.config_entries.async_reload.assert_called_once_with(mock_config_entry.entry_id)
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_runs_access_tracking_cleanup(mock_hass, mock_config_entry, mock_device):
+    """Setup calls the registry cleanup for existing installations."""
+    mock_hass.config_entries = MagicMock()
+    mock_hass.config_entries.async_forward_entry_setups = AsyncMock()
+
+    with (
+        patch("custom_components.comfoclime.ComfoClimeAPI") as mock_api_class,
+        patch("custom_components.comfoclime.ComfoClimeDashboardCoordinator") as c1,
+        patch("custom_components.comfoclime.ComfoClimeThermalprofileCoordinator") as c2,
+        patch("custom_components.comfoclime.ComfoClimeMonitoringCoordinator") as c3,
+        patch("custom_components.comfoclime.ComfoClimeDefinitionCoordinator") as c4,
+        patch("custom_components.comfoclime.ComfoClimeTelemetryCoordinator"),
+        patch("custom_components.comfoclime.ComfoClimePropertyCoordinator"),
+        patch("custom_components.comfoclime._remove_legacy_access_tracking_entities") as mock_cleanup,
+    ):
+        mock_api_class.return_value.async_get_connected_devices = AsyncMock(
+            return_value=ConnectedDevicesResponse(devices=[mock_device])
+        )
+        for coord in (c1, c2, c3, c4):
+            coord.return_value.async_config_entry_first_refresh = AsyncMock()
+
+        assert await async_setup_entry(mock_hass, mock_config_entry) is True
+
+    mock_cleanup.assert_called_once_with(mock_hass, mock_config_entry)
 
 
 @pytest.mark.asyncio

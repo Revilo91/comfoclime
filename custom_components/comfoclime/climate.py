@@ -50,6 +50,7 @@ from homeassistant.components.climate import (
 )
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from pydantic import BaseModel
 
@@ -591,7 +592,7 @@ class ComfoClimeClimate(ComfoClimeBaseEntity, CoordinatorEntity, ClimateEntity):
 
             # Check if this is a scenario mode
             if preset_mode in SCENARIO_REVERSE_MAPPING:
-                await self.async_set_scenario_mode(preset_mode)
+                await self._async_activate_scenario(preset_mode)
                 return
 
             # Automatic mode with preset profile
@@ -665,6 +666,35 @@ class ComfoClimeClimate(ComfoClimeBaseEntity, CoordinatorEntity, ClimateEntity):
 
     async def async_set_scenario_mode(
         self,
+        scenario: str,
+        duration: int | float | None = None,
+        start_delay: str | None = None,
+    ) -> None:
+        """Entity service ``comfoclime.set_scenario_mode``.
+
+        Activates a scenario and maps transport/value errors to
+        ``HomeAssistantError`` so the service caller sees a proper failure.
+
+        Args:
+            scenario: Scenario preset name (cooking, party, away, scenario_boost)
+            duration: Optional duration in minutes. If not provided, uses default.
+            start_delay: Optional start delay as datetime string (YYYY-MM-DD HH:MM:SS)
+
+        Raises:
+            ServiceValidationError: Unknown scenario.
+            HomeAssistantError: Device communication failed or input was unusable.
+        """
+        if scenario not in SCENARIO_REVERSE_MAPPING:
+            raise ServiceValidationError(
+                f"Unknown scenario mode '{scenario}'. Valid values: {', '.join(SCENARIO_REVERSE_MAPPING)}"
+            )
+        try:
+            await self._async_activate_scenario(scenario, duration, start_delay)
+        except (TimeoutError, aiohttp.ClientError, ValueError, KeyError, TypeError) as err:
+            raise HomeAssistantError(f"Failed to set scenario mode '{scenario}'") from err
+
+    async def _async_activate_scenario(
+        self,
         scenario_mode: str,
         duration: int | float | None = None,
         start_delay: str | None = None,
@@ -677,10 +707,10 @@ class ComfoClimeClimate(ComfoClimeBaseEntity, CoordinatorEntity, ClimateEntity):
         - cooking: High ventilation for cooking (default: 30 min)
         - party: High ventilation for parties (default: 30 min)
         - away: Reduced mode for vacation (default: 24 hours)
-        - boost: Maximum power boost (default: 30 min)
+        - scenario_boost: Maximum power boost (default: 30 min)
 
         Args:
-            scenario_mode: The scenario mode to activate (cooking, party, away, boost)
+            scenario_mode: The scenario mode to activate (cooking, party, away, scenario_boost)
             duration: Optional duration in minutes. If not provided, uses default.
             start_delay: Optional start delay as datetime string (YYYY-MM-DD HH:MM:SS)
         """

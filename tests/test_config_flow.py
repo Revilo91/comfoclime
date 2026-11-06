@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from homeassistant.config_entries import OptionsFlowWithReload
 from homeassistant.data_entry_flow import FlowResultType
 
 from custom_components.comfoclime.config_flow import (
@@ -23,6 +24,21 @@ def _mock_session(response=None, *, get_error=None):
     get_cm.__aexit__ = AsyncMock(return_value=False)
     session.get = MagicMock(return_value=get_cm)
     return session
+
+
+def _options_flow(entry):
+    """Build an options flow the way HA does: no __init__ args, entry via handler."""
+    flow = ComfoClimeConfigFlow.async_get_options_flow(entry)
+    flow.hass = MagicMock()
+    flow.hass.config_entries.async_get_known_entry = MagicMock(return_value=entry)
+    flow.handler = "entry-1"
+    return flow
+
+
+def test_options_flow_reloads_entry_itself():
+    """The options flow reloads via HA, so no update listener is needed."""
+    assert issubclass(ComfoClimeOptionsFlow, OptionsFlowWithReload)
+    assert ComfoClimeOptionsFlow.automatic_reload is True
 
 
 @pytest.mark.asyncio
@@ -133,13 +149,14 @@ async def test_reconfigure_flow_success():
     """A matching device (same or unset unique_id) updates the entry's host."""
     flow = ComfoClimeConfigFlow()
     flow.hass = MagicMock()
-    flow.context = {"entry_id": "entry-1"}
+    flow.context = {"entry_id": "entry-1", "source": "reconfigure"}
 
     entry = MagicMock()
+    entry.entry_id = "entry-1"
+    entry.update_listeners = []  # we register none; HA reports usage if any exist
     entry.unique_id = "test-uuid-123"
     entry.data = {"host": "192.168.1.50"}
-    flow.hass.config_entries.async_get_entry = MagicMock(return_value=entry)
-    flow.hass.config_entries.async_reload = AsyncMock()
+    flow.hass.config_entries.async_get_known_entry = MagicMock(return_value=entry)
 
     mock_response = MagicMock()
     mock_response.status = 200
@@ -153,9 +170,14 @@ async def test_reconfigure_flow_success():
 
     assert result["type"] == FlowResultType.ABORT
     assert result["reason"] == "reconfigure_successful"
-    flow.hass.config_entries.async_update_entry.assert_called_once_with(
-        entry, data={"host": "192.168.1.100"}, unique_id="test-uuid-123"
-    )
+    flow.hass.config_entries.async_update_entry.assert_called_once()
+    update_kwargs = flow.hass.config_entries.async_update_entry.call_args.kwargs
+    assert update_kwargs["entry"] is entry
+    assert update_kwargs["data"] == {"host": "192.168.1.100"}
+    assert update_kwargs["unique_id"] == "test-uuid-123"
+    # Reload is scheduled exactly once by the flow helper, never done by hand.
+    flow.hass.config_entries.async_schedule_reload.assert_called_once_with("entry-1")
+    flow.hass.config_entries.async_reload.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -163,12 +185,12 @@ async def test_reconfigure_flow_wrong_device():
     """A host that answers as a different device is rejected, entry is untouched."""
     flow = ComfoClimeConfigFlow()
     flow.hass = MagicMock()
-    flow.context = {"entry_id": "entry-1"}
+    flow.context = {"entry_id": "entry-1", "source": "reconfigure"}
 
     entry = MagicMock()
     entry.unique_id = "test-uuid-123"
     entry.data = {"host": "192.168.1.50"}
-    flow.hass.config_entries.async_get_entry = MagicMock(return_value=entry)
+    flow.hass.config_entries.async_get_known_entry = MagicMock(return_value=entry)
 
     mock_response = MagicMock()
     mock_response.status = 200
@@ -190,8 +212,7 @@ async def test_options_menu_offers_only_performance_sections():
     """The options flow no longer contains any entity-selection step."""
     entry = MagicMock()
     entry.options = dict(DEFAULT_OPTIONS)
-    flow = ComfoClimeOptionsFlow(entry)
-    flow.hass = MagicMock()
+    flow = _options_flow(entry)
 
     result = await flow.async_step_init()
 
@@ -212,8 +233,7 @@ async def test_options_step_saves_directly(step, field, value):
     """Each section writes straight through; there is no separate save step."""
     entry = MagicMock()
     entry.options = dict(DEFAULT_OPTIONS)
-    flow = ComfoClimeOptionsFlow(entry)
-    flow.hass = MagicMock()
+    flow = _options_flow(entry)
 
     form = await getattr(flow, f"async_step_{step}")()
     assert form["type"] == FlowResultType.FORM
@@ -232,8 +252,7 @@ async def test_options_forms_fall_back_to_defaults_for_missing_keys():
     """An entry saved before a setting existed still renders its form."""
     entry = MagicMock()
     entry.options = {}
-    flow = ComfoClimeOptionsFlow(entry)
-    flow.hass = MagicMock()
+    flow = _options_flow(entry)
 
     for step in ("timeouts", "polling", "rate_limiting"):
         result = await getattr(flow, f"async_step_{step}")()

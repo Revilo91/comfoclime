@@ -21,7 +21,6 @@ import logging
 from .entities.number_definitions import CONNECTED_DEVICE_NUMBER_PROPERTIES, NUMBER_ENTITIES
 from .entities.select_definitions import PROPERTY_SELECT_ENTITIES, SELECT_ENTITIES
 from .entities.sensor_definitions import (
-    ACCESS_TRACKING_SENSORS,
     CONNECTED_DEVICE_DEFINITION_SENSORS,
     CONNECTED_DEVICE_PROPERTIES,
     CONNECTED_DEVICE_SENSORS,
@@ -43,7 +42,6 @@ _OPTION_KEYS: dict[str, tuple[str, ...]] = {
     "connected_telemetry": ("enabled_connected_device_telemetry", "enabled_connected_telemetry"),
     "connected_properties": ("enabled_connected_device_properties", "enabled_connected_properties"),
     "connected_definition": ("enabled_connected_device_definition", "enabled_connected_definition"),
-    "access_tracking": ("enabled_access_tracking",),
     "switches": ("enabled_switches",),
     "numbers": ("enabled_numbers",),
     "selects": ("enabled_selects",),
@@ -99,16 +97,6 @@ def build_option_id_map(entry_id: str) -> dict[str, tuple[str, str]]:
             "connected_definition",
             f"sensors_connected_definition_{definition.key}",
             f"{entry_id}_definition_*_{definition.key}",
-        )
-
-    for definition in ACCESS_TRACKING_SENSORS:
-        coordinator = (definition.coordinator or "total").lower()
-        add(
-            "access_tracking",
-            f"sensors_access_tracking_{coordinator}_{definition.metric}",
-            f"{entry_id}_access_{coordinator}_{definition.metric}"
-            if definition.coordinator
-            else f"{entry_id}_access_{definition.metric}",
         )
 
     for definition in SWITCHES:

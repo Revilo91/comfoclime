@@ -475,9 +475,6 @@ async def test_async_setup_entry(
         timestamp=1705314600,
     )
 
-    # Create a mock access tracker
-    mock_access_tracker = MagicMock()
-
     mock_hass.data = {
         "comfoclime": {
             "test_entry_id": {
@@ -488,7 +485,6 @@ async def test_async_setup_entry(
                 "tlcoordinator": mock_telemetry_coordinator,
                 "propcoordinator": mock_property_coordinator,
                 "definitioncoordinator": mock_definition_coordinator,
-                "access_tracker": mock_access_tracker,
                 "devices": [mock_device],
                 "main_device": mock_device,
             }
@@ -538,7 +534,6 @@ async def test_async_setup_entry_skips_diagnostic_telemetry_when_disabled(
                 "tlcoordinator": mock_telemetry_coordinator,
                 "propcoordinator": mock_property_coordinator,
                 "definitioncoordinator": mock_definition_coordinator,
-                "access_tracker": MagicMock(),
                 "devices": [mock_device],
                 "main_device": mock_device,
             }

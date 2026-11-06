@@ -4,7 +4,6 @@ This package contains core infrastructure components:
 - API utilities (decorators, rate limiting, caching)
 - Validation logic
 - Error definitions
-- Access tracking
 """
 
 # Re-export commonly used components for backward compatibility
@@ -24,7 +23,6 @@ from .errors import (
     ComfoClimeTimeoutError,
     ComfoClimeValidationError,
 )
-from .tracking import AccessTracker
 from .validation import (
     validate_byte_value,
     validate_duration,
@@ -38,8 +36,6 @@ __all__ = [
     "DEFAULT_MIN_REQUEST_INTERVAL",
     "DEFAULT_REQUEST_DEBOUNCE",
     "DEFAULT_WRITE_COOLDOWN",
-    # Tracking
-    "AccessTracker",
     "ComfoClimeAPIError",
     "ComfoClimeConnectionError",
     # Errors

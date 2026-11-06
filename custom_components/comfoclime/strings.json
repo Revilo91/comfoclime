@@ -198,29 +198,8 @@
             "hp_hysteresis_cooling": {
                 "name": "HP Hysteresis Cooling"
             },
-            "dashboard_accesses_per_minute": {
-                "name": "Dashboard Accesses per Minute"
-            },
-            "thermalprofile_accesses_per_minute": {
-                "name": "Thermalprofile Accesses per Minute"
-            },
-            "telemetry_accesses_per_minute": {
-                "name": "Telemetry Accesses per Minute"
-            },
-            "property_accesses_per_minute": {
-                "name": "Property Accesses per Minute"
-            },
-            "definition_accesses_per_minute": {
-                "name": "Definition Accesses per Minute"
-            },
-            "dashboard_accesses_per_hour": {
-                "name": "Dashboard Accesses per Hour"
-            },
             "uptime": {
                 "name": "Uptime"
-            },
-            "thermalprofile_accesses_per_hour": {
-                "name": "Thermalprofile Accesses per Hour"
             },
             "cooling_knee_point_temperature": {
                 "name": "Cooling Knee Point Temperature"
@@ -237,21 +216,6 @@
             "heating_threshold_temperature": {
                 "name": "Heating Threshold Temperature"
             },
-            "telemetry_accesses_per_hour": {
-                "name": "Telemetry Accesses per Hour"
-            },
-            "property_accesses_per_hour": {
-                "name": "Property Accesses per Hour"
-            },
-            "definition_accesses_per_hour": {
-                "name": "Definition Accesses per Hour"
-            },
-            "monitoring_accesses_per_minute": {
-                "name": "Monitoring Accesses per Minute"
-            },
-            "monitoring_accesses_per_hour": {
-                "name": "Monitoring Accesses per Hour"
-            },
             "thermal_manual_temperature": {
                 "name": "Thermal Manual Temperature"
             },
@@ -266,12 +230,6 @@
             },
             "thermal_temperature_status": {
                 "name": "Thermal Temperature Status"
-            },
-            "total_api_accesses_per_minute": {
-                "name": "Total API Accesses per Minute"
-            },
-            "total_api_accesses_per_hour": {
-                "name": "Total API Accesses per Hour"
             },
             "heating_comfort_temperature": {
                 "name": "Heating Comfort Temperature"
