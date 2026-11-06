@@ -1,11 +1,24 @@
-"""Tests for the version 1 -> 2 config entry migration.
+"""Tests for the config entry migrations.
 
 Version 1 stored per-entity selection in the entry options. Version 2 hands
 that job to the entity registry. The translation has to be exact in both
 directions: an entity the user had switched off must end up disabled, and an
 entity they kept must be left alone.
+
+Version 2.2 adds the device UUID to the unique IDs of bus-device entities, so
+two devices of the same model no longer collide. Existing registry entries are
+renamed in place to keep history, names and areas.
 """
 
+import logging
+
+import pytest
+from homeassistant.helpers import device_registry as dr, entity_registry as er
+from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+from custom_components.comfoclime import async_migrate_entry
+from custom_components.comfoclime.config_flow import ComfoClimeConfigFlow
+from custom_components.comfoclime.constants import DOMAIN
 from custom_components.comfoclime.entities.number_definitions import NUMBER_ENTITIES
 from custom_components.comfoclime.entities.sensor_definitions import (
     CONNECTED_DEVICE_SENSORS,
@@ -13,7 +26,9 @@ from custom_components.comfoclime.entities.sensor_definitions import (
 )
 from custom_components.comfoclime.entities.switch_definitions import SWITCHES
 from custom_components.comfoclime.migration import (
+    async_migrate_bus_device_unique_ids,
     build_option_id_map,
+    legacy_bus_id_rewriter,
     matches,
     unique_ids_to_disable,
 )
@@ -114,3 +129,245 @@ def test_matches_is_exact_for_plain_ids():
 
     assert matches(f"{ENTRY_ID}_telemetry_419", patterns)
     assert not matches(f"{ENTRY_ID}_telemetry_4193", patterns)
+
+
+# ---------------------------------------------------------------------------
+# Version 2.1 -> 2.2: device UUID in the unique IDs of bus-device entities
+# ---------------------------------------------------------------------------
+
+AIR_UUID = "DEM9876543210"
+CLIME_UUID = "SIT0123456789"
+
+
+class TestLegacyBusIdRewriter:
+    """The pure matching part: which old IDs are rewritten, and into what."""
+
+    @pytest.mark.parametrize(
+        ("domain", "old", "new"),
+        [
+            ("sensor", f"{ENTRY_ID}_telemetry_117", f"{ENTRY_ID}_telemetry_{AIR_UUID}_117"),
+            ("sensor", f"{ENTRY_ID}_property_1_1_4", f"{ENTRY_ID}_property_{AIR_UUID}_1_1_4"),
+            ("number", f"{ENTRY_ID}_property_number_29_1_10", f"{ENTRY_ID}_property_number_{AIR_UUID}_29_1_10"),
+            ("select", f"{ENTRY_ID}_select_29_1_15", f"{ENTRY_ID}_select_{AIR_UUID}_29_1_15"),
+        ],
+    )
+    def test_old_patterns_are_rewritten(self, domain, old, new):
+        rewrite = legacy_bus_id_rewriter(ENTRY_ID, domain, old)
+        assert rewrite is not None
+        assert rewrite(AIR_UUID) == new
+
+    @pytest.mark.parametrize(
+        ("domain", "unique_id"),
+        [
+            # Main-device entities never had the collision problem.
+            ("climate", f"{ENTRY_ID}_climate"),
+            ("fan", f"{ENTRY_ID}_fan_speed"),
+            ("switch", f"{ENTRY_ID}_switch_season.status"),
+            ("select", f"{ENTRY_ID}_select_temperatureProfile"),
+            ("number", f"{ENTRY_ID}_temperature.manualTemperature"),
+            ("sensor", f"{ENTRY_ID}_dashboard_indoorTemperature"),
+            ("sensor", f"{ENTRY_ID}_definition_{AIR_UUID}_indoorTemperature"),
+            # Already migrated: must not match again (idempotency).
+            ("sensor", f"{ENTRY_ID}_telemetry_{AIR_UUID}_117"),
+            ("sensor", f"{ENTRY_ID}_property_{AIR_UUID}_1_1_4"),
+            ("number", f"{ENTRY_ID}_property_number_{AIR_UUID}_29_1_10"),
+            ("select", f"{ENTRY_ID}_select_{AIR_UUID}_29_1_15"),
+            # Right shape, wrong platform or wrong entry.
+            ("sensor", f"{ENTRY_ID}_select_29_1_15"),
+            ("number", f"{ENTRY_ID}_telemetry_117"),
+            ("sensor", "other_entry_telemetry_117"),
+        ],
+    )
+    def test_everything_else_is_left_alone(self, domain, unique_id):
+        assert legacy_bus_id_rewriter(ENTRY_ID, domain, unique_id) is None
+
+
+@pytest.fixture
+def config_entry(hass):
+    entry = MockConfigEntry(domain=DOMAIN, data={"host": "192.168.1.100"}, version=2, minor_version=1)
+    entry.add_to_hass(hass)
+    return entry
+
+
+def _device(hass, entry, uuid):
+    return dr.async_get(hass).async_get_or_create(config_entry_id=entry.entry_id, identifiers={(DOMAIN, uuid)})
+
+
+def _entity(hass, entry, domain, unique_id, device=None):
+    return er.async_get(hass).async_get_or_create(
+        domain, DOMAIN, unique_id, config_entry=entry, device_id=device.id if device else None
+    )
+
+
+class TestMigrateBusDeviceUniqueIds:
+    """The registry-facing part, against real registries."""
+
+    async def test_each_old_pattern_gets_its_devices_uuid(self, hass, config_entry):
+        eid = config_entry.entry_id
+        air = _device(hass, config_entry, AIR_UUID)
+        clime = _device(hass, config_entry, CLIME_UUID)
+        telemetry = _entity(hass, config_entry, "sensor", f"{eid}_telemetry_4145", clime)
+        prop = _entity(hass, config_entry, "sensor", f"{eid}_property_1_1_4", air)
+        number = _entity(hass, config_entry, "number", f"{eid}_property_number_29_1_10", air)
+        select = _entity(hass, config_entry, "select", f"{eid}_select_29_1_15", air)
+
+        assert await async_migrate_bus_device_unique_ids(hass, eid) == 4
+
+        registry = er.async_get(hass)
+        assert registry.async_get(telemetry.entity_id).unique_id == f"{eid}_telemetry_{CLIME_UUID}_4145"
+        assert registry.async_get(prop.entity_id).unique_id == f"{eid}_property_{AIR_UUID}_1_1_4"
+        assert registry.async_get(number.entity_id).unique_id == f"{eid}_property_number_{AIR_UUID}_29_1_10"
+        assert registry.async_get(select.entity_id).unique_id == f"{eid}_select_{AIR_UUID}_29_1_15"
+
+    async def test_entity_id_and_customisations_survive(self, hass, config_entry):
+        """The point of migrating instead of recreating: history and names stay."""
+        eid = config_entry.entry_id
+        air = _device(hass, config_entry, AIR_UUID)
+        entity = _entity(hass, config_entry, "sensor", f"{eid}_telemetry_117", air)
+        registry = er.async_get(hass)
+        registry.async_update_entity(entity.entity_id, name="Abluft-Lüfter", area_id="keller")
+
+        await async_migrate_bus_device_unique_ids(hass, eid)
+
+        migrated = registry.async_get(entity.entity_id)
+        assert migrated.id == entity.id
+        assert migrated.name == "Abluft-Lüfter"
+        assert migrated.area_id == "keller"
+
+    async def test_main_device_entities_are_untouched(self, hass, config_entry):
+        eid = config_entry.entry_id
+        clime = _device(hass, config_entry, CLIME_UUID)
+        unchanged = {
+            _entity(hass, config_entry, "climate", f"{eid}_climate", clime).entity_id: f"{eid}_climate",
+            _entity(hass, config_entry, "switch", f"{eid}_switch_season.status", clime).entity_id: (
+                f"{eid}_switch_season.status"
+            ),
+            _entity(hass, config_entry, "select", f"{eid}_select_temperatureProfile", clime).entity_id: (
+                f"{eid}_select_temperatureProfile"
+            ),
+        }
+
+        assert await async_migrate_bus_device_unique_ids(hass, eid) == 0
+
+        registry = er.async_get(hass)
+        for entity_id, unique_id in unchanged.items():
+            assert registry.async_get(entity_id).unique_id == unique_id
+
+    async def test_entity_without_device_is_left_alone(self, hass, config_entry, caplog):
+        eid = config_entry.entry_id
+        orphan = _entity(hass, config_entry, "sensor", f"{eid}_telemetry_117")
+
+        with caplog.at_level(logging.WARNING):
+            assert await async_migrate_bus_device_unique_ids(hass, eid) == 0
+
+        assert er.async_get(hass).async_get(orphan.entity_id).unique_id == f"{eid}_telemetry_117"
+        assert orphan.entity_id in caplog.text
+
+    async def test_device_without_comfoclime_identifier_is_left_alone(self, hass, config_entry, caplog):
+        eid = config_entry.entry_id
+        foreign = dr.async_get(hass).async_get_or_create(config_entry_id=eid, identifiers={("other_domain", AIR_UUID)})
+        entity = _entity(hass, config_entry, "sensor", f"{eid}_telemetry_117", foreign)
+
+        with caplog.at_level(logging.WARNING):
+            assert await async_migrate_bus_device_unique_ids(hass, eid) == 0
+
+        assert er.async_get(hass).async_get(entity.entity_id).unique_id == f"{eid}_telemetry_117"
+        assert entity.entity_id in caplog.text
+
+    async def test_collision_is_skipped_not_raised(self, hass, config_entry, caplog):
+        """If the new ID is already taken, keep both entities as they are."""
+        eid = config_entry.entry_id
+        air = _device(hass, config_entry, AIR_UUID)
+        old = _entity(hass, config_entry, "sensor", f"{eid}_telemetry_117", air)
+        new = _entity(hass, config_entry, "sensor", f"{eid}_telemetry_{AIR_UUID}_117", air)
+
+        with caplog.at_level(logging.WARNING):
+            assert await async_migrate_bus_device_unique_ids(hass, eid) == 0
+
+        registry = er.async_get(hass)
+        assert registry.async_get(old.entity_id).unique_id == f"{eid}_telemetry_117"
+        assert registry.async_get(new.entity_id).unique_id == f"{eid}_telemetry_{AIR_UUID}_117"
+        assert old.entity_id in caplog.text
+
+    async def test_second_run_is_a_noop(self, hass, config_entry):
+        eid = config_entry.entry_id
+        air = _device(hass, config_entry, AIR_UUID)
+        entity = _entity(hass, config_entry, "sensor", f"{eid}_telemetry_117", air)
+
+        assert await async_migrate_bus_device_unique_ids(hass, eid) == 1
+        assert await async_migrate_bus_device_unique_ids(hass, eid) == 0
+
+        assert er.async_get(hass).async_get(entity.entity_id).unique_id == f"{eid}_telemetry_{AIR_UUID}_117"
+
+    async def test_other_config_entries_are_not_touched(self, hass, config_entry):
+        other = MockConfigEntry(domain=DOMAIN, data={"host": "192.168.1.101"}, version=2, minor_version=1)
+        other.add_to_hass(hass)
+        air = _device(hass, other, AIR_UUID)
+        foreign = _entity(hass, other, "sensor", f"{other.entry_id}_telemetry_117", air)
+
+        assert await async_migrate_bus_device_unique_ids(hass, config_entry.entry_id) == 0
+
+        assert er.async_get(hass).async_get(foreign.entity_id).unique_id == f"{other.entry_id}_telemetry_117"
+
+
+# ---------------------------------------------------------------------------
+# async_migrate_entry: the version chain
+# ---------------------------------------------------------------------------
+
+
+def _registry_entity(hass, entry, domain, unique_id, device_uuid):
+    """Create a real registry entry attached to a ComfoClime device."""
+    device = dr.async_get(hass).async_get_or_create(config_entry_id=entry.entry_id, identifiers={(DOMAIN, device_uuid)})
+    return er.async_get(hass).async_get_or_create(domain, DOMAIN, unique_id, config_entry=entry, device_id=device.id)
+
+
+async def test_async_migrate_entry_2_1_adds_device_uuid_to_unique_ids(hass):
+    """2.1 -> 2.2 renames bus-device unique IDs in place and bumps the minor version."""
+    entry = MockConfigEntry(domain=DOMAIN, data={"host": "1.2.3.4"}, version=2, minor_version=1)
+    entry.add_to_hass(hass)
+    entity = _registry_entity(hass, entry, "sensor", f"{entry.entry_id}_telemetry_117", AIR_UUID)
+
+    assert await async_migrate_entry(hass, entry) is True
+
+    assert (entry.version, entry.minor_version) == (2, 2)
+    migrated = er.async_get(hass).async_get(entity.entity_id)
+    assert migrated.unique_id == f"{entry.entry_id}_telemetry_{AIR_UUID}_117"
+
+
+async def test_async_migrate_entry_1_chains_through_to_2_2(hass):
+    """A version 1 entry gets both migrations, in order, and ends at 2.2."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={"host": "1.2.3.4"},
+        options={"enabled_connected_device_telemetry": [], "polling_interval": 45},
+        version=1,
+    )
+    entry.add_to_hass(hass)
+    entity = _registry_entity(hass, entry, "sensor", f"{entry.entry_id}_telemetry_117", AIR_UUID)
+
+    assert await async_migrate_entry(hass, entry) is True
+
+    assert (entry.version, entry.minor_version) == (2, 2)
+    assert "enabled_connected_device_telemetry" not in entry.options
+    assert entry.options["polling_interval"] == 45
+    migrated = er.async_get(hass).async_get(entity.entity_id)
+    # Disabled by the v1 step (matched on the old ID), then renamed by the 2.2 step.
+    assert migrated.disabled_by is er.RegistryEntryDisabler.INTEGRATION
+    assert migrated.unique_id == f"{entry.entry_id}_telemetry_{AIR_UUID}_117"
+
+
+async def test_async_migrate_entry_at_2_2_does_not_touch_the_registry(hass):
+    """At the current version nothing is rewritten, even IDs that look old."""
+    entry = MockConfigEntry(domain=DOMAIN, data={"host": "1.2.3.4"}, version=2, minor_version=2)
+    entry.add_to_hass(hass)
+    entity = _registry_entity(hass, entry, "sensor", f"{entry.entry_id}_telemetry_117", AIR_UUID)
+
+    assert await async_migrate_entry(hass, entry) is True
+
+    assert (entry.version, entry.minor_version) == (2, 2)
+    assert er.async_get(hass).async_get(entity.entity_id).unique_id == f"{entry.entry_id}_telemetry_117"
+
+
+def test_config_flow_creates_entries_at_2_2():
+    """New entries start at the version the migration chain ends at."""
+    assert (ComfoClimeConfigFlow.VERSION, ComfoClimeConfigFlow.MINOR_VERSION) == (2, 2)

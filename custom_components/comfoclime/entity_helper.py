@@ -47,6 +47,37 @@ def get_device_uuid(device: dict | object) -> str | None:
     return None
 
 
+# Unique IDs of entities that belong to a device on the ComfoNet bus. They embed
+# the device UUID because the bus can carry several devices of the same model
+# (e.g. two ComfoAir Q), whose telemetry IDs and property paths are identical.
+# Defined once here so the platforms and the 2.2 registry migration agree.
+
+
+def _flat_path(path: str) -> str:
+    """Turn a property path ``X/Y/Z`` into the ``X_Y_Z`` form used in unique IDs."""
+    return path.replace("/", "_")
+
+
+def telemetry_unique_id(entry_id: str, device_uuid: str, telemetry_id: str | int) -> str:
+    """Return the unique ID of a bus device's telemetry sensor."""
+    return f"{entry_id}_telemetry_{device_uuid}_{telemetry_id}"
+
+
+def property_sensor_unique_id(entry_id: str, device_uuid: str, path: str) -> str:
+    """Return the unique ID of a bus device's property sensor."""
+    return f"{entry_id}_property_{device_uuid}_{_flat_path(path)}"
+
+
+def property_number_unique_id(entry_id: str, device_uuid: str, path: str) -> str:
+    """Return the unique ID of a bus device's property number."""
+    return f"{entry_id}_property_number_{device_uuid}_{_flat_path(path)}"
+
+
+def property_select_unique_id(entry_id: str, device_uuid: str, path: str) -> str:
+    """Return the unique ID of a bus device's property select."""
+    return f"{entry_id}_select_{device_uuid}_{_flat_path(path)}"
+
+
 def get_device_info_fields(device: dict | object) -> dict[str, str | None]:
     """Return the descriptive DeviceInfo fields shared by entities and setup.
 

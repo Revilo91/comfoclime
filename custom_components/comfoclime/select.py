@@ -31,6 +31,7 @@ from .entity_base import ComfoClimeBaseEntity
 from .entity_helper import (
     get_device_model_type_id,
     get_device_uuid,
+    property_select_unique_id,
 )
 from .models import DeviceConfig, PropertyWriteRequest
 
@@ -185,11 +186,11 @@ class ComfoClimePropertySelect(ComfoClimeBaseEntity, CoordinatorEntity, SelectEn
         self._device = device
         self._entry = entry
         self._path = conf.path
+        self._device_uuid = device_uuid or get_device_uuid(device)
         self._attr_config_entry_id = entry.entry_id
-        self._attr_unique_id = f"{entry.entry_id}_select_{conf.path.replace('/', '_')}"
+        self._attr_unique_id = property_select_unique_id(entry.entry_id, self._device_uuid, conf.path)
         self._attr_translation_key = conf.translation_key
         self._attr_has_entity_name = True
-        self._device_uuid = device_uuid or get_device_uuid(device)
 
     async def _async_register_data_source(self) -> None:
         """Start polling this property now that the entity is live."""

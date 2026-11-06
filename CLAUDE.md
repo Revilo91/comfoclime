@@ -80,7 +80,10 @@ __init__.py (async_setup_entry / async_unload_entry / Service-Registrierung)
   prüft `RateLimiterCache` den Cache.
 - **Batch-Koordinatoren**: `TelemetryCoordinator` und `PropertyCoordinator` bündeln die Requests
   aller registrierten Entities in einem Update-Zyklus, um die Last auf dem Gerät zu minimieren.
-- **Eindeutige Entity-IDs**: `f"{entry.entry_id}_<type>_<id>"`.
+- **Eindeutige Entity-IDs**: `f"{entry.entry_id}_<type>_<id>"`. Entities eines Bus-Geräts
+  (Telemetrie, Property-Sensor/-Number/-Select) enthalten zusätzlich die Geräte-UUID
+  (`…_telemetry_<uuid>_<id>`), damit zwei Geräte desselben Modells nicht kollidieren – Formate
+  ausschließlich über die Helper in `entity_helper.py` bauen.
 - **Property-Pfad-Format**: `"X/Y/Z"` (z. B. `29/1/10`), wird in die PUT-URL übersetzt.
 - **Pydantic v2 überall**: `model_config = {"frozen": True}` für unveränderliche Modelle,
   `ValidationError` statt `ValueError`, Field-Aliase für camelCase (API) ↔ snake_case (Python).
@@ -182,9 +185,11 @@ geloggt und per Test (`tests/test_entity_defaults.py`) abgefangen.
 
 ### Migration bestehender Einträge
 
-Config-Entry-Version **2**. `async_migrate_entry()` (in `__init__.py`, Mapping in `migration.py`)
-übersetzt die alten Auswahllisten einmalig in Registry-Zustand: abgewählte Entities werden
-*deaktiviert*, nicht gelöscht. Danach werden die `enabled_*`-Keys entfernt. `migration.py` ist
+Config-Entry-Version **2.2** (`VERSION`/`MINOR_VERSION`). `async_migrate_entry()` (in `__init__.py`,
+Mapping in `migration.py`) übersetzt die alten Auswahllisten einmalig in Registry-Zustand:
+abgewählte Entities werden *deaktiviert*, nicht gelöscht. Danach werden die `enabled_*`-Keys
+entfernt. Schritt 2.1 → 2.2 benennt die Unique-IDs der Bus-Geräte-Entities in der Registry um
+(Geräte-UUID ergänzt, Verlauf/Namen/Bereiche bleiben erhalten). `migration.py` ist
 bewusst Wegwerf-Code und kann entfallen, sobald keine v1-Einträge mehr existieren.
 
 ## 7. Szenario-Modi (Climate-Presets)

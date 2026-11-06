@@ -14,6 +14,10 @@ from custom_components.comfoclime.entity_helper import (
     get_device_model_type_id,
     get_device_uuid,
     get_device_version,
+    property_number_unique_id,
+    property_select_unique_id,
+    property_sensor_unique_id,
+    telemetry_unique_id,
 )
 from custom_components.comfoclime.models import DeviceConfig
 
@@ -87,3 +91,33 @@ def test_friendly_model_name_handles_unknown_and_junk():
     assert _friendly_model_name("20") == "ComfoClime"
     assert _friendly_model_name("NULL") == "Model NULL"
     assert _friendly_model_name(None) == "Unknown Model"
+
+
+class TestBusDeviceUniqueIds:
+    """Unique IDs of per-bus-device entities must embed the device UUID.
+
+    Without it, two devices of the same model (e.g. two ComfoAir Q) would
+    produce identical unique IDs and Home Assistant would drop the second one.
+    """
+
+    def test_telemetry(self):
+        assert telemetry_unique_id("entry", "UUID1", 4145) == "entry_telemetry_UUID1_4145"
+        assert telemetry_unique_id("entry", "UUID1", "4145") == "entry_telemetry_UUID1_4145"
+
+    def test_property_sensor(self):
+        assert property_sensor_unique_id("entry", "UUID1", "29/1/10") == "entry_property_UUID1_29_1_10"
+
+    def test_property_number(self):
+        assert property_number_unique_id("entry", "UUID1", "29/1/10") == "entry_property_number_UUID1_29_1_10"
+
+    def test_property_select(self):
+        assert property_select_unique_id("entry", "UUID1", "29/1/10") == "entry_select_UUID1_29_1_10"
+
+    def test_same_model_on_two_devices_does_not_collide(self):
+        for build, key in (
+            (telemetry_unique_id, 117),
+            (property_sensor_unique_id, "1/1/4"),
+            (property_number_unique_id, "1/1/4"),
+            (property_select_unique_id, "1/1/4"),
+        ):
+            assert build("entry", "AIR-A", key) != build("entry", "AIR-B", key)

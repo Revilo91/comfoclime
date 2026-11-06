@@ -33,8 +33,10 @@ _LOGGER = logging.getLogger(__name__)
 
 
 # Config entry version. Bumped to 2 when per-entity selection moved out of
-# the options and into the entity registry; see async_migrate_entry.
+# the options and into the entity registry; minor 2 added the device UUID to
+# bus-device unique IDs. See async_migrate_entry.
 CONFIG_ENTRY_VERSION = 2
+CONFIG_ENTRY_MINOR_VERSION = 2
 
 DEFAULT_READ_TIMEOUT = API_DEFAULTS.READ_TIMEOUT
 DEFAULT_WRITE_TIMEOUT = API_DEFAULTS.WRITE_TIMEOUT
@@ -108,6 +110,7 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for the ComfoClime integration."""
 
     VERSION = CONFIG_ENTRY_VERSION
+    MINOR_VERSION = CONFIG_ENTRY_MINOR_VERSION
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Ask for the host and validate that a ComfoClime answers there."""
