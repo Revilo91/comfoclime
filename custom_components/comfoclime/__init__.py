@@ -20,6 +20,7 @@ from homeassistant.helpers import config_validation as cv, device_registry as dr
 
 from .comfoclime_api import ComfoClimeAPI
 from .config_flow import CONFIG_ENTRY_VERSION, DEFAULT_OPTIONS, LEGACY_ENTITY_OPTION_KEYS
+from .constants import DOMAIN
 from .coordinator import (
     ComfoClimeDashboardCoordinator,
     ComfoClimeDefinitionCoordinator,
@@ -37,7 +38,6 @@ if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
 
-DOMAIN = "comfoclime"
 PLATFORMS = ["sensor", "switch", "number", "select", "fan", "climate"]
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)

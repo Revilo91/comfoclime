@@ -21,7 +21,7 @@ from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.service import async_register_platform_entity_service
 
-from .constants import ScenarioMode
+from .constants import DOMAIN, ScenarioMode
 from .infrastructure import validate_byte_value, validate_duration, validate_property_path
 from .models import PropertyWriteRequest
 
@@ -30,7 +30,6 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
-DOMAIN = "comfoclime"
 
 START_DELAY_FORMAT = "%Y-%m-%d %H:%M:%S"
 
