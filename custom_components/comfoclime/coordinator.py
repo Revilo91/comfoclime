@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from .comfoclime_api import ComfoClimeAPI
     from .models import DashboardData, DeviceDefinitionData, MonitoringPing, ThermalProfileData
 
-from .constants import API_DEFAULTS
+from .constants import API_DEFAULTS, DOMAIN
 from .models import PropertyRegistryEntry, TelemetryRegistryEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -90,7 +90,11 @@ class ComfoClimeBaseCoordinator(DataUpdateCoordinator):
             return result
         except (TimeoutError, aiohttp.ClientError) as e:
             _LOGGER.warning("Error fetching %s data: %s", self._coordinator_name, e)
-            raise UpdateFailed(f"Error fetching {self._coordinator_name} data: {e}") from e
+            raise UpdateFailed(
+                translation_domain=DOMAIN,
+                translation_key="update_failed",
+                translation_placeholders={"name": self._coordinator_name, "error": str(e)},
+            ) from e
 
 
 class ComfoClimeDashboardCoordinator(ComfoClimeBaseCoordinator):

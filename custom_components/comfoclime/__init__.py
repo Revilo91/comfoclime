@@ -216,7 +216,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ComfoClimeConfigEntry) -
             err,
         )
         await api.close()
-        raise ConfigEntryNotReady(f"Unable to connect to ComfoClime device at {host}: {err}") from err
+        raise ConfigEntryNotReady(
+            translation_domain=DOMAIN,
+            translation_key="cannot_connect",
+            translation_placeholders={"host": host, "error": str(err)},
+        ) from err
 
     # Create Dashboard-Coordinator
     dashboard_coordinator = ComfoClimeDashboardCoordinator(hass, api, dashboard_interval, config_entry=entry)
@@ -283,7 +287,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ComfoClimeConfigEntry) -
             if isinstance(result, asyncio.CancelledError):
                 raise result
             _LOGGER.error("Coordinator %s first refresh failed: %s", name, result)
-            raise ConfigEntryNotReady(f"Failed to initialize {name} coordinator: {result}") from result
+            raise ConfigEntryNotReady(
+                translation_domain=DOMAIN,
+                translation_key="coordinator_init_failed",
+                translation_placeholders={"name": name, "error": str(result)},
+            ) from result
 
     _LOGGER.debug("Coordinator first refresh completed successfully")
 

@@ -6,6 +6,8 @@ from enum import IntEnum
 
 from pydantic import BaseModel, Field
 
+DOMAIN = "comfoclime"
+
 
 class ScenarioMode(IntEnum):
     """Scenario modes supported by ComfoClime.

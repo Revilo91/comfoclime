@@ -10,6 +10,7 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .constants import DOMAIN
 from .entities.switch_definitions import SWITCHES
 from .entity_base import ComfoClimeBaseEntity
 
@@ -148,7 +149,11 @@ class ComfoClimeSwitch(ComfoClimeBaseEntity, CoordinatorEntity, SwitchEntity):
                 await self._set_dashboard_status(value)
         except TimeoutError, aiohttp.ClientError:
             _LOGGER.exception("Error setting switch %s", self._name)
-            raise HomeAssistantError(f"Error setting {self._name}") from None
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="set_value_failed",
+                translation_placeholders={"name": self._name},
+            ) from None
 
     async def _set_thermal_profile_status(self, value: int) -> None:
         """Set thermal profile switch status via API."""

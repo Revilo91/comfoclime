@@ -65,7 +65,7 @@ if TYPE_CHECKING:
     )
     from .runtime_data import ComfoClimeConfigEntry
 
-from .constants import FanSpeed, ScenarioMode, Season, TemperatureProfile
+from .constants import DOMAIN, FanSpeed, ScenarioMode, Season, TemperatureProfile
 from .entity_base import ComfoClimeBaseEntity
 from .models import DashboardUpdate, DeviceConfig
 
@@ -689,12 +689,18 @@ class ComfoClimeClimate(ComfoClimeBaseEntity, CoordinatorEntity, ClimateEntity):
         """
         if scenario not in SCENARIO_REVERSE_MAPPING:
             raise ServiceValidationError(
-                f"Unknown scenario mode '{scenario}'. Valid values: {', '.join(SCENARIO_REVERSE_MAPPING)}"
+                translation_domain=DOMAIN,
+                translation_key="unknown_scenario_mode",
+                translation_placeholders={"scenario": scenario, "valid_values": ", ".join(SCENARIO_REVERSE_MAPPING)},
             )
         try:
             await self._async_activate_scenario(scenario, duration, start_delay)
         except (TimeoutError, aiohttp.ClientError, ValueError, KeyError, TypeError) as err:
-            raise HomeAssistantError(f"Failed to set scenario mode '{scenario}'") from err
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="scenario_mode_failed",
+                translation_placeholders={"scenario": scenario},
+            ) from err
 
     async def _async_activate_scenario(
         self,

@@ -6,9 +6,11 @@ definition, and the translation key that gives the entity its name. Both are
 easy to get wrong silently, so both are checked exhaustively here.
 """
 
+import ast
 import importlib
 import json
 import pathlib
+import re
 
 import pytest
 
@@ -168,6 +170,70 @@ class TestTranslationCompleteness:
             wanted = {definition.translation_key for definition in definitions}
             orphaned = sorted(set(section.get(platform, {})) - wanted)
             assert not orphaned, f"{language}.json has unused entity.{platform} entries {orphaned}"
+
+
+EXCEPTION_CLASSES = {"HomeAssistantError", "ServiceValidationError", "ConfigEntryNotReady", "UpdateFailed"}
+COMPONENT_DIR = pathlib.Path("custom_components/comfoclime")
+
+
+def _raised_translation_keys() -> dict[str, list[tuple[str, set[str]]]]:
+    """Map every translation_key passed to a raised HA exception to (raise site, placeholder names)."""
+    found: dict[str, list[tuple[str, set[str]]]] = {}
+    for path in sorted(COMPONENT_DIR.rglob("*.py")):
+        for node in ast.walk(ast.parse(path.read_text())):
+            if not isinstance(node, ast.Raise) or not isinstance(node.exc, ast.Call):
+                continue
+            func = node.exc.func
+            name = func.id if isinstance(func, ast.Name) else getattr(func, "attr", "")
+            if name not in EXCEPTION_CLASSES:
+                continue
+            keywords = {kw.arg: kw.value for kw in node.exc.keywords}
+            key = keywords.get("translation_key")
+            site = f"{path}:{node.lineno}"
+            assert isinstance(key, ast.Constant), f"{site}: {name} needs a literal translation_key"
+            domain = keywords.get("translation_domain")
+            assert domain is not None, f"{site}: {name} sets translation_key without translation_domain"
+            assert not node.exc.args, f"{site}: {name} must not carry a hardcoded message"
+            placeholders = keywords.get("translation_placeholders")
+            names = (
+                {k.value for k in placeholders.keys if isinstance(k, ast.Constant)}
+                if isinstance(placeholders, ast.Dict)
+                else set()
+            )
+            found.setdefault(key.value, []).append((site, names))
+    return found
+
+
+@pytest.mark.parametrize("language", ["en", "de"])
+class TestExceptionTranslations:
+    """Every raised exception needs a translated message, and no message may be unused."""
+
+    @staticmethod
+    def _exceptions_section(language: str) -> dict:
+        return json.loads((TRANSLATIONS_DIR / f"{language}.json").read_text()).get("exceptions", {})
+
+    def test_raise_sites_are_translated(self, language):
+        raised = _raised_translation_keys()
+        assert raised, "expected the integration to raise translated exceptions"
+        missing = sorted(set(raised) - set(self._exceptions_section(language)))
+        assert not missing, f"{language}.json has no exceptions entry for {missing}"
+
+    def test_no_orphaned_exception_keys(self, language):
+        orphaned = sorted(set(self._exceptions_section(language)) - set(_raised_translation_keys()))
+        assert not orphaned, f"{language}.json has unused exceptions entries {orphaned}"
+
+    def test_placeholders_match_message(self, language):
+        section = self._exceptions_section(language)
+        for key, sites in _raised_translation_keys().items():
+            message = section.get(key, {}).get("message", "")
+            assert message, f"{language}.json exceptions.{key} has no message"
+            in_message = set(re.findall(r"\{(\w+)\}", message))
+            for site, passed in sites:
+                assert passed == in_message, f"{site}: placeholders {passed} != {in_message} in {language}.json {key}"
+
+
+def test_strings_json_matches_english_translation():
+    assert (COMPONENT_DIR / "strings.json").read_text() == (TRANSLATIONS_DIR / "en.json").read_text()
 
 
 @pytest.mark.parametrize("language", ["en", "de"])

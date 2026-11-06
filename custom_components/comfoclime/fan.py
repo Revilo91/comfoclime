@@ -44,7 +44,7 @@ if TYPE_CHECKING:
     from .coordinator import ComfoClimeDashboardCoordinator
     from .runtime_data import ComfoClimeConfigEntry
 
-from .constants import FanSpeed
+from .constants import DOMAIN, FanSpeed
 from .entity_base import ComfoClimeBaseEntity
 from .models import DashboardUpdate, DeviceConfig
 
@@ -101,7 +101,11 @@ class ComfoClimeFan(ComfoClimeBaseEntity, CoordinatorEntity, FanEntity):
             self._hass.async_create_task(self._safe_refresh(self.coordinator, "fan"))
         except (TimeoutError, aiohttp.ClientError) as err:
             _LOGGER.exception("Error setting fan speed")
-            raise HomeAssistantError(f"Failed to set fan speed: {err}") from err
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="fan_speed_failed",
+                translation_placeholders={"error": str(err)},
+            ) from err
 
     def _handle_coordinator_update(self) -> None:
         try:

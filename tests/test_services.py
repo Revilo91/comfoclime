@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import homeassistant.helpers.config_validation as cv
 import pytest
 import voluptuous as vol
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 
 from custom_components.comfoclime.services import (
     DOMAIN,
@@ -84,20 +85,18 @@ def test_get_any_api_queries_loaded_entries_of_domain():
 
 def test_get_any_api_raises_when_no_entry_loaded():
     """_get_any_api raises HomeAssistantError when no entries are loaded."""
-    from homeassistant.exceptions import HomeAssistantError
-
     hass = _make_hass({})
-    with pytest.raises(HomeAssistantError):
+    with pytest.raises(HomeAssistantError) as exc_info:
         _get_any_api(hass, DOMAIN)
+    assert exc_info.value.translation_key == "no_entry_loaded"
 
 
 def test_get_any_api_raises_for_other_domain():
     """_get_any_api raises HomeAssistantError when nothing of the domain is loaded."""
-    from homeassistant.exceptions import HomeAssistantError
-
     hass = _make_hass({"entry1": _make_api()})
-    with pytest.raises(HomeAssistantError):
+    with pytest.raises(HomeAssistantError) as exc_info:
         _get_any_api(hass, "other_domain")
+    assert exc_info.value.translation_key == "no_entry_loaded"
 
 
 # ---------------------------------------------------------------------------
@@ -116,12 +115,11 @@ def test_get_api_for_device_matches_config_entry():
 
 def test_get_api_for_device_raises_when_no_matching_entry():
     """_get_api_for_device raises HomeAssistantError when entry is not loaded."""
-    from homeassistant.exceptions import HomeAssistantError
-
     hass = _make_hass({"entry2": _make_api()})
     device = _make_device(entry_id="entry1")  # entry1 is not in domain data
-    with pytest.raises(HomeAssistantError):
+    with pytest.raises(HomeAssistantError) as exc_info:
         _get_api_for_device(hass, DOMAIN, device)
+    assert exc_info.value.translation_key == "device_entry_not_loaded"
 
 
 # ---------------------------------------------------------------------------
@@ -192,8 +190,6 @@ async def test_set_property_calls_api():
 @pytest.mark.asyncio
 async def test_set_property_invalid_path_raises():
     """set_property handler raises HomeAssistantError for an invalid path."""
-    from homeassistant.exceptions import HomeAssistantError
-
     hass = _make_hass({"entry1": _make_api()})
     call = MagicMock()
     call.data = {
@@ -208,15 +204,14 @@ async def test_set_property_invalid_path_raises():
     async_setup_services(hass, DOMAIN)
     handler = next(c[0][2] for c in hass.services.async_register.call_args_list if c[0][1] == "set_property")
 
-    with pytest.raises(HomeAssistantError, match="Ungültiger Property-Pfad"):
+    with pytest.raises(ServiceValidationError) as exc_info:
         await handler(call)
+    assert exc_info.value.translation_key == "invalid_property_path"
 
 
 @pytest.mark.asyncio
 async def test_set_property_invalid_byte_count_raises():
     """set_property handler raises HomeAssistantError for byte_count not in (1,2)."""
-    from homeassistant.exceptions import HomeAssistantError
-
     hass = _make_hass({"entry1": _make_api()})
     call = MagicMock()
     call.data = {
@@ -231,15 +226,14 @@ async def test_set_property_invalid_byte_count_raises():
     async_setup_services(hass, DOMAIN)
     handler = next(c[0][2] for c in hass.services.async_register.call_args_list if c[0][1] == "set_property")
 
-    with pytest.raises(HomeAssistantError, match="byte_count"):
+    with pytest.raises(ServiceValidationError) as exc_info:
         await handler(call)
+    assert exc_info.value.translation_key == "invalid_byte_count"
 
 
 @pytest.mark.asyncio
 async def test_set_property_device_not_found_raises():
     """set_property handler raises HomeAssistantError when device is not in registry."""
-    from homeassistant.exceptions import HomeAssistantError
-
     hass = _make_hass({"entry1": _make_api()})
     call = MagicMock()
     call.data = {
@@ -256,15 +250,14 @@ async def test_set_property_device_not_found_raises():
 
     with patch("homeassistant.helpers.device_registry.async_get") as mock_dr:
         mock_dr.return_value.async_get.return_value = None
-        with pytest.raises(HomeAssistantError, match="Gerät nicht gefunden"):
+        with pytest.raises(ServiceValidationError) as exc_info:
             await handler(call)
+    assert exc_info.value.translation_key == "device_not_found"
 
 
 @pytest.mark.asyncio
 async def test_set_property_wrong_domain_raises():
     """set_property handler raises HomeAssistantError when device belongs to other integration."""
-    from homeassistant.exceptions import HomeAssistantError
-
     hass = _make_hass({"entry1": _make_api()})
     call = MagicMock()
     call.data = {
@@ -283,8 +276,9 @@ async def test_set_property_wrong_domain_raises():
 
     with patch("homeassistant.helpers.device_registry.async_get") as mock_dr:
         mock_dr.return_value.async_get.return_value = device
-        with pytest.raises(HomeAssistantError, match="gehört nicht"):
+        with pytest.raises(ServiceValidationError) as exc_info:
             await handler(call)
+    assert exc_info.value.translation_key == "device_wrong_integration"
 
 
 # ---------------------------------------------------------------------------
@@ -309,8 +303,6 @@ async def test_reset_system_calls_api():
 @pytest.mark.asyncio
 async def test_reset_system_no_integration_loaded_raises():
     """reset_system handler raises HomeAssistantError when no entry is loaded."""
-    from homeassistant.exceptions import HomeAssistantError
-
     hass = _make_hass({})
     call = MagicMock()
 
@@ -324,8 +316,6 @@ async def test_reset_system_no_integration_loaded_raises():
 @pytest.mark.asyncio
 async def test_reset_system_propagates_timeout_error():
     """reset_system handler wraps TimeoutError in HomeAssistantError."""
-    from homeassistant.exceptions import HomeAssistantError
-
     api = _make_api()
     api.async_reset_system.side_effect = TimeoutError()
     hass = _make_hass({"entry1": api})
@@ -334,8 +324,9 @@ async def test_reset_system_propagates_timeout_error():
     async_setup_services(hass, DOMAIN)
     handler = next(c[0][2] for c in hass.services.async_register.call_args_list if c[0][1] == "reset_system")
 
-    with pytest.raises(HomeAssistantError, match="Neustart"):
+    with pytest.raises(HomeAssistantError) as exc_info:
         await handler(call)
+    assert exc_info.value.translation_key == "reset_failed"
 
 
 # ---------------------------------------------------------------------------

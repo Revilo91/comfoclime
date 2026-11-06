@@ -457,5 +457,55 @@
                 "selects_connected_device_properties": "Verbundene Geräte - Auswahl-Properties"
             }
         }
+    },
+    "exceptions": {
+        "unknown_scenario_mode": {
+            "message": "Unbekannter Szenario-Modus '{scenario}'. Gültige Werte: {valid_values}."
+        },
+        "scenario_mode_failed": {
+            "message": "Szenario-Modus '{scenario}' konnte nicht gesetzt werden."
+        },
+        "set_value_failed": {
+            "message": "{name} konnte nicht gesetzt werden."
+        },
+        "property_write_failed": {
+            "message": "Property {path} konnte nicht geschrieben werden."
+        },
+        "cannot_connect": {
+            "message": "Verbindung zum ComfoClime-Gerät unter {host} nicht möglich: {error}"
+        },
+        "coordinator_init_failed": {
+            "message": "Der Koordinator {name} konnte nicht initialisiert werden: {error}"
+        },
+        "update_failed": {
+            "message": "Fehler beim Abrufen der Daten für {name}: {error}"
+        },
+        "fan_speed_failed": {
+            "message": "Lüftergeschwindigkeit konnte nicht gesetzt werden: {error}"
+        },
+        "device_entry_not_loaded": {
+            "message": "Für das Gerät wurde keine geladene ComfoClime-Integration gefunden."
+        },
+        "no_entry_loaded": {
+            "message": "Es ist keine ComfoClime-Integration geladen. Bitte zuerst einrichten."
+        },
+        "invalid_property_path": {
+            "message": "Ungültiger Property-Pfad: {error}"
+        },
+        "invalid_byte_count": {
+            "message": "byte_count muss 1 oder 2 sein."
+        },
+        "invalid_value": {
+            "message": "Ungültiger Wert: {error}"
+        },
+        "device_not_found": {
+            "message": "Gerät nicht gefunden oder ungültig."
+        },
+        "device_wrong_integration": {
+            "message": "Das Gerät gehört nicht zur Integration {domain}."
+        },
+        "reset_failed": {
+            "message": "Fehler beim Neustart des Geräts."
+        }
     }
 }

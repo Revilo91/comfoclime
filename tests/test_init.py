@@ -297,8 +297,10 @@ async def test_async_setup_entry_coordinator_first_refresh_failure(
                         mock_def_coord_instance.async_config_entry_first_refresh = AsyncMock()
                         mock_def_coord.return_value = mock_def_coord_instance
 
-                        with pytest.raises(ConfigEntryNotReady, match="monitoring"):
+                        with pytest.raises(ConfigEntryNotReady) as exc_info:
                             await async_setup_entry(mock_hass, mock_config_entry)
+                        assert exc_info.value.translation_key == "coordinator_init_failed"
+                        assert exc_info.value.translation_placeholders["name"] == "monitoring"
 
 
 @pytest.mark.asyncio
@@ -577,8 +579,9 @@ async def test_async_setup_entry_connection_error(mock_hass, mock_config_entry):
         with pytest.raises(ConfigEntryNotReady) as exc_info:
             await async_setup_entry(mock_hass, mock_config_entry)
 
-        # Verify error message contains the host
-        assert "192.168.1.100" in str(exc_info.value)
+        # Verify the translated error carries the host as placeholder
+        assert exc_info.value.translation_key == "cannot_connect"
+        assert exc_info.value.translation_placeholders["host"] == "192.168.1.100"
 
         # Verify API session was closed
         mock_api_instance.close.assert_called_once()
@@ -603,8 +606,9 @@ async def test_async_setup_entry_timeout_error(mock_hass, mock_config_entry):
         with pytest.raises(ConfigEntryNotReady) as exc_info:
             await async_setup_entry(mock_hass, mock_config_entry)
 
-        # Verify error message contains the host
-        assert "192.168.1.100" in str(exc_info.value)
+        # Verify the translated error carries the host as placeholder
+        assert exc_info.value.translation_key == "cannot_connect"
+        assert exc_info.value.translation_placeholders["host"] == "192.168.1.100"
 
         # Verify API session was closed
         mock_api_instance.close.assert_called_once()

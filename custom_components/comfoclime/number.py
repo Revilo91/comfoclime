@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     )
     from .runtime_data import ComfoClimeConfigEntry
 
+from .constants import DOMAIN
 from .entities.number_definitions import (
     CONNECTED_DEVICE_NUMBER_PROPERTIES,
     NUMBER_ENTITIES,
@@ -224,7 +225,11 @@ class ComfoClimeTemperatureNumber(ComfoClimeBaseEntity, CoordinatorEntity, Numbe
             await self.coordinator.async_request_refresh()
         except TimeoutError, aiohttp.ClientError:
             _LOGGER.exception("Error setting number entity %s", self._name)
-            raise HomeAssistantError(f"Error setting {self._name}") from None
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="set_value_failed",
+                translation_placeholders={"name": self._name},
+            ) from None
 
 
 class ComfoClimePropertyNumber(ComfoClimeBaseEntity, CoordinatorEntity, NumberEntity):
@@ -323,4 +328,8 @@ class ComfoClimePropertyNumber(ComfoClimeBaseEntity, CoordinatorEntity, NumberEn
             await self.coordinator.async_request_refresh()
         except TimeoutError, aiohttp.ClientError:
             _LOGGER.exception("Error writing property %s", self._property_path)
-            raise HomeAssistantError(f"Error writing property {self._property_path}") from None
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="property_write_failed",
+                translation_placeholders={"path": self._property_path},
+            ) from None

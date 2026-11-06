@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     )
     from .runtime_data import ComfoClimeConfigEntry
 
+from .constants import DOMAIN
 from .entities.select_definitions import (
     PROPERTY_SELECT_ENTITIES,
     SELECT_ENTITIES,
@@ -154,7 +155,11 @@ class ComfoClimeSelect(ComfoClimeBaseEntity, CoordinatorEntity, SelectEntity):
             self._hass.async_create_task(self._safe_refresh(self.coordinator, "select"))
         except TimeoutError, aiohttp.ClientError:
             _LOGGER.exception("Error setting select %s", self._name)
-            raise HomeAssistantError(f"Error setting {self._name}") from None
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="set_value_failed",
+                translation_placeholders={"name": self._name},
+            ) from None
 
 
 class ComfoClimePropertySelect(ComfoClimeBaseEntity, CoordinatorEntity, SelectEntity):
@@ -242,4 +247,8 @@ class ComfoClimePropertySelect(ComfoClimeBaseEntity, CoordinatorEntity, SelectEn
             await self.coordinator.async_request_refresh()
         except TimeoutError, aiohttp.ClientError:
             _LOGGER.exception("Error setting select %s", self._name)
-            raise HomeAssistantError(f"Error setting {self._name}") from None
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="set_value_failed",
+                translation_placeholders={"name": self._name},
+            ) from None
