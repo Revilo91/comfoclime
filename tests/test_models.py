@@ -1,15 +1,19 @@
 """Tests for data models in models.py"""
 
 from datetime import UTC, datetime, timedelta
+from typing import ClassVar
 
 import pytest
 from pydantic import ValidationError
 
 from custom_components.comfoclime.models import (
+    AlarmsResponse,
     ConnectedDevicesResponse,
     DashboardData,
     DashboardUpdateResponse,
+    DeviceAlarms,
     DeviceConfig,
+    MonitoringHealth,
     MonitoringPing,
     PropertyReading,
     PropertyReadResult,
@@ -1094,3 +1098,157 @@ class TestPropertyWriteResponse:
         response = PropertyWriteResponse()
 
         assert response.status == 200
+
+
+class TestMonitoringHealth:
+    """Tests for MonitoringHealth model (/monitoring/health)."""
+
+    PAYLOAD: ClassVar[dict] = {
+        "total_free_bytes": 96612,
+        "total_allocated_bytes": 133524,
+        "largest_free_block": 44032,
+        "minimum_free_bytes": 40800,
+        "allocated_blocks": 475,
+        "free_blocks": 33,
+        "total_blocks": 508,
+        "up_time_seconds": 213949,
+        "twai_msgs_to_tx": 0,
+        "twai_msgs_to_rx": 0,
+        "twai_tx_error_counter": 0,
+        "twai_rx_error_counter": 0,
+        "twai_tx_failed_count": 37,
+        "twai_rx_missed_count": 0,
+        "twai_rx_overrun_count": 0,
+        "twai_arb_lost_count": 4437,
+        "twai_bus_error_count": 0,
+        "open_sockets": [58, 59],
+    }
+
+    def test_parses_all_fields(self):
+        health = MonitoringHealth(**self.PAYLOAD)
+
+        assert health.total_free_bytes == 96612
+        assert health.largest_free_block == 44032
+        assert health.minimum_free_bytes == 40800
+        assert health.twai_arb_lost_count == 4437
+        assert health.twai_tx_failed_count == 37
+        assert health.twai_bus_error_count == 0
+        assert health.open_sockets == [58, 59]
+
+    def test_open_socket_count(self):
+        assert MonitoringHealth(**self.PAYLOAD).open_socket_count == 2
+
+    def test_empty_payload_uses_none_defaults(self):
+        health = MonitoringHealth()
+
+        assert health.total_free_bytes is None
+        assert health.twai_arb_lost_count is None
+        assert health.open_sockets == []
+        assert health.open_socket_count == 0
+
+    def test_unknown_fields_are_preserved(self):
+        health = MonitoringHealth(**self.PAYLOAD, future_field=7)
+
+        assert health.model_extra == {"future_field": 7}
+
+    def test_rejects_non_numeric_counter(self):
+        with pytest.raises(ValidationError):
+            MonitoringHealth(total_free_bytes="viel")
+
+    def test_is_immutable(self):
+        health = MonitoringHealth(**self.PAYLOAD)
+
+        with pytest.raises(ValidationError):
+            health.total_free_bytes = 1
+
+
+class TestDeviceAlarms:
+    """Tests for DeviceAlarms (one entry of /system/{uuid}/alarms)."""
+
+    def _alarms(self, errors):
+        return DeviceAlarms(
+            uuid="SIT00000000",
+            modelTypeId=1,
+            variant=1,
+            zoneId=1,
+            errors=errors,
+        )
+
+    def test_no_active_alarms(self):
+        alarms = self._alarms([0] * 32)
+
+        assert alarms.active_error_count == 0
+        assert alarms.active_errors == {}
+
+    def test_active_alarm_is_reported_with_position(self):
+        errors = [0] * 32
+        errors[12] = 16
+        alarms = self._alarms(errors)
+
+        assert alarms.active_error_count == 1
+        assert alarms.active_errors == {12: 16}
+
+    def test_counts_every_nonzero_position(self):
+        alarms = self._alarms([1, 0, 255, 0, 3])
+
+        assert alarms.active_error_count == 3
+        assert alarms.active_errors == {0: 1, 2: 255, 4: 3}
+
+    def test_aliases_map_to_snake_case(self):
+        alarms = self._alarms([])
+
+        assert alarms.model_type_id == 1
+        assert alarms.zone_id == 1
+        assert alarms.errors == []
+
+    def test_rejects_byte_out_of_range(self):
+        with pytest.raises(ValidationError):
+            self._alarms([256])
+
+    def test_rejects_negative_byte(self):
+        with pytest.raises(ValidationError):
+            self._alarms([-1])
+
+
+class TestAlarmsResponse:
+    """Tests for AlarmsResponse (/system/{uuid}/alarms)."""
+
+    def _payload(self):
+        return {
+            "devices": [
+                {"uuid": "SIT00000000", "modelTypeId": 1, "variant": 1, "zoneId": 1, "errors": [0, 16]},
+                {"uuid": "DEM00000000", "modelTypeId": 5, "variant": 0, "zoneId": 255, "errors": [0, 0]},
+                {"uuid": "MBE00000000", "modelTypeId": 20, "variant": 1, "zoneId": 1, "errors": [0, 0]},
+            ]
+        }
+
+    def test_from_api_parses_devices(self):
+        response = AlarmsResponse.from_api(self._payload())
+
+        assert [d.uuid for d in response.devices] == ["SIT00000000", "DEM00000000", "MBE00000000"]
+
+    def test_device_lookup_by_uuid(self):
+        response = AlarmsResponse.from_api(self._payload())
+
+        assert response.for_device("SIT00000000").active_error_count == 1
+        assert response.for_device("MBE00000000").active_error_count == 0
+
+    def test_device_lookup_unknown_uuid_returns_none(self):
+        assert AlarmsResponse.from_api(self._payload()).for_device("unbekannt") is None
+
+    @pytest.mark.parametrize("payload", [None, {}, {"devices": None}, "kaputt", []])
+    def test_from_api_tolerates_missing_or_invalid_payload(self, payload):
+        assert AlarmsResponse.from_api(payload).devices == []
+
+    def test_from_api_skips_invalid_entries(self):
+        payload = {
+            "devices": [
+                {"uuid": "SIT00000000", "modelTypeId": 1, "errors": [0]},
+                {"modelTypeId": 5, "errors": "kaputt"},
+                "kein-dict",
+            ]
+        }
+
+        response = AlarmsResponse.from_api(payload)
+
+        assert [d.uuid for d in response.devices] == ["SIT00000000"]

@@ -7,12 +7,15 @@ byte conversion and temperature value processing.
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime, timedelta
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, ValidationError, model_validator
 
 from .infrastructure.validation import validate_byte_value, validate_property_path
+
+_LOGGER = logging.getLogger(__name__)
 
 
 # Base model for all ComfoClime data models
@@ -721,6 +724,90 @@ class MonitoringPing(ComfoClimeModel):
         ``SensorDeviceClass.UPTIME`` expects, the raw second count is not.
         """
         return uptime_to_boot_time(self.up_time_seconds, self.timestamp)
+
+
+class MonitoringHealth(ComfoClimeModel):
+    """Response of ``/monitoring/health``: device memory and CAN-bus counters.
+
+    The ``twai_*`` fields come from the ESP32 CAN controller (TWAI) that talks
+    to the ComfoNet bus. Unknown fields from other firmware versions are kept.
+    """
+
+    model_config = {"frozen": True, "extra": "allow"}
+
+    total_free_bytes: int | None = Field(default=None, ge=0, description="Free heap memory in bytes")
+    total_allocated_bytes: int | None = Field(default=None, ge=0, description="Allocated heap memory in bytes")
+    largest_free_block: int | None = Field(default=None, ge=0, description="Largest contiguous free block in bytes")
+    minimum_free_bytes: int | None = Field(default=None, ge=0, description="Lowest free heap since boot in bytes")
+    allocated_blocks: int | None = Field(default=None, ge=0)
+    free_blocks: int | None = Field(default=None, ge=0)
+    total_blocks: int | None = Field(default=None, ge=0)
+    up_time_seconds: int | None = Field(default=None, ge=0)
+    twai_msgs_to_tx: int | None = Field(default=None, ge=0, description="CAN messages waiting to be sent")
+    twai_msgs_to_rx: int | None = Field(default=None, ge=0, description="CAN messages waiting to be read")
+    twai_tx_error_counter: int | None = Field(default=None, ge=0)
+    twai_rx_error_counter: int | None = Field(default=None, ge=0)
+    twai_tx_failed_count: int | None = Field(default=None, ge=0, description="CAN transmissions that failed")
+    twai_rx_missed_count: int | None = Field(default=None, ge=0)
+    twai_rx_overrun_count: int | None = Field(default=None, ge=0)
+    twai_arb_lost_count: int | None = Field(default=None, ge=0, description="CAN arbitrations lost to other nodes")
+    twai_bus_error_count: int | None = Field(default=None, ge=0)
+    open_sockets: list[int] = Field(default_factory=list, description="File descriptors of open sockets")
+
+    @property
+    def open_socket_count(self) -> int:
+        """Number of currently open sockets."""
+        return len(self.open_sockets)
+
+
+class DeviceAlarms(ComfoClimeModel):
+    """Alarm bytes of one ComfoNet device from ``/system/{uuid}/alarms``.
+
+    ``errors`` holds one byte per alarm position; 0 means no alarm. What each
+    position means is not documented by the manufacturer.
+    """
+
+    model_config = {"frozen": True}
+
+    uuid: str = Field(..., min_length=1, description="Device serial number")
+    model_type_id: int = Field(default=0, ge=0, alias="modelTypeId")
+    variant: int | None = None
+    zone_id: int | None = Field(default=None, alias="zoneId")
+    errors: list[Annotated[int, Field(ge=0, le=255)]] = Field(default_factory=list)
+
+    @property
+    def active_errors(self) -> dict[int, int]:
+        """Alarm positions with a non-zero value, as ``{position: value}``."""
+        return {position: value for position, value in enumerate(self.errors) if value != 0}
+
+    @property
+    def active_error_count(self) -> int:
+        """Number of alarm positions that are currently set."""
+        return len(self.active_errors)
+
+
+class AlarmsResponse(ComfoClimeModel):
+    """Response model for ``/system/{uuid}/alarms``."""
+
+    model_config = {"frozen": True}
+
+    devices: list[DeviceAlarms] = Field(default_factory=list)
+
+    @classmethod
+    def from_api(cls, response_data: Any) -> AlarmsResponse:
+        """Build the response from the raw payload, skipping invalid entries."""
+        raw_devices = response_data.get("devices") if isinstance(response_data, dict) else None
+        devices = []
+        for raw in raw_devices if isinstance(raw_devices, list) else []:
+            try:
+                devices.append(DeviceAlarms(**raw))
+            except TypeError, ValidationError:
+                _LOGGER.debug("Skipping invalid alarm entry: %s", raw)
+        return cls(devices=devices)
+
+    def for_device(self, uuid: str) -> DeviceAlarms | None:
+        """Return the alarms of one device, or None if the device is unknown."""
+        return next((device for device in self.devices if device.uuid == uuid), None)
 
 
 class PropertyWriteRequest(ComfoClimeModel):
