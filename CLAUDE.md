@@ -22,7 +22,7 @@ Geräte am ComfoNet-Bus (v. a. ComfoAir Q). Kanonisches Repo: **https://github.c
 
 | | Wert | Quelle |
 |---|---|---|
-| Home Assistant | ≥ 2026.5.0 | `hacs.json`, `pyproject.toml` (dev-dep `homeassistant>=2026.5.0`) |
+| Home Assistant | ≥ 2026.8.0 | `hacs.json`, `pyproject.toml` (dev-dep `homeassistant>=2026.8.0`) |
 | Python | ≥ 3.14.2 | `pyproject.toml` (`requires-python`); HA 2026.3+ verlangt genau diese Patch-Version |
 | aiohttp | wird von Home Assistant mitgeliefert – **nicht** in `manifest.json` eintragen (hassfest lehnt das ab) | |
 | pydantic | ≥ 2.0.0 | `manifest.json` |
@@ -268,7 +268,8 @@ das ein `SyntaxError`. Wenn du also „43 Syntaxfehler“ siehst: du parst mit d
 Klammern **nicht** wieder einfügen, `ruff format` entfernt sie sofort wieder.
 
 ⚠️ **Neue HA-Symbole ziehen die Mindestversion hoch.** `SensorDeviceClass.UPTIME` gibt es erst ab
-HA 2026.5.0 – deshalb steht dort auch die Untergrenze in `hacs.json`. Wer ein Symbol aus einer
+HA 2026.5.0, `DeviceInfo["via_device_id"]` (Verknüpfung ComfoAir Q/ComfoHub → ComfoClime) erst ab
+HA 2026.8.0 – deshalb steht dort die Untergrenze in `hacs.json`. Wer ein Symbol aus einer
 neueren HA-Version verwendet, muss `hacs.json`, `pyproject.toml`, `README.md` und diese Tabelle
 mitziehen, sonst installiert HACS die Integration auf eine HA, auf der sie nicht importierbar ist.
 

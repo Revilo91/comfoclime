@@ -23,7 +23,7 @@ ComfoClime is a HVAC solution as additional device for the ComfoAir Q series. It
 ## Requirements
 
 ### System Requirements
-- **Home Assistant**: ≥ 2026.5.0
+- **Home Assistant**: ≥ 2026.8.0
 - **Python**: ≥ 3.14
 - **aiohttp**: provided by Home Assistant (not listed in `manifest.json`)
 - **pydantic**: ≥ 2.0.0
@@ -37,7 +37,7 @@ ComfoClime is a HVAC solution as additional device for the ComfoAir Q series. It
 
 - Clone this repository or open it in a Codespace/Dev Container as described below
 - Install dependencies and set up the development environment
-- Home Assistant (2026.5.0+) and the integration will be available for local development and testing
+- Home Assistant (2026.8.0+) and the integration will be available for local development and testing
 - Home Assistant runs automatically on port 8123.
 - See [.devcontainer/README.md](.devcontainer/README.md) for detailed instructions.
 

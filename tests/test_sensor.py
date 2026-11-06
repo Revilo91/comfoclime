@@ -109,6 +109,59 @@ class TestComfoClimeSensor:
         assert device_info["name"] == "ComfoClime Test"
         assert device_info["manufacturer"] == "Zehnder"
 
+    def _make_sensor(self, mock_hass, mock_coordinator, mock_api, device, mock_config_entry):
+        return ComfoClimeSensor(
+            hass=mock_hass,
+            coordinator=mock_coordinator,
+            api=mock_api,
+            sensor_type="indoorTemperature",
+            name="Indoor Temperature",
+            translation_key="indoor_temperature",
+            device=device,
+            entry=mock_config_entry,
+        )
+
+    def test_connected_device_links_to_main_device(
+        self, mock_hass, mock_coordinator, mock_api, mock_device, mock_connected_device, mock_config_entry
+    ):
+        """Separate bus products point at the ComfoClime registry device."""
+        mock_hass.data = {
+            "comfoclime": {"test_entry_id": {"main_device": mock_device, "main_device_registry_id": "registry-id-1"}}
+        }
+        sensor = self._make_sensor(mock_hass, mock_coordinator, mock_api, mock_connected_device, mock_config_entry)
+        sensor.hass = mock_hass
+
+        assert sensor.device_info["via_device_id"] == "registry-id-1"
+
+    def test_main_device_has_no_via_device(self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry):
+        """The ComfoClime device is the gateway and must not link to itself."""
+        mock_hass.data = {
+            "comfoclime": {"test_entry_id": {"main_device": mock_device, "main_device_registry_id": "registry-id-1"}}
+        }
+        sensor = self._make_sensor(mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry)
+        sensor.hass = mock_hass
+
+        assert "via_device_id" not in sensor.device_info
+
+    def test_no_main_device_means_no_via_device(
+        self, mock_hass, mock_coordinator, mock_api, mock_connected_device, mock_config_entry
+    ):
+        """Without a registered gateway there is nothing to link to, and nothing crashes."""
+        mock_hass.data = {"comfoclime": {"test_entry_id": {"main_device": None, "main_device_registry_id": None}}}
+        sensor = self._make_sensor(mock_hass, mock_coordinator, mock_api, mock_connected_device, mock_config_entry)
+        sensor.hass = mock_hass
+
+        assert "via_device_id" not in sensor.device_info
+
+    def test_device_info_without_hass_is_safe(
+        self, mock_hass, mock_coordinator, mock_api, mock_connected_device, mock_config_entry
+    ):
+        """device_info before the entity is attached to hass has no via link."""
+        sensor = self._make_sensor(mock_hass, mock_coordinator, mock_api, mock_connected_device, mock_config_entry)
+        sensor.hass = None
+
+        assert "via_device_id" not in sensor.device_info
+
     def test_monitoring_sensor_update(self, mock_hass, mock_config_entry):
         """Test monitoring sensor state update from MonitoringPing coordinator.
 

@@ -47,6 +47,20 @@ def get_device_uuid(device: dict | object) -> str | None:
     return None
 
 
+def get_device_info_fields(device: dict | object) -> dict[str, str | None]:
+    """Return the descriptive DeviceInfo fields shared by entities and setup.
+
+    Used both for the entity ``DeviceInfo`` and for registering the main device
+    up front, so the two can never drift apart.
+    """
+    return {
+        "name": get_device_display_name(device),
+        "manufacturer": "Zehnder",
+        "model": get_device_model_type(device),
+        "sw_version": get_device_version(device),
+    }
+
+
 def get_device_model_type_id(device: dict | object) -> int | None:
     """Return the modelTypeId from either a dict or a Pydantic model."""
     if hasattr(device, "model_type_id"):

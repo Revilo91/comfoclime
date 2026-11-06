@@ -14,12 +14,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from pydantic import BaseModel
 
 from . import DOMAIN
-from .entity_helper import (
-    get_device_display_name,
-    get_device_model_type,
-    get_device_uuid,
-    get_device_version,
-)
+from .entity_helper import get_device_info_fields, get_device_uuid
 
 if TYPE_CHECKING:
     from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
@@ -69,13 +64,23 @@ class ComfoClimeBaseEntity:
         if not dev_id or dev_id == "NULL":
             return None
 
-        return DeviceInfo(
-            identifiers={(DOMAIN, dev_id)},
-            name=get_device_display_name(self._device),
-            manufacturer="Zehnder",
-            model=get_device_model_type(self._device),
-            sw_version=get_device_version(self._device),
-        )
+        info = DeviceInfo(identifiers={(DOMAIN, dev_id)}, **get_device_info_fields(self._device))
+
+        # Connected bus devices are separate products behind the ComfoClime gateway.
+        entry_data = self._entry_data()
+        main_uuid = get_device_uuid(entry_data["main_device"]) if entry_data.get("main_device") else None
+        via_device_id = entry_data.get("main_device_registry_id")
+        if via_device_id and main_uuid and main_uuid != dev_id:
+            info["via_device_id"] = via_device_id
+        return info
+
+    def _entry_data(self) -> dict[str, Any]:
+        """Return this entry's runtime data from ``hass.data`` (empty if unavailable)."""
+        hass = getattr(self, "hass", None)
+        entry_id = getattr(self, "_attr_config_entry_id", None)
+        if hass is None or entry_id is None:
+            return {}
+        return hass.data.get(DOMAIN, {}).get(entry_id, {})
 
     # ------------------------------------------------------------------
     # Extra state attributes (shared for coordinator-backed entities)

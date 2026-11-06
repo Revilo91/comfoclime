@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 
 import aiohttp
 from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers import config_validation as cv, entity_registry as er
+from homeassistant.helpers import config_validation as cv, device_registry as dr, entity_registry as er
 
 from .comfoclime_api import ComfoClimeAPI
 from .config_flow import CONFIG_ENTRY_VERSION, DEFAULT_OPTIONS, LEGACY_ENTITY_OPTION_KEYS
@@ -28,7 +28,7 @@ from .coordinator import (
     ComfoClimeTelemetryCoordinator,
     ComfoClimeThermalprofileCoordinator,
 )
-from .entity_helper import get_device_model_type_id
+from .entity_helper import get_device_info_fields, get_device_model_type_id, get_device_uuid
 from .migration import matches, unique_ids_to_disable
 from .services import async_setup_services
 
@@ -317,6 +317,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         inter_sensor_delay,
     )
 
+    main_device = next((d for d in devices if get_device_model_type_id(d) == 20), None)
     hass.data[DOMAIN][entry.entry_id] = {
         "api": api,
         "coordinator": dashboard_coordinator,
@@ -326,7 +327,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "propcoordinator": propcoordinator,
         "definitioncoordinator": definitioncoordinator,
         "devices": devices,
-        "main_device": next((d for d in devices if get_device_model_type_id(d) == 20), None),
+        "main_device": main_device,
+        "main_device_registry_id": _register_main_device(hass, entry, main_device),
     }
 
     _remove_legacy_access_tracking_entities(hass, entry)
@@ -334,6 +336,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     return True
+
+
+def _register_main_device(hass: HomeAssistant, entry: ConfigEntry, main_device) -> str | None:
+    """Register the ComfoClime gateway device and return its registry id.
+
+    Connected bus devices (ComfoAir Q, ComfoHub) are separate products behind
+    this gateway; they link to it via ``via_device_id``, which needs the
+    registry id to exist before their entities are added.
+    """
+    main_uuid = get_device_uuid(main_device) if main_device else None
+    if not main_uuid or main_uuid == "NULL":
+        return None
+
+    device_entry = dr.async_get(hass).async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, main_uuid)},
+        **get_device_info_fields(main_device),
+    )
+    return device_entry.id
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
