@@ -68,6 +68,7 @@ __init__.py (async_setup_entry / async_unload_entry / Service-Registrierung)
 | `config_flow.py` | Config-Flow (Setup per Host/IP) + Options-Flow (nur Performance-Einstellungen) |
 | `migration.py` | Einmalige Migration Config-Entry v1 → v2 (Entity-Auswahl → Entity-Registry) |
 | `services.yaml` / `services.py` | Service-Definitionen und -Handler |
+| `diagnostics.py` | Diagnostics-Download (`async_get_config_entry_diagnostics`): Entry, Geräte und alle 6 Koordinatoren; Host/UUID/Seriennummern per `TO_REDACT` geschwärzt, UUID-Dict-Keys durch `device_N` ersetzt |
 
 ## 4. Wichtige Muster & Konventionen
 
