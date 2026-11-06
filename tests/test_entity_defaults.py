@@ -333,3 +333,24 @@ class TestIconTranslations:
             str(path) for path in INTEGRATION_DIR.rglob("*.py") if pattern.search(path.read_text(encoding="utf-8"))
         ]
         assert offenders == []
+
+
+# hassfest rejects placeholders wrapped in single quotes ("'{name}'") in translations.
+QUOTED_PLACEHOLDER = re.compile(r"'\{[^}]+\}'")
+TRANSLATION_FILES = ["strings.json", "translations/en.json", "translations/de.json"]
+
+
+def _iter_strings(node: object):
+    if isinstance(node, dict):
+        for value in node.values():
+            yield from _iter_strings(value)
+    elif isinstance(node, str):
+        yield node
+
+
+@pytest.mark.parametrize("relative_path", TRANSLATION_FILES)
+def test_translations_have_no_single_quoted_placeholders(relative_path: str) -> None:
+    path = pathlib.Path(__file__).parent.parent / "custom_components" / "comfoclime" / relative_path
+    data = json.loads(path.read_text(encoding="utf-8"))
+    offenders = [s for s in _iter_strings(data) if QUOTED_PLACEHOLDER.search(s)]
+    assert offenders == []

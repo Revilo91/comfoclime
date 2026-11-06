@@ -460,10 +460,10 @@
     },
     "exceptions": {
         "unknown_scenario_mode": {
-            "message": "Unbekannter Szenario-Modus '{scenario}'. Gültige Werte: {valid_values}."
+            "message": "Unbekannter Szenario-Modus {scenario}. Gültige Werte: {valid_values}."
         },
         "scenario_mode_failed": {
-            "message": "Szenario-Modus '{scenario}' konnte nicht gesetzt werden."
+            "message": "Szenario-Modus {scenario} konnte nicht gesetzt werden."
         },
         "set_value_failed": {
             "message": "{name} konnte nicht gesetzt werden."

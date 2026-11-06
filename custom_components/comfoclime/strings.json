@@ -443,10 +443,10 @@
     },
     "exceptions": {
         "unknown_scenario_mode": {
-            "message": "Unknown scenario mode '{scenario}'. Valid values: {valid_values}."
+            "message": "Unknown scenario mode {scenario}. Valid values: {valid_values}."
         },
         "scenario_mode_failed": {
-            "message": "Failed to set scenario mode '{scenario}'."
+            "message": "Failed to set scenario mode {scenario}."
         },
         "set_value_failed": {
             "message": "Failed to set {name}."
