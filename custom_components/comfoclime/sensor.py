@@ -82,6 +82,9 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
+# Read-only platform: the coordinators fetch the data, so entity updates need no limit.
+PARALLEL_UPDATES = 0
+
 
 VALUE_MAPPINGS = {
     "temperatureProfile": {0: "comfort", 1: "power", 2: "eco"},

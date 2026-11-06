@@ -440,5 +440,55 @@
                 }
             }
         }
+    },
+    "exceptions": {
+        "unknown_scenario_mode": {
+            "message": "Unknown scenario mode {scenario}. Valid values: {valid_values}."
+        },
+        "scenario_mode_failed": {
+            "message": "Failed to set scenario mode {scenario}."
+        },
+        "set_value_failed": {
+            "message": "Failed to set {name}."
+        },
+        "property_write_failed": {
+            "message": "Failed to write property {path}."
+        },
+        "cannot_connect": {
+            "message": "Unable to connect to the ComfoClime device at {host}: {error}"
+        },
+        "coordinator_init_failed": {
+            "message": "Failed to initialize the {name} coordinator: {error}"
+        },
+        "update_failed": {
+            "message": "Error fetching {name} data: {error}"
+        },
+        "fan_speed_failed": {
+            "message": "Failed to set the fan speed: {error}"
+        },
+        "device_entry_not_loaded": {
+            "message": "No loaded ComfoClime integration was found for this device."
+        },
+        "no_entry_loaded": {
+            "message": "No ComfoClime integration is loaded. Please set it up first."
+        },
+        "invalid_property_path": {
+            "message": "Invalid property path: {error}"
+        },
+        "invalid_byte_count": {
+            "message": "byte_count must be 1 or 2."
+        },
+        "invalid_value": {
+            "message": "Invalid value: {error}"
+        },
+        "device_not_found": {
+            "message": "Device not found or invalid."
+        },
+        "device_wrong_integration": {
+            "message": "The device does not belong to the {domain} integration."
+        },
+        "reset_failed": {
+            "message": "Failed to restart the device."
+        }
     }
 }

@@ -6,8 +6,11 @@ definition, and the translation key that gives the entity its name. Both are
 easy to get wrong silently, so both are checked exhaustively here.
 """
 
+import ast
+import importlib
 import json
 import pathlib
+import re
 
 import pytest
 
@@ -169,6 +172,70 @@ class TestTranslationCompleteness:
             assert not orphaned, f"{language}.json has unused entity.{platform} entries {orphaned}"
 
 
+EXCEPTION_CLASSES = {"HomeAssistantError", "ServiceValidationError", "ConfigEntryNotReady", "UpdateFailed"}
+COMPONENT_DIR = pathlib.Path("custom_components/comfoclime")
+
+
+def _raised_translation_keys() -> dict[str, list[tuple[str, set[str]]]]:
+    """Map every translation_key passed to a raised HA exception to (raise site, placeholder names)."""
+    found: dict[str, list[tuple[str, set[str]]]] = {}
+    for path in sorted(COMPONENT_DIR.rglob("*.py")):
+        for node in ast.walk(ast.parse(path.read_text())):
+            if not isinstance(node, ast.Raise) or not isinstance(node.exc, ast.Call):
+                continue
+            func = node.exc.func
+            name = func.id if isinstance(func, ast.Name) else getattr(func, "attr", "")
+            if name not in EXCEPTION_CLASSES:
+                continue
+            keywords = {kw.arg: kw.value for kw in node.exc.keywords}
+            key = keywords.get("translation_key")
+            site = f"{path}:{node.lineno}"
+            assert isinstance(key, ast.Constant), f"{site}: {name} needs a literal translation_key"
+            domain = keywords.get("translation_domain")
+            assert domain is not None, f"{site}: {name} sets translation_key without translation_domain"
+            assert not node.exc.args, f"{site}: {name} must not carry a hardcoded message"
+            placeholders = keywords.get("translation_placeholders")
+            names = (
+                {k.value for k in placeholders.keys if isinstance(k, ast.Constant)}
+                if isinstance(placeholders, ast.Dict)
+                else set()
+            )
+            found.setdefault(key.value, []).append((site, names))
+    return found
+
+
+@pytest.mark.parametrize("language", ["en", "de"])
+class TestExceptionTranslations:
+    """Every raised exception needs a translated message, and no message may be unused."""
+
+    @staticmethod
+    def _exceptions_section(language: str) -> dict:
+        return json.loads((TRANSLATIONS_DIR / f"{language}.json").read_text()).get("exceptions", {})
+
+    def test_raise_sites_are_translated(self, language):
+        raised = _raised_translation_keys()
+        assert raised, "expected the integration to raise translated exceptions"
+        missing = sorted(set(raised) - set(self._exceptions_section(language)))
+        assert not missing, f"{language}.json has no exceptions entry for {missing}"
+
+    def test_no_orphaned_exception_keys(self, language):
+        orphaned = sorted(set(self._exceptions_section(language)) - set(_raised_translation_keys()))
+        assert not orphaned, f"{language}.json has unused exceptions entries {orphaned}"
+
+    def test_placeholders_match_message(self, language):
+        section = self._exceptions_section(language)
+        for key, sites in _raised_translation_keys().items():
+            message = section.get(key, {}).get("message", "")
+            assert message, f"{language}.json exceptions.{key} has no message"
+            in_message = set(re.findall(r"\{(\w+)\}", message))
+            for site, passed in sites:
+                assert passed == in_message, f"{site}: placeholders {passed} != {in_message} in {language}.json {key}"
+
+
+def test_strings_json_matches_english_translation():
+    assert (COMPONENT_DIR / "strings.json").read_text() == (TRANSLATIONS_DIR / "en.json").read_text()
+
+
 @pytest.mark.parametrize("language", ["en", "de"])
 class TestFlowTranslations:
     """The translation files must describe the flow that actually exists."""
@@ -213,3 +280,77 @@ class TestFlowTranslations:
         assert set(DEFAULT_OPTIONS) == labelled, (
             f"{language}.json labels {sorted(labelled)} but the flow stores {sorted(DEFAULT_OPTIONS)}"
         )
+
+
+# Quality scale rule "parallel-updates": every platform sets PARALLEL_UPDATES explicitly.
+# Sensors only read coordinator data (no limit needed); action platforms write to a
+# single device that enforces a write cooldown, so commands are sent one at a time.
+EXPECTED_PARALLEL_UPDATES = {
+    "sensor": 0,
+    "climate": 1,
+    "fan": 1,
+    "number": 1,
+    "select": 1,
+    "switch": 1,
+}
+
+
+@pytest.mark.parametrize(("platform", "expected"), EXPECTED_PARALLEL_UPDATES.items())
+def test_platform_sets_parallel_updates(platform: str, expected: int) -> None:
+    module = importlib.import_module(f"custom_components.comfoclime.{platform}")
+    assert getattr(module, "PARALLEL_UPDATES", None) == expected
+
+
+# Quality scale rule "icon-translations": icons live in icons.json, never in code.
+INTEGRATION_DIR = pathlib.Path("custom_components/comfoclime")
+
+
+class TestIconTranslations:
+    @staticmethod
+    def _icons() -> dict:
+        return json.loads((INTEGRATION_DIR / "icons.json").read_text(encoding="utf-8"))
+
+    def test_every_service_has_an_icon(self):
+        import yaml
+
+        services = yaml.safe_load((INTEGRATION_DIR / "services.yaml").read_text(encoding="utf-8"))
+        icons = self._icons().get("services", {})
+        assert set(services) <= set(icons)
+        for name in services:
+            assert icons[name]["service"].startswith("mdi:"), name
+
+    def test_entity_icon_keys_exist_in_strings(self):
+        strings = json.loads((INTEGRATION_DIR / "strings.json").read_text(encoding="utf-8"))
+        for platform, entries in self._icons().get("entity", {}).items():
+            known = set(strings["entity"].get(platform, {}))
+            assert set(entries) <= known, f"{platform}: unknown translation keys {set(entries) - known}"
+            for key, spec in entries.items():
+                assert spec["default"].startswith("mdi:"), f"{platform}.{key}"
+
+    def test_no_hardcoded_icons_in_source(self):
+        pattern = re.compile(r"_attr_icon|\bicon\s*=|\bdef icon\b|\"icon\"\s*:")
+        offenders = [
+            str(path) for path in INTEGRATION_DIR.rglob("*.py") if pattern.search(path.read_text(encoding="utf-8"))
+        ]
+        assert offenders == []
+
+
+# hassfest rejects placeholders wrapped in single quotes ("'{name}'") in translations.
+QUOTED_PLACEHOLDER = re.compile(r"'\{[^}]+\}'")
+TRANSLATION_FILES = ["strings.json", "translations/en.json", "translations/de.json"]
+
+
+def _iter_strings(node: object):
+    if isinstance(node, dict):
+        for value in node.values():
+            yield from _iter_strings(value)
+    elif isinstance(node, str):
+        yield node
+
+
+@pytest.mark.parametrize("relative_path", TRANSLATION_FILES)
+def test_translations_have_no_single_quoted_placeholders(relative_path: str) -> None:
+    path = pathlib.Path(__file__).parent.parent / "custom_components" / "comfoclime" / relative_path
+    data = json.loads(path.read_text(encoding="utf-8"))
+    offenders = [s for s in _iter_strings(data) if QUOTED_PLACEHOLDER.search(s)]
+    assert offenders == []

@@ -23,7 +23,7 @@ from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResu
 from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .constants import API_DEFAULTS
+from .constants import API_DEFAULTS, DOMAIN
 from .infrastructure import validate_host
 
 if TYPE_CHECKING:
@@ -31,7 +31,6 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
-DOMAIN = "comfoclime"
 
 # Config entry version. Bumped to 2 when per-entity selection moved out of
 # the options and into the entity registry; see async_migrate_entry.

@@ -18,10 +18,10 @@ import homeassistant.helpers.device_registry as dr
 import voluptuous as vol
 from homeassistant.components.climate import DOMAIN as CLIMATE_DOMAIN
 from homeassistant.core import HomeAssistant, ServiceCall, callback
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.service import async_register_platform_entity_service
 
-from .constants import ScenarioMode
+from .constants import DOMAIN, ScenarioMode
 from .infrastructure import validate_byte_value, validate_duration, validate_property_path
 from .models import PropertyWriteRequest
 
@@ -30,7 +30,6 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
-DOMAIN = "comfoclime"
 
 START_DELAY_FORMAT = "%Y-%m-%d %H:%M:%S"
 
@@ -82,7 +81,10 @@ def _get_api_for_device(hass: HomeAssistant, domain: str, device: dr.DeviceEntry
     for entry in hass.config_entries.async_loaded_entries(domain):
         if entry.entry_id == device.config_entry_id:
             return entry.runtime_data.api
-    raise HomeAssistantError("Keine geladene ComfoClime-Integration für das Gerät gefunden")
+    raise HomeAssistantError(
+        translation_domain=DOMAIN,
+        translation_key="device_entry_not_loaded",
+    )
 
 
 def _get_any_api(hass: HomeAssistant, domain: str) -> ComfoClimeAPI:
@@ -92,7 +94,10 @@ def _get_any_api(hass: HomeAssistant, domain: str) -> ComfoClimeAPI:
     """
     for entry in hass.config_entries.async_loaded_entries(domain):
         return entry.runtime_data.api
-    raise HomeAssistantError("Keine ComfoClime-Integration ist geladen. Bitte zuerst konfigurieren.")
+    raise HomeAssistantError(
+        translation_domain=DOMAIN,
+        translation_key="no_entry_loaded",
+    )
 
 
 @callback
@@ -120,12 +125,19 @@ def async_setup_services(hass: HomeAssistant, domain: str = DOMAIN) -> None:
         is_valid, error_message = validate_property_path(path)
         if not is_valid:
             _LOGGER.error("Ungültiger Property-Pfad: %s - %s", path, error_message)
-            raise HomeAssistantError(f"Ungültiger Property-Pfad: {error_message}")
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_property_path",
+                translation_placeholders={"error": error_message},
+            )
 
         # Validate byte count
         if byte_count not in (1, 2):
             _LOGGER.error("Ungültige byte_count: %s (muss 1 oder 2 sein)", byte_count)
-            raise HomeAssistantError("byte_count muss 1 oder 2 sein")
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_byte_count",
+            )
 
         # Validate value fits in byte count
         # Convert value with factor before validation (use same rounding as API)
@@ -139,17 +151,28 @@ def async_setup_services(hass: HomeAssistant, domain: str = DOMAIN) -> None:
                 signed,
                 error_message,
             )
-            raise HomeAssistantError(f"Ungültiger Wert: {error_message}")
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_value",
+                translation_placeholders={"error": error_message},
+            )
 
         dev_reg = dr.async_get(hass)
         device = dev_reg.async_get(device_id)
         if not device or not device.identifiers:
             _LOGGER.error("Gerät nicht gefunden oder ungültig")
-            raise HomeAssistantError("Gerät nicht gefunden oder ungültig")
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="device_not_found",
+            )
         domain_check, device_uuid = next(iter(device.identifiers))
         if domain_check != domain:
             _LOGGER.error("Gerät gehört nicht zur Integration %s", domain)
-            raise HomeAssistantError(f"Gerät gehört nicht zur Integration {domain}")
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="device_wrong_integration",
+                translation_placeholders={"domain": domain},
+            )
 
         api = _get_api_for_device(hass, domain, device)
         try:
@@ -165,7 +188,11 @@ def async_setup_services(hass: HomeAssistant, domain: str = DOMAIN) -> None:
             _LOGGER.info("Property %s auf %s gesetzt für %s", path, value, device_uuid)
         except (TimeoutError, aiohttp.ClientError) as e:
             _LOGGER.exception("Fehler beim Setzen von Property %s", path)
-            raise HomeAssistantError(f"Fehler beim Setzen von Property {path}") from e
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="property_write_failed",
+                translation_placeholders={"path": path},
+            ) from e
 
     async def handle_reset_system_service(call: ServiceCall) -> None:
         """Handle reset_system service call."""
@@ -175,7 +202,10 @@ def async_setup_services(hass: HomeAssistant, domain: str = DOMAIN) -> None:
             _LOGGER.info("ComfoClime Neustart ausgelöst")
         except (TimeoutError, aiohttp.ClientError) as e:
             _LOGGER.exception("Fehler beim Neustart des Geräts")
-            raise HomeAssistantError("Fehler beim Neustart des Geräts") from e
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="reset_failed",
+            ) from e
 
     # Register all services
     hass.services.async_register(domain, "set_property", handle_set_property_service)
