@@ -50,6 +50,9 @@ from .models import DashboardUpdate, DeviceConfig
 
 _LOGGER = logging.getLogger(__name__)
 
+# One command at a time: the single device behind the API enforces a write cooldown.
+PARALLEL_UPDATES = 1
+
 
 class ComfoClimeFan(ComfoClimeBaseEntity, CoordinatorEntity, FanEntity):
     """ComfoClime Fan entity for ventilation fan speed control."""

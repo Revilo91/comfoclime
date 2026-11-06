@@ -71,6 +71,9 @@ from .models import DashboardUpdate, DeviceConfig
 
 _LOGGER = logging.getLogger(__name__)
 
+# One command at a time: the single device behind the API enforces a write cooldown.
+PARALLEL_UPDATES = 1
+
 # Temperature Profile Presets
 # status=0 (manual mode) maps to PRESET_NONE (Manual)
 # status=1 (automatic mode) uses temperatureProfile values:

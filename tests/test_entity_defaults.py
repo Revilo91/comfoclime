@@ -6,6 +6,7 @@ definition, and the translation key that gives the entity its name. Both are
 easy to get wrong silently, so both are checked exhaustively here.
 """
 
+import importlib
 import json
 import pathlib
 
@@ -213,3 +214,22 @@ class TestFlowTranslations:
         assert set(DEFAULT_OPTIONS) == labelled, (
             f"{language}.json labels {sorted(labelled)} but the flow stores {sorted(DEFAULT_OPTIONS)}"
         )
+
+
+# Quality scale rule "parallel-updates": every platform sets PARALLEL_UPDATES explicitly.
+# Sensors only read coordinator data (no limit needed); action platforms write to a
+# single device that enforces a write cooldown, so commands are sent one at a time.
+EXPECTED_PARALLEL_UPDATES = {
+    "sensor": 0,
+    "climate": 1,
+    "fan": 1,
+    "number": 1,
+    "select": 1,
+    "switch": 1,
+}
+
+
+@pytest.mark.parametrize(("platform", "expected"), EXPECTED_PARALLEL_UPDATES.items())
+def test_platform_sets_parallel_updates(platform: str, expected: int) -> None:
+    module = importlib.import_module(f"custom_components.comfoclime.{platform}")
+    assert getattr(module, "PARALLEL_UPDATES", None) == expected

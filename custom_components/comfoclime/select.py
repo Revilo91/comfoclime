@@ -35,6 +35,9 @@ from .models import DeviceConfig, PropertyWriteRequest
 
 _LOGGER = logging.getLogger(__name__)
 
+# One command at a time: the single device behind the API enforces a write cooldown.
+PARALLEL_UPDATES = 1
+
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ComfoClimeConfigEntry, async_add_entities: AddEntitiesCallback
