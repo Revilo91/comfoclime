@@ -30,6 +30,38 @@ Stand: Repo `Revilo91/comfoclime`, Integrationsversion `2.0.2b17`. Quellen: `com
 
 Nicht öffentlich, aber intern genutzt: `_async_get_uuid_internal` (GET `/monitoring/ping`, ohne Lock).
 
+### Weitere Endpoints (Gerät antwortet, Client nutzt sie nicht)
+
+Geprüft am 2026-11-06 per GET gegen `10.0.2.27` (Firmware `R1.5.6`). Alle fünf stehen in der Upstream-Doku `comfoclime_api`, fehlen aber in `comfoclime_api.py`.
+
+| # | Methode | Pfad | Antwort |
+|---|---|---|---|
+| 12 | GET | `/monitoring/health` | Speicher und CAN-Bus-Zähler des Geräts |
+| 13 | GET | `/system/{uuid}/alarms` | Fehlercodes je Bus-Gerät |
+| 14 | GET | `/system/systems` | Name, Firmware, Adresse, aktuelles WLAN |
+| 15 | GET | `/system/time` | Gerätezeit |
+| 16 | GET | `/system/{uuid}/scheduler` | Zeitpläne |
+
+Alle anderen geprüften Pfade (u. a. `/system/{uuid}/network`, `/wifi`, `/firmware`, `/log`, `/openapi.json`) liefern 404.
+
+**12. `/monitoring/health`**: Felder `total_free_bytes`, `total_allocated_bytes`, `largest_free_block`, `minimum_free_bytes`, `allocated_blocks`, `free_blocks`, `total_blocks`, `up_time_seconds`, `twai_msgs_to_tx`, `twai_msgs_to_rx`, `twai_tx_error_counter`, `twai_rx_error_counter`, `twai_tx_failed_count`, `twai_rx_missed_count`, `twai_rx_overrun_count`, `twai_arb_lost_count`, `twai_bus_error_count`, `open_sockets` (Liste). Live: `total_free_bytes` 96612, `twai_arb_lost_count` 4437, `twai_tx_failed_count` 37. Ob diese Werte auffällig sind, ist nicht geklärt.
+
+**13. `/system/{uuid}/alarms`**: `{"devices":[{"uuid","modelTypeId","variant","zoneId","errors":[…]}]}` mit je 32 Werten in `errors`, einer Liste pro Bus-Gerät (ComfoAir Q, ComfoConnectLANC, ComfoClime). Live waren alle Werte 0. Die Bedeutung der Positionen ist nicht dokumentiert. Upstream vermutet, dass die Liste Verlauf enthält.
+
+**14. `/system/systems`**: `{"systems":[{"uuid","systemIcon","version","address","city","country","name","displayName","description","current_wifi"}]}`. ⚠️ Enthält die Adresse des Nutzers. Wer das in Diagnostics aufnimmt, muss `address`, `city`, `country` und `current_wifi` schwärzen.
+
+**15. `/system/time`**: `{"time":847308394,"timestamp":"2026-11-06T20:26:33.0Z"}`. Die Einheit von `time` ist nicht geklärt.
+
+**16. `/system/{uuid}/scheduler`**: `{"schedulers":[],"total":1}`. Live war die Liste leer, das Format der Einträge ist unbekannt. `total` war 1 bei leerer Liste.
+
+### Zusätze in `/device/{device_uuid}/definition` (Endpoint 7)
+
+Die Antwort enthält je Gerät mehr als die Basisdaten:
+
+- ComfoClime: `indoorTemperature`, `supplyTemperature`, `heatPumpStatus`, `status`, `seasonProfile`, `version`, `temperatureProfile`.
+- ComfoAir Q: `fanSpeed`, `indoorTemperature`, `outdoorTemperature`, `extractTemperature`, `supplyTemperature`, `exhaustTemperature`.
+- ComfoConnectLANC (`modelTypeId` 5): `indoorTemperature`.
+
 ## B. Payloads der PUT-Endpoints
 
 ### 3. Dashboard (`DashboardUpdate`)
