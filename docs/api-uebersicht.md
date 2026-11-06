@@ -32,7 +32,7 @@ Nicht öffentlich, aber intern genutzt: `_async_get_uuid_internal` (GET `/monito
 
 ### Weitere Endpoints (Gerät antwortet, Client nutzt sie nicht)
 
-Geprüft am 2026-11-06 per GET gegen `10.0.2.27` (Firmware `R1.5.6`). Alle fünf stehen in der Upstream-Doku `comfoclime_api`, fehlen aber in `comfoclime_api.py`.
+Geprüft am 2026-11-06 gegen `10.0.2.27` (Firmware `R1.5.6`): Endpoints 12–16 per GET, Endpoints 17–20 aus einem Mitschnitt der Hersteller-App (PCAPdroid, Flutter-App, `user-agent: Dart/3.13`) plus GET-Probe. Endpoints 12–16 stehen in der Upstream-Doku `comfoclime_api`, 17–20 nicht. Keiner davon ist in `comfoclime_api.py` umgesetzt.
 
 | # | Methode | Pfad | Antwort |
 |---|---|---|---|
@@ -40,9 +40,15 @@ Geprüft am 2026-11-06 per GET gegen `10.0.2.27` (Firmware `R1.5.6`). Alle fünf
 | 13 | GET | `/system/{uuid}/alarms` | Fehlercodes je Bus-Gerät |
 | 14 | GET | `/system/systems` | Name, Firmware, Adresse, aktuelles WLAN |
 | 15 | GET | `/system/time` | Gerätezeit |
-| 16 | GET | `/system/{uuid}/scheduler` | Zeitpläne |
+| 16 | GET, PUT | `/system/{uuid}/scheduler` | Zeitpläne lesen und schreiben |
+| 17 | PUT | `/system` | Systeminfo (Name, Adresse) schreiben |
+| 18 | GET | `/wifi/list` | aktuelles WLAN und gefundene Netze |
+| 19 | PUT | `/wifi/update` | WLAN-Zugangsdaten setzen |
+| 20 | GET | `/wifi/ap` | Hinweis, ob das Standardpasswort noch gilt |
 
-Alle anderen geprüften Pfade (u. a. `/system/{uuid}/network`, `/wifi`, `/firmware`, `/log`, `/openapi.json`) liefern 404.
+Die Pfade 18–20 liegen auf oberster Ebene (`/wifi/...`), außerhalb von `/monitoring`, `/system` und `/device`. Alle übrigen geprüften GET-Pfade (u. a. `/system/{uuid}/network`, `/firmware`, `/log`, `/openapi.json`, `/ota`, `/update`) liefern 404. Methoden lassen sich nicht abfragen: `OPTIONS` und `HEAD` liefern überall 405.
+
+Die App sendet bei allen Requests den Header `authorization: Bearer null`. Das Gerät prüft ihn nicht.
 
 **12. `/monitoring/health`**: Felder `total_free_bytes`, `total_allocated_bytes`, `largest_free_block`, `minimum_free_bytes`, `allocated_blocks`, `free_blocks`, `total_blocks`, `up_time_seconds`, `twai_msgs_to_tx`, `twai_msgs_to_rx`, `twai_tx_error_counter`, `twai_rx_error_counter`, `twai_tx_failed_count`, `twai_rx_missed_count`, `twai_rx_overrun_count`, `twai_arb_lost_count`, `twai_bus_error_count`, `open_sockets` (Liste). Live: `total_free_bytes` 96612, `twai_arb_lost_count` 4437, `twai_tx_failed_count` 37. Ob diese Werte auffällig sind, ist nicht geklärt.
 
@@ -52,7 +58,38 @@ Alle anderen geprüften Pfade (u. a. `/system/{uuid}/network`, `/wifi`, `/firmwa
 
 **15. `/system/time`**: `{"time":847308394,"timestamp":"2026-11-06T20:26:33.0Z"}`. Die Einheit von `time` ist nicht geklärt.
 
-**16. `/system/{uuid}/scheduler`**: `{"schedulers":[],"total":1}`. Live war die Liste leer, das Format der Einträge ist unbekannt. `total` war 1 bei leerer Liste.
+**16. `/system/{uuid}/scheduler`**: GET liefert `{"schedulers":[…],"total":N}`. Aus dem App-Mitschnitt:
+
+```
+PUT /system/{uuid}/scheduler
+{"schedulers":[{"@type":null,"name":null,"id":1,"displayName":null,"description":null,
+  "timestamp":"2026-11-06T20:54:20.836879","scenario":2,"daysOfWeek":[0,1,2,3,4],
+  "dayOfWeek":8,"startTimeHour":6,"startTimeMinutes":0,"duration":43200}],"total":1}
+→ 200, leerer Body
+
+GET danach → {"schedulers":[{"id":1,"scenario":2,"dayOfWeek":8,"startTimeHour":6,
+  "startTimeMinutes":0,"duration":43200}],"total":2}
+
+Löschen: PUT {"schedulers":[],"total":2} → 200
+```
+
+- Das PUT ersetzt die ganze Liste. Zum Löschen sendet die App die Liste ohne den Eintrag.
+- Das Gerät speichert `daysOfWeek` nicht, GET liefert nur `dayOfWeek`. Dass `dayOfWeek` 8 für die Tage Mo–Fr aus `daysOfWeek` steht, ist nur vermutet.
+- `duration` 43200 passt zu Sekunden (12 h), `scenario` 2 ist keinem Wert aus `ScenarioMode` zuzuordnen. Beides ist ungeklärt.
+- `total` war 1 bei leerer Liste und 2 nach dem Anlegen. Das ist vermutlich die nächste freie ID, keine Anzahl.
+
+**17. `PUT /system`**: Body wie bei `/system/systems` (Endpoint 14) plus `@type`, `timestamp`, `connected`, `enabled`, `ipAddress`, `firstAccess`. Die App sendet ihn beim Öffnen der Systemseite. Antwort 200, leerer Body.
+
+**18. `GET /wifi/list`**: `{"current":"<SSID>","connected":true,"wifi":[{"ssid","rssi","auth_mode"}]}`. Live lieferte die Liste 8 Einträge, `auth_mode` war überall 7. Die App ruft den Pfad zweimal hintereinander auf, das zweite Ergebnis war anders sortiert.
+
+**19. `PUT /wifi/update`**: Body `{"ssid":"…","psk":"…"}`, Antwort 200 `text/html` mit dem Text `OK`. ⚠️ Das Passwort geht im Klartext über HTTP. Nicht testen, weil ein falscher Wert das Gerät aus dem Netz nimmt. Mitschnitte (`.pcap`) mit diesem Request nie einchecken.
+
+**20. `GET /wifi/ap`**: `{"hasDefaultPassword":true}`. Live meldete das Gerät `true`. Gemeint ist vermutlich das Passwort des Einrichtungs-Hotspots, das ist nicht bestätigt.
+
+### Weitere Beobachtungen aus dem App-Mitschnitt
+
+- Die App fragt beim Start `/monitoring/ping`, `/system/systems`, `/device/{uuid}/property/1/1/6` für ComfoAir Q und Gateway, `/system/{uuid}/alarms`, `/dashboard`, `/scheduler` und `/devices` ab.
+- Sie baut außerdem eine TLS-Verbindung zu `comfoclimelogger-apm.azure-api.net` auf (Azure). Der Inhalt ist verschlüsselt und nicht ausgewertet. Mit der Geräte-API hat das nichts zu tun.
 
 ### Zusätze in `/device/{device_uuid}/definition` (Endpoint 7)
 
