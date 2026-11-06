@@ -1,5 +1,6 @@
 """Tests for ComfoClime integration setup."""
 
+from contextlib import ExitStack
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -130,6 +131,54 @@ async def test_async_setup_entry(
                             mock_config_entry.add_update_listener.assert_not_called()
 
                             # Services are registered in async_setup, not async_setup_entry
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_creates_lazy_health_and_alarm_coordinators(
+    mock_hass,
+    mock_config_entry,
+    mock_device,
+):
+    """Health and alarm coordinators exist but are not refreshed during setup.
+
+    Their sensors are disabled by default, so no request may hit the device
+    until the user enables one (and a firmware without the endpoints must not
+    be able to block setup).
+    """
+    mock_hass.config_entries = MagicMock()
+    mock_hass.config_entries.async_forward_entry_setups = AsyncMock()
+    names = (
+        "ComfoClimeDashboardCoordinator",
+        "ComfoClimeThermalprofileCoordinator",
+        "ComfoClimeMonitoringCoordinator",
+        "ComfoClimeTelemetryCoordinator",
+        "ComfoClimePropertyCoordinator",
+        "ComfoClimeDefinitionCoordinator",
+        "ComfoClimeHealthCoordinator",
+        "ComfoClimeAlarmsCoordinator",
+    )
+
+    with ExitStack() as stack:
+        api_class = stack.enter_context(patch("custom_components.comfoclime.ComfoClimeAPI"))
+        api_class.return_value.async_get_connected_devices = AsyncMock(
+            return_value=ConnectedDevicesResponse(devices=[mock_device])
+        )
+        instances = {}
+        for name in names:
+            instance = MagicMock()
+            instance.async_config_entry_first_refresh = AsyncMock()
+            stack.enter_context(patch(f"custom_components.comfoclime.{name}", return_value=instance))
+            instances[name] = instance
+
+        assert await async_setup_entry(mock_hass, mock_config_entry) is True
+
+    runtime_data = mock_config_entry.runtime_data
+    assert runtime_data.healthcoordinator is instances["ComfoClimeHealthCoordinator"]
+    assert runtime_data.alarmscoordinator is instances["ComfoClimeAlarmsCoordinator"]
+    instances["ComfoClimeHealthCoordinator"].async_config_entry_first_refresh.assert_not_awaited()
+    instances["ComfoClimeAlarmsCoordinator"].async_config_entry_first_refresh.assert_not_awaited()
+    # The eager coordinators still refresh as before.
+    instances["ComfoClimeDashboardCoordinator"].async_config_entry_first_refresh.assert_awaited_once()
 
 
 @pytest.mark.asyncio

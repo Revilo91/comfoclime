@@ -22,8 +22,10 @@ from .comfoclime_api import ComfoClimeAPI
 from .config_flow import DEFAULT_OPTIONS, LEGACY_ENTITY_OPTION_KEYS
 from .constants import DOMAIN
 from .coordinator import (
+    ComfoClimeAlarmsCoordinator,
     ComfoClimeDashboardCoordinator,
     ComfoClimeDefinitionCoordinator,
+    ComfoClimeHealthCoordinator,
     ComfoClimeMonitoringCoordinator,
     ComfoClimePropertyCoordinator,
     ComfoClimeTelemetryCoordinator,
@@ -263,6 +265,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ComfoClimeConfigEntry) -
         polling_interval,
     )
 
+    # Health and alarm coordinators are lazy: no first refresh here. Their sensors
+    # are diagnostic and disabled by default, so nothing queries these endpoints
+    # until one is enabled (and older firmware without them cannot block setup).
+    health_coordinator = ComfoClimeHealthCoordinator(
+        hass,
+        api,
+        monitoring_interval,
+        config_entry=entry,
+    )
+    alarms_coordinator = ComfoClimeAlarmsCoordinator(
+        hass,
+        api,
+        monitoring_interval,
+        config_entry=entry,
+    )
+
     # Create definition coordinator for device definition data (mainly for ComfoAirQ)
     definitioncoordinator = ComfoClimeDefinitionCoordinator(
         hass,
@@ -346,6 +364,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ComfoClimeConfigEntry) -
         devices=devices,
         main_device=main_device,
         main_device_registry_id=_register_main_device(hass, entry, main_device),
+        healthcoordinator=health_coordinator,
+        alarmscoordinator=alarms_coordinator,
     )
 
     _remove_legacy_access_tracking_entities(hass, entry)

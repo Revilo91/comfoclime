@@ -11,6 +11,8 @@ coordinators fetch all required data in a single update cycle.
 Available Coordinators:
     - ComfoClimeDashboardCoordinator: Real-time dashboard data (temp, fan, season)
     - ComfoClimeMonitoringCoordinator: Device monitoring data (uptime, UUID)
+    - ComfoClimeHealthCoordinator: Device memory and CAN-bus counters (lazy, no first refresh)
+    - ComfoClimeAlarmsCoordinator: Alarm bytes of all bus devices (lazy, no first refresh)
     - ComfoClimeThermalprofileCoordinator: Thermal profile settings
     - ComfoClimeTelemetryCoordinator: Batched telemetry data from all devices
     - ComfoClimePropertyCoordinator: Batched property data from all devices
@@ -41,7 +43,14 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
     from .comfoclime_api import ComfoClimeAPI
-    from .models import DashboardData, DeviceDefinitionData, MonitoringPing, ThermalProfileData
+    from .models import (
+        AlarmsResponse,
+        DashboardData,
+        DeviceDefinitionData,
+        MonitoringHealth,
+        MonitoringPing,
+        ThermalProfileData,
+    )
 
 from .constants import API_DEFAULTS, DOMAIN
 from .models import PropertyRegistryEntry, TelemetryRegistryEntry
@@ -146,6 +155,61 @@ class ComfoClimeMonitoringCoordinator(ComfoClimeBaseCoordinator):
         result = await self.api.async_get_monitoring_ping()
         _LOGGER.debug("MonitoringCoordinator: Received data: %s", result)
         return result
+
+
+class ComfoClimeHealthCoordinator(ComfoClimeBaseCoordinator):
+    """Coordinator for device memory and CAN-bus counters (``/monitoring/health``).
+
+    Not part of the setup's first refresh: all entities on it are diagnostic and
+    disabled by default, so the endpoint is only queried once one is enabled.
+    """
+
+    _coordinator_name = "Health"
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        api: ComfoClimeAPI,
+        polling_interval: int = DEFAULT_POLLING_INTERVAL_SECONDS,
+        config_entry=None,
+    ) -> None:
+        super().__init__(
+            hass,
+            api,
+            "ComfoClime Health",
+            polling_interval=polling_interval,
+            config_entry=config_entry,
+        )
+
+    async def _fetch_data(self) -> MonitoringHealth:
+        return await self.api.async_get_monitoring_health()
+
+
+class ComfoClimeAlarmsCoordinator(ComfoClimeBaseCoordinator):
+    """Coordinator for the alarm bytes of all bus devices (``/system/{uuid}/alarms``).
+
+    Like the health coordinator it is only queried while an enabled entity uses it.
+    """
+
+    _coordinator_name = "Alarms"
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        api: ComfoClimeAPI,
+        polling_interval: int = DEFAULT_POLLING_INTERVAL_SECONDS,
+        config_entry=None,
+    ) -> None:
+        super().__init__(
+            hass,
+            api,
+            "ComfoClime Alarms",
+            polling_interval=polling_interval,
+            config_entry=config_entry,
+        )
+
+    async def _fetch_data(self) -> AlarmsResponse:
+        return await self.api.async_get_alarms()
 
 
 class ComfoClimeThermalprofileCoordinator(ComfoClimeBaseCoordinator):
