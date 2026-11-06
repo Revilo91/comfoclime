@@ -17,8 +17,11 @@ from custom_components.comfoclime.models import ConnectedDevicesResponse
 
 @pytest.fixture(autouse=True)
 def _mock_entity_registry():
-    """Keep the setup-time registry cleanup away from the bare mock hass."""
-    with patch("custom_components.comfoclime.er.async_get", return_value=MagicMock()):
+    """Keep the setup-time registry access away from the bare mock hass."""
+    with (
+        patch("custom_components.comfoclime.er.async_get", return_value=MagicMock()),
+        patch("custom_components.comfoclime.dr.async_get", return_value=MagicMock()),
+    ):
         yield
 
 
@@ -415,6 +418,58 @@ async def test_async_setup_entry_runs_access_tracking_cleanup(mock_hass, mock_co
         assert await async_setup_entry(mock_hass, mock_config_entry) is True
 
     mock_cleanup.assert_called_once_with(mock_hass, mock_config_entry)
+
+
+async def _run_setup(mock_hass, mock_config_entry, devices, device_registry):
+    """Run async_setup_entry with all coordinators/API mocked."""
+    mock_hass.config_entries = MagicMock()
+    mock_hass.config_entries.async_forward_entry_setups = AsyncMock()
+
+    with (
+        patch("custom_components.comfoclime.ComfoClimeAPI") as mock_api_class,
+        patch("custom_components.comfoclime.ComfoClimeDashboardCoordinator") as c1,
+        patch("custom_components.comfoclime.ComfoClimeThermalprofileCoordinator") as c2,
+        patch("custom_components.comfoclime.ComfoClimeMonitoringCoordinator") as c3,
+        patch("custom_components.comfoclime.ComfoClimeDefinitionCoordinator") as c4,
+        patch("custom_components.comfoclime.ComfoClimeTelemetryCoordinator"),
+        patch("custom_components.comfoclime.ComfoClimePropertyCoordinator"),
+        patch("custom_components.comfoclime.dr.async_get", return_value=device_registry),
+    ):
+        mock_api_class.return_value.async_get_connected_devices = AsyncMock(
+            return_value=ConnectedDevicesResponse(devices=devices)
+        )
+        for coord in (c1, c2, c3, c4):
+            coord.return_value.async_config_entry_first_refresh = AsyncMock()
+
+        assert await async_setup_entry(mock_hass, mock_config_entry) is True
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_registers_main_device(mock_hass, mock_config_entry, mock_device):
+    """The ComfoClime device is registered up front and its registry id stored."""
+    registry = MagicMock()
+    registry.async_get_or_create.return_value = SimpleNamespace(id="registry-id-1")
+
+    await _run_setup(mock_hass, mock_config_entry, [mock_device], registry)
+
+    registry.async_get_or_create.assert_called_once()
+    kwargs = registry.async_get_or_create.call_args.kwargs
+    assert kwargs["config_entry_id"] == "test_entry_id"
+    assert kwargs["identifiers"] == {("comfoclime", "test-device-uuid")}
+    assert kwargs["manufacturer"] == "Zehnder"
+    assert kwargs["name"] == "ComfoClime Test"
+    assert mock_hass.data["comfoclime"]["test_entry_id"]["main_device_registry_id"] == "registry-id-1"
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_without_main_device(mock_hass, mock_config_entry, mock_connected_device):
+    """Without a ComfoClime device nothing is registered and the id is None."""
+    registry = MagicMock()
+
+    await _run_setup(mock_hass, mock_config_entry, [mock_connected_device], registry)
+
+    registry.async_get_or_create.assert_not_called()
+    assert mock_hass.data["comfoclime"]["test_entry_id"]["main_device_registry_id"] is None
 
 
 @pytest.mark.asyncio
