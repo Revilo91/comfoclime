@@ -9,13 +9,19 @@ This module contains all service call handlers:
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import aiohttp
+import homeassistant.helpers.config_validation as cv
 import homeassistant.helpers.device_registry as dr
+import voluptuous as vol
+from homeassistant.components.climate import DOMAIN as CLIMATE_DOMAIN
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.service import async_register_platform_entity_service
 
+from .constants import ScenarioMode
 from .infrastructure import validate_byte_value, validate_duration, validate_property_path
 from .models import PropertyWriteRequest
 
@@ -25,6 +31,47 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 DOMAIN = "comfoclime"
+
+START_DELAY_FORMAT = "%Y-%m-%d %H:%M:%S"
+
+# Older services.yaml versions offered "boost" while the climate entity only knows the
+# preset name "scenario_boost" (which avoids clashing with the temperature preset "boost").
+SCENARIO_ALIASES = {"boost": ScenarioMode.BOOST.preset_name}
+
+
+def _normalize_scenario(value: str) -> str:
+    """Map legacy scenario aliases to the preset names the climate entity understands."""
+    return SCENARIO_ALIASES.get(value, value)
+
+
+def _validate_scenario_duration(value: float) -> float:
+    """Reject non-positive durations (minutes) before any API call is made."""
+    is_valid, error_message = validate_duration(value)
+    if not is_valid:
+        raise vol.Invalid(error_message)
+    return value
+
+
+def _validate_start_delay(value: str) -> str:
+    """Ensure start_delay matches the datetime format the climate entity parses."""
+    try:
+        datetime.strptime(value, START_DELAY_FORMAT)
+    except ValueError as err:
+        raise vol.Invalid(f"start_delay must match YYYY-MM-DD HH:MM:SS: {value}") from err
+    return value
+
+
+SET_SCENARIO_MODE_SCHEMA = cv.make_entity_service_schema(
+    {
+        vol.Required("scenario"): vol.All(
+            cv.string,
+            _normalize_scenario,
+            vol.In([mode.preset_name for mode in ScenarioMode]),
+        ),
+        vol.Optional("duration"): vol.All(vol.Coerce(float), _validate_scenario_duration),
+        vol.Optional("start_delay"): vol.All(cv.string, _validate_start_delay),
+    }
+)
 
 
 def _get_api_for_device(hass: HomeAssistant, domain: str, device: dr.DeviceEntry) -> ComfoClimeAPI:
@@ -132,76 +179,16 @@ def async_setup_services(hass: HomeAssistant, domain: str = DOMAIN) -> None:
             _LOGGER.exception("Fehler beim Neustart des Geräts")
             raise HomeAssistantError("Fehler beim Neustart des Geräts") from e
 
-    async def handle_set_scenario_mode_service(call: ServiceCall) -> None:
-        """Handle set_scenario_mode service call.
-
-        This service activates special operating modes (scenarios) on the ComfoClime
-        climate entity with optional custom duration.
-
-        Supported scenarios:
-        - cooking: High ventilation for cooking (default: 30 min)
-        - party: High ventilation for parties (default: 30 min)
-        - away: Reduced mode for vacation (default: 24 hours)
-        - scenario_boost: Maximum power boost (default: 30 min)
-        """
-        entity_id = call.data["entity_id"]
-        scenario = call.data["scenario"]
-        duration = call.data.get("duration")
-        start_delay = call.data.get("start_delay")
-
-        # Validate duration if provided
-        if duration is not None:
-            is_valid, error_message = validate_duration(duration)
-            if not is_valid:
-                _LOGGER.error("Invalid duration: %s", error_message)
-                raise HomeAssistantError(f"Invalid duration: {error_message}")
-
-        # Validate start_delay if provided
-        if start_delay is not None:
-            is_valid, error_message = validate_duration(start_delay)
-            if not is_valid:
-                _LOGGER.error("Invalid start_delay: %s", error_message)
-                raise HomeAssistantError(f"Invalid start_delay: {error_message}")
-
-        # Find climate entity with matching entity_id in all ComfoClime integrations
-        for _entry_id, data in hass.data.get(domain, {}).items():
-            if isinstance(data, dict):  # Skip non-dict entries
-                climate_entities = data.get("climate_entities", [])
-
-                for climate_entity in climate_entities:
-                    if (
-                        climate_entity.entity_id == entity_id
-                        and climate_entity
-                        and hasattr(climate_entity, "async_set_scenario_mode")
-                    ):
-                        try:
-                            await climate_entity.async_set_scenario_mode(
-                                scenario_mode=scenario,
-                                duration=duration,
-                                start_delay=start_delay,
-                            )
-                        except (TimeoutError, aiohttp.ClientError, ValueError) as e:
-                            _LOGGER.exception("Error setting scenario mode '%s' on %s", scenario, entity_id)
-                            raise HomeAssistantError(f"Failed to set scenario mode '{scenario}'") from e
-                        else:
-                            _LOGGER.info(
-                                "Scenario mode '%s' activated for %s with duration %s and start_delay %s",
-                                scenario,
-                                entity_id,
-                                duration,
-                                start_delay,
-                            )
-                            return
-
-        # Entity not found or doesn't support scenarios
-        raise HomeAssistantError(
-            f"Climate entity '{entity_id}' not found or does not support scenario modes. "
-            f"Make sure the entity exists and belongs to the ComfoClime integration."
-        )
-
     # Register all services
     hass.services.async_register(domain, "set_property", handle_set_property_service)
     hass.services.async_register(domain, "reset_system", handle_reset_system_service)
-    hass.services.async_register(domain, "set_scenario_mode", handle_set_scenario_mode_service)
+    async_register_platform_entity_service(
+        hass,
+        domain,
+        "set_scenario_mode",
+        entity_domain=CLIMATE_DOMAIN,
+        func="async_set_scenario_mode",
+        schema=SET_SCENARIO_MODE_SCHEMA,
+    )
 
     _LOGGER.debug("Registered ComfoClime services: set_property, reset_system, set_scenario_mode")

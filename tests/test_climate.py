@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock
 
+import aiohttp
 import pytest
 from homeassistant.components.climate import (
     FAN_HIGH,
@@ -14,6 +15,7 @@ from homeassistant.components.climate import (
     HVACAction,
     HVACMode,
 )
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 
 from custom_components.comfoclime.climate import (
     ComfoClimeClimate,
@@ -624,6 +626,87 @@ class TestComfoClimeClimate:
         call_args = mock_api.async_update_dashboard.call_args[0]
         update = call_args[0]
         assert update.scenario == expected_scenario_id
+
+    @pytest.mark.asyncio
+    async def test_set_scenario_mode_service_method_passes_duration(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """The entity service method forwards scenario and duration (minutes -> seconds)."""
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+        climate.hass = mock_hass
+
+        await climate.async_set_scenario_mode(scenario="party", duration=45)
+
+        update = mock_api.async_update_dashboard.call_args[0][0]
+        assert update.scenario == 5
+        assert update.scenario_time_left == 45 * 60
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "error",
+        [TimeoutError("t"), aiohttp.ClientError("c"), ValueError("v")],
+        ids=["timeout", "client-error", "value-error"],
+    )
+    async def test_set_scenario_mode_service_method_maps_errors(
+        self,
+        error,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """Transport/value errors surface as HomeAssistantError to the service caller."""
+        mock_api.async_update_dashboard.side_effect = error
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+        climate.hass = mock_hass
+
+        with pytest.raises(HomeAssistantError):
+            await climate.async_set_scenario_mode(scenario="cooking")
+
+    @pytest.mark.asyncio
+    async def test_set_scenario_mode_service_method_unknown_scenario(
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_thermalprofile_coordinator,
+        mock_api,
+        mock_device,
+        mock_config_entry,
+    ):
+        """An unknown scenario raises ServiceValidationError without any API call."""
+        climate = ComfoClimeClimate(
+            dashboard_coordinator=mock_coordinator,
+            thermalprofile_coordinator=mock_thermalprofile_coordinator,
+            api=mock_api,
+            device=mock_device,
+            entry=mock_config_entry,
+        )
+        climate.hass = mock_hass
+
+        with pytest.raises(ServiceValidationError):
+            await climate.async_set_scenario_mode(scenario="sleeping")
+
+        mock_api.async_update_dashboard.assert_not_called()
 
 
 @pytest.mark.asyncio

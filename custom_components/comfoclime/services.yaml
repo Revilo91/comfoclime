@@ -56,18 +56,14 @@ reset_system:
 set_scenario_mode:
   name: Set Scenario Mode
   description: Aktiviert einen speziellen Betriebsmodus (Szenario) auf der ComfoClime Klimaanlage.
+  target:
+    entity:
+      integration: comfoclime
+      domain: climate
   fields:
-    entity_id:
-      name: Klimaanlage
-      description: Die ComfoClime Klimaanlage-Entität
-      required: true
-      selector:
-        entity:
-          integration: comfoclime
-          domain: climate
     scenario:
       name: Szenario
-      description: "Der zu aktivierende Szenario-Modus: cooking (Kochen), party (Party), away (Urlaub), boost (Boost)"
+      description: "Der zu aktivierende Szenario-Modus: cooking (Kochen), party (Party), away (Urlaub), scenario_boost (Boost)"
       required: true
       selector:
         select:
@@ -79,7 +75,7 @@ set_scenario_mode:
             - label: Urlaub (24h reduzierter Modus)
               value: away
             - label: Boost (30 Min maximale Leistung)
-              value: boost
+              value: scenario_boost
     duration:
       name: Dauer (Minuten)
       description: Optionale Dauer in Minuten. Falls nicht angegeben, wird die Standarddauer verwendet.

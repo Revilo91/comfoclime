@@ -212,7 +212,7 @@ Abtau-Zustände korrekt als heating/cooling/idle erkannt werden – Details sieh
 |---|---|---|
 | `comfoclime.set_property` | `device_id`, `path` (X/Y/Z), `value`, `byte_count` (1–2) | `signed`, `faktor` |
 | `comfoclime.reset_system` | – | – |
-| `comfoclime.set_scenario_mode` | `entity_id`, `scenario` (cooking/party/away/boost) | `duration` (min), `start_delay` |
+| `comfoclime.set_scenario_mode` | Ziel-Entity (`target:`, bzw. `entity_id` in `data`), `scenario` (cooking/party/away/scenario_boost; `boost` wird als Alias akzeptiert) | `duration` (min), `start_delay` (`YYYY-MM-DD HH:MM:SS`) |
 
 ## 9. API-Kurzreferenz
 

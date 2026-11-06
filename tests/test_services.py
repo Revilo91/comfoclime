@@ -2,7 +2,9 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import homeassistant.helpers.config_validation as cv
 import pytest
+import voluptuous as vol
 
 from custom_components.comfoclime.services import (
     DOMAIN,
@@ -329,83 +331,108 @@ async def test_reset_system_propagates_timeout_error():
 
 
 # ---------------------------------------------------------------------------
-# Tests for set_scenario_mode handler
+# Tests for set_scenario_mode (platform entity service)
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
-async def test_set_scenario_mode_activates_mode():
-    """set_scenario_mode handler delegates to climate entity."""
-    climate_entity = MagicMock()
-    climate_entity.entity_id = "climate.comfoclime"
-    climate_entity.async_set_scenario_mode = AsyncMock()
+def _register_and_get_scenario_kwargs() -> dict:
+    """Run async_setup_services and return kwargs of the platform entity service registration."""
+    hass = _make_hass()
+    with patch("custom_components.comfoclime.services.async_register_platform_entity_service") as register:
+        async_setup_services(hass, DOMAIN)
+    register.assert_called_once()
+    args, kwargs = register.call_args
+    assert args == (hass, DOMAIN, "set_scenario_mode")
+    return kwargs
 
-    hass = _make_hass({"entry1": {"climate_entities": [climate_entity]}})
-    call = MagicMock()
-    # Setup mock call.data with required fields
-    original = {"entity_id": "climate.comfoclime", "scenario": "cooking"}
-    call.data = MagicMock()
-    call.data.__getitem__ = lambda _, key: original[key]
-    call.data.get = lambda key, default=None: original.get(key, default)
 
-    async_setup_services(hass, DOMAIN)
-    handler = next(c[0][2] for c in hass.services.async_register.call_args_list if c[0][1] == "set_scenario_mode")
-    await handler(call)
+def test_set_scenario_mode_registered_as_platform_entity_service():
+    """set_scenario_mode is a climate entity service calling the entity method."""
+    kwargs = _register_and_get_scenario_kwargs()
 
-    climate_entity.async_set_scenario_mode.assert_called_once_with(
-        scenario_mode="cooking",
-        duration=None,
-        start_delay=None,
+    assert kwargs["entity_domain"] == "climate"
+    assert kwargs["func"] == "async_set_scenario_mode"
+    assert cv.is_entity_service_schema(kwargs["schema"])
+
+
+def test_set_scenario_mode_not_registered_as_plain_service():
+    """The broken hass.data based handler is gone."""
+    hass = _make_hass()
+    with patch("custom_components.comfoclime.services.async_register_platform_entity_service"):
+        async_setup_services(hass, DOMAIN)
+
+    registered = {call[0][1] for call in hass.services.async_register.call_args_list}
+    assert registered == {"set_property", "reset_system"}
+
+
+@pytest.mark.parametrize("scenario", ["cooking", "party", "away", "scenario_boost"])
+def test_set_scenario_mode_schema_accepts_preset_names(scenario):
+    """Schema accepts every scenario the climate entity understands."""
+    schema = _register_and_get_scenario_kwargs()["schema"]
+
+    data = schema({"entity_id": "climate.comfoclime", "scenario": scenario})
+
+    assert data["scenario"] == scenario
+    assert data["entity_id"] == ["climate.comfoclime"]
+
+
+def test_set_scenario_mode_schema_maps_boost_alias():
+    """services.yaml used to offer 'boost'; it maps to the real 'scenario_boost' preset."""
+    schema = _register_and_get_scenario_kwargs()["schema"]
+
+    data = schema({"entity_id": "climate.comfoclime", "scenario": "boost"})
+
+    assert data["scenario"] == "scenario_boost"
+
+
+def test_set_scenario_mode_schema_accepts_entity_id_in_data_and_target_forms():
+    """Legacy `data: {entity_id: ...}` and area/device targets pass the entity schema."""
+    schema = _register_and_get_scenario_kwargs()["schema"]
+
+    assert schema({"entity_id": "climate.a", "scenario": "party"})["entity_id"] == ["climate.a"]
+    assert schema({"entity_id": ["climate.a", "climate.b"], "scenario": "party"})["entity_id"] == [
+        "climate.a",
+        "climate.b",
+    ]
+    assert schema({"area_id": "kitchen", "scenario": "party"})["area_id"] == ["kitchen"]
+
+
+def test_set_scenario_mode_schema_optional_fields():
+    """duration and start_delay are optional and validated."""
+    schema = _register_and_get_scenario_kwargs()["schema"]
+
+    data = schema(
+        {
+            "entity_id": "climate.comfoclime",
+            "scenario": "cooking",
+            "duration": 45,
+            "start_delay": "2030-01-01 10:00:00",
+        }
     )
 
-
-@pytest.mark.asyncio
-async def test_set_scenario_mode_entity_not_found_raises():
-    """set_scenario_mode raises HomeAssistantError when entity is not found."""
-    from homeassistant.exceptions import HomeAssistantError
-
-    hass = _make_hass({"entry1": {"climate_entities": []}})
-
-    original = {"entity_id": "climate.nonexistent", "scenario": "party"}
-    call = MagicMock()
-    call.data = MagicMock()
-    call.data.__getitem__ = lambda _, key: original[key]
-    call.data.get = lambda key, default=None: original.get(key, default)
-
-    async_setup_services(hass, DOMAIN)
-    handler = next(c[0][2] for c in hass.services.async_register.call_args_list if c[0][1] == "set_scenario_mode")
-
-    with pytest.raises(HomeAssistantError, match="not found"):
-        await handler(call)
+    assert data["duration"] == 45
+    assert data["start_delay"] == "2030-01-01 10:00:00"
+    assert "duration" not in schema({"entity_id": "climate.comfoclime", "scenario": "cooking"})
 
 
-@pytest.mark.asyncio
-async def test_set_scenario_mode_uses_hass_data_at_call_time():
-    """set_scenario_mode reads hass.data when called, not when registered.
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"entity_id": "climate.comfoclime"},
+        {"entity_id": "climate.comfoclime", "scenario": "sleeping"},
+        {"entity_id": "climate.comfoclime", "scenario": "cooking", "duration": 0},
+        {"entity_id": "climate.comfoclime", "scenario": "cooking", "duration": -5},
+        {"entity_id": "climate.comfoclime", "scenario": "cooking", "duration": "abc"},
+        {"entity_id": "climate.comfoclime", "scenario": "cooking", "start_delay": "tomorrow"},
+    ],
+    ids=["no-scenario", "unknown-scenario", "zero-duration", "negative-duration", "string-duration", "bad-start-delay"],
+)
+def test_set_scenario_mode_schema_rejects_invalid(bad):
+    """Invalid input is rejected by the schema, i.e. before any API call."""
+    schema = _register_and_get_scenario_kwargs()["schema"]
 
-    This verifies that after a config entry reload (where hass.data is updated)
-    the handler finds the new climate entities, not stale ones from before the reload.
-    """
-    hass = _make_hass({})  # empty at registration time
-
-    async_setup_services(hass, DOMAIN)
-    handler = next(c[0][2] for c in hass.services.async_register.call_args_list if c[0][1] == "set_scenario_mode")
-
-    # Simulate config entry reload: new climate entity appears in hass.data
-    climate_entity = MagicMock()
-    climate_entity.entity_id = "climate.comfoclime"
-    climate_entity.async_set_scenario_mode = AsyncMock()
-    hass.data[DOMAIN] = {"entry1": {"climate_entities": [climate_entity]}}
-
-    original = {"entity_id": "climate.comfoclime", "scenario": "boost"}
-    call = MagicMock()
-    call.data = MagicMock()
-    call.data.__getitem__ = lambda _, key: original[key]
-    call.data.get = lambda key, default=None: original.get(key, default)
-
-    await handler(call)
-
-    climate_entity.async_set_scenario_mode.assert_called_once()
+    with pytest.raises(vol.Invalid):
+        schema(bad)
 
 
 @pytest.mark.asyncio
