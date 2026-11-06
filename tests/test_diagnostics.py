@@ -8,8 +8,10 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.comfoclime.constants import DOMAIN
 from custom_components.comfoclime.coordinator import (
+    ComfoClimeAlarmsCoordinator,
     ComfoClimeDashboardCoordinator,
     ComfoClimeDefinitionCoordinator,
+    ComfoClimeHealthCoordinator,
     ComfoClimeMonitoringCoordinator,
     ComfoClimePropertyCoordinator,
     ComfoClimeTelemetryCoordinator,
@@ -17,9 +19,11 @@ from custom_components.comfoclime.coordinator import (
 )
 from custom_components.comfoclime.diagnostics import async_get_config_entry_diagnostics
 from custom_components.comfoclime.models import (
+    AlarmsResponse,
     DashboardData,
     DeviceConfig,
     DeviceDefinitionData,
+    MonitoringHealth,
     MonitoringPing,
     ThermalProfileData,
 )
@@ -150,3 +154,49 @@ async def test_coordinators_without_data(hass, entry, make_runtime_data):
     assert all(info["data"] is None for info in result["coordinators"].values())
     assert result["devices"] == []
     assert HOST not in json.dumps(result)
+
+
+@pytest.fixture
+def entry_with_health_and_alarms(hass, loaded_entry):
+    """The loaded entry plus the two lazy coordinators, filled with data."""
+    api = MagicMock()
+    health = ComfoClimeHealthCoordinator(hass, api, config_entry=loaded_entry)
+    health.data = MonitoringHealth(total_free_bytes=96612, twai_arb_lost_count=4437, open_sockets=[58, 59])
+    alarms = ComfoClimeAlarmsCoordinator(hass, api, config_entry=loaded_entry)
+    alarms.data = AlarmsResponse.from_api(
+        {
+            "devices": [
+                {"uuid": AIR_UUID, "modelTypeId": 1, "variant": 1, "zoneId": 1, "errors": [0] * 12 + [16] + [0] * 19},
+                {"uuid": CLIME_UUID, "modelTypeId": 20, "variant": 1, "zoneId": 1, "errors": [0] * 32},
+            ]
+        }
+    )
+    loaded_entry.runtime_data.healthcoordinator = health
+    loaded_entry.runtime_data.alarmscoordinator = alarms
+    return loaded_entry
+
+
+async def test_lazy_coordinators_are_reported_when_present(hass, entry_with_health_and_alarms):
+    result = await async_get_config_entry_diagnostics(hass, entry_with_health_and_alarms)
+
+    assert set(result["coordinators"]) == COORDINATOR_KEYS | {"health", "alarms"}
+    assert result["coordinators"]["health"]["data"]["total_free_bytes"] == 96612
+    assert result["coordinators"]["health"]["data"]["twai_arb_lost_count"] == 4437
+
+
+async def test_lazy_coordinators_are_omitted_when_absent(hass, loaded_entry):
+    result = await async_get_config_entry_diagnostics(hass, loaded_entry)
+
+    assert "health" not in result["coordinators"]
+    assert "alarms" not in result["coordinators"]
+
+
+async def test_alarm_serial_numbers_are_redacted_but_alarm_values_kept(hass, entry_with_health_and_alarms):
+    result = await async_get_config_entry_diagnostics(hass, entry_with_health_and_alarms)
+    dump = json.dumps(result)
+
+    for secret in (HOST, CLIME_UUID, AIR_UUID, SERIAL):
+        assert secret not in dump
+    devices = result["coordinators"]["alarms"]["data"]["devices"]
+    assert [d["modelTypeId"] for d in devices] == [1, 20]
+    assert devices[0]["errors"][12] == 16
