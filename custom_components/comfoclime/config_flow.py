@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any
 
 import aiohttp
 import voluptuous as vol
-from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlowWithReload
 from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
@@ -28,7 +28,6 @@ from .infrastructure import validate_host
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
-    from homeassistant.data_entry_flow import FlowResult
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -111,7 +110,7 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = CONFIG_ENTRY_VERSION
 
-    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Ask for the host and validate that a ComfoClime answers there."""
         errors: dict[str, str] = {}
 
@@ -134,10 +133,10 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Update the host of an existing entry, e.g. after a DHCP change."""
         errors: dict[str, str] = {}
-        entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
+        entry = self._get_reconfigure_entry()
 
         if user_input is not None:
             host = user_input["host"]
@@ -146,9 +145,7 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
                 if entry.unique_id is not None and entry.unique_id != uuid:
                     errors["host"] = "wrong_device"
                 else:
-                    self.hass.config_entries.async_update_entry(entry, data={"host": host}, unique_id=uuid)
-                    await self.hass.config_entries.async_reload(entry.entry_id)
-                    return self.async_abort(reason="reconfigure_successful")
+                    return self.async_update_reload_and_abort(entry, data={"host": host}, unique_id=uuid)
             else:
                 errors["host"] = error
 
@@ -159,23 +156,21 @@ class ComfoClimeConfigFlow(ConfigFlow, domain=DOMAIN):
             description_placeholders={"current_host": entry.data.get("host", "unknown")},
         )
 
-    @classmethod
-    def async_get_options_flow(cls, entry: ConfigEntry) -> OptionsFlow:
-        return ComfoClimeOptionsFlow(entry)
+    @staticmethod
+    def async_get_options_flow(config_entry: ConfigEntry) -> ComfoClimeOptionsFlow:  # noqa: ARG004
+        """Return the options flow; it reads the entry via ``self.config_entry``."""
+        return ComfoClimeOptionsFlow()
 
 
-class ComfoClimeOptionsFlow(OptionsFlow):
+class ComfoClimeOptionsFlow(OptionsFlowWithReload):
     """Options flow for polling and connection tuning.
 
     Entity selection lives in Home Assistant's entity registry, not here.
     """
 
-    def __init__(self, entry: ConfigEntry) -> None:
-        self.entry = entry
-
     def _current(self, key: str) -> Any:
         """Return the stored value for an option, falling back to its default."""
-        return self.entry.options.get(key, DEFAULT_OPTIONS[key])
+        return self.config_entry.options.get(key, DEFAULT_OPTIONS[key])
 
     def _seconds(
         self,
@@ -202,18 +197,18 @@ class ComfoClimeOptionsFlow(OptionsFlow):
             selector.NumberSelector(config),
         )
 
-    def _save(self, user_input: dict[str, Any]) -> FlowResult:
+    def _save(self, user_input: dict[str, Any]) -> ConfigFlowResult:
         """Merge one section's input into the stored options and finish."""
-        return self.async_create_entry(title="", data={**self.entry.options, **user_input})
+        return self.async_create_entry(title="", data={**self.config_entry.options, **user_input})
 
-    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Show the options menu."""
         return self.async_show_menu(
             step_id="init",
             menu_options=["timeouts", "polling", "rate_limiting"],
         )
 
-    async def async_step_timeouts(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_timeouts(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Read and write timeouts."""
         if user_input is not None:
             return self._save(user_input)
@@ -225,7 +220,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
             data_schema=vol.Schema({read_key: read_sel, write_key: write_sel}),
         )
 
-    async def async_step_polling(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_polling(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Polling interval, cache lifetime and retry count."""
         if user_input is not None:
             return self._save(user_input)
@@ -245,7 +240,7 @@ class ComfoClimeOptionsFlow(OptionsFlow):
             ),
         )
 
-    async def async_step_rate_limiting(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_rate_limiting(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Request spacing and debouncing, which protect the Airduino board."""
         if user_input is not None:
             return self._save(user_input)

@@ -8,7 +8,6 @@ import pytest
 from custom_components.comfoclime import (
     _remove_legacy_access_tracking_entities,
     async_migrate_entry,
-    async_reload_entry,
     async_setup,
     async_setup_entry,
     async_unload_entry,
@@ -112,6 +111,9 @@ async def test_async_setup_entry(
                             assert "select" in platforms
                             assert "fan" in platforms
                             assert "climate" in platforms
+
+                            # Reloads come from the config/options flow, not a listener
+                            mock_config_entry.add_update_listener.assert_not_called()
 
                             # Services are registered in async_setup, not async_setup_entry
 
@@ -346,38 +348,6 @@ async def test_async_unload_entry(mock_hass, mock_config_entry):
 
     # Verify platforms were unloaded via the HA helper
     mock_hass.config_entries.async_unload_platforms.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_async_reload_entry(mock_hass, mock_config_entry):
-    """Test async_reload_entry delegates to Home Assistant reload."""
-    mock_hass.config_entries = MagicMock()
-    mock_hass.config_entries.async_reload = AsyncMock(return_value=True)
-
-    await async_reload_entry(mock_hass, mock_config_entry)
-
-    mock_hass.config_entries.async_reload.assert_called_once_with(mock_config_entry.entry_id)
-
-
-@pytest.mark.asyncio
-async def test_async_reload_entry_leaves_registry_alone(mock_hass, mock_config_entry):
-    """Reloading must not delete entities.
-
-    The old options flow pruned the registry on every options change, which
-    threw away the user's names, areas and history along with the entity.
-    Reload is now purely a reload; visibility is registry state.
-    """
-    mock_config_entry.options = {"polling_interval": 60}
-    mock_hass.data = {"comfoclime": {mock_config_entry.entry_id: {"devices": [], "main_device": None}}}
-    mock_hass.config_entries = MagicMock()
-    mock_hass.config_entries.async_reload = AsyncMock(return_value=True)
-
-    mock_registry = MagicMock()
-    with patch("custom_components.comfoclime.er.async_get", return_value=mock_registry):
-        await async_reload_entry(mock_hass, mock_config_entry)
-
-    mock_registry.async_remove.assert_not_called()
-    mock_hass.config_entries.async_reload.assert_called_once_with(mock_config_entry.entry_id)
 
 
 def test_remove_legacy_access_tracking_entities(mock_hass, mock_config_entry):
