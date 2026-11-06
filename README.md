@@ -25,7 +25,7 @@ ComfoClime is a HVAC solution as additional device for the ComfoAir Q series. It
 ### System Requirements
 - **Home Assistant**: ≥ 2026.5.0
 - **Python**: ≥ 3.14
-- **aiohttp**: ≥ 3.8.0, < 4.0
+- **aiohttp**: provided by Home Assistant (not listed in `manifest.json`)
 - **pydantic**: ≥ 2.0.0
 
 ### Supported Devices

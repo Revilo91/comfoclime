@@ -51,7 +51,8 @@ def test_manifest_contains_current_home_assistant_metadata() -> None:
 
     assert manifest["integration_type"] == "hub"
     assert manifest["iot_class"] == "local_polling"
-    assert manifest["requirements"] == ["aiohttp>=3.8.0", "pydantic>=2.0.0"]
+    # aiohttp ships with Home Assistant itself; hassfest rejects it in custom manifests.
+    assert manifest["requirements"] == ["pydantic>=2.0.0"]
 
 
 def test_hacs_minimum_does_not_exceed_dev_home_assistant_version() -> None:

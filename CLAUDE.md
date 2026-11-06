@@ -24,7 +24,7 @@ Geräte am ComfoNet-Bus (v. a. ComfoAir Q). Kanonisches Repo: **https://github.c
 |---|---|---|
 | Home Assistant | ≥ 2026.5.0 | `hacs.json`, `pyproject.toml` (dev-dep `homeassistant>=2026.5.0`) |
 | Python | ≥ 3.14.2 | `pyproject.toml` (`requires-python`); HA 2026.3+ verlangt genau diese Patch-Version |
-| aiohttp | ≥ 3.8.0, < 4.0 | `manifest.json` |
+| aiohttp | wird von Home Assistant mitgeliefert – **nicht** in `manifest.json` eintragen (hassfest lehnt das ab) | |
 | pydantic | ≥ 2.0.0 | `manifest.json` |
 | Integrationsversion | siehe `manifest.json` (`version`) – muss identisch mit `pyproject.toml` sein | |
 
