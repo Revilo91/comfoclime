@@ -56,7 +56,6 @@ __init__.py (async_setup_entry / async_unload_entry / Service-Registrierung)
 | `comfoclime_api.py` | Öffentlicher async API-Client (`ComfoClimeAPI`), nutzt `infrastructure/` |
 | `infrastructure/api.py` | Rate-Limiting & Caching (`RateLimiterCache`), `api_get`/`api_put`/`api_post`-Decorator |
 | `infrastructure/validation.py` | Input-Validierung (Host/IP, Property-Pfad `X/Y/Z`, Byte-Werte, Dauer) |
-| `infrastructure/tracking.py` | `AccessTracker` – API-Zugriffszähler für Diagnose-Sensoren |
 | `infrastructure/errors.py` | Custom Exceptions (`ComfoClimeError`, `ComfoClimeConnectionError`, …) |
 | `coordinator.py` | 6 `DataUpdateCoordinator`-Klassen (siehe oben) |
 | `models.py` | Pydantic-v2-Modelle für alle API-Responses + Byte/Temperatur-Hilfsfunktionen |
@@ -162,7 +161,7 @@ Registry (samt Verlauf, Bereich und Umbenennungen).
 |---|---|---|
 | `None` | `True` | Climate, Fan, Kern-Sensoren (Innen-/Außentemp, Luftmengen, Fan-Speed, Wärmepumpenstatus), Komfort-Number/Switch/Select |
 | `"config"` | `False` | Heiz-/Kühlkurven-Parameter, RMOT-Schwellen, Wärmepumpen-Min/Max, Feuchtigkeitskontrolle |
-| `"diagnostic"` | `False` | Thermalprofil-Sensoren (Duplikate der Number/Select/Switch), rohe Telemetrie, Definition-Sensoren, Access-Tracking |
+| `"diagnostic"` | `False` | Thermalprofil-Sensoren (Duplikate der Number/Select/Switch), rohe Telemetrie, Definition-Sensoren |
 
 Beides wird zentral abgeleitet in `entities/base_definitions.py`:
 `entity_category_for()` (bezieht `diagnose=True` bei Telemetrie mit ein) und `enabled_by_default()`.

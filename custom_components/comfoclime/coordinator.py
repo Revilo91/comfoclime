@@ -41,7 +41,6 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
     from .comfoclime_api import ComfoClimeAPI
-    from .infrastructure import AccessTracker
     from .models import DashboardData, DeviceDefinitionData, MonitoringPing, ThermalProfileData
 
 from .constants import API_DEFAULTS
@@ -68,7 +67,6 @@ class ComfoClimeBaseCoordinator(DataUpdateCoordinator):
         api: ComfoClimeAPI,
         name: str,
         polling_interval: int = DEFAULT_POLLING_INTERVAL_SECONDS,
-        access_tracker: AccessTracker | None = None,
         config_entry=None,
     ) -> None:
         super().__init__(
@@ -79,7 +77,6 @@ class ComfoClimeBaseCoordinator(DataUpdateCoordinator):
             config_entry=config_entry,
         )
         self.api = api
-        self._access_tracker = access_tracker
         self.last_update_success_time: datetime | None = None
 
     async def _fetch_data(self):
@@ -90,8 +87,6 @@ class ComfoClimeBaseCoordinator(DataUpdateCoordinator):
         try:
             result = await self._fetch_data()
             self.last_update_success_time = datetime.now(UTC)
-            if self._access_tracker:
-                self._access_tracker.record_access(self._coordinator_name)
             return result
         except (TimeoutError, aiohttp.ClientError) as e:
             _LOGGER.warning("Error fetching %s data: %s", self._coordinator_name, e)
@@ -108,7 +103,6 @@ class ComfoClimeDashboardCoordinator(ComfoClimeBaseCoordinator):
         hass,
         api,
         polling_interval=DEFAULT_POLLING_INTERVAL_SECONDS,
-        access_tracker: AccessTracker | None = None,
         config_entry=None,
     ):
         super().__init__(
@@ -116,7 +110,6 @@ class ComfoClimeDashboardCoordinator(ComfoClimeBaseCoordinator):
             api,
             "ComfoClime Dashboard",
             polling_interval=polling_interval,
-            access_tracker=access_tracker,
             config_entry=config_entry,
         )
 
@@ -134,7 +127,6 @@ class ComfoClimeMonitoringCoordinator(ComfoClimeBaseCoordinator):
         hass: HomeAssistant,
         api: ComfoClimeAPI,
         polling_interval: int = DEFAULT_POLLING_INTERVAL_SECONDS,
-        access_tracker: AccessTracker | None = None,
         config_entry=None,
     ) -> None:
         super().__init__(
@@ -142,7 +134,6 @@ class ComfoClimeMonitoringCoordinator(ComfoClimeBaseCoordinator):
             api,
             "ComfoClime Monitoring",
             polling_interval=polling_interval,
-            access_tracker=access_tracker,
             config_entry=config_entry,
         )
 
@@ -163,7 +154,6 @@ class ComfoClimeThermalprofileCoordinator(ComfoClimeBaseCoordinator):
         hass: HomeAssistant,
         api: ComfoClimeAPI,
         polling_interval: int = DEFAULT_POLLING_INTERVAL_SECONDS,
-        access_tracker: AccessTracker | None = None,
         config_entry=None,
     ) -> None:
         super().__init__(
@@ -171,7 +161,6 @@ class ComfoClimeThermalprofileCoordinator(ComfoClimeBaseCoordinator):
             api,
             "ComfoClime Thermalprofile",
             polling_interval=polling_interval,
-            access_tracker=access_tracker,
             config_entry=config_entry,
         )
 
@@ -215,7 +204,6 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
         api: ComfoClimeAPI,
         devices: list[dict[str, Any]] | None = None,
         polling_interval: int = DEFAULT_POLLING_INTERVAL_SECONDS,
-        access_tracker: AccessTracker | None = None,
         config_entry=None,
         sensor_delay: float = 0.3,
         circuit_breaker_threshold: int = 5,
@@ -228,7 +216,6 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
             api: ComfoClimeAPI instance for device communication
             devices: List of connected devices
             polling_interval: Update interval in seconds (default: 60)
-            access_tracker: Optional access tracker for monitoring API calls
             sensor_delay: Seconds to sleep between individual sensor reads (protects Airduino)
             circuit_breaker_threshold: Consecutive failures before circuit breaker trips
             circuit_breaker_cooldown: Seconds to pause polling after circuit breaker trips
@@ -242,7 +229,6 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
         )
         self.api = api
         self.devices = devices or []
-        self._access_tracker = access_tracker
         self.last_update_success_time: datetime | None = None
         # Registry of telemetry requests: {device_uuid: {telemetry_id: TelemetryRegistryEntry}}
         self._telemetry_registry: dict[str, dict[str, TelemetryRegistryEntry]] = {}
@@ -368,9 +354,6 @@ class ComfoClimeTelemetryCoordinator(DataUpdateCoordinator):
                     # Store the scaled value for backward compatibility with sensors
                     result[device_uuid][telemetry_id] = reading.scaled_value if reading else None
                     cycle_had_any_success = True
-                    # Track each individual API call
-                    if self._access_tracker:
-                        self._access_tracker.record_access("Telemetry")
                 except (TimeoutError, aiohttp.ClientError) as e:
                     _LOGGER.debug(
                         "Error fetching telemetry %s for device %s: %s",
@@ -468,7 +451,6 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
         api: ComfoClimeAPI,
         devices: list[dict[str, Any]] | None = None,
         polling_interval: int = DEFAULT_POLLING_INTERVAL_SECONDS,
-        access_tracker: AccessTracker | None = None,
         config_entry=None,
         sensor_delay: float = 0.3,
         circuit_breaker_threshold: int = 5,
@@ -481,7 +463,6 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
             api: ComfoClimeAPI instance for device communication
             devices: List of connected devices
             polling_interval: Update interval in seconds (default: 60)
-            access_tracker: Optional access tracker for monitoring API calls
             sensor_delay: Seconds to sleep between individual property reads (protects Airduino)
             circuit_breaker_threshold: Consecutive failures before circuit breaker trips
             circuit_breaker_cooldown: Seconds to pause polling after circuit breaker trips
@@ -495,7 +476,6 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
         )
         self.api = api
         self.devices = devices or []
-        self._access_tracker = access_tracker
         self.last_update_success_time: datetime | None = None
         # Registry of property requests: {device_uuid: {path: PropertyRegistryEntry}}
         self._property_registry: dict[str, dict[str, PropertyRegistryEntry]] = {}
@@ -647,9 +627,6 @@ class ComfoClimePropertyCoordinator(DataUpdateCoordinator):
                     # Store the scaled value for backward compatibility with sensors
                     result[device_uuid][property_path] = reading.scaled_value if reading else None
                     cycle_had_any_success = True
-                    # Track each individual API call
-                    if self._access_tracker:
-                        self._access_tracker.record_access("Property")
                 except (TimeoutError, aiohttp.ClientError) as e:
                     _LOGGER.debug(
                         "Error fetching property %s for device %s: %s",
@@ -735,7 +712,6 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
         api: ComfoClimeAPI,
         devices: list[dict[str, Any]] | None = None,
         polling_interval: int = DEFAULT_POLLING_INTERVAL_SECONDS,
-        access_tracker: AccessTracker | None = None,
         config_entry=None,
     ) -> None:
         """Initialize the device definition coordinator.
@@ -745,7 +721,6 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
             api: ComfoClimeAPI instance for device communication
             devices: List of connected devices
             polling_interval: Update interval in seconds (default: 60)
-            access_tracker: Optional access tracker for monitoring API calls
         """
         super().__init__(
             hass,
@@ -756,7 +731,6 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
         )
         self.api = api
         self.devices = devices or []
-        self._access_tracker = access_tracker
         self.last_update_success_time: datetime | None = None
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
@@ -794,9 +768,6 @@ class ComfoClimeDefinitionCoordinator(DataUpdateCoordinator):
             try:
                 definition_data = await self.api.async_get_device_definition(device_uuid=device_uuid)
                 result[device_uuid] = definition_data
-                # Track each individual API call
-                if self._access_tracker:
-                    self._access_tracker.record_access("Definition")
                 _LOGGER.debug("Successfully fetched definition for device %s", device_uuid)
             except (TimeoutError, aiohttp.ClientError) as e:
                 _LOGGER.debug("Error fetching definition for device %s: %s", device_uuid, e)

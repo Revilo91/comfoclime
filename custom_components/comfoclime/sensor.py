@@ -11,7 +11,6 @@ The sensor platform supports multiple sensor types:
     - Telemetry Sensors: Device-specific telemetry data
     - Property Sensors: Device-specific property values
     - Definition Sensors: Device definition data
-    - Access Tracking Sensors: API call statistics
 
 Every sensor this integration knows about is created. Which of them are
 visible is Home Assistant's business, not ours: standard sensors start
@@ -60,7 +59,6 @@ from .coordinator import (
 )
 from .entities.base_definitions import enabled_by_default, entity_category_for
 from .entities.sensor_definitions import (
-    ACCESS_TRACKING_SENSORS,
     CONNECTED_DEVICE_DEFINITION_SENSORS,
     CONNECTED_DEVICE_PROPERTIES,
     CONNECTED_DEVICE_SENSORS,
@@ -80,7 +78,6 @@ if TYPE_CHECKING:
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
     from .comfoclime_api import ComfoClimeAPI
-    from .infrastructure import AccessTracker
     from .models import DeviceConfig
 
 _LOGGER = logging.getLogger(__name__)
@@ -105,7 +102,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         - Telemetry: Device-specific telemetry data (batched)
         - Property: Device-specific property values (batched)
         - Definition: Device definition data
-        - Access Tracking: API call statistics
 
     Nothing is filtered here. Definitions carry an entity category, and
     anything categorised as config or diagnostic is registered disabled so
@@ -227,24 +223,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                     entity_registry_enabled_default=enabled_by_default(def_sensor_def),
                 )
             )
-
-    access_tracker: AccessTracker = data["access_tracker"]
-    for sensor_def in ACCESS_TRACKING_SENSORS:
-        sensors.append(
-            ComfoClimeAccessTrackingSensor(
-                hass=hass,
-                access_tracker=access_tracker,
-                coordinator_name=sensor_def.coordinator,
-                metric=sensor_def.metric,
-                name=sensor_def.name,
-                translation_key=sensor_def.translation_key,
-                state_class=sensor_def.state_class,
-                entity_category=entity_category_for(sensor_def),
-                device=main_device,
-                entry=entry,
-                entity_registry_enabled_default=enabled_by_default(sensor_def),
-            )
-        )
 
     # Entities that are enabled register their telemetry/property needs in
     # async_added_to_hass and then ask for a (debounced) coordinator refresh,
@@ -575,89 +553,3 @@ class ComfoClimeDefinitionSensor(ComfoClimeBaseEntity, CoordinatorEntity, Sensor
             _LOGGER.debug("Error retrieving definition %s", self._key, exc_info=True)
             self._state = None
         self.async_write_ha_state()
-
-
-class ComfoClimeAccessTrackingSensor(ComfoClimeBaseEntity, SensorEntity):
-    """Sensor for tracking API access patterns per coordinator."""
-
-    def __init__(
-        self,
-        hass: HomeAssistant,
-        access_tracker: AccessTracker,
-        coordinator_name: str | None,
-        metric: str,
-        name: str,
-        translation_key: str | bool,
-        *,
-        state_class: str | None = None,
-        entity_category: str | None = None,
-        device: DeviceConfig | None = None,
-        entry: ConfigEntry,
-        entity_registry_enabled_default: bool = True,
-    ) -> None:
-        self._hass = hass
-        self._access_tracker = access_tracker
-        self._coordinator_name = coordinator_name
-        self._metric = metric
-        self._name = name
-        self._state = 0
-        self._attr_state_class = SensorStateClass(state_class) if state_class else None
-        self._attr_entity_category = EntityCategory(entity_category) if entity_category else None
-        self._attr_entity_registry_enabled_default = entity_registry_enabled_default
-        self._device = device
-        self._entry = entry
-        self._attr_config_entry_id = entry.entry_id
-
-        # Build unique_id based on coordinator and metric
-        if coordinator_name:
-            self._attr_unique_id = f"{entry.entry_id}_access_{coordinator_name.lower()}_{metric}"
-        else:
-            self._attr_unique_id = f"{entry.entry_id}_access_{metric}"
-
-        if not translation_key:
-            self._attr_name = name
-        else:
-            self._attr_translation_key = translation_key
-        self._attr_has_entity_name = True
-        self._attr_native_unit_of_measurement = None
-
-    @property
-    def native_value(self):
-        """Return the current value of the sensor."""
-        return self._state
-
-    @property
-    def should_poll(self) -> bool:
-        """Return True as we need to poll to get updated access counts."""
-        return True
-
-    async def async_update(self) -> None:
-        """Update the sensor state from the access tracker."""
-        try:
-            if self._metric == "per_minute":
-                self._state = self._access_tracker.get_accesses_per_minute(self._coordinator_name)
-            elif self._metric == "per_hour":
-                self._state = self._access_tracker.get_accesses_per_hour(self._coordinator_name)
-            elif self._metric == "total_per_minute":
-                self._state = self._access_tracker.get_total_accesses_per_minute()
-            elif self._metric == "total_per_hour":
-                self._state = self._access_tracker.get_total_accesses_per_hour()
-            else:
-                self._state = 0
-        except KeyError, TypeError, ValueError:
-            _LOGGER.debug("Error updating access tracking sensor %s", self._name, exc_info=True)
-            self._state = 0
-
-    @property
-    def extra_state_attributes(self):
-        """Return additional attributes with detailed access information."""
-        if self._coordinator_name:
-            return {
-                "coordinator": self._coordinator_name,
-                "metric": self._metric,
-                "total_accesses": self._access_tracker.get_total_accesses(self._coordinator_name),
-            }
-        return {
-            "metric": self._metric,
-            "summary": self._access_tracker.get_summary(),
-        }
