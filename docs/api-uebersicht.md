@@ -32,7 +32,7 @@ Nicht öffentlich, aber intern genutzt: `_async_get_uuid_internal` (GET `/monito
 
 ### Weitere Endpoints (Gerät antwortet, Client nutzt sie nicht)
 
-Geprüft am 2026-11-06 gegen `10.0.2.27` (Firmware `R1.5.6`): Endpoints 12–16 per GET, Endpoints 17–20 aus einem Mitschnitt der Hersteller-App (PCAPdroid, Flutter-App, `user-agent: Dart/3.13`) plus GET-Probe. Endpoints 12–16 stehen in der Upstream-Doku `comfoclime_api`, 17–20 nicht. Keiner davon ist in `comfoclime_api.py` umgesetzt.
+Geprüft am 2026-11-06 gegen `10.0.2.27` (Firmware `R1.5.6`): Endpoints 12–16 per GET, Endpoints 17–21 aus zwei Mitschnitten der Hersteller-App (PCAPdroid, Flutter-App, `user-agent: Dart/3.13`) plus GET-Probe. Endpoints 12–16 stehen in der Upstream-Doku `comfoclime_api`, 17–21 nicht. Keiner davon ist in `comfoclime_api.py` umgesetzt.
 
 | # | Methode | Pfad | Antwort |
 |---|---|---|---|
@@ -45,6 +45,7 @@ Geprüft am 2026-11-06 gegen `10.0.2.27` (Firmware `R1.5.6`): Endpoints 12–16 
 | 18 | GET | `/wifi/list` | aktuelles WLAN und gefundene Netze |
 | 19 | PUT | `/wifi/update` | WLAN-Zugangsdaten setzen |
 | 20 | GET | `/wifi/ap` | Hinweis, ob das Standardpasswort noch gilt |
+| 21 | GET | `/system/{uuid}/alarms/reset` | Alarme zurücksetzen |
 
 Die Pfade 18–20 liegen auf oberster Ebene (`/wifi/...`), außerhalb von `/monitoring`, `/system` und `/device`. Alle übrigen geprüften GET-Pfade (u. a. `/system/{uuid}/network`, `/firmware`, `/log`, `/openapi.json`, `/ota`, `/update`) liefern 404. Methoden lassen sich nicht abfragen: `OPTIONS` und `HEAD` liefern überall 405.
 
@@ -86,7 +87,15 @@ Löschen: PUT {"schedulers":[],"total":2} → 200
 
 **20. `GET /wifi/ap`**: `{"hasDefaultPassword":true}`. Live meldete das Gerät `true`. Gemeint ist vermutlich das Passwort des Einrichtungs-Hotspots, das ist nicht bestätigt.
 
+**21. `GET /system/{uuid}/alarms/reset`**: Antwort `{"result":"ok"}`. ⚠️ Ein GET verändert hier den Zustand. Nicht zum Testen aufrufen.
+
+- Im zweiten Mitschnitt meldete `/alarms` für die ComfoAir Q an Position 12 von `errors` den Wert 16. Alle anderen Positionen und beide anderen Geräte blieben 0.
+- Der Wert 16 stand vor und nach den zwei Reset-Aufrufen der App in der Antwort. Was Position 12 bedeutet und ob der Reset die ComfoAir-Meldung löscht, ist offen.
+
 ### Weitere Beobachtungen aus dem App-Mitschnitt
+
+- **Dashboard-PUT der App:** Sie sendet immer den vollständigen Body und setzt nicht geänderte Felder auf `null`: `@type`, `name`, `displayName`, `description`, `timestamp`, `status`, `setPointTemperature`, `temperatureProfile`, `seasonProfile`, `fanSpeed`, `scenario`, `scenarioTimeLeft`, `season`, `shedule`, `hpStandby`. Das Feld heißt `shedule` (Tippfehler im Original). Die Antwort ist 200 mit leerem Body. Der Client in diesem Repo sendet nur die geänderten Felder (`DashboardUpdate.to_api_payload`).
+- **Profilwechsel:** Beim Umschalten des Profils setzt die App `temperatureProfile` und `seasonProfile` immer gemeinsam auf denselben Wert (0, 1 oder 2). Die Lüfterstufe ändert sie getrennt über `fanSpeed` 0–3.
 
 - Die App fragt beim Start `/monitoring/ping`, `/system/systems`, `/device/{uuid}/property/1/1/6` für ComfoAir Q und Gateway, `/system/{uuid}/alarms`, `/dashboard`, `/scheduler` und `/devices` ab.
 - Sie baut außerdem eine TLS-Verbindung zu `comfoclimelogger-apm.azure-api.net` auf (Azure). Der Inhalt ist verschlüsselt und nicht ausgewertet. Mit der Geräte-API hat das nichts zu tun.
