@@ -18,8 +18,8 @@ if TYPE_CHECKING:
         ComfoClimePropertyCoordinator,
         ComfoClimeThermalprofileCoordinator,
     )
+    from .runtime_data import ComfoClimeConfigEntry
 
-from . import DOMAIN
 from .entities.select_definitions import (
     PROPERTY_SELECT_ENTITIES,
     SELECT_ENTITIES,
@@ -36,13 +36,15 @@ from .models import DeviceConfig, PropertyWriteRequest
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
-    data = hass.data[DOMAIN][entry.entry_id]
-    api = data["api"]
-    main_device = data["main_device"]
-    devices = data["devices"]
-    tpcoordinator = data["tpcoordinator"]
-    propcoordinator: ComfoClimePropertyCoordinator = data["propcoordinator"]
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ComfoClimeConfigEntry, async_add_entities: AddEntitiesCallback
+) -> None:
+    data = entry.runtime_data
+    api = data.api
+    main_device = data.main_device
+    devices = data.devices
+    tpcoordinator = data.tpcoordinator
+    propcoordinator: ComfoClimePropertyCoordinator = data.propcoordinator
 
     # Note: Coordinator first refresh is already done in __init__.py
     # We don't need to await it here to avoid blocking select setup
@@ -52,13 +54,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         ComfoClimeSelect(hass, tpcoordinator, api, conf, device=main_device, entry=entry) for conf in SELECT_ENTITIES
     )
 
-    # Verbundene Geräte abrufen
-    try:
-        devices = hass.data[DOMAIN][entry.entry_id]["devices"]
-    except KeyError as e:
-        _LOGGER.warning("Could not load connected devices: %s", e)
-        devices = []
-
+    # Verbundene Geräte abrufen (bereits in data.devices geladen)
     for device in devices:
         model_id = get_device_model_type_id(device)
         dev_uuid = get_device_uuid(device)

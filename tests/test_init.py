@@ -13,6 +13,7 @@ from custom_components.comfoclime import (
     async_unload_entry,
 )
 from custom_components.comfoclime.models import ConnectedDevicesResponse
+from custom_components.comfoclime.runtime_data import ComfoClimeRuntimeData
 
 
 @pytest.fixture(autouse=True)
@@ -101,9 +102,19 @@ async def test_async_setup_entry(
                                 # Verify setup was successful
                                 assert result is True
 
-                                # Verify data was stored in hass.data
-                            assert "comfoclime" in mock_hass.data
-                            assert "test_entry_id" in mock_hass.data["comfoclime"]
+                            # Verify runtime data was stored on the entry
+                            runtime_data = mock_config_entry.runtime_data
+                            assert isinstance(runtime_data, ComfoClimeRuntimeData)
+                            assert runtime_data.api is mock_api_instance
+                            assert runtime_data.coordinator is mock_db_coord_instance
+                            assert runtime_data.tpcoordinator is mock_tp_coord_instance
+                            assert runtime_data.monitoringcoordinator is mock_mon_coord_instance
+                            assert runtime_data.tlcoordinator is mock_tl_coord_instance
+                            assert runtime_data.propcoordinator is mock_prop_coord_instance
+                            assert runtime_data.definitioncoordinator is mock_def_coord_instance
+                            assert runtime_data.devices == [mock_device]
+                            assert runtime_data.main_device == mock_device
+                            assert "comfoclime" not in mock_hass.data
 
                             # Verify platforms were set up
                             mock_hass.config_entries.async_forward_entry_setups.assert_called_once()
@@ -338,16 +349,33 @@ async def test_async_setup_entry_coordinator_first_refresh_cancelled(
 
 
 @pytest.mark.asyncio
-async def test_async_unload_entry(mock_hass, mock_config_entry):
+async def test_async_unload_entry(mock_hass, mock_config_entry, make_runtime_data):
     """Test async_unload_entry."""
     mock_hass.config_entries = MagicMock()
     mock_hass.config_entries.async_unload_platforms = AsyncMock(return_value=True)
-    mock_hass.data = {"comfoclime": {"test_entry_id": {}}}
+    api = MagicMock()
+    api.close = AsyncMock()
+    mock_config_entry.runtime_data = make_runtime_data(api=api)
+    hass_data_before = dict(mock_hass.data)
 
     result = await async_unload_entry(mock_hass, mock_config_entry)
 
     assert result is True
-    assert "test_entry_id" not in mock_hass.data["comfoclime"]
+    api.close.assert_awaited_once()
+    assert mock_hass.data == hass_data_before
+
+
+@pytest.mark.asyncio
+async def test_async_unload_entry_keeps_api_open_when_unload_fails(mock_hass, mock_config_entry, make_runtime_data):
+    """A failed platform unload must not close the still-used API session."""
+    mock_hass.config_entries = MagicMock()
+    mock_hass.config_entries.async_unload_platforms = AsyncMock(return_value=False)
+    api = MagicMock()
+    api.close = AsyncMock()
+    mock_config_entry.runtime_data = make_runtime_data(api=api)
+
+    assert await async_unload_entry(mock_hass, mock_config_entry) is False
+    api.close.assert_not_called()
 
     # Verify platforms were unloaded via the HA helper
     mock_hass.config_entries.async_unload_platforms.assert_called_once()
@@ -458,7 +486,7 @@ async def test_async_setup_entry_registers_main_device(mock_hass, mock_config_en
     assert kwargs["identifiers"] == {("comfoclime", "test-device-uuid")}
     assert kwargs["manufacturer"] == "Zehnder"
     assert kwargs["name"] == "ComfoClime Test"
-    assert mock_hass.data["comfoclime"]["test_entry_id"]["main_device_registry_id"] == "registry-id-1"
+    assert mock_config_entry.runtime_data.main_device_registry_id == "registry-id-1"
 
 
 @pytest.mark.asyncio
@@ -469,7 +497,7 @@ async def test_async_setup_entry_without_main_device(mock_hass, mock_config_entr
     await _run_setup(mock_hass, mock_config_entry, [mock_connected_device], registry)
 
     registry.async_get_or_create.assert_not_called()
-    assert mock_hass.data["comfoclime"]["test_entry_id"]["main_device_registry_id"] is None
+    assert mock_config_entry.runtime_data.main_device_registry_id is None
 
 
 @pytest.mark.asyncio

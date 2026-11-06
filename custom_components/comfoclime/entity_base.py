@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
     from .models import DeviceConfig
+    from .runtime_data import ComfoClimeRuntimeData
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -67,20 +68,26 @@ class ComfoClimeBaseEntity:
         info = DeviceInfo(identifiers={(DOMAIN, dev_id)}, **get_device_info_fields(self._device))
 
         # Connected bus devices are separate products behind the ComfoClime gateway.
-        entry_data = self._entry_data()
-        main_uuid = get_device_uuid(entry_data["main_device"]) if entry_data.get("main_device") else None
-        via_device_id = entry_data.get("main_device_registry_id")
+        runtime_data = self._runtime_data()
+        main_device = runtime_data.main_device if runtime_data else None
+        main_uuid = get_device_uuid(main_device) if main_device else None
+        via_device_id = runtime_data.main_device_registry_id if runtime_data else None
         if via_device_id and main_uuid and main_uuid != dev_id:
             info["via_device_id"] = via_device_id
         return info
 
-    def _entry_data(self) -> dict[str, Any]:
-        """Return this entry's runtime data from ``hass.data`` (empty if unavailable)."""
+    def _runtime_data(self) -> ComfoClimeRuntimeData | None:
+        """Return this entry's runtime data, or None if it cannot be resolved.
+
+        Entities that don't set ``_attr_config_entry_id`` (e.g. climate) simply
+        get no ``via_device_id`` link.
+        """
         hass = getattr(self, "hass", None)
         entry_id = getattr(self, "_attr_config_entry_id", None)
         if hass is None or entry_id is None:
-            return {}
-        return hass.data.get(DOMAIN, {}).get(entry_id, {})
+            return None
+        entry = hass.config_entries.async_get_entry(entry_id)
+        return getattr(entry, "runtime_data", None)
 
     # ------------------------------------------------------------------
     # Extra state attributes (shared for coordinator-backed entities)

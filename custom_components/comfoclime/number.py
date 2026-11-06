@@ -18,8 +18,8 @@ if TYPE_CHECKING:
         ComfoClimePropertyCoordinator,
         ComfoClimeThermalprofileCoordinator,
     )
+    from .runtime_data import ComfoClimeConfigEntry
 
-from . import DOMAIN
 from .entities.number_definitions import (
     CONNECTED_DEVICE_NUMBER_PROPERTIES,
     NUMBER_ENTITIES,
@@ -36,13 +36,15 @@ from .models import DeviceConfig, PropertyWriteRequest
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
-    data = hass.data[DOMAIN][entry.entry_id]
-    api = data["api"]
-    main_device = data["main_device"]
-    devices = data["devices"]
-    tpcoordinator = data["tpcoordinator"]
-    propcoordinator: ComfoClimePropertyCoordinator = data["propcoordinator"]
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ComfoClimeConfigEntry, async_add_entities: AddEntitiesCallback
+) -> None:
+    data = entry.runtime_data
+    api = data.api
+    main_device = data.main_device
+    devices = data.devices
+    tpcoordinator = data.tpcoordinator
+    propcoordinator: ComfoClimePropertyCoordinator = data.propcoordinator
 
     # Note: Coordinator first refresh is already done in __init__.py
     # We don't need to await it here to avoid blocking number setup

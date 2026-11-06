@@ -220,19 +220,14 @@ class TestComfoClimeFan:
 
 
 @pytest.mark.asyncio
-async def test_async_setup_entry(mock_hass, mock_config_entry, mock_coordinator, mock_device, mock_api):
+async def test_async_setup_entry(
+    mock_hass, mock_config_entry, mock_coordinator, mock_device, mock_api, make_runtime_data
+):
     """Test async_setup_entry for fan entity."""
     # Setup mock data
-    mock_hass.data = {
-        "comfoclime": {
-            "test_entry_id": {
-                "api": mock_api,
-                "coordinator": mock_coordinator,
-                "devices": [mock_device],
-                "main_device": mock_device,
-            }
-        }
-    }
+    mock_config_entry.runtime_data = make_runtime_data(
+        api=mock_api, coordinator=mock_coordinator, devices=[mock_device], main_device=mock_device
+    )
 
     async_add_entities = MagicMock()
 
@@ -243,19 +238,14 @@ async def test_async_setup_entry(mock_hass, mock_config_entry, mock_coordinator,
 
 
 @pytest.mark.asyncio
-async def test_async_setup_entry_no_main_device(mock_hass, mock_config_entry, mock_api, mock_coordinator):
+async def test_async_setup_entry_no_main_device(
+    mock_hass, mock_config_entry, mock_api, mock_coordinator, make_runtime_data
+):
     """Test async_setup_entry when no main device exists."""
     # Setup mock data without main device
-    mock_hass.data = {
-        "comfoclime": {
-            "test_entry_id": {
-                "api": mock_api,
-                "coordinator": mock_coordinator,
-                "devices": [],
-                "main_device": None,
-            }
-        }
-    }
+    mock_config_entry.runtime_data = make_runtime_data(
+        api=mock_api, coordinator=mock_coordinator, devices=[], main_device=None
+    )
 
     async_add_entities = MagicMock()
 
@@ -267,7 +257,7 @@ async def test_async_setup_entry_no_main_device(mock_hass, mock_config_entry, mo
 
 @pytest.mark.asyncio
 async def test_async_setup_entry_without_main_device(
-    mock_hass, mock_config_entry, mock_api, mock_coordinator, mock_device
+    mock_hass, mock_config_entry, mock_api, mock_coordinator, mock_device, make_runtime_data
 ):
     """Without a ComfoClime on the bus there is no fan to expose.
 
@@ -275,16 +265,9 @@ async def test_async_setup_entry_without_main_device(
     remaining reason to skip setup is that no main device was discovered.
     """
     mock_config_entry.options = {}
-    mock_hass.data = {
-        "comfoclime": {
-            "test_entry_id": {
-                "api": mock_api,
-                "coordinator": mock_coordinator,
-                "devices": [mock_device],
-                "main_device": None,
-            }
-        }
-    }
+    mock_config_entry.runtime_data = make_runtime_data(
+        api=mock_api, coordinator=mock_coordinator, devices=[mock_device], main_device=None
+    )
 
     async_add_entities = MagicMock()
 

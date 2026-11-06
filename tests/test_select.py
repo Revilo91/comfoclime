@@ -351,20 +351,17 @@ async def test_async_setup_entry(
     mock_property_coordinator,
     mock_device,
     mock_api,
+    make_runtime_data,
 ):
     """Test async_setup_entry for select entities."""
     # Setup mock data
-    mock_hass.data = {
-        "comfoclime": {
-            "test_entry_id": {
-                "api": mock_api,
-                "tpcoordinator": mock_thermalprofile_coordinator,
-                "propcoordinator": mock_property_coordinator,
-                "devices": [mock_device],
-                "main_device": mock_device,
-            }
-        }
-    }
+    mock_config_entry.runtime_data = make_runtime_data(
+        api=mock_api,
+        tpcoordinator=mock_thermalprofile_coordinator,
+        propcoordinator=mock_property_coordinator,
+        devices=[mock_device],
+        main_device=mock_device,
+    )
 
     async_add_entities = MagicMock()
 

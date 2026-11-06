@@ -48,7 +48,6 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from pydantic import BaseModel
 
-from . import DOMAIN
 from .coordinator import (
     ComfoClimeDashboardCoordinator,
     ComfoClimeDefinitionCoordinator,
@@ -79,6 +78,7 @@ if TYPE_CHECKING:
 
     from .comfoclime_api import ComfoClimeAPI
     from .models import DeviceConfig
+    from .runtime_data import ComfoClimeConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -92,7 +92,9 @@ VALUE_MAPPINGS = {
 }
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ComfoClimeConfigEntry, async_add_entities: AddEntitiesCallback
+) -> None:
     """Set up ComfoClime sensor entities from a config entry.
 
     Creates every sensor supported for the devices found on the bus:
@@ -112,19 +114,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         entry: Config entry for this integration
         async_add_entities: Callback to add entities
     """
-    data = hass.data[DOMAIN][entry.entry_id]
-    api = data["api"]
+    data = entry.runtime_data
+    api = data.api
 
     sensors: list[SensorEntity] = []
-    coordinator: ComfoClimeDashboardCoordinator = data["coordinator"]
-    thermalprofile_coordinator: ComfoClimeThermalprofileCoordinator = data["tpcoordinator"]
-    monitoring_coordinator: ComfoClimeMonitoringCoordinator | None = data.get("monitoringcoordinator")
-    tlcoordinator: ComfoClimeTelemetryCoordinator = data["tlcoordinator"]
-    propcoordinator: ComfoClimePropertyCoordinator = data["propcoordinator"]
-    definitioncoordinator: ComfoClimeDefinitionCoordinator = data["definitioncoordinator"]
+    coordinator: ComfoClimeDashboardCoordinator = data.coordinator
+    thermalprofile_coordinator: ComfoClimeThermalprofileCoordinator = data.tpcoordinator
+    monitoring_coordinator: ComfoClimeMonitoringCoordinator | None = data.monitoringcoordinator
+    tlcoordinator: ComfoClimeTelemetryCoordinator = data.tlcoordinator
+    propcoordinator: ComfoClimePropertyCoordinator = data.propcoordinator
+    definitioncoordinator: ComfoClimeDefinitionCoordinator = data.definitioncoordinator
 
-    devices = data.get("devices") or []
-    main_device = data.get("main_device")
+    devices = data.devices or []
+    main_device = data.main_device
 
     # Sensors served straight off a whole-response coordinator.
     system_sources: list[tuple[Any, list]] = [

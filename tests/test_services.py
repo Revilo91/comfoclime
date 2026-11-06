@@ -18,10 +18,25 @@ from custom_components.comfoclime.services import (
 # ---------------------------------------------------------------------------
 
 
-def _make_hass(domain_data: dict | None = None) -> MagicMock:
-    """Return a minimal mock hass with hass.data pre-populated."""
+def _make_entry(entry_id: str, api: MagicMock) -> MagicMock:
+    """Return a mock loaded config entry carrying *api* in its runtime data."""
+    entry = MagicMock()
+    entry.entry_id = entry_id
+    entry.runtime_data.api = api
+    return entry
+
+
+def _make_hass(apis: dict[str, MagicMock] | None = None) -> MagicMock:
+    """Return a minimal mock hass whose loaded entries carry the given APIs.
+
+    The loaded list is evaluated at call time (``hass.loaded_entries``), so
+    tests can add entries after services were registered.
+    """
     hass = MagicMock()
-    hass.data = {DOMAIN: domain_data} if domain_data is not None else {}
+    hass.loaded_entries = [_make_entry(entry_id, api) for entry_id, api in (apis or {}).items()]
+    hass.config_entries.async_loaded_entries.side_effect = lambda domain: (
+        list(hass.loaded_entries) if domain == DOMAIN else []
+    )
     hass.services = MagicMock()
     hass.services.async_register = MagicMock()
     return hass
@@ -51,17 +66,16 @@ def _make_device(entry_ids: set[str] | None = None, identifiers: set | None = No
 def test_get_any_api_returns_first_api():
     """_get_any_api returns the API from the first loaded entry."""
     api = _make_api()
-    hass = _make_hass({"entry1": {"api": api}})
+    hass = _make_hass({"entry1": api})
     result = _get_any_api(hass, DOMAIN)
     assert result is api
 
 
-def test_get_any_api_skips_non_dict_entries():
-    """_get_any_api skips non-dict values in domain data."""
-    api = _make_api()
-    hass = _make_hass({"entry1": "not_a_dict", "entry2": {"api": api}})
-    result = _get_any_api(hass, DOMAIN)
-    assert result is api
+def test_get_any_api_queries_loaded_entries_of_domain():
+    """_get_any_api only looks at loaded entries of the requested domain."""
+    hass = _make_hass({"entry1": _make_api()})
+    _get_any_api(hass, DOMAIN)
+    hass.config_entries.async_loaded_entries.assert_called_once_with(DOMAIN)
 
 
 def test_get_any_api_raises_when_no_entry_loaded():
@@ -73,13 +87,13 @@ def test_get_any_api_raises_when_no_entry_loaded():
         _get_any_api(hass, DOMAIN)
 
 
-def test_get_any_api_raises_when_domain_missing():
-    """_get_any_api raises HomeAssistantError when domain key is absent."""
+def test_get_any_api_raises_for_other_domain():
+    """_get_any_api raises HomeAssistantError when nothing of the domain is loaded."""
     from homeassistant.exceptions import HomeAssistantError
 
-    hass = _make_hass(None)  # no domain key
+    hass = _make_hass({"entry1": _make_api()})
     with pytest.raises(HomeAssistantError):
-        _get_any_api(hass, DOMAIN)
+        _get_any_api(hass, "other_domain")
 
 
 # ---------------------------------------------------------------------------
@@ -90,7 +104,7 @@ def test_get_any_api_raises_when_domain_missing():
 def test_get_api_for_device_matches_config_entry():
     """_get_api_for_device returns the API for the device's config entry."""
     api = _make_api()
-    hass = _make_hass({"entry1": {"api": api}})
+    hass = _make_hass({"entry1": api})
     device = _make_device(entry_ids={"entry1"})
     result = _get_api_for_device(hass, DOMAIN, device)
     assert result is api
@@ -100,18 +114,8 @@ def test_get_api_for_device_raises_when_no_matching_entry():
     """_get_api_for_device raises HomeAssistantError when entry is not loaded."""
     from homeassistant.exceptions import HomeAssistantError
 
-    hass = _make_hass({"entry2": {"api": _make_api()}})
+    hass = _make_hass({"entry2": _make_api()})
     device = _make_device(entry_ids={"entry1"})  # entry1 is not in domain data
-    with pytest.raises(HomeAssistantError):
-        _get_api_for_device(hass, DOMAIN, device)
-
-
-def test_get_api_for_device_raises_when_entry_data_missing_api():
-    """_get_api_for_device raises HomeAssistantError when entry data has no api key."""
-    from homeassistant.exceptions import HomeAssistantError
-
-    hass = _make_hass({"entry1": {"coordinator": MagicMock()}})  # no "api" key
-    device = _make_device(entry_ids={"entry1"})
     with pytest.raises(HomeAssistantError):
         _get_api_for_device(hass, DOMAIN, device)
 
@@ -151,7 +155,7 @@ def test_async_setup_services_uses_correct_domain():
 async def test_set_property_calls_api():
     """set_property handler writes property via API."""
     api = _make_api()
-    hass = _make_hass({"entry1": {"api": api}})
+    hass = _make_hass({"entry1": api})
 
     device = _make_device(entry_ids={"entry1"}, identifiers={(DOMAIN, "dev-uuid")})
 
@@ -186,7 +190,7 @@ async def test_set_property_invalid_path_raises():
     """set_property handler raises HomeAssistantError for an invalid path."""
     from homeassistant.exceptions import HomeAssistantError
 
-    hass = _make_hass({"entry1": {"api": _make_api()}})
+    hass = _make_hass({"entry1": _make_api()})
     call = MagicMock()
     call.data = {
         "device_id": "ha-device-id",
@@ -209,7 +213,7 @@ async def test_set_property_invalid_byte_count_raises():
     """set_property handler raises HomeAssistantError for byte_count not in (1,2)."""
     from homeassistant.exceptions import HomeAssistantError
 
-    hass = _make_hass({"entry1": {"api": _make_api()}})
+    hass = _make_hass({"entry1": _make_api()})
     call = MagicMock()
     call.data = {
         "device_id": "ha-device-id",
@@ -232,7 +236,7 @@ async def test_set_property_device_not_found_raises():
     """set_property handler raises HomeAssistantError when device is not in registry."""
     from homeassistant.exceptions import HomeAssistantError
 
-    hass = _make_hass({"entry1": {"api": _make_api()}})
+    hass = _make_hass({"entry1": _make_api()})
     call = MagicMock()
     call.data = {
         "device_id": "nonexistent",
@@ -257,7 +261,7 @@ async def test_set_property_wrong_domain_raises():
     """set_property handler raises HomeAssistantError when device belongs to other integration."""
     from homeassistant.exceptions import HomeAssistantError
 
-    hass = _make_hass({"entry1": {"api": _make_api()}})
+    hass = _make_hass({"entry1": _make_api()})
     call = MagicMock()
     call.data = {
         "device_id": "ha-device-id",
@@ -288,7 +292,7 @@ async def test_set_property_wrong_domain_raises():
 async def test_reset_system_calls_api():
     """reset_system handler calls api.async_reset_system."""
     api = _make_api()
-    hass = _make_hass({"entry1": {"api": api}})
+    hass = _make_hass({"entry1": api})
     call = MagicMock()
 
     async_setup_services(hass, DOMAIN)
@@ -320,7 +324,7 @@ async def test_reset_system_propagates_timeout_error():
 
     api = _make_api()
     api.async_reset_system.side_effect = TimeoutError()
-    hass = _make_hass({"entry1": {"api": api}})
+    hass = _make_hass({"entry1": api})
     call = MagicMock()
 
     async_setup_services(hass, DOMAIN)
@@ -356,7 +360,7 @@ def test_set_scenario_mode_registered_as_platform_entity_service():
 
 
 def test_set_scenario_mode_not_registered_as_plain_service():
-    """The broken hass.data based handler is gone."""
+    """The plain-service handler for set_scenario_mode is gone."""
     hass = _make_hass()
     with patch("custom_components.comfoclime.services.async_register_platform_entity_service"):
         async_setup_services(hass, DOMAIN)
@@ -436,8 +440,8 @@ def test_set_scenario_mode_schema_rejects_invalid(bad):
 
 
 @pytest.mark.asyncio
-async def test_reset_system_uses_hass_data_at_call_time():
-    """reset_system reads hass.data when called, not when registered.
+async def test_reset_system_resolves_loaded_entries_at_call_time():
+    """reset_system looks up loaded entries when called, not when registered.
 
     This verifies that after a config entry reload the handler uses the new API.
     """
@@ -446,9 +450,9 @@ async def test_reset_system_uses_hass_data_at_call_time():
     async_setup_services(hass, DOMAIN)
     handler = next(c[0][2] for c in hass.services.async_register.call_args_list if c[0][1] == "reset_system")
 
-    # Simulate config entry reload: new api appears in hass.data
+    # Simulate config entry reload: new entry with a new api is loaded
     api = _make_api()
-    hass.data[DOMAIN] = {"entry1": {"api": api}}
+    hass.loaded_entries.append(_make_entry("entry1", api))
 
     call = MagicMock()
     await handler(call)
