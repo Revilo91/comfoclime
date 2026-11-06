@@ -262,7 +262,7 @@ class TestComfoClimePropertySelect:
         assert select._path == "29/1/15"
         assert select._name == "Ventilation Mode"
         assert select.options == ["auto", "manual", "boost"]
-        assert select._attr_unique_id == "test_entry_id_select_29_1_15"
+        assert select._attr_unique_id == "test_entry_id_select_test-device-uuid_29_1_15"
 
     def test_property_select_update(
         self,

@@ -293,7 +293,7 @@ class TestComfoClimeTelemetrySensor:
         assert sensor._faktor == 0.1
         assert sensor._signed is True
         assert sensor._byte_count == 2
-        assert sensor._attr_unique_id == "test_entry_id_telemetry_123"
+        assert sensor._attr_unique_id == "test_entry_id_telemetry_test-device-uuid_123"
 
     def test_telemetry_sensor_update(self, mock_hass, mock_telemetry_coordinator, mock_device, mock_config_entry):
         """Test telemetry sensor update from coordinator."""
@@ -438,7 +438,7 @@ class TestComfoClimePropertySensor:
         assert sensor._faktor == 0.01
         assert sensor._signed is False
         assert sensor._byte_count == 2
-        assert sensor._attr_unique_id == "test_entry_id_property_29_1_10"
+        assert sensor._attr_unique_id == "test_entry_id_property_test-device-uuid_29_1_10"
 
     def test_property_sensor_update(self, mock_hass, mock_property_coordinator, mock_device, mock_config_entry):
         """Test property sensor update from coordinator."""

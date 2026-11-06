@@ -31,6 +31,7 @@ from .entity_base import ComfoClimeBaseEntity
 from .entity_helper import (
     get_device_model_type_id,
     get_device_uuid,
+    property_number_unique_id,
 )
 from .models import DeviceConfig, PropertyWriteRequest
 
@@ -254,8 +255,9 @@ class ComfoClimePropertyNumber(ComfoClimeBaseEntity, CoordinatorEntity, NumberEn
         self._value = None
 
         self._property_path = config.property
+        self._device_uuid = device_uuid or get_device_uuid(device)
         self._attr_translation_key = config.translation_key
-        self._attr_unique_id = f"{entry.entry_id}_property_number_{self._property_path.replace('/', '_')}"
+        self._attr_unique_id = property_number_unique_id(entry.entry_id, self._device_uuid, self._property_path)
         self._attr_config_entry_id = entry.entry_id
         self._attr_has_entity_name = True
         self._attr_mode = NumberMode.BOX
@@ -266,7 +268,6 @@ class ComfoClimePropertyNumber(ComfoClimeBaseEntity, CoordinatorEntity, NumberEn
         self._faktor = config.faktor
         self._byte_count = config.byte_count
         self._signed = config.signed
-        self._device_uuid = device_uuid or get_device_uuid(device)
 
         _LOGGER.debug(
             "ComfoClimePropertyNumber initialized: path=%s, device=%s, unique_id=%s",

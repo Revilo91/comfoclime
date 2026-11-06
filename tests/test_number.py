@@ -298,7 +298,7 @@ class TestComfoClimePropertyNumber:
         assert number._attr_native_max_value == 100
         assert number._attr_native_step == 5
         assert number._attr_native_unit_of_measurement == "%"
-        assert number._attr_unique_id == "test_entry_id_property_number_29_1_20"
+        assert number._attr_unique_id == "test_entry_id_property_number_test-device-uuid_29_1_20"
 
     def test_property_number_update(
         self,

@@ -548,6 +548,7 @@ async def test_async_migrate_entry_disables_deselected_entities(mock_hass, mock_
 async def test_async_migrate_entry_is_a_noop_at_current_version(mock_hass, mock_config_entry):
     """Already-migrated entries are left untouched."""
     mock_config_entry.version = 2
+    mock_config_entry.minor_version = 2
     mock_hass.config_entries = MagicMock()
 
     assert await async_migrate_entry(mock_hass, mock_config_entry) is True

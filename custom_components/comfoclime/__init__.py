@@ -19,7 +19,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv, device_registry as dr, entity_registry as er
 
 from .comfoclime_api import ComfoClimeAPI
-from .config_flow import CONFIG_ENTRY_VERSION, DEFAULT_OPTIONS, LEGACY_ENTITY_OPTION_KEYS
+from .config_flow import DEFAULT_OPTIONS, LEGACY_ENTITY_OPTION_KEYS
 from .constants import DOMAIN
 from .coordinator import (
     ComfoClimeDashboardCoordinator,
@@ -30,7 +30,7 @@ from .coordinator import (
     ComfoClimeThermalprofileCoordinator,
 )
 from .entity_helper import get_device_info_fields, get_device_model_type_id, get_device_uuid
-from .migration import matches, unique_ids_to_disable
+from .migration import async_migrate_bus_device_unique_ids, matches, unique_ids_to_disable
 from .runtime_data import ComfoClimeConfigEntry, ComfoClimeRuntimeData
 from .services import async_setup_services
 
@@ -46,22 +46,33 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Migrate a config entry to the current version.
+    """Migrate a config entry to the current version, one step at a time.
+
+    Each step re-reads ``entry.version``/``minor_version``, so a version 1
+    entry runs through every step and ends at the current version.
+    """
+    if entry.version == 1:
+        _migrate_v1_to_v2(hass, entry)
+
+    if entry.version == 2 and entry.minor_version < 2:
+        _LOGGER.info(
+            "Migrating ComfoClime config entry %s from version 2.%s to 2.2", entry.entry_id, entry.minor_version
+        )
+        await async_migrate_bus_device_unique_ids(hass, entry.entry_id)
+        hass.config_entries.async_update_entry(entry, minor_version=2)
+
+    return True
+
+
+def _migrate_v1_to_v2(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Move the entity selection from the entry options into the entity registry.
 
     Version 1 stored per-entity selection in the entry options. Version 2
     hands that job to the entity registry: entities the user had deselected
     are disabled there rather than deleted, so their history, area and
     customisations survive, and the now-meaningless option keys are dropped.
     """
-    if entry.version >= CONFIG_ENTRY_VERSION:
-        return True
-
-    _LOGGER.info(
-        "Migrating ComfoClime config entry %s from version %s to %s",
-        entry.entry_id,
-        entry.version,
-        CONFIG_ENTRY_VERSION,
-    )
+    _LOGGER.info("Migrating ComfoClime config entry %s from version 1 to 2", entry.entry_id)
 
     to_disable = unique_ids_to_disable(entry.options, entry.entry_id)
     if to_disable:
@@ -86,8 +97,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     for key, default in DEFAULT_OPTIONS.items():
         new_options.setdefault(key, default)
 
-    hass.config_entries.async_update_entry(entry, options=new_options, version=CONFIG_ENTRY_VERSION)
-    return True
+    hass.config_entries.async_update_entry(entry, options=new_options, version=2, minor_version=1)
 
 
 def _remove_legacy_access_tracking_entities(hass: HomeAssistant, entry: ConfigEntry) -> int:

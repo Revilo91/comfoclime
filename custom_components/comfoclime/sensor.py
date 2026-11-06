@@ -69,6 +69,8 @@ from .entity_base import ComfoClimeBaseEntity
 from .entity_helper import (
     get_device_model_type_id,
     get_device_uuid,
+    property_sensor_unique_id,
+    telemetry_unique_id,
 )
 from .models import uptime_to_boot_time
 
@@ -367,7 +369,7 @@ class ComfoClimeTelemetrySensor(ComfoClimeBaseEntity, CoordinatorEntity, SensorE
         self._override_uuid = override_device_uuid
         self._entry = entry
         self._attr_config_entry_id = entry.entry_id
-        self._attr_unique_id = f"{entry.entry_id}_telemetry_{telemetry_id}"
+        self._attr_unique_id = telemetry_unique_id(entry.entry_id, override_device_uuid, telemetry_id)
         self._attr_entity_registry_enabled_default = entity_registry_enabled_default
         self._data_source = "telemetry"
         if not translation_key:
@@ -450,7 +452,7 @@ class ComfoClimePropertySensor(ComfoClimeBaseEntity, CoordinatorEntity, SensorEn
         self._override_uuid = override_device_uuid
         self._state = None
         self._attr_config_entry_id = entry.entry_id
-        self._attr_unique_id = f"{entry.entry_id}_property_{path.replace('/', '_')}"
+        self._attr_unique_id = property_sensor_unique_id(entry.entry_id, override_device_uuid, path)
         self._attr_entity_registry_enabled_default = entity_registry_enabled_default
         self._data_source = "property"
         if not translation_key:

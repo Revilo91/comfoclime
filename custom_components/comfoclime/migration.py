@@ -1,9 +1,9 @@
-"""One-time migration from options-based entity selection to the entity registry.
+"""One-time config entry migrations that rewrite entity registry state.
 
-Config entries at version 1 stored, per category, the list of entities that
-should be created. Version 2 creates everything and lets the entity registry
-decide what is visible, so those lists have to be translated into registry
-state exactly once.
+Version 1 -> 2: config entries at version 1 stored, per category, the list of
+entities that should be created. Version 2 creates everything and lets the
+entity registry decide what is visible, so those lists have to be translated
+into registry state exactly once.
 
 The translation has to be exact: a sloppy match would silently disable an
 entity the user wanted. So instead of pattern-matching unique IDs, this module
@@ -12,12 +12,23 @@ from - legacy option ID on one side, registry unique ID on the other.
 
 This is deliberately throwaway code. Once entries created by 1.x are gone it
 can be deleted along with ``LEGACY_ENTITY_OPTION_KEYS``.
+
+Version 2.1 -> 2.2: unique IDs of entities that belong to a bus device gained
+the device UUID (see ``entity_helper``), so two devices of the same model no
+longer collide. Here pattern matching *is* safe, because the four legacy
+shapes are fixed and anchored; the UUID comes from the device the registry
+entry is already attached to.
 """
 
 from __future__ import annotations
 
 import logging
+import re
+from typing import TYPE_CHECKING
 
+from homeassistant.helpers import device_registry as dr, entity_registry as er
+
+from .constants import DOMAIN
 from .entities.number_definitions import CONNECTED_DEVICE_NUMBER_PROPERTIES, NUMBER_ENTITIES
 from .entities.select_definitions import PROPERTY_SELECT_ENTITIES, SELECT_ENTITIES
 from .entities.sensor_definitions import (
@@ -29,6 +40,17 @@ from .entities.sensor_definitions import (
     THERMALPROFILE_SENSORS,
 )
 from .entities.switch_definitions import SWITCHES
+from .entity_helper import (
+    property_number_unique_id,
+    property_select_unique_id,
+    property_sensor_unique_id,
+    telemetry_unique_id,
+)
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -181,3 +203,119 @@ def matches(unique_id: str, patterns: set[str]) -> bool:
         if unique_id.startswith(prefix) and unique_id.endswith(suffix):
             return True
     return False
+
+
+# --- 2.1 -> 2.2: device UUID in bus-device unique IDs --------------------------
+
+# Property paths were flattened from ``X/Y/Z`` to ``X_Y_Z``.
+_LEGACY_PATH = r"(\d+)_(\d+)_(\d+)"
+
+
+def _path_from(match: re.Match[str]) -> str:
+    """Rebuild ``X/Y/Z`` from a match of ``_LEGACY_PATH``."""
+    return "/".join(match.groups())
+
+
+def legacy_bus_id_rewriter(entry_id: str, entity_domain: str, unique_id: str) -> Callable[[str], str] | None:
+    """Recognise a pre-2.2 bus-device unique ID.
+
+    Returns a function mapping the owning device's UUID to the new unique ID,
+    or ``None`` if ``unique_id`` is not one of the four legacy shapes. The
+    platform is checked too, so a sensor ID can never be rewritten into a
+    select ID. Key-based selects (``<entry>_select_temperatureProfile``) and
+    already migrated IDs (which contain the UUID) do not match, which is what
+    makes the migration idempotent.
+    """
+    prefix = re.escape(entry_id)
+    rules: tuple[tuple[str, str, Callable[[str, re.Match[str]], str]], ...] = (
+        (
+            "sensor",
+            rf"{prefix}_telemetry_(\d+)",
+            lambda uuid, m: telemetry_unique_id(entry_id, uuid, m[1]),
+        ),
+        (
+            "sensor",
+            rf"{prefix}_property_{_LEGACY_PATH}",
+            lambda uuid, m: property_sensor_unique_id(entry_id, uuid, _path_from(m)),
+        ),
+        (
+            "number",
+            rf"{prefix}_property_number_{_LEGACY_PATH}",
+            lambda uuid, m: property_number_unique_id(entry_id, uuid, _path_from(m)),
+        ),
+        (
+            "select",
+            rf"{prefix}_select_{_LEGACY_PATH}",
+            lambda uuid, m: property_select_unique_id(entry_id, uuid, _path_from(m)),
+        ),
+    )
+    for domain, pattern, build in rules:
+        if domain == entity_domain and (match := re.fullmatch(pattern, unique_id)):
+            return lambda device_uuid, build=build, match=match: build(device_uuid, match)
+    return None
+
+
+def comfoclime_device_uuid(device_registry: dr.DeviceRegistry, device_id: str | None) -> str | None:
+    """Return the ComfoClime UUID of a registry device, or ``None`` if unknown.
+
+    Entities register their device with exactly one ``(DOMAIN, uuid)``
+    identifier. Anything else (no device, no such identifier, several of them)
+    is ambiguous, and guessing would attach the entity to the wrong device.
+    """
+    device = device_registry.async_get(device_id) if device_id else None
+    if device is None:
+        return None
+    uuids = [value for domain, value in device.identifiers if domain == DOMAIN]
+    return uuids[0] if len(uuids) == 1 else None
+
+
+async def async_migrate_bus_device_unique_ids(hass: HomeAssistant, entry_id: str) -> int:
+    """Add the device UUID to legacy bus-device unique IDs of one config entry.
+
+    Registry entries are renamed in place, so entity ID, history, name and
+    area survive. Entries that cannot be migrated safely are left unchanged
+    and logged; this never raises, because a failed migration would keep the
+    whole integration from loading.
+
+    Returns:
+        Number of migrated registry entries.
+    """
+    entity_registry = er.async_get(hass)
+    device_registry = dr.async_get(hass)
+    migrated = 0
+
+    def _migrate(reg_entry: er.RegistryEntry) -> dict[str, str] | None:
+        nonlocal migrated
+        rewrite = legacy_bus_id_rewriter(entry_id, reg_entry.domain, reg_entry.unique_id)
+        if rewrite is None:
+            return None
+
+        device_uuid = comfoclime_device_uuid(device_registry, reg_entry.device_id)
+        if device_uuid is None:
+            _LOGGER.warning(
+                "Not migrating unique ID %s of %s: it is not attached to a ComfoClime device, "
+                "so its device UUID is unknown. A new entity will be created for it",
+                reg_entry.unique_id,
+                reg_entry.entity_id,
+            )
+            return None
+
+        new_unique_id = rewrite(device_uuid)
+        if existing := entity_registry.async_get_entity_id(reg_entry.domain, reg_entry.platform, new_unique_id):
+            _LOGGER.warning(
+                "Not migrating unique ID %s of %s: %s already uses %s",
+                reg_entry.unique_id,
+                reg_entry.entity_id,
+                existing,
+                new_unique_id,
+            )
+            return None
+
+        _LOGGER.debug("Migrating unique ID of %s: %s -> %s", reg_entry.entity_id, reg_entry.unique_id, new_unique_id)
+        migrated += 1
+        return {"new_unique_id": new_unique_id}
+
+    await er.async_migrate_entries(hass, entry_id, _migrate)
+    if migrated:
+        _LOGGER.info("Added the device UUID to the unique IDs of %s bus-device entities", migrated)
+    return migrated
