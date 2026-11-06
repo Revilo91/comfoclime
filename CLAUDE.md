@@ -4,7 +4,8 @@ Diese Datei ist die **einzige** KI-Kontextdatei in diesem Repository. Sie ersetz
 `AGENTS.md`, `.github/copilot-instructions.md`, `.github/ai-notes.md`, `ARCHITECTURE.md`,
 `ComfoClimeAPI.md`, `ENTITY_STRATEGY.md`, `SCENARIO_MODES.md`, `TROUBLESHOOTING.md` und alle
 sonstigen über die Zeit angesammelten Markdown-Dateien in `docs/`. Wenn du (Claude oder ein
-anderer Coding-Agent) an diesem Repo arbeitest: lies **nur** diese Datei plus `README.md`.
+anderer Coding-Agent) an diesem Repo arbeitest: lies diese Datei plus `README.md`. Die
+Fachdokumentation unter `docs/` (z. B. `docs/api-uebersicht.md`) nur bei Bedarf.
 
 ---
 
@@ -320,9 +321,11 @@ mitziehen, sonst installiert HACS die Integration auf eine HA, auf der sie nicht
 
 ## 12. Dokumentationsregeln
 
-- Es gibt nur noch **zwei** Markdown-Dateien im Repo: diese (`CLAUDE.md`) und `README.md`.
-  Bevor du eine neue `.md`-Datei anlegst: prüfe, ob der Inhalt nicht einfach in eine der beiden
-  gehört. Neue Dauerdokumentation grundsätzlich hier in `CLAUDE.md` ergänzen, nicht als neue Datei.
+- Im Wurzelverzeichnis gibt es nur **zwei** Markdown-Dateien: diese (`CLAUDE.md`) und `README.md`.
+  Fachdokumentation darf als `.md` unter `docs/` liegen (z. B. `docs/api-uebersicht.md`).
+  Bevor du eine neue `.md`-Datei anlegst: prüfe, ob der Inhalt nicht in `CLAUDE.md`, `README.md`
+  oder eine bestehende Datei unter `docs/` gehört. Eine neue Datei unter `docs/` nur anlegen, wenn
+  das Thema dort noch nicht abgedeckt ist, und sie dann nicht in `CLAUDE.md` duplizieren.
 - Kanonische Repo-URL für Issues/Discussions/Releases/Badges: `Revilo91/comfoclime` – keine
   Fork- oder Feature-Branch-URLs verwenden.
 - Setup-Befehle immer `uv sync --group dev` / `uv run ...` (kein `requirements_test.txt` mehr).
