@@ -9,6 +9,7 @@ or a raw API dict, which is why every accessor is tested against both shapes.
 from custom_components.comfoclime.entity_helper import (
     MODEL_TYPE_NAMES,
     _friendly_model_name,
+    alarm_sensor_unique_id,
     get_device_display_name,
     get_device_model_type,
     get_device_model_type_id,
@@ -103,6 +104,12 @@ class TestBusDeviceUniqueIds:
     def test_telemetry(self):
         assert telemetry_unique_id("entry", "UUID1", 4145) == "entry_telemetry_UUID1_4145"
         assert telemetry_unique_id("entry", "UUID1", "4145") == "entry_telemetry_UUID1_4145"
+
+    def test_alarm_sensor(self):
+        assert alarm_sensor_unique_id("entry", "UUID1") == "entry_alarms_UUID1"
+
+    def test_alarm_sensor_differs_per_device(self):
+        assert alarm_sensor_unique_id("entry", "UUID1") != alarm_sensor_unique_id("entry", "UUID2")
 
     def test_property_sensor(self):
         assert property_sensor_unique_id("entry", "UUID1", "29/1/10") == "entry_property_UUID1_29_1_10"

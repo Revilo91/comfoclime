@@ -201,6 +201,27 @@
             "uptime": {
                 "name": "Betriebsdauer"
             },
+            "health_free_memory": {
+                "name": "Freier Speicher"
+            },
+            "health_minimum_free_memory": {
+                "name": "Minimaler freier Speicher"
+            },
+            "health_largest_free_block": {
+                "name": "Größter freier Speicherblock"
+            },
+            "health_can_arbitration_lost": {
+                "name": "CAN-Arbitrierung verloren"
+            },
+            "health_can_tx_failed": {
+                "name": "CAN-Sendefehler"
+            },
+            "health_can_bus_errors": {
+                "name": "CAN-Busfehler"
+            },
+            "active_alarms": {
+                "name": "Aktive Alarme"
+            },
             "cooling_knee_point_temperature": {
                 "name": "Kühl-Knickpunkt Temperatur"
             },

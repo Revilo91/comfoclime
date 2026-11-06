@@ -27,10 +27,12 @@ from custom_components.comfoclime.entities.select_definitions import (
     SELECT_ENTITIES,
 )
 from custom_components.comfoclime.entities.sensor_definitions import (
+    ALARM_SENSORS,
     CONNECTED_DEVICE_DEFINITION_SENSORS,
     CONNECTED_DEVICE_PROPERTIES,
     CONNECTED_DEVICE_SENSORS,
     DASHBOARD_SENSORS,
+    HEALTH_SENSORS,
     MONITORING_SENSORS,
     THERMALPROFILE_SENSORS,
     SensorDefinition,
@@ -49,6 +51,8 @@ ALL_SENSOR_DEFS = [
     *DASHBOARD_SENSORS,
     *THERMALPROFILE_SENSORS,
     *MONITORING_SENSORS,
+    *HEALTH_SENSORS,
+    *ALARM_SENSORS,
     *_flat(CONNECTED_DEVICE_SENSORS),
     *_flat(CONNECTED_DEVICE_PROPERTIES),
     *_flat(CONNECTED_DEVICE_DEFINITION_SENSORS),

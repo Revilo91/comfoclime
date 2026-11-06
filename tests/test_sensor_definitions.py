@@ -604,3 +604,52 @@ class TestAgainstUpstreamProtocolDocs:
                     assert definition.state_class == SensorStateClass.TOTAL_INCREASING, (
                         f"{definition.name} is an energy counter and needs state_class total_increasing"
                     )
+
+
+class TestHealthAndAlarmSensorDefinitions:
+    """Health and alarm sensors are diagnostic extras and must stay opt-in."""
+
+    def test_health_keys_match_model_fields(self):
+        from custom_components.comfoclime.entities.sensor_definitions import HEALTH_SENSORS
+        from custom_components.comfoclime.models import MonitoringHealth
+
+        assert HEALTH_SENSORS, "expected at least one health sensor"
+        for sensor_def in HEALTH_SENSORS:
+            assert sensor_def.key in MonitoringHealth.model_fields, sensor_def.key
+
+    def test_health_sensors_are_diagnostic_and_disabled_by_default(self):
+        from custom_components.comfoclime.entities.base_definitions import enabled_by_default, entity_category_for
+        from custom_components.comfoclime.entities.sensor_definitions import ALARM_SENSORS, HEALTH_SENSORS
+
+        for sensor_def in [*HEALTH_SENSORS, *ALARM_SENSORS]:
+            assert entity_category_for(sensor_def) == "diagnostic", sensor_def.key
+            assert enabled_by_default(sensor_def) is False, sensor_def.key
+
+    def test_health_memory_sensors_use_bytes(self):
+        from custom_components.comfoclime.entities.sensor_definitions import HEALTH_SENSORS
+
+        by_key = {d.key: d for d in HEALTH_SENSORS}
+        for key in ("total_free_bytes", "minimum_free_bytes", "largest_free_block"):
+            assert by_key[key].unit == "B", key
+            assert by_key[key].device_class == "data_size", key
+            assert by_key[key].state_class == "measurement", key
+
+    def test_can_counters_only_ever_increase(self):
+        from custom_components.comfoclime.entities.sensor_definitions import HEALTH_SENSORS
+
+        by_key = {d.key: d for d in HEALTH_SENSORS}
+        for key in ("twai_arb_lost_count", "twai_tx_failed_count", "twai_bus_error_count"):
+            assert by_key[key].state_class == "total_increasing", key
+
+    def test_health_keys_are_unique(self):
+        from custom_components.comfoclime.entities.sensor_definitions import HEALTH_SENSORS
+
+        keys = [d.key for d in HEALTH_SENSORS]
+        assert len(keys) == len(set(keys))
+
+    def test_alarm_sensor_reads_active_error_count(self):
+        from custom_components.comfoclime.entities.sensor_definitions import ALARM_SENSORS
+        from custom_components.comfoclime.models import DeviceAlarms
+
+        assert [d.key for d in ALARM_SENSORS] == ["active_error_count"]
+        assert "active_error_count" in dir(DeviceAlarms)
