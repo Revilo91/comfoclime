@@ -122,32 +122,44 @@ class TestComfoClimeSensor:
         )
 
     def test_connected_device_links_to_main_device(
-        self, mock_hass, mock_coordinator, mock_api, mock_device, mock_connected_device, mock_config_entry
+        self,
+        mock_hass,
+        mock_coordinator,
+        mock_api,
+        mock_device,
+        mock_connected_device,
+        mock_config_entry,
+        make_runtime_data,
     ):
         """Separate bus products point at the ComfoClime registry device."""
-        mock_hass.data = {
-            "comfoclime": {"test_entry_id": {"main_device": mock_device, "main_device_registry_id": "registry-id-1"}}
-        }
+        mock_config_entry.runtime_data = make_runtime_data(
+            main_device=mock_device, main_device_registry_id="registry-id-1"
+        )
+        mock_hass.config_entries.async_get_entry.return_value = mock_config_entry
         sensor = self._make_sensor(mock_hass, mock_coordinator, mock_api, mock_connected_device, mock_config_entry)
         sensor.hass = mock_hass
 
         assert sensor.device_info["via_device_id"] == "registry-id-1"
 
-    def test_main_device_has_no_via_device(self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry):
+    def test_main_device_has_no_via_device(
+        self, mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry, make_runtime_data
+    ):
         """The ComfoClime device is the gateway and must not link to itself."""
-        mock_hass.data = {
-            "comfoclime": {"test_entry_id": {"main_device": mock_device, "main_device_registry_id": "registry-id-1"}}
-        }
+        mock_config_entry.runtime_data = make_runtime_data(
+            main_device=mock_device, main_device_registry_id="registry-id-1"
+        )
+        mock_hass.config_entries.async_get_entry.return_value = mock_config_entry
         sensor = self._make_sensor(mock_hass, mock_coordinator, mock_api, mock_device, mock_config_entry)
         sensor.hass = mock_hass
 
         assert "via_device_id" not in sensor.device_info
 
     def test_no_main_device_means_no_via_device(
-        self, mock_hass, mock_coordinator, mock_api, mock_connected_device, mock_config_entry
+        self, mock_hass, mock_coordinator, mock_api, mock_connected_device, mock_config_entry, make_runtime_data
     ):
         """Without a registered gateway there is nothing to link to, and nothing crashes."""
-        mock_hass.data = {"comfoclime": {"test_entry_id": {"main_device": None, "main_device_registry_id": None}}}
+        mock_config_entry.runtime_data = make_runtime_data(main_device=None, main_device_registry_id=None)
+        mock_hass.config_entries.async_get_entry.return_value = mock_config_entry
         sensor = self._make_sensor(mock_hass, mock_coordinator, mock_api, mock_connected_device, mock_config_entry)
         sensor.hass = mock_hass
 
@@ -515,6 +527,7 @@ async def test_async_setup_entry(
     mock_definition_coordinator,
     mock_device,
     mock_api,
+    make_runtime_data,
 ):
     """Test async_setup_entry for sensors."""
     # Setup mock data
@@ -528,21 +541,17 @@ async def test_async_setup_entry(
         timestamp=1705314600,
     )
 
-    mock_hass.data = {
-        "comfoclime": {
-            "test_entry_id": {
-                "api": mock_api,
-                "coordinator": mock_coordinator,
-                "tpcoordinator": mock_thermalprofile_coordinator,
-                "monitoringcoordinator": mock_monitoring_coordinator,
-                "tlcoordinator": mock_telemetry_coordinator,
-                "propcoordinator": mock_property_coordinator,
-                "definitioncoordinator": mock_definition_coordinator,
-                "devices": [mock_device],
-                "main_device": mock_device,
-            }
-        }
-    }
+    mock_config_entry.runtime_data = make_runtime_data(
+        api=mock_api,
+        coordinator=mock_coordinator,
+        tpcoordinator=mock_thermalprofile_coordinator,
+        monitoringcoordinator=mock_monitoring_coordinator,
+        tlcoordinator=mock_telemetry_coordinator,
+        propcoordinator=mock_property_coordinator,
+        definitioncoordinator=mock_definition_coordinator,
+        devices=[mock_device],
+        main_device=mock_device,
+    )
 
     async_add_entities = MagicMock()
 
@@ -563,6 +572,7 @@ async def test_async_setup_entry_skips_diagnostic_telemetry_when_disabled(
     mock_definition_coordinator,
     mock_device,
     mock_api,
+    make_runtime_data,
 ):
     """Diagnostic telemetry sensors must not be registered when diagnostics are disabled."""
     mock_api.uuid = "test-device-uuid"
@@ -577,21 +587,17 @@ async def test_async_setup_entry_skips_diagnostic_telemetry_when_disabled(
         timestamp=1705314600,
     )
 
-    mock_hass.data = {
-        "comfoclime": {
-            "test_entry_id": {
-                "api": mock_api,
-                "coordinator": mock_coordinator,
-                "tpcoordinator": mock_thermalprofile_coordinator,
-                "monitoringcoordinator": mock_monitoring_coordinator,
-                "tlcoordinator": mock_telemetry_coordinator,
-                "propcoordinator": mock_property_coordinator,
-                "definitioncoordinator": mock_definition_coordinator,
-                "devices": [mock_device],
-                "main_device": mock_device,
-            }
-        }
-    }
+    mock_config_entry.runtime_data = make_runtime_data(
+        api=mock_api,
+        coordinator=mock_coordinator,
+        tpcoordinator=mock_thermalprofile_coordinator,
+        monitoringcoordinator=mock_monitoring_coordinator,
+        tlcoordinator=mock_telemetry_coordinator,
+        propcoordinator=mock_property_coordinator,
+        definitioncoordinator=mock_definition_coordinator,
+        devices=[mock_device],
+        main_device=mock_device,
+    )
 
     async_add_entities = MagicMock()
     await async_setup_entry(mock_hass, mock_config_entry, async_add_entities)

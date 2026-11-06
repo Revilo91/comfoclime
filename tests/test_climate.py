@@ -717,19 +717,16 @@ async def test_async_setup_entry(
     mock_coordinator,
     mock_thermalprofile_coordinator,
     mock_device,
+    make_runtime_data,
 ):
     """Test async_setup_entry for climate entity."""
     # Setup mock data
-    mock_hass.data = {
-        "comfoclime": {
-            "test_entry_id": {
-                "api": mock_api,
-                "coordinator": mock_coordinator,
-                "tpcoordinator": mock_thermalprofile_coordinator,
-                "main_device": mock_device,
-            }
-        }
-    }
+    mock_config_entry.runtime_data = make_runtime_data(
+        api=mock_api,
+        coordinator=mock_coordinator,
+        tpcoordinator=mock_thermalprofile_coordinator,
+        main_device=mock_device,
+    )
 
     async_add_entities = MagicMock()
 
@@ -746,19 +743,13 @@ async def test_async_setup_entry_no_main_device(
     mock_api,
     mock_coordinator,
     mock_thermalprofile_coordinator,
+    make_runtime_data,
 ):
     """Test async_setup_entry when no main device exists."""
     # Setup mock data without main device
-    mock_hass.data = {
-        "comfoclime": {
-            "test_entry_id": {
-                "api": mock_api,
-                "coordinator": mock_coordinator,
-                "tpcoordinator": mock_thermalprofile_coordinator,
-                "main_device": None,
-            }
-        }
-    }
+    mock_config_entry.runtime_data = make_runtime_data(
+        api=mock_api, coordinator=mock_coordinator, tpcoordinator=mock_thermalprofile_coordinator, main_device=None
+    )
 
     async_add_entities = MagicMock()
 
@@ -776,6 +767,7 @@ async def test_async_setup_entry_without_main_device(
     mock_coordinator,
     mock_thermalprofile_coordinator,
     mock_device,
+    make_runtime_data,
 ):
     """Without a ComfoClime on the bus there is nothing for climate to control.
 
@@ -783,16 +775,9 @@ async def test_async_setup_entry_without_main_device(
     remaining reason to skip setup is that no main device was discovered.
     """
     mock_config_entry.options = {}
-    mock_hass.data = {
-        "comfoclime": {
-            "test_entry_id": {
-                "api": mock_api,
-                "coordinator": mock_coordinator,
-                "tpcoordinator": mock_thermalprofile_coordinator,
-                "main_device": None,
-            }
-        }
-    }
+    mock_config_entry.runtime_data = make_runtime_data(
+        api=mock_api, coordinator=mock_coordinator, tpcoordinator=mock_thermalprofile_coordinator, main_device=None
+    )
 
     async_add_entities = MagicMock()
 

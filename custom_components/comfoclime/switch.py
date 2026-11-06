@@ -10,7 +10,6 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from . import DOMAIN
 from .entities.switch_definitions import SWITCHES
 from .entity_base import ComfoClimeBaseEntity
 
@@ -25,16 +24,19 @@ if TYPE_CHECKING:
         ComfoClimeThermalprofileCoordinator,
     )
     from .models import DeviceConfig
+    from .runtime_data import ComfoClimeConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
-    data = hass.data[DOMAIN][entry.entry_id]
-    api = data["api"]
-    tpcoordinator = data["tpcoordinator"]
-    dbcoordinator = data["coordinator"]
-    main_device = data["main_device"]
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ComfoClimeConfigEntry, async_add_entities: AddEntitiesCallback
+) -> None:
+    data = entry.runtime_data
+    api = data.api
+    tpcoordinator = data.tpcoordinator
+    dbcoordinator = data.coordinator
+    main_device = data.main_device
 
     # Note: Coordinator first refresh is already done in __init__.py
     # We don't need to await it here to avoid blocking switch setup

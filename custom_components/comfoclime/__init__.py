@@ -30,6 +30,7 @@ from .coordinator import (
 )
 from .entity_helper import get_device_info_fields, get_device_model_type_id, get_device_uuid
 from .migration import matches, unique_ids_to_disable
+from .runtime_data import ComfoClimeConfigEntry, ComfoClimeRuntimeData
 from .services import async_setup_services
 
 if TYPE_CHECKING:
@@ -128,7 +129,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     return True  # wir nutzen keine YAML-Konfiguration mehr
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: ComfoClimeConfigEntry) -> bool:
     """Set up ComfoClime from a config entry.
 
     Args:
@@ -141,8 +142,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     Raises:
         ConfigEntryNotReady: If device cannot be reached or initialized
     """
-    hass.data.setdefault(DOMAIN, {})
-
     host = entry.data["host"]
     _LOGGER.debug("Setting up ComfoClime integration for host: %s", host)
 
@@ -318,18 +317,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
 
     main_device = next((d for d in devices if get_device_model_type_id(d) == 20), None)
-    hass.data[DOMAIN][entry.entry_id] = {
-        "api": api,
-        "coordinator": dashboard_coordinator,
-        "tpcoordinator": thermalprofile_coordinator,
-        "monitoringcoordinator": monitoring_coordinator,
-        "tlcoordinator": tlcoordinator,
-        "propcoordinator": propcoordinator,
-        "definitioncoordinator": definitioncoordinator,
-        "devices": devices,
-        "main_device": main_device,
-        "main_device_registry_id": _register_main_device(hass, entry, main_device),
-    }
+    entry.runtime_data = ComfoClimeRuntimeData(
+        api=api,
+        coordinator=dashboard_coordinator,
+        tpcoordinator=thermalprofile_coordinator,
+        monitoringcoordinator=monitoring_coordinator,
+        tlcoordinator=tlcoordinator,
+        propcoordinator=propcoordinator,
+        definitioncoordinator=definitioncoordinator,
+        devices=devices,
+        main_device=main_device,
+        main_device_registry_id=_register_main_device(hass, entry, main_device),
+    )
 
     _remove_legacy_access_tracking_entities(hass, entry)
 
@@ -357,7 +356,7 @@ def _register_main_device(hass: HomeAssistant, entry: ConfigEntry, main_device) 
     return device_entry.id
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: ComfoClimeConfigEntry) -> bool:
     """Unload a config entry.
 
     Args:
@@ -370,10 +369,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
     # Close the API session
-    if unload_ok and DOMAIN in hass.data and entry.entry_id in hass.data[DOMAIN]:
-        api = hass.data[DOMAIN][entry.entry_id].get("api")
-        if api:
-            await api.close()
-
-        hass.data[DOMAIN].pop(entry.entry_id, None)
+    if unload_ok:
+        await entry.runtime_data.api.close()
     return unload_ok

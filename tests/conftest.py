@@ -25,6 +25,7 @@ from custom_components.comfoclime.models import (
     ThermalProfileData,
     ThermalProfileUpdateResponse,
 )
+from custom_components.comfoclime.runtime_data import ComfoClimeRuntimeData
 
 
 @dataclass
@@ -239,6 +240,8 @@ def mock_hass():
     """Create a mock Home Assistant instance."""
     hass = MagicMock(spec=HomeAssistant)
     hass.data = {}
+    hass.config_entries = MagicMock()
+    hass.config_entries.async_get_entry.return_value = None
     hass.loop = None
     hass.async_create_task = MagicMock()
     hass.add_job = MagicMock()
@@ -268,6 +271,29 @@ def mock_config_entry():
     entry.data = {"host": "192.168.1.100"}
     entry.options = {}
     return entry
+
+
+@pytest.fixture
+def make_runtime_data():
+    """Return a factory building ``ComfoClimeRuntimeData`` with mocks for unspecified fields."""
+
+    def _factory(**overrides: Any) -> ComfoClimeRuntimeData:
+        fields: dict[str, Any] = {
+            "api": MagicMock(),
+            "coordinator": MagicMock(),
+            "tpcoordinator": MagicMock(),
+            "monitoringcoordinator": MagicMock(),
+            "tlcoordinator": MagicMock(),
+            "propcoordinator": MagicMock(),
+            "definitioncoordinator": MagicMock(),
+            "devices": [],
+            "main_device": None,
+            "main_device_registry_id": None,
+        }
+        fields.update(overrides)
+        return ComfoClimeRuntimeData(**fields)
+
+    return _factory
 
 
 @pytest.fixture

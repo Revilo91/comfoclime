@@ -63,8 +63,8 @@ if TYPE_CHECKING:
         ComfoClimeDashboardCoordinator,
         ComfoClimeThermalprofileCoordinator,
     )
+    from .runtime_data import ComfoClimeConfigEntry
 
-from . import DOMAIN
 from .constants import FanSpeed, ScenarioMode, Season, TemperatureProfile
 from .entity_base import ComfoClimeBaseEntity
 from .models import DashboardUpdate, DeviceConfig
@@ -130,7 +130,7 @@ HVAC_MODE_REVERSE_MAPPING = {
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    config_entry: ConfigEntry,
+    config_entry: ComfoClimeConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up ComfoClime climate entity from a config entry.
@@ -148,11 +148,11 @@ async def async_setup_entry(
         Only one climate entity is created per integration instance,
         representing the main ComfoClime device.
     """
-    data = hass.data[DOMAIN][config_entry.entry_id]
-    api: ComfoClimeAPI = data["api"]
-    dashboard_coordinator: ComfoClimeDashboardCoordinator = data["coordinator"]
-    thermalprofile_coordinator: ComfoClimeThermalprofileCoordinator = data["tpcoordinator"]
-    main_device: DeviceConfig | None = data.get("main_device")
+    data = config_entry.runtime_data
+    api: ComfoClimeAPI = data.api
+    dashboard_coordinator: ComfoClimeDashboardCoordinator = data.coordinator
+    thermalprofile_coordinator: ComfoClimeThermalprofileCoordinator = data.tpcoordinator
+    main_device: DeviceConfig | None = data.main_device
 
     if not main_device:
         _LOGGER.warning("No main device found - cannot create climate entity")

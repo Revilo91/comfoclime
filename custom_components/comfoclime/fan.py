@@ -42,8 +42,8 @@ if TYPE_CHECKING:
 
     from .comfoclime_api import ComfoClimeAPI
     from .coordinator import ComfoClimeDashboardCoordinator
+    from .runtime_data import ComfoClimeConfigEntry
 
-from . import DOMAIN
 from .constants import FanSpeed
 from .entity_base import ComfoClimeBaseEntity
 from .models import DashboardUpdate, DeviceConfig
@@ -115,7 +115,9 @@ class ComfoClimeFan(ComfoClimeBaseEntity, CoordinatorEntity, FanEntity):
         self.async_write_ha_state()
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ComfoClimeConfigEntry, async_add_entities: AddEntitiesCallback
+) -> None:
     """Set up ComfoClime fan entity from a config entry.
 
     Creates the fan entity for controlling the ComfoClime ventilation
@@ -130,19 +132,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     Note:
         Only one fan entity is created per integration instance.
     """
-    try:
-        data = hass.data[DOMAIN][entry.entry_id]
-        api = data["api"]
-        main_device = data["main_device"]
-        coordinator = data["coordinator"]
-        if not main_device:
-            _LOGGER.warning("No main device with modelTypeId 20 found")
-            return
+    data = entry.runtime_data
+    if not data.main_device:
+        _LOGGER.warning("No main device with modelTypeId 20 found")
+        return
 
-        # Note: Coordinator first refresh is already done in __init__.py
-        # We don't need to await it here to avoid blocking fan setup
-        fan_entity = ComfoClimeFan(hass, coordinator, api, main_device, entry)
-        async_add_entities([fan_entity], True)
-
-    except KeyError:
-        _LOGGER.exception("Error during fan entity setup")
+    # Note: Coordinator first refresh is already done in __init__.py
+    # We don't need to await it here to avoid blocking fan setup
+    fan_entity = ComfoClimeFan(hass, data.coordinator, data.api, data.main_device, entry)
+    async_add_entities([fan_entity], True)
