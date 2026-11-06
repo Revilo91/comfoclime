@@ -80,7 +80,7 @@ def _get_api_for_device(hass: HomeAssistant, domain: str, device: dr.DeviceEntry
     Raises HomeAssistantError when no loaded entry is found.
     """
     for entry in hass.config_entries.async_loaded_entries(domain):
-        if entry.entry_id in device.config_entries:
+        if entry.entry_id == device.config_entry_id:
             return entry.runtime_data.api
     raise HomeAssistantError("Keine geladene ComfoClime-Integration für das Gerät gefunden")
 

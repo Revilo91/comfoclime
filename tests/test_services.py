@@ -50,10 +50,14 @@ def _make_api() -> MagicMock:
     return api
 
 
-def _make_device(entry_ids: set[str] | None = None, identifiers: set | None = None) -> MagicMock:
-    """Return a mock device registry entry."""
-    device = MagicMock()
-    device.config_entries = entry_ids or {"entry1"}
+def _make_device(entry_id: str = "entry1", identifiers: set | None = None) -> MagicMock:
+    """Return a mock device registry entry.
+
+    Spec'd without ``config_entries``: that property is deprecated since HA 2026.10
+    (devices belong to exactly one entry), so reading it must fail the test.
+    """
+    device = MagicMock(spec=["config_entry_id", "identifiers"])
+    device.config_entry_id = entry_id
     device.identifiers = identifiers or {(DOMAIN, "device-uuid-123")}
     return device
 
@@ -105,7 +109,7 @@ def test_get_api_for_device_matches_config_entry():
     """_get_api_for_device returns the API for the device's config entry."""
     api = _make_api()
     hass = _make_hass({"entry1": api})
-    device = _make_device(entry_ids={"entry1"})
+    device = _make_device(entry_id="entry1")
     result = _get_api_for_device(hass, DOMAIN, device)
     assert result is api
 
@@ -115,7 +119,7 @@ def test_get_api_for_device_raises_when_no_matching_entry():
     from homeassistant.exceptions import HomeAssistantError
 
     hass = _make_hass({"entry2": _make_api()})
-    device = _make_device(entry_ids={"entry1"})  # entry1 is not in domain data
+    device = _make_device(entry_id="entry1")  # entry1 is not in domain data
     with pytest.raises(HomeAssistantError):
         _get_api_for_device(hass, DOMAIN, device)
 
@@ -157,7 +161,7 @@ async def test_set_property_calls_api():
     api = _make_api()
     hass = _make_hass({"entry1": api})
 
-    device = _make_device(entry_ids={"entry1"}, identifiers={(DOMAIN, "dev-uuid")})
+    device = _make_device(entry_id="entry1", identifiers={(DOMAIN, "dev-uuid")})
 
     call = MagicMock()
     call.data = {
@@ -272,7 +276,7 @@ async def test_set_property_wrong_domain_raises():
         "faktor": 1.0,
     }
 
-    device = _make_device(entry_ids={"entry1"}, identifiers={("other_integration", "dev-uuid")})
+    device = _make_device(entry_id="entry1", identifiers={("other_integration", "dev-uuid")})
 
     async_setup_services(hass, DOMAIN)
     handler = next(c[0][2] for c in hass.services.async_register.call_args_list if c[0][1] == "set_property")
